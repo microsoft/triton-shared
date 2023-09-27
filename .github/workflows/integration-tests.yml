@@ -27,6 +27,11 @@ jobs:
         path: triton/third_party/triton_shared
         submodules: 'recursive'
 
+    - name: peak at our files
+      run: |
+        cd  ${{github.workspace}}/triton/third_party/triton_shared
+        ls
+        ls .github/workflows
 
      
    # - name: Configure CMake
