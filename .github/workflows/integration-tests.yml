@@ -1,0 +1,59 @@
+name: Integration Tests
+
+on:
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build_and_test_triton_shared:
+    runs-on: ubuntu-latest
+
+    steps:
+
+    - name: Checkout Triton
+      uses: actions/checkout@v4
+      with:
+        repository: 'openai/triton'
+        ref: '215b2e77a1d92f907bc4addfa3c3ba204028c32e' # known good commit "Add Shared Middle Layer to Triton via Plug-In"
+        path: triton
+        submodules: 'recursive'
+
+    - name: Checkout Triton-Shared
+      uses: actions/checkout@v4
+      with:
+        path: triton/third_party/triton_shared
+
+    - name: Clear Triton Cache
+      run: |
+        rm -rf ~/.triton
+
+    - name: Update PATH
+      run: |
+        echo "PATH=${HOME}/.local/bin:${PATH}" >> "${GITHUB_ENV}"
+
+    - name: Check pre-commit
+      run: |
+        cd triton
+        python3 -m pip install --upgrade pre-commit
+        python3 -m pre_commit run --all-files --verbose
+
+    - name: Build/Install Triton
+      run: |
+        export TRITON_CODEGEN_TRITON_SHARED=1
+        cd triton/python
+        python3 -m pip install --upgrade pip
+        python3 -m pip install cmake==3.24
+        python3 -m pip install ninja
+        python3 -m pip uninstall -y triton
+        python3 setup.py build
+        python3 -m pip install --no-build-isolation -vvv '.[tests]'
+
+    - name: Run shared middle-layer lit tests
+      run: |
+        python3 -m pip install lit
+        cd triton/python
+        LIT_TEST_DIR="build/$(ls build | grep -i cmake)/third_party/triton_shared/test"
+        if [ ! -d "${LIT_TEST_DIR}" ]; then
+          echo "Coult not find '${LIT_TEST_DIR}'" ; exit -1
+        fi
+        lit -v "${LIT_TEST_DIR}"
