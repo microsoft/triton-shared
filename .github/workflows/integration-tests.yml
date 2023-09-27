@@ -5,7 +5,7 @@ on:
     branches: [ "main" ]
 
 jobs:
-  build:
+  build_and_test_triton_shared:
     # The CMake configure and build commands are platform agnostic and should work equally well on Windows or Mac.
     # You can convert this to a matrix build if you need cross-platform coverage.
     # See: https://docs.github.com/en/free-pro-team@latest/actions/learn-github-actions/managing-complex-workflows#using-a-build-matrix
@@ -26,7 +26,7 @@ jobs:
       with:
         path: triton/third_party/triton_shared
 
-    - name: Clear cache
+    - name: Clear Triton Cache
       run: |
         rm -rf ~/.triton
 
@@ -40,7 +40,7 @@ jobs:
         python3 -m pip install --upgrade pre-commit
         python3 -m pre_commit run --all-files --verbose
 
-    - name: Install Triton
+    - name: Build/Install Triton
       run: |
         export TRITON_CODEGEN_TRITON_SHARED=1
         cd triton/python
