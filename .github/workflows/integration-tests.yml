@@ -25,27 +25,38 @@ jobs:
       uses: actions/checkout@v4
       with:
         path: triton/third_party/triton_shared
-        submodules: 'recursive'
 
-    - name: peak at our files
+    - name: Clear cache
       run: |
-        cd  ${{github.workspace}}/triton/third_party/triton_shared
-        ls
-        ls .github/workflows
+        rm -rf ~/.triton
 
-     
-   # - name: Configure CMake
-      # Configure CMake in a 'build' subdirectory. `CMAKE_BUILD_TYPE` is only required if you are using a single-configuration generator such as make.
-      # See https://cmake.org/cmake/help/latest/variable/CMAKE_BUILD_TYPE.html?highlight=cmake_build_type
-    #  run: cmake -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}}
+    - name: Update PATH
+      run: |
+        echo "PATH=${HOME}/.local/bin:${PATH}" >> "${GITHUB_ENV}"
 
- #   - name: Build
-      # Build your program with the given configuration
- #     run: cmake --build ${{github.workspace}}/build --config ${{env.BUILD_TYPE}}
+    - name: Check pre-commit
+      run: |
+        python3 -m pip install --upgrade pre-commit
+        python3 -m pre_commit run --all-files --verbose
 
- #   - name: Test
-#      working-directory: ${{github.workspace}}/build
-      # Execute tests defined by the CMake configuration.
-      # See https://cmake.org/cmake/help/latest/manual/ctest.1.html for more detail
- #     run: ctest -C ${{env.BUILD_TYPE}}
+    - name: Install Triton
+      run: |
+        export TRITON_CODEGEN_TRITON_SHARED=1
+        git submodule update --init --recursive
+        cd python
+        python3 -m pip install --upgrade pip
+        python3 -m pip install cmake==3.24
+        python3 -m pip install ninja
+        python3 -m pip uninstall -y triton
+        python3 setup.py build
+        python3 -m pip install --no-build-isolation -vvv '.[tests]'
 
+    - name: Run shared middle-layer lit tests
+      run: |
+        python3 -m pip install lit
+        cd python
+        LIT_TEST_DIR="build/$(ls build | grep -i cmake)/third_party/triton_shared/test"
+        if [ ! -d "${LIT_TEST_DIR}" ]; then
+          echo "Coult not find '${LIT_TEST_DIR}'" ; exit -1
+        fi
+        lit -v "${LIT_TEST_DIR}"
