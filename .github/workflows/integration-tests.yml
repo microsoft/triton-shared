@@ -21,11 +21,12 @@ jobs:
         path: triton
         submodules: 'recursive'
 
-    - name: Update Triton to point at this build
-      run: |
-        cd ${{github.workspace}}/triton/third_party/triton_shared
-        git fetch
-        git switch ${{ github.sha }}
+    - name: Checkout Triton-Shared
+      uses: actions/checkout@v4
+      with:
+        path: triton/third_party/triton_shared
+        submodules: 'recursive'
+
 
      
    # - name: Configure CMake
