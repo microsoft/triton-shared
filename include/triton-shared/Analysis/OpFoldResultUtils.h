@@ -1,6 +1,7 @@
 //===----------------------------------------------------------------------===//
 //
-// Copyright (c) Triton Project Contributors.
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT license.
 //
 //===----------------------------------------------------------------------===//
 
