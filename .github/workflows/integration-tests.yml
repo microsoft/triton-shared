@@ -23,7 +23,8 @@ jobs:
     - name: Update Triton to point at this build
       run: |
         cd ${{github.workspace}}/triton/third_party/triton_shared
-        git switch ${{ github.sha }}
+        git fetch
+        git switch ${{ github.ref }}
 
      
    # - name: Configure CMake
