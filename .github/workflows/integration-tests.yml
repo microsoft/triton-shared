@@ -19,6 +19,7 @@ jobs:
         repository: 'openai/triton'
         ref: '215b2e77a1d92f907bc4addfa3c3ba204028c32e' # known good commit "Add Shared Middle Layer to Triton via Plug-In"
         path: triton
+        submodules: 'recursive'
 
     - name: Update Triton to point at this build
       run: |
