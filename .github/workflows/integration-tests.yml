@@ -36,14 +36,14 @@ jobs:
 
     - name: Check pre-commit
       run: |
+        cd triton
         python3 -m pip install --upgrade pre-commit
         python3 -m pre_commit run --all-files --verbose
 
     - name: Install Triton
       run: |
         export TRITON_CODEGEN_TRITON_SHARED=1
-        git submodule update --init --recursive
-        cd python
+        cd triton/python
         python3 -m pip install --upgrade pip
         python3 -m pip install cmake==3.24
         python3 -m pip install ninja
@@ -54,7 +54,7 @@ jobs:
     - name: Run shared middle-layer lit tests
       run: |
         python3 -m pip install lit
-        cd python
+        cd triton/python
         LIT_TEST_DIR="build/$(ls build | grep -i cmake)/third_party/triton_shared/test"
         if [ ! -d "${LIT_TEST_DIR}" ]; then
           echo "Coult not find '${LIT_TEST_DIR}'" ; exit -1
