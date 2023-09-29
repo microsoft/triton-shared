@@ -1,0 +1,12 @@
+name: Nightly Tests
+
+on:
+  schedule:
+    - cron: '23 10 * * *'  # random time in the middle of the night PT
+
+jobs:
+  call-workflow:
+    uses: ./.github/workflows/test-plugin.yml
+    with:
+        triton-ref: 'main'
+        triton-shared-ref: 'main'
