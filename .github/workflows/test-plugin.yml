@@ -9,6 +9,14 @@ on:
       triton-shared-ref:
         required: true
         type: string
+  workflow_dispatch:
+    inputs:
+      triton-ref:
+        required: true
+        type: string
+      triton-shared-ref:
+        required: true
+        type: string
 
 jobs:
   build_and_test_triton_shared:
@@ -16,7 +24,7 @@ jobs:
 
     steps:
 
-    - name: Checkout Triton at ${{ inputs.triton-ref }}
+    - name: Checkout Triton
       uses: actions/checkout@v4
       with:
         repository: 'openai/triton'
