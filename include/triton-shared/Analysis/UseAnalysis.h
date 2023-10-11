@@ -48,8 +48,9 @@ struct UseInfo : public dataflow::AbstractSparseLattice {
       }
     case UseType::MixUse:
       return ChangeResult::NoChange;
+    default:
+      llvm_unreachable("bad type");
     }
-    llvm_unreachable("bad type");
   }
 
   ChangeResult meet(const AbstractSparseLattice &other) override {
