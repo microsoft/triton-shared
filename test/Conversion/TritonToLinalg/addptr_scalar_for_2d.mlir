@@ -54,7 +54,7 @@ module {
   }
 }
 // CHECK-LABEL:   func.func @kernel(
-// CHECK-SAME:                      %[[VAL_0:.*]]: memref<*xf32> {tt.divisibility = 16 : i32}, %[[VAL_1:.*]]: memref<*xf32> {tt.divisibility = 16 : i32}, %[[VAL_2:.*]]: i32, %[[VAL_3:.*]]: i32, %[[VAL_4:.*]]: i32, %[[VAL_5:.*]]: i32, %[[VAL_6:.*]]: i32, %[[VAL_7:.*]]: i32) {
+// CHECK-SAME:                      %[[VAL_0:.*]]: memref<*xf32> {tt.divisibility = 16 : i32}, %[[VAL_1:.*]]: memref<*xf32> {tt.divisibility = 16 : i32}, %[[VAL_2:.*]]: i32, %[[VAL_3:.*]]: i32, %[[VAL_4:.*]]: i32, %[[ARG_5:.*]]: i32, %[[ARG_6:.*]]: i32, %[[ARG_7:.*]]: i32, %[[ARG_8:.*]]: i32, %[[ARG_9:.*]]: i32, %[[ARG_10:.*]]: i32) {
 // CHECK-DAG:           %[[VAL_8:.*]] = arith.constant 128 : index
 // CHECK-DAG:           %[[VAL_9:.*]] = arith.constant 3 : index
 // CHECK-DAG:           %[[VAL_10:.*]] = arith.constant 12 : index
@@ -62,7 +62,7 @@ module {
 // CHECK-DAG:           %[[VAL_12:.*]] = arith.constant 0.000000e+00 : f32
 // CHECK:           %[[VAL_15:.*]] = tensor.empty() : tensor<128x128xf32>
 // CHECK:           %[[VAL_16:.*]] = linalg.fill ins(%[[VAL_12]] : f32) outs(%[[VAL_15]] : tensor<128x128xf32>) -> tensor<128x128xf32>
-// CHECK:           %[[VAL_13:.*]] = arith.muli %[[VAL_5]], %[[VAL_2]] : i32
+// CHECK:           %[[VAL_13:.*]] = arith.muli %[[ARG_8]], %[[VAL_2]] : i32
 // CHECK:           %[[VAL_14:.*]] = arith.index_cast %[[VAL_13]] : i32 to index
 // CHECK:           %[[VAL_17:.*]]:2 = scf.for %[[VAL_18:.*]] = %[[VAL_11]] to %[[VAL_10]] step %[[VAL_9]] iter_args(%[[VAL_19:.*]] = %[[VAL_16]], %[[VAL_20:.*]] = %[[VAL_14]]) -> (tensor<128x128xf32>, index) {
 // CHECK:             %[[VAL_21:.*]] = arith.addi %[[VAL_20]], %[[VAL_8]] : index
@@ -83,7 +83,7 @@ module {
 // CHECK:             %[[VAL_35:.*]] = arith.addi %[[VAL_20]], %[[VAL_18]] : index
 // CHECK:             scf.yield %[[VAL_36:.*]], %[[VAL_35]] : tensor<128x128xf32>, index
 // CHECK:           }
-// CHECK:           %[[VAL_37:.*]] = arith.muli %[[VAL_5]], %[[VAL_3]] : i32
+// CHECK:           %[[VAL_37:.*]] = arith.muli %[[ARG_8]], %[[VAL_3]] : i32
 // CHECK:           %[[VAL_38:.*]] = arith.index_cast %[[VAL_37]] : i32 to index
 // CHECK:           %[[VAL_39:.*]] = arith.addi %[[VAL_38]], %[[VAL_8]] : index
 // CHECK:           %[[VAL_40:.*]] = memref.reinterpret_cast %[[VAL_0]] to offset: {{\[}}%[[VAL_39]]], sizes: [128, 128], strides: [2, 1] : memref<*xf32> to memref<128x128xf32, strided<[2, 1], offset: ?>>

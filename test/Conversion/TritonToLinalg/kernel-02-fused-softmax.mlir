@@ -40,22 +40,22 @@ module {
 
 // CHECK-DAG:   [[MAP_0_:#.+]] = affine_map<(d0) -> (d0)>
 // CHECK-LABEL:  func.func @softmax_kernel_012345
-// CHECK-SAME:   ([[PARAM_0_:%.+]]: memref<*xf32>, [[PARAM_1_:%.+]]: memref<*xf32>, [[PARAM_2_:%.+]]: i32, [[PARAM_3_:%.+]]: i32, [[PARAM_4_:%.+]]: i32, [[PARAM_5_:%.+]]: i32, [[PARAM_6_:%.+]]: i32, [[PARAM_7_:%.+]]: i32) {
+// CHECK-SAME:   ([[PARAM_0_:%.+]]: memref<*xf32>, [[PARAM_1_:%.+]]: memref<*xf32>, [[PARAM_2_:%.+]]: i32, [[PARAM_3_:%.+]]: i32, [[PARAM_4_:%.+]]: i32, [[PARAM_5_:%.+]]: i32, [[PARAM_6_:%.+]]: i32, [[PARAM_7_:%.+]]: i32, [[PARAM_8_:%.+]]: i32, [[PARAM_9_:%.+]]: i32, [[PARAM_10_:%.+]]: i32) {
 // CHECK-DAG:       [[CST_0_dot_000000_:%.+]] = arith.constant 0.000000e+00 : f32
 // CHECK-DAG:       [[CST_128_:%.+]] = arith.constant 128 : index
 // CHECK-DAG:       [[CST_0_:%.+]] = arith.constant 0xFF800000 : f32
-// CHECK-DAG:       [[VAR_0_:%.+]] = arith.muli [[PARAM_5_]], [[PARAM_2_]] : i32
+// CHECK-DAG:       [[VAR_0_:%.+]] = arith.muli [[PARAM_8_]], [[PARAM_2_]] : i32
 // CHECK:           [[VAR_1_:%.+]] = arith.index_cast [[VAR_0_]] : i32 to index
 // CHECK-DAG:       [[VAR_reinterpret_cast_:%.+]] = memref.reinterpret_cast [[PARAM_1_]] to offset: {{.}}[[VAR_1_]]{{.}}, sizes: [128], strides: [1]{{.*}} : memref<*xf32> to memref<128xf32, strided<[1], offset: ?>>
 // CHECK-DAG:       [[RES_:%.+]] = memref.alloc() : memref<128xf32>
 // CHECK-DAG:       [[VAR_2_:%.+]] = arith.index_cast [[PARAM_4_]] : i32 to index
 // CHECK:           [[VAR_3_:%.+]] = arith.minsi [[VAR_2_]], [[CST_128_]] : index
-// CHECK-DAG:       [[VAR_subview_:%.+]] = memref.subview [[VAR_reinterpret_cast_]][0] {{.}}[[VAR_3_]]{{.}} [1]{{.*}} : memref<128xf32, strided<[1], offset: ?>> to memref<?xf32, strided<[1], offset: ?>>
-// CHECK-DAG:       [[VAR_subview_1_:%.+]] = memref.subview [[RES_]][0] {{.}}[[VAR_3_]]{{.}} [1] : memref<128xf32> to memref<?xf32, strided<[1]>>
 // CHECK-DAG:       [[VAR_4_:%.+]] = arith.cmpi slt, [[VAR_3_]], [[CST_128_]] : index
 // CHECK:           scf.if [[VAR_4_]] {
 // CHECK:             linalg.fill ins([[CST_0_]] : f32) outs([[RES_]] : memref<128xf32>)
 // CHECK:           }
+// CHECK-DAG:       [[VAR_subview_:%.+]] = memref.subview [[VAR_reinterpret_cast_]][0] {{.}}[[VAR_3_]]{{.}} [1]{{.*}} : memref<128xf32, strided<[1], offset: ?>> to memref<?xf32, strided<[1], offset: ?>>
+// CHECK-DAG:       [[VAR_subview_1_:%.+]] = memref.subview [[RES_]][0] {{.}}[[VAR_3_]]{{.}} [1] : memref<128xf32> to memref<?xf32, strided<[1]>>
 // CHECK:           memref.copy [[VAR_subview_]], [[VAR_subview_]]_1 : memref<?xf32, strided<[1], offset: ?>> to memref<?xf32, strided<[1]>>
 // CHECK-DAG:       [[VAR_5_:%.+]] = bufferization.to_tensor [[RES_]] restrict writable : memref<128xf32>
 // CHECK-DAG:       [[VAR_6_:%.+]] = bufferization.alloc_tensor() : tensor<f32>
@@ -93,7 +93,7 @@ module {
 // CHECK:             [[VAR_19_4_:%.+]] = arith.divf [[in_1]], [[in_2]] : f32
 // CHECK:             linalg.yield [[VAR_19_4_]] : f32
 // CHECK:           } -> tensor<128xf32>
-// CHECK:           [[VAR_15_:%.+]] = arith.muli [[PARAM_5_]], [[PARAM_3_]] : i32
+// CHECK:           [[VAR_15_:%.+]] = arith.muli [[PARAM_8_]], [[PARAM_3_]] : i32
 // CHECK:           [[VAR_16_:%.+]] = arith.index_cast [[VAR_15_]] : i32 to index
 // CHECK-DAG:       [[VAR_reinterpret_cast_5_:%.+]] = memref.reinterpret_cast [[PARAM_0_]] to offset: {{.}}[[VAR_16_]]{{.}}, sizes: [128], strides: [1]{{.*}} : memref<*xf32> to memref<128xf32, strided<[1], offset: ?>>
 // CHECK-DAG:       [[VAR_17_:%.+]] = arith.index_cast [[PARAM_4_]] : i32 to index

@@ -14,6 +14,8 @@
 
 #include "triton/Dialect/Triton/IR/Dialect.h"
 
+#include <utility>
+
 namespace mlir {
 
 class ConversionPatternRewriter;
@@ -63,6 +65,16 @@ struct MaskState {
 
   memref::SubViewOp getSubview(Value source, const Location loc,
                                ConversionPatternRewriter &rewriter) const;
+
+  std::pair<memref::SubViewOp, memref::SubViewOp>
+  getSideBySideSubviews(memref::ReinterpretCastOp chunk1,
+                        memref::ReinterpretCastOp chunk2, const Location loc,
+                        ConversionPatternRewriter &rewriter) const;
+
+  std::pair<memref::SubViewOp, memref::SubViewOp>
+  getStackedSubviews(memref::ReinterpretCastOp chunk1,
+                     memref::ReinterpretCastOp chunk2, const Location loc,
+                     ConversionPatternRewriter &rewriter) const;
 
 private:
   // -------

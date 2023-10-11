@@ -50,18 +50,20 @@ public:
 
 struct TritonToLinalgPass : public TritonToLinalgBase<TritonToLinalgPass> {
 
-  static uint32_t constexpr LAUNCH_GRID_RANK =
-      getMaxEnumValForProgramIDDim() + 1;
+  static auto constexpr LAUNCH_GRID_RANK = getMaxEnumValForProgramIDDim() + 1;
+  static unsigned int constexpr TRITON_PROGRAM_INFO_ARG_COUNT =
+      LAUNCH_GRID_RANK * 2;
 
-  // Add additional I32 arguments to represent program
-  // ID, one for each dimension of the launch grid
-  static void addProgramId(triton::FuncOp func) {
+  // Add additional I32 arguments to represent:
+  // - num_programs, 3 in total, one for each axis of the launch grid
+  // - program_id, 3 in total, one for each axis of the launch grid
+  static void addProgramInfo(triton::FuncOp func) {
     OpBuilder b(func);
 
     auto origFuncType = func.getFunctionType();
     auto origInputTypes = origFuncType.getInputs();
     SmallVector<Type> newInputTypes(origInputTypes);
-    newInputTypes.append(LAUNCH_GRID_RANK, b.getI32Type());
+    newInputTypes.append(TRITON_PROGRAM_INFO_ARG_COUNT, b.getI32Type());
 
     auto newFuncType =
         b.getFunctionType(newInputTypes, origFuncType.getResults());
@@ -72,12 +74,12 @@ struct TritonToLinalgPass : public TritonToLinalgBase<TritonToLinalgPass> {
     if (func.getAllArgAttrs()) {
       SmallVector<DictionaryAttr> newArgAttrs;
       func.getAllArgAttrs(newArgAttrs);
-      newArgAttrs.append(LAUNCH_GRID_RANK, DictionaryAttr());
+      newArgAttrs.append(TRITON_PROGRAM_INFO_ARG_COUNT, DictionaryAttr());
       func.setAllArgAttrs(newArgAttrs);
     }
 
     // Add the corresponding arguments to function body
-    for (unsigned int i = 0; i < LAUNCH_GRID_RANK; i++) {
+    for (unsigned int i = 0; i < TRITON_PROGRAM_INFO_ARG_COUNT; i++) {
       func.getBody().front().addArgument(b.getI32Type(), func.getLoc());
     }
   }
@@ -112,11 +114,12 @@ public:
     ConversionTarget target(getContext());
     TritonTypeConverter tritonTypeConverter;
 
-    target.addLegalDialect<
-        func::FuncDialect, arith::ArithDialect, math::MathDialect,
-        linalg::LinalgDialect, affine::AffineDialect, scf::SCFDialect,
-        cf::ControlFlowDialect, tensor::TensorDialect,
-        bufferization::BufferizationDialect, memref::MemRefDialect>();
+    target.addLegalDialect<func::FuncDialect, arith::ArithDialect,
+                           math::MathDialect, linalg::LinalgDialect,
+                           affine::AffineDialect, scf::SCFDialect,
+                           cf::ControlFlowDialect, tensor::TensorDialect,
+                           bufferization::BufferizationDialect,
+                           memref::MemRefDialect>();
 
     target.addLegalOp<ModuleOp>();
 
@@ -182,11 +185,11 @@ public:
           return !operateOnTensors;
         });
 
-    triton::populateTritonToLinalgConversionPatterns(tritonTypeConverter,
-                                                     patterns);
+    triton::populateTritonToLinalgConversionPatterns(
+        tritonTypeConverter, patterns, LAUNCH_GRID_RANK);
 
     for (auto func : getOperation().getOps<triton::FuncOp>())
-      addProgramId(func);
+      addProgramInfo(func);
 
     if (failed(applyFullConversion(moduleOp, target, std::move(patterns))))
       signalPassFailure();

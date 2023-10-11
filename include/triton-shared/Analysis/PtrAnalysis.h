@@ -22,21 +22,46 @@ class ConversionPatternRewriter;
 
 namespace triton {
 
+struct ModuloState {
+  Value size;
+  OpFoldResult offset;
+  ModuloState() {}
+  ModuloState(Value size, OpFoldResult offset) : size{size}, offset{offset} {}
+
+  static constexpr char const *WraparoundAttr = "ptr.wraparound_type";
+  static constexpr char const *WraparoundStacked = "stacked";
+  static constexpr char const *WraparoundSideBySide = "side_by_side";
+};
+
 // Data structure used to decode pointer arithmetics and potentially to be
 // translate it into memref. offsets, sizes, and strides are in unit of elements
 // in a linearly laid-out memory, which is the same as pointer arithmetic
 // operations in Triton language. scalar is a shortcut used when the entire
 // state describes a single scalar value. source is the base pointer.
-struct PtrState {
+class PtrState {
+
+  OpFoldResult
+  accumulateTargetOffset(Location loc,
+                         ConversionPatternRewriter &rewriter) const;
+
+public:
   SmallVector<OpFoldResult> offsets;
   SmallVector<OpFoldResult> sizes;
   SmallVector<OpFoldResult> strides;
+
+  SmallVector<std::optional<ModuloState>> modulos;
+
   Value source;
   Value scalar;
 
   int64_t getRank() const;
 
   bool isEmpty() const;
+
+  bool hasModulo() const;
+
+  MemRefType getResultMemrefType(MLIRContext *context, int64_t offset,
+                                 ArrayRef<int64_t> resultShape) const;
 
   // Process addition of two PtrStates.
   void addState(const PtrState &lhsState, const PtrState &rhsState,
@@ -48,9 +73,17 @@ struct PtrState {
 
   // Produce a reinterpret cast based on the current PtrState. Additional
   // instructions may be inserted in calculating the final offset.
-  memref::ReinterpretCastOp createCastOp(ArrayRef<int64_t> resultShape,
-                                         const Location loc,
-                                         ConversionPatternRewriter &rewriter);
+  memref::ReinterpretCastOp
+  createCastOp(ArrayRef<int64_t> resultShape, const Location loc,
+               ConversionPatternRewriter &rewriter) const;
+
+  SmallVector<memref::ReinterpretCastOp>
+  createSideBySideCastOps(ArrayRef<int64_t> resultShape, const Location loc,
+                          ConversionPatternRewriter &rewriter) const;
+
+  SmallVector<memref::ReinterpretCastOp>
+  createStackedCastOps(ArrayRef<int64_t> resultShape, const Location loc,
+                       ConversionPatternRewriter &rewriter) const;
 };
 
 class PtrAnalysis {
@@ -94,6 +127,16 @@ public:
   visitOperandMul(arith::MulIOp mulOp, PtrState &state, const Location loc,
                   ConversionPatternRewriter &rewriter,
                   const llvm::SmallDenseMap<Value, PtrState> &knownPtrs);
+
+  static void
+  visitOperandRem(arith::RemSIOp mulOp, PtrState &state, const Location loc,
+                  ConversionPatternRewriter &rewriter,
+                  const llvm::SmallDenseMap<Value, PtrState> &knownPtrs);
+
+  static void visitOperandUnrealizedCast(
+      UnrealizedConversionCastOp op, PtrState &state, const Location loc,
+      ConversionPatternRewriter &rewriter,
+      const llvm::SmallDenseMap<Value, PtrState> &knownPtrs);
 
   // Operand is the result of make_range.
   // Main assumptions:
@@ -156,6 +199,11 @@ public:
                          ConversionPatternRewriter &rewriter,
                          const llvm::SmallDenseMap<Value, PtrState> &knownPtrs);
 
+  static void visitOperandMakeTensorPtr(
+      triton::MakeTensorPtrOp makeTensorPtrOp, PtrState &state,
+      const Location loc, ConversionPatternRewriter &rewriter,
+      const llvm::SmallDenseMap<Value, PtrState> &knownPtrs);
+
   // Operand is the result of addptr.
   // Main assumptions:
   //  The ptr field should populate the source field
@@ -176,6 +224,16 @@ public:
   visitOperandReintCast(memref::ReinterpretCastOp reintCastOp, PtrState &state,
                         const Location loc, ConversionPatternRewriter &rewriter,
                         const llvm::SmallDenseMap<Value, PtrState> &knownPtrs);
+
+  // Operand is the result of tt.advance.
+  // Main assumptions:
+  //  The source of the tt.advance has been mapped to a reinterpret_cast
+  // Expected result:
+  //  Directly grab all corresponding fields from reinterpret_cast.
+  //  Add the offsets multiplied by the strides to the final offsets.
+  static void rewriteAdvanceOp(triton::AdvanceOp op,
+                               ConversionPatternRewriter &rewriter,
+                               llvm::SmallDenseMap<Value, PtrState> &knownPtrs);
 
   // Parse the state of AddPtrOp, insert any instruction needed to
   // calculate strides and offsets, build PtrState for this operand, and record

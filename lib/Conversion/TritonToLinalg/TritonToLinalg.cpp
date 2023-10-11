@@ -7,6 +7,7 @@
 
 #include "triton-shared/Conversion/TritonToLinalg/TritonToLinalg.h"
 #include "triton-shared/Analysis/MaskAnalysis.h"
+#include "triton-shared/Analysis/OpFoldResultUtils.h"
 #include "triton-shared/Analysis/PtrAnalysis.h"
 
 #include "triton/Dialect/Triton/IR/Dialect.h"
@@ -17,10 +18,16 @@
 #include "mlir/Dialect/Linalg/IR/Linalg.h"
 #include "mlir/Dialect/Linalg/Passes.h"
 
+#include "llvm/ADT/SmallVectorExtras.h"
 #include "llvm/ADT/TypeSwitch.h"
+#include "llvm/Support/Debug.h"
 #include "llvm/Support/FormatVariadic.h"
+#include "llvm/Support/MathExtras.h"
 
 #include <numeric>
+#include <type_traits>
+
+#define DEBUG_TYPE "triton-to-linalg"
 
 using namespace mlir;
 using namespace triton;
@@ -34,18 +41,43 @@ using namespace triton;
 
 // Extract a scalar value from v.
 // If v is a scalar, return that directly. Otherwise, parse through operations
-// (currently only support splat and sitofp) that produce it and to extract they
-// underlying scalar value . If no scalar value can be extracted, a nullptr is
-// returned.
-static std::optional<Value>
-getScalarValue(Value v, Location loc, ConversionPatternRewriter &rewriter) {
-  // Record if an sitofp op was in the chain of ops that produce the scalar
-  Operation *siToFp = nullptr;
+// (currently only support splat, sitofp, and truncf) that produce it to
+// extract the underlying scalar value. We then reconstruct the chain of
+// operations that can produce this constant with the original type. If no
+// scalar value can be extracted, a nullptr is returned.
+static Value getScalarValue(Value operand, Location loc,
+                            ConversionPatternRewriter &rewriter) {
+  SmallVector<Operation *> ops;
+
+  auto reconstructScalarValue = [&](Value src) {
+    for (auto op = ops.rbegin(); op != ops.rend(); ++op) {
+      src = TypeSwitch<Operation *, Value>(*op)
+                .Case<arith::SIToFPOp>([&](Operation *op) {
+                  auto resType = op->getResults()[0].getType();
+                  if (auto shapedType = dyn_cast<ShapedType>(resType)) {
+                    resType = shapedType.getElementType();
+                  }
+                  return rewriter.create<arith::SIToFPOp>(loc, resType, src);
+                })
+                .Case<arith::TruncFOp>([&](Operation *op) {
+                  auto resType = op->getResults()[0].getType();
+                  if (auto shapedType = dyn_cast<ShapedType>(resType)) {
+                    resType = shapedType.getElementType();
+                  }
+                  return rewriter.create<arith::TruncFOp>(loc, resType, src);
+                })
+                .Default([](Operation *op) {
+                  llvm_unreachable("unsupported op in generating ");
+                  return nullptr;
+                });
+    }
+    return src;
+  };
 
   while (true) {
-    if (!v.getType().dyn_cast<ShapedType>()) {
-      break;
-    } else if (auto op = v.getDefiningOp<arith::ConstantOp>()) {
+    if (!operand.getType().dyn_cast<ShapedType>()) {
+      return reconstructScalarValue(operand);
+    } else if (auto op = operand.getDefiningOp<arith::ConstantOp>()) {
       if (auto attr = op.getValue().dyn_cast<DenseElementsAttr>()) {
         if (!attr.isSplat()) {
           InFlightDiagnostic diag = emitError(loc)
@@ -56,13 +88,16 @@ getScalarValue(Value v, Location loc, ConversionPatternRewriter &rewriter) {
         auto elemValue = attr.getSplatValue<Attribute>();
         auto constOp = arith::ConstantOp::materialize(
             rewriter, elemValue, attr.getElementType(), op.getLoc());
-        v = constOp.getResult();
+        return reconstructScalarValue(constOp.getResult());
       }
-    } else if (auto op = v.getDefiningOp<triton::SplatOp>()) {
-      v = op.getSrc();
-    } else if (auto op = v.getDefiningOp<arith::SIToFPOp>()) {
-      siToFp = op;
-      v = op.getIn();
+    } else if (auto op = operand.getDefiningOp<triton::SplatOp>()) {
+      operand = op.getSrc();
+    } else if (auto op = operand.getDefiningOp<arith::SIToFPOp>()) {
+      ops.push_back(op.getOperation());
+      operand = op.getIn();
+    } else if (auto op = operand.getDefiningOp<arith::TruncFOp>()) {
+      ops.push_back(op.getOperation());
+      operand = op.getIn();
     } else {
       InFlightDiagnostic diag = emitError(loc)
                                 << "other value used in masked load produced "
@@ -70,15 +105,7 @@ getScalarValue(Value v, Location loc, ConversionPatternRewriter &rewriter) {
       return nullptr;
     }
   }
-
-  if (siToFp) {
-    auto resType = siToFp->getResult(0).getType();
-    if (auto shapedType = dyn_cast<ShapedType>(resType)) {
-      resType = shapedType.getElementType();
-    }
-    return rewriter.create<arith::SIToFPOp>(loc, resType, v);
-  }
-  return v;
+  return nullptr;
 }
 
 static SmallVector<utils::IteratorType> getNParallelLoopsAttrs(unsigned n) {
@@ -309,14 +336,102 @@ struct MakeRangeConverter : public OpConversionPattern<triton::MakeRangeOp> {
   }
 };
 
+struct AdvanceConverter : public OpConversionPattern<triton::AdvanceOp> {
+  using OpConversionPattern<triton::AdvanceOp>::OpConversionPattern;
+  LogicalResult
+  matchAndRewrite(triton::AdvanceOp op, OpAdaptor adaptor,
+                  ConversionPatternRewriter &rewriter) const override {
+    llvm::SmallDenseMap<Value, PtrState> knownPtrs;
+    PtrState pointerState;
+    PtrAnalysis::rewriteAdvanceOp(op, rewriter, knownPtrs);
+    return success();
+  }
+};
+
+struct MakeTensorPtrConverter
+    : public OpConversionPattern<triton::MakeTensorPtrOp> {
+  using OpConversionPattern<triton::MakeTensorPtrOp>::OpConversionPattern;
+
+  void populateVectorAsIndex(SmallVector<OpFoldResult> &vec,
+                             Operation::operand_range ops,
+                             ConversionPatternRewriter &rewriter,
+                             Location loc) const {
+    for (auto opnd : ops) {
+      if (opnd.getType().isa<IntegerType>()) {
+        auto castOp = rewriter.create<arith::IndexCastOp>(
+            loc, rewriter.getIndexType(), opnd);
+        vec.push_back(castOp.getResult());
+      } else {
+        assert(opnd.getType().isa<IndexType>());
+        vec.push_back(opnd);
+      }
+    }
+  }
+
+  LogicalResult
+  matchAndRewrite(triton::MakeTensorPtrOp op, OpAdaptor adaptor,
+                  ConversionPatternRewriter &rewriter) const override {
+    auto loc = op.getLoc();
+    PtrState pointerState;
+
+    auto orderSize = op.getOrder().size();
+    if (orderSize > 1) {
+      for (auto [first, second] :
+           llvm::zip(op.getOrder().slice(0, orderSize - 2),
+                     op.getOrder().slice(1, orderSize - 1))) {
+        assert(first == second + 1 &&
+               "Currently only support default order on block pointers");
+      }
+    }
+
+    pointerState.source = rewriter.getRemappedValue(op.getBase());
+    populateVectorAsIndex(pointerState.offsets, op.getOffsets(), rewriter, loc);
+    populateVectorAsIndex(pointerState.strides, op.getStrides(), rewriter, loc);
+
+    SmallVector<Value> newOffsets;
+    for (auto [offset, stride] :
+         llvm::zip(pointerState.offsets, pointerState.strides)) {
+      auto mulOp = rewriter.create<arith::MulIOp>(loc, offset.get<Value>(),
+                                                  stride.get<Value>());
+      newOffsets.push_back(mulOp.getResult());
+    }
+
+    pointerState.offsets.clear();
+
+    for (auto offset : newOffsets) {
+      pointerState.offsets.push_back(offset);
+    }
+
+    ArrayRef<int64_t> resultShape;
+    auto pointerType =
+        op.getResult().getType().cast<mlir::triton::PointerType>();
+    if (auto shapedType = pointerType.getPointeeType().dyn_cast<ShapedType>()) {
+      resultShape = shapedType.getShape();
+      for (auto dim_size : resultShape) {
+        pointerState.sizes.push_back(
+            IntegerAttr::get(IntegerType::get(op.getContext(), 64), dim_size));
+      }
+    } else {
+      // scalar pointer, should produce a one dimensional memref
+      SmallVector<int64_t> scalarShape(1, 1);
+      resultShape = scalarShape;
+      assert(pointerState.getRank() == 1);
+    }
+
+    auto castOp = pointerState.createCastOp(resultShape, loc, rewriter);
+    rewriter.replaceOp(op, castOp.getResult());
+    return success();
+  }
+};
+
 struct AddPtrConverter : public OpConversionPattern<triton::AddPtrOp> {
   using OpConversionPattern<triton::AddPtrOp>::OpConversionPattern;
 
   LogicalResult
   matchAndRewrite(triton::AddPtrOp op, OpAdaptor adaptor,
                   ConversionPatternRewriter &rewriter) const override {
-    llvm::SmallDenseMap<Value, PtrState> knwonPtrs;
-    PtrAnalysis::rewriteAddptrOp(op, rewriter, knwonPtrs);
+    llvm::SmallDenseMap<Value, PtrState> knownPtrs;
+    PtrAnalysis::rewriteAddptrOp(op, rewriter, knownPtrs);
     return success();
   }
 };
@@ -331,7 +446,7 @@ struct AssertConverter : public OpConversionPattern<triton::AssertOp> {
 
     if (condVal.getType().isa<mlir::TensorType>()) {
       auto scalarVal = getScalarValue(op.getCondition(), op.getLoc(), rewriter);
-      condVal = scalarVal.value_or(condVal);
+      condVal = scalarVal ? scalarVal : condVal;
     }
     assert(condVal && condVal.getType().isa<mlir::IntegerType>() &&
            "Only asserts on scalars are currently supported");
@@ -347,8 +462,8 @@ struct AssertConverter : public OpConversionPattern<triton::AssertOp> {
     auto assertMessage =
         llvm::formatv("{0}.py:{1}: {2} Assertion `{3}` failed", op.getFile(),
                       op.getLine(), op.getFunc(), op.getMessage());
-    auto assertOp = rewriter.create<mlir::cf::AssertOp>(op.getLoc(), condVal,
-                                                        assertMessage.str());
+    rewriter.create<mlir::cf::AssertOp>(op.getLoc(), condVal,
+                                        assertMessage.str());
 
     rewriter.eraseOp(op);
     return success();
@@ -373,6 +488,65 @@ struct LoadConverter : public OpConversionPattern<triton::LoadOp> {
 private:
   using OpConversionPattern<triton::LoadOp>::OpConversionPattern;
 
+  template <typename SourceOpTy>
+  void createSideBySideCopies(SourceOpTy block1, SourceOpTy block2, Value dst,
+                              Location loc,
+                              ConversionPatternRewriter &rewriter) const {
+    static_assert((std::is_same<SourceOpTy, memref::ReinterpretCastOp>() ||
+                   std::is_same<SourceOpTy, memref::SubViewOp>()) &&
+                  "Expect source of split pointers to come from either "
+                  "reinterpret_cast or subview ops");
+
+    auto zero =
+        rewriter.create<arith::ConstantOp>(loc, rewriter.getIndexAttr(0));
+
+    auto block1Dst = rewriter.create<memref::SubViewOp>(
+        loc, dst, /* offsets */ ValueRange{zero, zero},
+        ofrsToIndexValues(block1.getMixedSizes(), loc, rewriter),
+        ofrsToIndexValues(block1.getMixedStrides(), loc, rewriter));
+
+    auto block2Dst = rewriter.create<memref::SubViewOp>(
+        loc, dst,
+        /* offsets */
+        ValueRange{zero,
+                   ofrToIndexValue(block1.getMixedSizes()[1], loc, rewriter)},
+        ofrsToIndexValues(block2.getMixedSizes(), loc, rewriter),
+        ofrsToIndexValues(block2.getMixedStrides(), loc, rewriter));
+
+    rewriter.create<memref::CopyOp>(loc, block1.getResult(), block1Dst);
+    rewriter.create<memref::CopyOp>(loc, block2.getResult(), block2Dst);
+  }
+
+  template <typename SourceOpTy>
+  void createStackedCopies(SourceOpTy block1, SourceOpTy block2, Value dst,
+                           Location loc,
+                           ConversionPatternRewriter &rewriter) const {
+    static_assert((std::is_same<SourceOpTy, memref::ReinterpretCastOp>() ||
+                   std::is_same<SourceOpTy, memref::SubViewOp>()) &&
+                  "Expect source of split pointers to come from either "
+                  "reinterpret_cast or subview ops");
+
+    auto zero =
+        rewriter.create<arith::ConstantOp>(loc, rewriter.getIndexAttr(0));
+
+    auto block1Dst = rewriter.create<memref::SubViewOp>(
+        loc, dst, /* offsets */ ValueRange{zero, zero},
+        ofrsToIndexValues(block1.getMixedSizes(), loc, rewriter),
+        ofrsToIndexValues(block1.getMixedStrides(), loc, rewriter));
+
+    auto block2Dst = rewriter.create<memref::SubViewOp>(
+        loc, dst,
+        /* offsets */
+        ValueRange{ofrToIndexValue(block1.getMixedSizes()[0], loc, rewriter),
+                   zero},
+        ofrsToIndexValues(block2.getMixedSizes(), loc, rewriter),
+        ofrsToIndexValues(block2.getMixedStrides(), loc, rewriter));
+
+    rewriter.create<memref::CopyOp>(loc, block1.getResult(), block1Dst);
+    rewriter.create<memref::CopyOp>(loc, block2.getResult(), block2Dst);
+  }
+
+public:
   LogicalResult
   matchAndRewrite(triton::LoadOp op, OpAdaptor adaptor,
                   ConversionPatternRewriter &rewriter) const override {
@@ -383,10 +557,6 @@ private:
 
     // 0. Shortcut for scalar loads
     if (!op.getResult().getType().isa<ShapedType>()) {
-      // Temporarily disbale scalar load until later passes support it
-      op.emitError("Scalar load is currently not supported");
-      return failure();
-
       auto sMemRef = PtrAnalysis::getScalarMemRef(op.getPtr(), adaptor.getPtr(),
                                                   loc, rewriter);
       auto zeroMap = AffineMap::getConstantMap(0, rewriter.getContext());
@@ -397,18 +567,54 @@ private:
     }
 
     // 1. Simple case where no mask is used.
-    auto type = ptr.getType().cast<MemRefType>();
+    auto type = ptr.getType().dyn_cast<MemRefType>();
+    if (!type) {
+      // Seen when implicit broadcasting is done late in a chain of operations.
+      // The workaround is to broadcast the pointers early in the address
+      // calculation. A proper fix is complicated, but at least we can provide a
+      // better error message.
+      op.emitError("LoadOp expects a memref, not a memref of pointers");
+      return failure();
+    }
+
+    DictionaryAttr attrs;
     auto tensorType =
-        RankedTensorType::get(type.getShape(), type.getElementType());
+        RankedTensorType::get(type.getShape(), type.getElementType(), attrs);
     auto alloc = rewriter.create<memref::AllocOp>(
-        loc, MemRefType::get(type.getShape(), type.getElementType()));
+        loc, MemRefType::get(type.getShape(), type.getElementType(),
+                             AffineMap(), attrs));
 
     if (!mask) {
       assert(!other && "other value used in non-masked load");
-      rewriter.create<memref::CopyOp>(loc, ptr, alloc);
+      if (auto unrealizedCast =
+              ptr.getDefiningOp<UnrealizedConversionCastOp>()) {
+        if (auto wrapType = unrealizedCast->getAttrOfType<StringAttr>(
+                ModuloState::WraparoundAttr)) {
+
+          auto memrefs = unrealizedCast.getOperands();
+          auto block1 = memrefs[0].getDefiningOp<memref::ReinterpretCastOp>();
+          auto block2 = memrefs[1].getDefiningOp<memref::ReinterpretCastOp>();
+
+          if (wrapType.getValue().equals(ModuloState::WraparoundSideBySide)) {
+            createSideBySideCopies(block1, block2, alloc, loc, rewriter);
+          } else if (wrapType.getValue().equals(
+                         ModuloState::WraparoundStacked)) {
+            createStackedCopies(block1, block2, alloc, loc, rewriter);
+          } else {
+            llvm_unreachable("unexpected wraparound type");
+          }
+        } else {
+          llvm_unreachable("unexpected unrealized cast op");
+        }
+
+      } else {
+        rewriter.create<memref::CopyOp>(loc, ptr, alloc);
+      }
+
       Value tensor = rewriter.create<bufferization::ToTensorOp>(
           loc, tensorType, alloc, true /* restrict */, true /* writable */);
       rewriter.replaceOp(op, tensor);
+
       return success();
     }
 
@@ -418,22 +624,15 @@ private:
     MaskState mstate;
     auto isContMask = mstate.parse(mask, loc, rewriter);
 
-    if (isContMask.failed())
-      return failure();
-
-    auto castOp = ptr.getDefiningOp<memref::ReinterpretCastOp>();
-    assert(castOp);
-    ptr = castOp.getResult();
-
-    auto srcSubview = mstate.getSubview(ptr, loc, rewriter);
-    auto dstSubview = mstate.getSubview(alloc, loc, rewriter);
+    if (isContMask.failed()) {
+      return op.emitError("Cannot lower continuous masked loads");
+    }
 
     // fill load destination with other value
     if (other) {
       auto scalarOther = getScalarValue(other, loc, rewriter);
-      assert(scalarOther.has_value() &&
-             "other value used in masked load produced by "
-             "unsupported instruction");
+      assert(scalarOther && "other value used in masked load produced by "
+                            "unsupported instruction");
 
       // For each dimension check if mstate.dims[i] < shape[i], or-accumulate
       // the result
@@ -461,13 +660,44 @@ private:
       // initialize with padding prior to CopyOp
       rewriter.create<scf::IfOp>(
           loc, accBase, [&](OpBuilder &builder, Location loc) {
-            builder.create<linalg::FillOp>(loc, ValueRange{scalarOther.value()},
+            builder.create<linalg::FillOp>(loc, ValueRange{scalarOther},
                                            ValueRange{alloc});
             builder.create<scf::YieldOp>(loc);
           });
     }
 
-    rewriter.create<memref::CopyOp>(loc, srcSubview, dstSubview);
+    if (auto unrealizedCast = ptr.getDefiningOp<UnrealizedConversionCastOp>()) {
+      if (auto wrapType = unrealizedCast->getAttrOfType<StringAttr>(
+              ModuloState::WraparoundAttr)) {
+
+        auto memrefs = unrealizedCast.getOperands();
+        auto block1 = memrefs[0].getDefiningOp<memref::ReinterpretCastOp>();
+        auto block2 = memrefs[1].getDefiningOp<memref::ReinterpretCastOp>();
+
+        if (wrapType.getValue().equals(ModuloState::WraparoundSideBySide)) {
+          auto [subview1, subview2] =
+              mstate.getSideBySideSubviews(block1, block2, loc, rewriter);
+
+          createSideBySideCopies(subview1, subview2, alloc, loc, rewriter);
+        } else if (wrapType.getValue().equals(ModuloState::WraparoundStacked)) {
+          auto [subview1, subview2] =
+              mstate.getStackedSubviews(block1, block2, loc, rewriter);
+
+          createStackedCopies(subview1, subview2, alloc, loc, rewriter);
+        } else {
+          llvm_unreachable("unexpected wraparound type");
+        }
+
+      } else {
+        llvm_unreachable("unexpected unrealized cast op");
+      }
+
+    } else {
+      memref::SubViewOp srcSubview = mstate.getSubview(ptr, loc, rewriter);
+      memref::SubViewOp dstSubview = mstate.getSubview(alloc, loc, rewriter);
+      rewriter.create<memref::CopyOp>(loc, srcSubview, dstSubview);
+    }
+
     Value tensor = rewriter.create<bufferization::ToTensorOp>(
         loc, tensorType, alloc, true /* restrict */, true /* writable */);
     rewriter.replaceOp(op, tensor);
@@ -603,28 +833,52 @@ struct ReduceConverter : public OpConversionPattern<triton::ReduceOp> {
 private:
   llvm::SmallVector<Operation *> getRedOps(triton::ReduceOp redOp) const {
     auto reduceBlock = redOp.getBody();
-    llvm::SmallVector<Operation *> ops;
-    for (auto &op : reduceBlock->without_terminator()) {
-      ops.push_back(&op);
-    }
-    return ops;
+    return llvm::map_to_vector(reduceBlock->without_terminator(),
+                               [](Operation &op) { return &op; });
   }
 
   bool isReductionOpSupported(Operation *redOp) const {
-    return isa<arith::AddFOp, arith::MaxFOp>(redOp);
+    return isa<arith::AddFOp, arith::MaxFOp, arith::MinSIOp, arith::MinUIOp,
+               arith::MaxSIOp, arith::MaxUIOp>(redOp);
   }
 
-  float getRedBaseVal(Operation *redOp) const {
-    return llvm::TypeSwitch<Operation *, float>(redOp)
-        .Case([](arith::AddFOp) { return 0; })
-        .Case([](arith::MaxFOp) {
-          return -std::numeric_limits<float>::infinity();
-        })
-        .Default([](Operation *op) {
-          op->dump();
-          llvm_unreachable("Reduction op not yet supported");
-          return -1;
-        });
+  arith::ConstantOp getRedBaseConstOp(ConversionPatternRewriter &rewriter,
+                                      Operation *redOp,
+                                      Type constantType) const {
+    const int64_t bitWidth = constantType.getIntOrFloatBitWidth();
+
+    auto attr =
+        llvm::TypeSwitch<Operation *, TypedAttr>(redOp)
+            .Case([&](arith::AddFOp) {
+              return rewriter.getFloatAttr(constantType, 0.f);
+            })
+            .Case([&](arith::MaxFOp) {
+              return rewriter.getFloatAttr(
+                  constantType, -std::numeric_limits<float>::infinity());
+            })
+            .Case([&](arith::MinSIOp) {
+              return rewriter.getIntegerAttr(constantType,
+                                             llvm::maxIntN(bitWidth));
+            })
+            .Case([&](arith::MinUIOp) {
+              return rewriter.getIntegerAttr(constantType,
+                                             llvm::maxUIntN(bitWidth));
+            })
+            .Case([&](arith::MaxSIOp) {
+              return rewriter.getIntegerAttr(constantType,
+                                             llvm::minIntN(bitWidth));
+            })
+            .Case([&](arith::MaxUIOp) {
+              return rewriter.getIntegerAttr(constantType, 0);
+            })
+            .Default([](Operation *op) {
+              op->dump();
+              llvm_unreachable("Reduction op not yet supported");
+              return nullptr;
+            });
+
+    return rewriter.create<arith::ConstantOp>(redOp->getLoc(), constantType,
+                                              attr);
   }
 
   bool requiresF32Conversion(const Type elemType, Operation *redOp) const {
@@ -645,8 +899,9 @@ private:
           }
           return b.create<arith::AddFOp>(loc, lhs, rhs);
         })
-        .Case([&](arith::MaxFOp) {
-          return b.create<arith::MaxFOp>(loc, lhs, rhs);
+        .Case<arith::MaxFOp, arith::MinSIOp, arith::MinUIOp, arith::MaxSIOp,
+              arith::MaxUIOp>([&](auto redOp) {
+          return b.create<decltype(redOp)>(loc, lhs, rhs);
         })
         .Default([](Operation *op) {
           op->dump();
@@ -672,7 +927,7 @@ private:
     if (reductionOps.size() != 1 ||
         !isReductionOpSupported(reductionOps.front())) {
       return op.emitError("Only support lowering reduction with body "
-                          "containing 1 maxf or addf.");
+                          "containing 1 max(i/f) or addf.");
     }
 
     auto rop = reductionOps.front();
@@ -689,9 +944,8 @@ private:
     auto constantType = convertToF32Precision
                             ? Float32Type::get(rewriter.getContext())
                             : elemType;
-    float accBaseVal = getRedBaseVal(rop);
-    auto accBase = rewriter.create<arith::ConstantOp>(
-        loc, constantType, rewriter.getFloatAttr(constantType, accBaseVal));
+
+    auto accBaseConstOp = getRedBaseConstOp(rewriter, rop, constantType);
     Value initTensor;
 
     if (isVectorReduce) {
@@ -703,13 +957,13 @@ private:
       // harder to match the patterns correctly).
       initTensor = rewriter.create<bufferization::AllocTensorOp>(
           loc, RankedTensorType::get({}, constantType), ValueRange{});
-      initTensor = rewriter.create<tensor::InsertOp>(loc, accBase, initTensor,
-                                                     ValueRange{});
+      initTensor = rewriter.create<tensor::InsertOp>(loc, accBaseConstOp,
+                                                     initTensor, ValueRange{});
     } else {
       Value init = rewriter.create<tensor::EmptyOp>(
           loc, cast<RankedTensorType>(resType).getShape(), constantType);
       initTensor = rewriter
-                       .create<linalg::FillOp>(loc, ValueRange{accBase},
+                       .create<linalg::FillOp>(loc, ValueRange{accBaseConstOp},
                                                ValueRange{init})
                        .result();
     }
@@ -762,10 +1016,28 @@ public:
   }
 };
 
+// get_program_id and get_num_programs:
+// When launching triton kernels, we pass 6 additional arguments to indicate
+// num_programs and program_id. Amongst those six, we have 3 arguments
+// correspond to each axis for num_programs followed by 3 additional arguments
+// for program_id.
+//
+// For instance, with triton kernel example_kernel(a, b, c), we have:
+//  example_kernel(
+//    a, b, c,
+//    num_programs_axis_0,
+//    num_programs_axis_1,
+//    num_programs_axis_2,
+//    program_id_axis_0,
+//    program_id_axis_1,
+//    program_id_axis_2,
+//   )
+//
 struct GetProgramIDConverter
     : public OpConversionPattern<triton::GetProgramIdOp> {
   using OpConversionPattern<triton::GetProgramIdOp>::OpConversionPattern;
-  static auto constexpr LAUNCH_GRID_RANK = getMaxEnumValForProgramIDDim() + 1;
+  static uint32_t constexpr LAUNCH_GRID_RANK =
+      getMaxEnumValForProgramIDDim() + 1;
 
 public:
   GetProgramIDConverter(MLIRContext *context) : OpConversionPattern(context) {}
@@ -774,11 +1046,42 @@ public:
   matchAndRewrite(triton::GetProgramIdOp op, OpAdaptor adaptor,
                   ConversionPatternRewriter &rewriter) const override {
     auto axis = (uint32_t)op.getAxis();
-    assert(axis < LAUNCH_GRID_RANK && "invalid program-id axis");
+    assert(axis < LAUNCH_GRID_RANK && "program_id expects "
+                                      "axis to be either 0, "
+                                      "1, or 2");
 
     auto func = op->getParentOfType<FunctionOpInterface>();
     auto numArgs = func.getNumArguments();
     auto id = func.getArgument(numArgs - LAUNCH_GRID_RANK + axis);
+
+    rewriter.replaceOp(op, id);
+    return success();
+  }
+};
+
+struct GetNumProgramsConverter
+    : public OpConversionPattern<triton::GetNumProgramsOp> {
+  using OpConversionPattern<triton::GetNumProgramsOp>::OpConversionPattern;
+
+private:
+  static uint32_t constexpr LAUNCH_GRID_RANK =
+      getMaxEnumValForProgramIDDim() + 1;
+
+public:
+  GetNumProgramsConverter(MLIRContext *context)
+      : OpConversionPattern(context) {}
+
+  LogicalResult
+  matchAndRewrite(triton::GetNumProgramsOp op, OpAdaptor adaptor,
+                  ConversionPatternRewriter &rewriter) const override {
+    auto axis = (uint32_t)op.getAxis();
+    assert(axis < LAUNCH_GRID_RANK && "program_id expects "
+                                      "axis to be either 0, "
+                                      "1, or 2");
+
+    auto func = op->getParentOfType<FunctionOpInterface>();
+    auto numArgs = func.getNumArguments();
+    auto id = func.getArgument(numArgs - LAUNCH_GRID_RANK * 2 + axis);
 
     rewriter.replaceOp(op, id);
     return success();
@@ -818,13 +1121,14 @@ public:
 // Convert a pair of cmpf and select to either min or max.
 // Leave the pattern as simple as possible because triton has plans to emit
 // min and max directly.
-struct MinMaxConverter : public OpRewritePattern<arith::CmpFOp> {
-  using OpRewritePattern<arith::CmpFOp>::OpRewritePattern;
+template <typename CmpOp>
+struct MinMaxConverter : public OpRewritePattern<CmpOp> {
+  using OpRewritePattern<CmpOp>::OpRewritePattern;
 
   MinMaxConverter(MLIRContext *context)
-      : OpRewritePattern<arith::CmpFOp>(context, /*benefit=*/10) {}
+      : OpRewritePattern<CmpOp>(context, /*benefit=*/10) {}
 
-  LogicalResult matchAndRewrite(arith::CmpFOp cmpOp,
+  LogicalResult matchAndRewrite(CmpOp cmpOp,
                                 PatternRewriter &rewriter) const final {
     if (!cmpOp.getResult().hasOneUse()) {
       return failure();
@@ -841,21 +1145,52 @@ struct MinMaxConverter : public OpRewritePattern<arith::CmpFOp> {
       return failure();
     }
 
-    auto pred = cmpOp.getPredicate();
-    auto loc = cmpOp.getLoc();
-    if (pred == arith::CmpFPredicate::OGT) {
-      rewriter.replaceOpWithNewOp<arith::MaxFOp>(selectOp, cmpOp.getLhs(),
-                                                 cmpOp.getRhs());
-    } else if (pred == arith::CmpFPredicate::OLT) {
-      rewriter.replaceOpWithNewOp<arith::MinFOp>(selectOp, cmpOp.getLhs(),
-                                                 cmpOp.getRhs());
-    } else {
-      llvm_unreachable("Unhandled predicate");
-    }
-
+    rewriteOpWithMinMax(rewriter, cmpOp, selectOp, cmpOp.getPredicate());
     rewriter.eraseOp(cmpOp);
 
     return success();
+  }
+
+  void rewriteOpWithMinMax(PatternRewriter &rewriter, arith::CmpFOp cmpOp,
+                           arith::SelectOp selectOp,
+                           arith::CmpFPredicate pred) const {
+    switch (pred) {
+    case arith::CmpFPredicate::OGT:
+      rewriter.replaceOpWithNewOp<arith::MaxFOp>(selectOp, cmpOp.getLhs(),
+                                                 cmpOp.getRhs());
+      break;
+    case arith::CmpFPredicate::OLT:
+      rewriter.replaceOpWithNewOp<arith::MinFOp>(selectOp, cmpOp.getLhs(),
+                                                 cmpOp.getRhs());
+      break;
+    default:
+      llvm_unreachable("Unhandled predicate");
+    }
+  }
+
+  void rewriteOpWithMinMax(PatternRewriter &rewriter, arith::CmpIOp cmpOp,
+                           arith::SelectOp selectOp,
+                           arith::CmpIPredicate pred) const {
+    switch (pred) {
+    case arith::CmpIPredicate::sgt:
+      rewriter.replaceOpWithNewOp<arith::MaxSIOp>(selectOp, cmpOp.getLhs(),
+                                                  cmpOp.getRhs());
+      break;
+    case arith::CmpIPredicate::ugt:
+      rewriter.replaceOpWithNewOp<arith::MaxUIOp>(selectOp, cmpOp.getLhs(),
+                                                  cmpOp.getRhs());
+      break;
+    case arith::CmpIPredicate::slt:
+      rewriter.replaceOpWithNewOp<arith::MinSIOp>(selectOp, cmpOp.getLhs(),
+                                                  cmpOp.getRhs());
+      break;
+    case arith::CmpIPredicate::ult:
+      rewriter.replaceOpWithNewOp<arith::MinUIOp>(selectOp, cmpOp.getLhs(),
+                                                  cmpOp.getRhs());
+      break;
+    default:
+      llvm_unreachable("Unhandled predicate");
+    }
   }
 };
 
@@ -881,21 +1216,37 @@ struct DenseConstantConverter : public OpConversionPattern<arith::ConstantOp> {
   }
 };
 
+struct UnrealizedCastConverter
+    : public OpConversionPattern<UnrealizedConversionCastOp> {
+  using OpConversionPattern<UnrealizedConversionCastOp>::OpConversionPattern;
+  LogicalResult
+  matchAndRewrite(UnrealizedConversionCastOp op, OpAdaptor adaptor,
+                  ConversionPatternRewriter &rewriter) const override {
+    rewriter.eraseOp(op);
+    return success();
+  }
+};
+
 } // namespace
 
 void mlir::triton::populateTritonToLinalgCanonicalizationPatterns(
     RewritePatternSet &patterns) {
-  patterns.add<MinMaxConverter>(patterns.getContext());
+  patterns.add<MinMaxConverter<arith::CmpFOp>, MinMaxConverter<arith::CmpIOp>>(
+      patterns.getContext());
 }
 
 void mlir::triton::populateTritonToLinalgConversionPatterns(
-    TypeConverter &typeConverter, RewritePatternSet &patterns) {
+    TypeConverter &typeConverter, RewritePatternSet &patterns,
+    unsigned int launchGridRank) {
   populateFunctionOpInterfaceTypeConversionPattern<triton::FuncOp>(
       patterns, typeConverter);
   patterns.add<MetaOpConverter>(patterns.getContext());
   patterns.add<StoreConverter>(patterns.getContext());
   patterns.add<AddPtrConverter>(patterns.getContext());
-  patterns.add<GetProgramIDConverter>(patterns.getContext());
+  patterns.add<MakeTensorPtrConverter>(patterns.getContext());
+  patterns.add<AdvanceConverter>(patterns.getContext());
+  patterns.add<GetProgramIDConverter, GetNumProgramsConverter>(
+      patterns.getContext());
   patterns.add<YieldConverter>(patterns.getContext());
   patterns.add<LoadConverter>(patterns.getContext());
   patterns.add<LoopConverter>(patterns.getContext());
@@ -909,6 +1260,7 @@ void mlir::triton::populateTritonToLinalgConversionPatterns(
   patterns.add<SplatConverter>(patterns.getContext());
   patterns.add<ReduceConverter>(patterns.getContext());
   patterns.add<DenseConstantConverter>(patterns.getContext());
+  patterns.add<UnrealizedCastConverter>(patterns.getContext());
 
   // Note: the ordering here matters!
   // MetaOpConverter has PatternBenefit == 10 which should take precedence over
