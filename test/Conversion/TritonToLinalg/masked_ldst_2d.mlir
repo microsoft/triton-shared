@@ -62,7 +62,7 @@ module {
   }
 }
 // CHECK-LABEL:   func.func @kernel(
-// CHECK-SAME:                      %[[VAL_0:.*]]: memref<*xbf16>, %[[VAL_1:.*]]: memref<*xbf16>, %[[VAL_2:.*]]: i32, %[[VAL_3:.*]]: i32, %[[VAL_4:.*]]: i32, %[[VAL_5:.*]]: i32, %[[VAL_6:.*]]: i32) {
+// CHECK-SAME:                      %[[VAL_0:.*]]: memref<*xbf16>, %[[VAL_1:.*]]: memref<*xbf16>, %[[VAL_2:.*]]: i32, %[[VAL_3:.*]]: i32, %[[ARG_4:.*]]: i32, %[[ARG_5:.*]]: i32, %[[ARG_6:.*]]: i32, %[[ARG_7:.*]]: i32, %[[ARG_8:.*]]: i32, %[[ARG_9:.*]]: i32) {
 // CHECK-DAG:           %[[VAL_7:.*]] = arith.constant 3074 : index
 // CHECK-DAG:           %[[VAL_8:.*]] = arith.constant 1024 : index
 // CHECK-DAG:           %[[VAL_9:.*]] = arith.constant 3 : index
@@ -83,14 +83,14 @@ module {
 // CHECK:           %[[VAL_24:.*]] = arith.subi %[[VAL_23]], %[[VAL_9]] : index
 // CHECK:           %[[VAL_25:.*]] = arith.minsi %[[VAL_21]], %[[VAL_12]] : index
 // CHECK:           %[[VAL_26:.*]] = arith.minsi %[[VAL_24]], %[[VAL_11]] : index
-// CHECK:           %[[VAL_27:.*]] = memref.subview %[[VAL_16]][0, 0] {{\[}}%[[VAL_25]], %[[VAL_26]]] [1, 1] : memref<128x256xbf16, strided<[1, ?], offset: ?>> to memref<?x?xbf16, strided<[1, ?], offset: ?>>
-// CHECK:           %[[VAL_28:.*]] = memref.subview %[[VAL_18]][0, 0] {{\[}}%[[VAL_25]], %[[VAL_26]]] [1, 1] : memref<128x256xbf16> to memref<?x?xbf16, strided<[256, 1]>>
 // CHECK:           %[[VAL_29:.*]] = arith.cmpi slt, %[[VAL_25]], %[[VAL_12]] : index
 // CHECK:           %[[VAL_30:.*]] = arith.cmpi slt, %[[VAL_26]], %[[VAL_11]] : index
 // CHECK:           %[[VAL_31:.*]] = arith.ori %[[VAL_29]], %[[VAL_30]] : i1
 // CHECK:           scf.if %[[VAL_31]] {
 // CHECK:             linalg.fill ins(%[[VAL_15]] : bf16) outs(%[[VAL_18]] : memref<128x256xbf16>)
 // CHECK:           }
+// CHECK:           %[[VAL_27:.*]] = memref.subview %[[VAL_16]][0, 0] {{\[}}%[[VAL_25]], %[[VAL_26]]] [1, 1] : memref<128x256xbf16, strided<[1, ?], offset: ?>> to memref<?x?xbf16, strided<[1, ?], offset: ?>>
+// CHECK:           %[[VAL_28:.*]] = memref.subview %[[VAL_18]][0, 0] {{\[}}%[[VAL_25]], %[[VAL_26]]] [1, 1] : memref<128x256xbf16> to memref<?x?xbf16, strided<[256, 1]>>
 // CHECK:           memref.copy %[[VAL_27]], %[[VAL_28]] : memref<?x?xbf16, strided<[1, ?], offset: ?>> to memref<?x?xbf16, strided<[256, 1]>>
 // CHECK:           %[[VAL_32:.*]] = bufferization.to_tensor %[[VAL_18]] restrict writable : memref<128x256xbf16>
 // CHECK:           %[[VAL_33:.*]] = arith.index_cast %[[VAL_2]] : i32 to index

@@ -25,7 +25,7 @@ module {
 }
 
 // CHECK: module {
-// CHECK:   func.func @kernel(%arg0: memref<*xi32>, %arg1: memref<*xf32>, %arg2: i32, %arg3: i32, %arg4: i32) {
+// CHECK:   func.func @kernel(%arg0: memref<*xi32>, %arg1: memref<*xf32>, %arg2: i32, %arg3: i32, %arg4: i32, %arg5: i32, %arg6: i32, %arg7: i32) {
 // CHECK:   [[RC_:%.+]] = memref.reinterpret_cast %arg0 to offset: [0], sizes: [1024], strides: [1]{{.*}} : memref<*xi32> to memref<1024xi32, strided<[1]>>
 // CHECK:   [[RC_0_:%.+]] = memref.reinterpret_cast %arg1 to offset: [0], sizes: [1024], strides: [1]{{.*}} : memref<*xf32> to memref<1024xf32, strided<[1]>>
 // CHECK:   [[ALLOC_:%.+]] = memref.alloc() : memref<1024xi32>
@@ -41,3 +41,4 @@ module {
 // CHECK:     return
 // CHECK:   }
 // CHECK: }
+

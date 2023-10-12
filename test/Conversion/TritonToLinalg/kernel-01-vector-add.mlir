@@ -26,10 +26,10 @@ module {
 
 // CHECK-DAG:   [[MAP_0_:#.+]] = affine_map<(d0) -> (d0)>
 // CHECK-LABEL:  func.func @add_kernel_01234
-// CHECK-SAME:   ([[PARAM_0_:%.+]]: memref<*xf32>, [[PARAM_1_:%.+]]: memref<*xf32>, [[PARAM_2_:%.+]]: memref<*xf32>, [[PARAM_3_:%.+]]: i32, [[PARAM_4_:%.+]]: i32, [[PARAM_5_:%.+]]: i32, [[PARAM_6_:%.+]]: i32) {
+// CHECK-SAME:   ([[PARAM_0_:%.+]]: memref<*xf32>, [[PARAM_1_:%.+]]: memref<*xf32>, [[PARAM_2_:%.+]]: memref<*xf32>, [[PARAM_3_:%.+]]: i32, [[PARAM_4_:%.+]]: i32, [[PARAM_5_:%.+]]: i32, [[PARAM_6_:%.+]]: i32, [[PARAM_7_:%.+]]: i32, [[PARAM_8_:%.+]]: i32, [[PARAM_9_:%.+]]: i32) {
 // CHECK-DAG:       [[CST_1024_:%.+]] = arith.constant 1024 : index
 // CHECK-DAG:       [[CST_1024_1_:%.+]] = arith.constant 1024 : i32
-// CHECK:           [[VAR_0_:%.+]] = arith.muli [[PARAM_4_]], [[CST_1024_1_]] : i32
+// CHECK:           [[VAR_0_:%.+]] = arith.muli [[PARAM_7_]], [[CST_1024_1_]] : i32
 // CHECK:           [[VAR_1_:%.+]] = arith.index_cast [[VAR_0_]] : i32 to index
 // CHECK-DAG:       [[VAR_reinterpret_cast_:%.+]] = memref.reinterpret_cast [[PARAM_0_]] to offset: {{.}}[[VAR_1_]]{{.}}, sizes: [1024], strides: [1]{{.*}} : memref<*xf32> to memref<1024xf32, strided<[1], offset: ?>>
 // CHECK-DAG:       [[RES_:%.+]] = memref.alloc() : memref<1024xf32>

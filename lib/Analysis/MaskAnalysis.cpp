@@ -68,6 +68,120 @@ MaskState::getSubview(Value source, const Location loc,
                                             source, offsets, dims, strides);
 }
 
+static memref::SubViewOp createSubview(Value src, Location loc, OpBuilder &b,
+                                       ArrayRef<OpFoldResult> offsets,
+                                       ArrayRef<OpFoldResult> sizes,
+                                       ArrayRef<OpFoldResult> strides) {
+  auto srcType = cast<MemRefType>(src.getType());
+  auto dstType =
+      memref::SubViewOp::inferResultType(srcType, offsets, sizes, strides);
+  return b.create<memref::SubViewOp>(loc, cast<MemRefType>(dstType), src,
+                                     offsets, sizes, strides);
+}
+
+// Assume block1 wraps around and the remainder is block2.
+//
+// |----------------------|
+// |         |            |
+// | block2  |  block1    |
+// |         |            |
+// |----------------------|
+//
+// Once we copy the chunks in order, the end result is block1 followed by
+// block2.
+//
+//   buffer_tmp:
+//
+// |----------------------|
+// |             |        |
+// | block1      | block2 |
+// |             |        |
+// |----------------------|
+//
+// Assume we have the following subview:
+//
+// +++++++++++++++++-------
+// +               +      |
+// + subview       +      |
+// +               +      |
+// +++++++++++++++++-------
+//
+// If we simply take the subview of `buffer_tmp`, this requires an extra buffer
+// to just hold the temporary result.
+//
+// So we can subview into block1 and block2 directly. There are 2 cases:
+//   + subview only spans block1
+//   + subview spans both block1 and block2, creating sv1 and sv2 (illustrated
+//     below for case when we wrap around side-by-side)
+//
+// |----------------------------------------|
+// |                                        |
+// |    col2                       col1     |
+// |++++++--------|          |+++++++++++++++
+// | sv2 + block2 |          | block1 & sv1 +
+// |++++++--------|          |+++++++++++++++
+// |                                        |
+// |----------------------------------------|
+//
+// For simplicity, assume we only wrap around side-by-side.
+//
+// Let (row, col1) and (row, col2) be the dimensions of block1 and block2,
+// respectively.
+//
+// Let (rowFull, colFull), (rowView1, colView1) and (rowView2, colView2) be the
+// dimensions of the full subview, sv1, and sv2, respectively.
+//
+// + colView1 = min(colFull, col1)
+// + colView2 = colFull - colView1
+// + rowView1 = rowView2 = row = rowFull
+std::pair<memref::SubViewOp, memref::SubViewOp>
+MaskState::getSideBySideSubviews(memref::ReinterpretCastOp block1,
+                                 memref::ReinterpretCastOp block2,
+                                 const Location loc,
+                                 ConversionPatternRewriter &rewriter) const {
+
+  assert(block1.getResultRank() == 2 && block2.getResultRank() == 2 &&
+         getRank() == 2);
+
+  OpFoldResult subviewRowFull = dims[0];
+  OpFoldResult subviewColFull = dims[1];
+  OpFoldResult col1 = block1.getMixedSizes()[1];
+  OpFoldResult subviewCol1 = minOFRs(col1, subviewColFull, loc, rewriter);
+  OpFoldResult subviewCol2 =
+      subOFRs(subviewColFull, subviewCol1, loc, rewriter);
+
+  SmallVector<OpFoldResult> offsets(getRank(), rewriter.getIndexAttr(0));
+  SmallVector<OpFoldResult> strides = block1.getMixedStrides();
+  auto sv1 = createSubview(block1.getResult(), loc, rewriter, offsets,
+                           {subviewRowFull, subviewCol1}, strides);
+  auto sv2 = createSubview(block2.getResult(), loc, rewriter, offsets,
+                           {subviewRowFull, subviewCol2}, strides);
+
+  return {sv1, sv2};
+}
+
+std::pair<memref::SubViewOp, memref::SubViewOp> MaskState::getStackedSubviews(
+    memref::ReinterpretCastOp block1, memref::ReinterpretCastOp block2,
+    const Location loc, ConversionPatternRewriter &rewriter) const {
+  assert(block1.getResultRank() == 2 && block2.getResultRank() == 2 &&
+         getRank() == 2);
+
+  OpFoldResult subviewRowFull = dims[0];
+  OpFoldResult subviewColFull = dims[1];
+  OpFoldResult row1 = block1.getMixedSizes()[0];
+  OpFoldResult subviewRow1 = minOFRs(row1, subviewRowFull, loc, rewriter);
+  OpFoldResult subviewRow2 =
+      subOFRs(subviewRowFull, subviewRow1, loc, rewriter);
+
+  SmallVector<OpFoldResult> offsets(getRank(), rewriter.getIndexAttr(0));
+  SmallVector<OpFoldResult> strides = block1.getMixedStrides();
+  auto sv1 = createSubview(block1.getResult(), loc, rewriter, offsets,
+                           {subviewRow1, subviewColFull}, strides);
+  auto sv2 = createSubview(block2.getResult(), loc, rewriter, offsets,
+                           {subviewRow2, subviewColFull}, strides);
+  return {sv1, sv2};
+}
+
 LogicalResult MaskState::addStateScalar(const MaskState &state,
                                         const OpFoldResult scalar, Location loc,
                                         ConversionPatternRewriter &rewriter) {
@@ -132,7 +246,6 @@ LogicalResult MaskState::parseConstant(arith::ConstantOp constOp,
     auto constAttr = rewriter.getIndexAttr(value.getSExtValue());
     auto op = arith::ConstantOp::materialize(rewriter, constAttr,
                                              rewriter.getIndexType(), loc);
-
     this->scalar = op.getValue();
   } else {
     auto value = constOp.getValue().cast<IntegerAttr>().getInt();

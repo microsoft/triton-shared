@@ -31,10 +31,10 @@ module {
   }
 }
 // CHECK-LABEL:   func.func @kernel(
-// CHECK-SAME:                      %[[VAL_0:.*]]: memref<*xf32> {tt.divisibility = 16 : i32}, %[[VAL_1:.*]]: memref<*xf32> {tt.divisibility = 16 : i32}, %[[VAL_2:.*]]: i32, %[[VAL_3:.*]]: i32, %[[VAL_4:.*]]: i32, %[[VAL_5:.*]]: i32, %[[VAL_6:.*]]: i32, %[[VAL_7:.*]]: i32) {
-// CHECK:           %[[VAL_8:.*]] = arith.muli %[[VAL_5]], %[[VAL_2]] : i32
-// CHECK:           %[[VAL_9:.*]] = arith.muli %[[VAL_5]], %[[VAL_3]] : i32
-// CHECK:           %[[VAL_10:.*]] = arith.muli %[[VAL_5]], %[[VAL_4]] : i32
+// CHECK-SAME:                      %[[VAL_0:.*]]: memref<*xf32> {tt.divisibility = 16 : i32}, %[[VAL_1:.*]]: memref<*xf32> {tt.divisibility = 16 : i32}, %[[VAL_2:.*]]: i32, %[[VAL_3:.*]]: i32, %[[VAL_4:.*]]: i32, %[[ARG_5:.*]]: i32, %[[ARG_6:.*]]: i32, %[[ARG_7:.*]]: i32, %[[ARG_8:.*]]: i32, %[[ARG_9:.*]]: i32, %[[ARG_10:.*]]: i32) {
+// CHECK:           %[[VAL_8:.*]] = arith.muli %[[ARG_8]], %[[VAL_2]] : i32
+// CHECK:           %[[VAL_9:.*]] = arith.muli %[[ARG_8]], %[[VAL_3]] : i32
+// CHECK:           %[[VAL_10:.*]] = arith.muli %[[ARG_8]], %[[VAL_4]] : i32
 // CHECK:           %[[VAL_11:.*]] = arith.index_cast %[[VAL_8]] : i32 to index
 // CHECK:           %[[VAL_12:.*]] = arith.index_cast %[[VAL_9]] : i32 to index
 // CHECK:           %[[VAL_13:.*]] = arith.addi %[[VAL_11]], %[[VAL_12]] : index
@@ -49,7 +49,7 @@ module {
 // CHECK:             %[[VAL_22:.*]] = math.exp %[[VAL_20]] : f32
 // CHECK:             linalg.yield %[[VAL_22]] : f32
 // CHECK:           } -> tensor<1024xf32>
-// CHECK:           %[[VAL_23:.*]] = arith.muli %[[VAL_5]], %[[VAL_3]] : i32
+// CHECK:           %[[VAL_23:.*]] = arith.muli %[[ARG_8]], %[[VAL_3]] : i32
 // CHECK:           %[[VAL_24:.*]] = arith.index_cast %[[VAL_23]] : i32 to index
 // CHECK:           %[[VAL_25:.*]] = memref.reinterpret_cast %[[VAL_0]] to offset: {{\[}}%[[VAL_24]]], sizes: [1024], strides: [1] : memref<*xf32> to memref<1024xf32, strided<[1], offset: ?>>
 // CHECK:           memref.tensor_store %[[VAL_26:.*]], %[[VAL_25]] : memref<1024xf32, strided<[1], offset: ?>>

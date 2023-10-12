@@ -98,7 +98,7 @@ module {
 
 // CHECK-DAG:   [[MAP_0_:#.+]] = affine_map<(d0, d1) -> (d0, d1)>
 // CHECK-LABEL:  func.func @matmul_kernel_0123456789101112131415
-// CHECK-SAME:   ([[PARAM_0_:%.+]]: memref<*xbf16>, [[PARAM_1_:%.+]]: memref<*xbf16>, [[PARAM_2_:%.+]]: memref<*xbf16>, [[PARAM_3_:%.+]]: i32, [[PARAM_4_:%.+]]: i32, [[PARAM_5_:%.+]]: i32, [[PARAM_6_:%.+]]: i32, [[PARAM_7_:%.+]]: i32, [[PARAM_8_:%.+]]: i32, [[PARAM_9_:%.+]]: i32, [[PARAM_10_:%.+]]: i32, [[PARAM_11_:%.+]]: i32, [[PARAM_12_:%.+]]: i32, [[PARAM_13_:%.+]]: i32, [[PARAM_14_:%.+]]: i32) {
+// CHECK-SAME:   ([[PARAM_0_:%.+]]: memref<*xbf16>, [[PARAM_1_:%.+]]: memref<*xbf16>, [[PARAM_2_:%.+]]: memref<*xbf16>, [[PARAM_3_:%.+]]: i32, [[PARAM_4_:%.+]]: i32, [[PARAM_5_:%.+]]: i32, [[PARAM_6_:%.+]]: i32, [[PARAM_7_:%.+]]: i32, [[PARAM_8_:%.+]]: i32, [[PARAM_9_:%.+]]: i32, [[PARAM_10_:%.+]]: i32, [[PARAM_11_:%.+]]: i32, [[PARAM_12_:%.+]]: i32, [[PARAM_13_:%.+]]: i32, [[PARAM_14_:%.+]]: i32, [[PARAM_15_:%.+]]: i32, [[PARAM_16_:%.+]]: i32, [[PARAM_17_:%.+]]: i32) {
 // CHECK-DAG:       [[CST_256_:%.+]] = arith.constant 256 : index
 // CHECK-DAG:       [[CST_128_:%.+]] = arith.constant 128 : index
 // CHECK-DAG:       [[CST_0_:%.+]] = arith.constant 0 : index
@@ -125,14 +125,13 @@ module {
 // CHECK-NOT: separator of consecutive DAGs
 // CHECK-DAG:       [[VAR_7_:%.+]] = arith.divsi [[VAR_6_]], [[CST_64_]] : i32
 // CHECK-DAG:       [[VAR_8_:%.+]] = arith.muli [[VAR_5_]], [[CST_8_]] : i32
-// CHECK:           [[VAR_9_:%.+]] = arith.divsi [[PARAM_12_]], [[VAR_8_]] : i32
+// CHECK:           [[VAR_9_:%.+]] = arith.divsi [[PARAM_15_]], [[VAR_8_]] : i32
 // CHECK:           [[VAR_10_:%.+]] = arith.muli [[VAR_9_]], [[CST_8_]] : i32
 // CHECK:           [[VAR_11_:%.+]] = arith.subi [[VAR_3_]], [[VAR_10_]] : i32
-// CHECK:           [[VAR_12_:%.+]] = arith.cmpi slt, [[VAR_11_]], [[CST_8_]] : i32
-// CHECK:           [[VAR_13_:%.+]] = arith.select [[VAR_12_]], [[VAR_11_]], [[CST_8_]] : i32
-// CHECK:           [[VAR_14_:%.+]] = arith.remsi [[PARAM_12_]], [[VAR_13_]] : i32
+// CHECK:           [[VAR_13_:%.+]] = arith.minsi [[VAR_11_]], [[CST_8_]] : i32
+// CHECK:           [[VAR_14_:%.+]] = arith.remsi [[PARAM_15_]], [[VAR_13_]] : i32
 // CHECK-DAG:       [[VAR_15_:%.+]] = arith.addi [[VAR_10_]], [[VAR_14_]] : i32
-// CHECK-DAG:       [[VAR_16_:%.+]] = arith.remsi [[PARAM_12_]], [[VAR_8_]] : i32
+// CHECK-DAG:       [[VAR_16_:%.+]] = arith.remsi [[PARAM_15_]], [[VAR_8_]] : i32
 // CHECK-NOT: separator of consecutive DAGs
 // CHECK-DAG:       [[VAR_17_:%.+]] = arith.divsi [[VAR_16_]], [[VAR_13_]] : i32
 // CHECK-DAG:       [[VAR_18_:%.+]] = arith.muli [[VAR_15_]], [[CST_128_1_]] : i32
