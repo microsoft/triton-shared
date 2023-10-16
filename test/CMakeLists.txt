@@ -12,7 +12,6 @@ configure_lit_site_cfg(
 
 set(TRITON_SHARED_TEST_DEPENDS
   triton-shared-opt
-  triton-shared-translate
 )
 
 set(FILECHECK_PATH "${LLVM_LIBRARY_DIR}/../bin/FileCheck")
