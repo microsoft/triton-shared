@@ -838,8 +838,8 @@ private:
   }
 
   bool isReductionOpSupported(Operation *redOp) const {
-    return isa<arith::AddFOp, arith::MaximumFOp, arith::MinSIOp, arith::MinUIOp,
-               arith::MaxSIOp, arith::MaxUIOp>(redOp);
+    return isa<arith::AddFOp, arith::AddIOp, arith::MaximumFOp, arith::MinSIOp,
+               arith::MinUIOp, arith::MaxSIOp, arith::MaxUIOp>(redOp);
   }
 
   arith::ConstantOp getRedBaseConstOp(ConversionPatternRewriter &rewriter,
@@ -851,6 +851,9 @@ private:
         llvm::TypeSwitch<Operation *, TypedAttr>(redOp)
             .Case([&](arith::AddFOp) {
               return rewriter.getFloatAttr(constantType, 0.f);
+            })
+            .Case([&](arith::AddIOp) {
+              return rewriter.getIntegerAttr(constantType, 0);
             })
             .Case([&](arith::MaximumFOp) {
               return rewriter.getFloatAttr(
@@ -899,8 +902,8 @@ private:
           }
           return b.create<arith::AddFOp>(loc, lhs, rhs);
         })
-        .Case<arith::MaximumFOp, arith::MinSIOp, arith::MinUIOp, arith::MaxSIOp,
-              arith::MaxUIOp>([&](auto redOp) {
+        .Case<arith::AddIOp, arith::MaximumFOp, arith::MinSIOp, arith::MinUIOp,
+              arith::MaxSIOp, arith::MaxUIOp>([&](auto redOp) {
           return b.create<decltype(redOp)>(loc, lhs, rhs);
         })
         .Default([](Operation *op) {
@@ -927,7 +930,7 @@ private:
     if (reductionOps.size() != 1 ||
         !isReductionOpSupported(reductionOps.front())) {
       return op.emitError("Only support lowering reduction with body "
-                          "containing 1 max(i/f) or addf.");
+                          "containing one max(i/f) or add(i/f).");
     }
 
     auto rop = reductionOps.front();
@@ -1161,7 +1164,7 @@ struct MinMaxConverter : public OpRewritePattern<CmpOp> {
       break;
     case arith::CmpFPredicate::OLT:
       rewriter.replaceOpWithNewOp<arith::MinimumFOp>(selectOp, cmpOp.getLhs(),
-                                                 cmpOp.getRhs());
+                                                     cmpOp.getRhs());
       break;
     default:
       llvm_unreachable("Unhandled predicate");
