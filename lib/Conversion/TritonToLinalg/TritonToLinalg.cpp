@@ -838,7 +838,7 @@ private:
   }
 
   bool isReductionOpSupported(Operation *redOp) const {
-    return isa<arith::AddFOp, arith::MaxFOp, arith::MinSIOp, arith::MinUIOp,
+    return isa<arith::AddFOp, arith::MaximumFOp, arith::MinSIOp, arith::MinUIOp,
                arith::MaxSIOp, arith::MaxUIOp>(redOp);
   }
 
@@ -852,7 +852,7 @@ private:
             .Case([&](arith::AddFOp) {
               return rewriter.getFloatAttr(constantType, 0.f);
             })
-            .Case([&](arith::MaxFOp) {
+            .Case([&](arith::MaximumFOp) {
               return rewriter.getFloatAttr(
                   constantType, -std::numeric_limits<float>::infinity());
             })
@@ -899,7 +899,7 @@ private:
           }
           return b.create<arith::AddFOp>(loc, lhs, rhs);
         })
-        .Case<arith::MaxFOp, arith::MinSIOp, arith::MinUIOp, arith::MaxSIOp,
+        .Case<arith::MaximumFOp, arith::MinSIOp, arith::MinUIOp, arith::MaxSIOp,
               arith::MaxUIOp>([&](auto redOp) {
           return b.create<decltype(redOp)>(loc, lhs, rhs);
         })
@@ -1156,11 +1156,11 @@ struct MinMaxConverter : public OpRewritePattern<CmpOp> {
                            arith::CmpFPredicate pred) const {
     switch (pred) {
     case arith::CmpFPredicate::OGT:
-      rewriter.replaceOpWithNewOp<arith::MaxFOp>(selectOp, cmpOp.getLhs(),
-                                                 cmpOp.getRhs());
+      rewriter.replaceOpWithNewOp<arith::MaximumFOp>(selectOp, cmpOp.getLhs(),
+                                                     cmpOp.getRhs());
       break;
     case arith::CmpFPredicate::OLT:
-      rewriter.replaceOpWithNewOp<arith::MinFOp>(selectOp, cmpOp.getLhs(),
+      rewriter.replaceOpWithNewOp<arith::MinimumFOp>(selectOp, cmpOp.getLhs(),
                                                  cmpOp.getRhs());
       break;
     default:
