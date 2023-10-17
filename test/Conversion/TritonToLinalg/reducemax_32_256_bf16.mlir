@@ -50,7 +50,7 @@ module {
 // CHECK:           %[[VAL_11:.*]] = linalg.fill ins(%[[VAL_6]] : bf16) outs(%[[VAL_10]] : tensor<256x16xbf16>) -> tensor<256x16xbf16>
 // CHECK:           %[[VAL_12:.*]] = linalg.reduce ins(%[[VAL_9]] : tensor<32x256x16xbf16>) outs(%[[VAL_11]] : tensor<256x16xbf16>) dimensions = [0]
 // CHECK:             (%[[VAL_13:.*]]: bf16, %[[VAL_14:.*]]: bf16) {
-// CHECK:               %[[VAL_15:.*]] = arith.maxf %[[VAL_13]], %[[VAL_14]] : bf16
+// CHECK:               %[[VAL_15:.*]] = arith.maximumf %[[VAL_13]], %[[VAL_14]] : bf16
 // CHECK:               linalg.yield %[[VAL_15]] : bf16
 // CHECK:             }
 // CHECK:           memref.tensor_store %[[VAL_12]], %[[VAL_1]] : memref<256x16xbf16>

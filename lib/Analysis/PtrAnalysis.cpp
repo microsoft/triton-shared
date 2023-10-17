@@ -1231,7 +1231,7 @@ void PtrAnalysis::rewriteForOp(
         mapping.map(op.getInitArgs(), newInitArgs);
         mapping.map(op.getRegionIterArgs(), args);
 
-        for (auto &bodyOp : op.getLoopBody().getOps()) {
+        for (auto &bodyOp : op.getRegion().getOps()) {
           b.clone(bodyOp, mapping);
         }
 
@@ -1309,7 +1309,7 @@ void PtrAnalysis::rewriteForOp(
 
   // Update the loop body. Manually invoke the rewrite logic on addptr and yield
   // in the loop body, so we can take advantage of the states we built up
-  for (auto &bodyOp : newOp.getLoopBody().getOps()) {
+  for (auto &bodyOp : newOp.getRegion().getOps()) {
     if (auto addptrOp = dyn_cast<triton::AddPtrOp>(bodyOp)) {
       rewriteAddptrOp(addptrOp, rewriter, knownPtrs);
     } else if (auto advanceOp = dyn_cast<triton::AdvanceOp>(bodyOp)) {

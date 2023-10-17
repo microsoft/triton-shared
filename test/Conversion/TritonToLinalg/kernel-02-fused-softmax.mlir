@@ -62,7 +62,7 @@ module {
 // CHECK:           [[VAR_inserted_:%.+]] = tensor.insert [[CST_0_]] into [[VAR_6_]][] : tensor<f32>
 // CHECK:           [[VAR_reduced_:%.+]] = linalg.reduce ins([[VAR_5_]] : tensor<128xf32>) outs([[VAR_inserted_]] : tensor<f32>) dimensions = [0]
 // CHECK:             ([[in_1:%.+]]: f32, [[init_1:%.+]]: f32) {
-// CHECK:               [[VAR_19_:%.+]] = arith.maxf [[in_1]], [[init_1]] : f32
+// CHECK:               [[VAR_19_:%.+]] = arith.maximumf [[in_1]], [[init_1]] : f32
 // CHECK:               linalg.yield [[VAR_19_]] : f32
 // CHECK:             }
 // CHECK-DAG:       [[VAR_extracted_:%.+]] = tensor.extract [[VAR_reduced_]][] : tensor<f32>
