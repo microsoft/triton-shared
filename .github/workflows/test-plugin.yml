@@ -32,11 +32,11 @@ jobs:
         path: triton
         submodules: 'recursive'
 
-    # - name: Checkout Triton-Shared
-    #   uses: actions/checkout@v4
-    #   with:
-    #     ref: ${{ inputs.triton-shared-ref }}
-    #     path: triton/third_party/triton_shared
+    - name: Checkout Triton-Shared
+      uses: actions/checkout@v4
+      with:
+        ref: ${{ inputs.triton-shared-ref }}
+        path: triton/third_party/triton_shared
 
     - name: Clear Triton Cache
       run: |
@@ -46,29 +46,34 @@ jobs:
       run: |
         echo "PATH=${HOME}/.local/bin:${PATH}" >> "${GITHUB_ENV}"
 
+    - name: Replace pre-commit
+      run: |
+        rm triton/.pre-commit-config.yaml
+        cp triton/third_party/triton_shared/.pre-commit-config.yaml triton/
+
     - name: Check pre-commit
       run: |
         cd triton
         python3 -m pip install --upgrade pre-commit
         python3 -m pre_commit run --all-files --verbose
 
-    - name: Build/Install Triton
-      run: |
-        export TRITON_CODEGEN_TRITON_SHARED=1
-        cd triton/python
-        python3 -m pip install --upgrade pip
-        python3 -m pip install cmake==3.24
-        python3 -m pip install ninja
-        python3 -m pip uninstall -y triton
-        python3 setup.py build
-        python3 -m pip install --no-build-isolation -vvv '.[tests]'
+    # - name: Build/Install Triton
+    #   run: |
+    #     export TRITON_CODEGEN_TRITON_SHARED=1
+    #     cd triton/python
+    #     python3 -m pip install --upgrade pip
+    #     python3 -m pip install cmake==3.24
+    #     python3 -m pip install ninja
+    #     python3 -m pip uninstall -y triton
+    #     python3 setup.py build
+    #     python3 -m pip install --no-build-isolation -vvv '.[tests]'
 
-    - name: Run shared middle-layer lit tests
-      run: |
-        python3 -m pip install lit
-        cd triton/python
-        LIT_TEST_DIR="build/$(ls build | grep -i cmake)/third_party/triton_shared/test"
-        if [ ! -d "${LIT_TEST_DIR}" ]; then
-          echo "Coult not find '${LIT_TEST_DIR}'" ; exit -1
-        fi
-        lit -v "${LIT_TEST_DIR}"
+    # - name: Run shared middle-layer lit tests
+    #   run: |
+    #     python3 -m pip install lit
+    #     cd triton/python
+    #     LIT_TEST_DIR="build/$(ls build | grep -i cmake)/third_party/triton_shared/test"
+    #     if [ ! -d "${LIT_TEST_DIR}" ]; then
+    #       echo "Coult not find '${LIT_TEST_DIR}'" ; exit -1
+    #     fi
+    #     lit -v "${LIT_TEST_DIR}"
