@@ -32,11 +32,11 @@ jobs:
         path: triton
         submodules: 'recursive'
 
-    - name: Checkout Triton-Shared
-      uses: actions/checkout@v4
-      with:
-        ref: ${{ inputs.triton-shared-ref }}
-        path: triton/third_party/triton_shared
+    # - name: Checkout Triton-Shared
+    #   uses: actions/checkout@v4
+    #   with:
+    #     ref: ${{ inputs.triton-shared-ref }}
+    #     path: triton/third_party/triton_shared
 
     - name: Clear Triton Cache
       run: |
