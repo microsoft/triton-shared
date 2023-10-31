@@ -1,12 +1,12 @@
 repos:
-  - repo: https://github.com/pre-commit/mirrors-autopep8
+  - repo: https://github.com/hhatto/autopep8
     rev: v1.6.0
     hooks:
       - id: autopep8
         exclude: '^python/triton/runtime/.*'
         args: ["-d"]
         stages: [commit, push, manual]
-  - repo: https://github.com/pre-commit/mirrors-autopep8
+  - repo: https://github.com/hhatto/autopep8
     rev: v1.6.0
     hooks:
       - id: autopep8
