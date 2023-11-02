@@ -86,6 +86,11 @@ jobs:
     - name: Report Failure
       if: ${{ failure() }}
       run: |
-        gh --repo ${{ github.repository }} issue create --title "Rolling build failure!" --body "Notify @manbearian, this job has failed"
+        gh --repo ${{ github.repository }} issue create  \
+           --title "Rolling Build Failure $(date +'%Y-%m-%d')" \
+           --body "(Rolling build failed)[${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}].\nTagging @manbearian that this job has failed"
       env:
         GH_TOKEN: ${{ github.token }}
+
+        
+
