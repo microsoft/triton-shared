@@ -31,7 +31,7 @@ jobs:
 
     steps:
     - name: Forcing Failure
-      if: ${{ github.event.inputs.force-fail }}
+      if: ${{ github.event.inputs.force-failure }}
       run: exit 1
 
     - name: Checkout Triton
