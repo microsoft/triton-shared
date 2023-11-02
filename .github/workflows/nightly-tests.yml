@@ -10,3 +10,5 @@ jobs:
     with:
         triton-ref: 'main'
         triton-shared-ref: 'main'
+        notify-on-failure: true
+        force-failure: true

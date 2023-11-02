@@ -17,12 +17,22 @@ on:
       triton-shared-ref:
         required: true
         type: string
+      notify-on-failure:
+        default: false
+        type: boolean
+      force-failure:
+        default: false
+        type: boolean
+
 
 jobs:
   build_and_test_triton_shared:
     runs-on: ubuntu-latest
 
     steps:
+    - name: Forcing Failure
+      if: ${{ github.event.inputs.force-fail }}
+      run: exit 1
 
     - name: Checkout Triton
       uses: actions/checkout@v4
@@ -72,3 +82,9 @@ jobs:
           echo "Coult not find '${LIT_TEST_DIR}'" ; exit -1
         fi
         lit -v "${LIT_TEST_DIR}"
+
+    - name: Report Failure
+      if: ${{ failure() }}
+      run: |
+        gh --repo ${{ github.repository }} issue create --title "Rolling build failure!" --body "Notify @manbearian, this job has failed"
+
