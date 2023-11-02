@@ -87,4 +87,5 @@ jobs:
       if: ${{ failure() }}
       run: |
         gh --repo ${{ github.repository }} issue create --title "Rolling build failure!" --body "Notify @manbearian, this job has failed"
-
+      env:
+        GH_TOKEN: ${{ github.token }}
