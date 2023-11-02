@@ -88,7 +88,8 @@ jobs:
       run: |
         gh --repo ${{ github.repository }} issue create  \
            --title "Rolling Build Failure $(date +'%Y-%m-%d')" \
-           --body "(Rolling build failed)[${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}].\nTagging @manbearian that this job has failed"
+           --body "cc @manbearian
+                   The rolling build has failed. See: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})."
       env:
         GH_TOKEN: ${{ github.token }}
 
