@@ -3,10 +3,33 @@ name: Nightly Tests
 on:
   schedule:
     - cron: '23 10 * * *'  # random time in the middle of the night PT
+  workflow_dispatch:
+    inputs:
+      notify-on-failure:
+        default: false
+        type: boolean
+      force-failure:
+        default: false
+        type: boolean
 
 jobs:
   call-workflow:
-    uses: ./.github/workflows/test-plugin.yml
-    with:
-        triton-ref: 'main'
-        triton-shared-ref: 'main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Force Failure
+        if: ${{ github.event.inputs.force-failure }}
+        run: exit 1
+      - name: Run Triton-Shared Testing
+        uses: ./.github/workflows/test-plugin.yml
+        with:
+            triton-ref: 'main'
+            triton-shared-ref: 'main'
+      - name: Report Failure
+        if: ${{ failure() }}
+        run: |
+          gh --repo ${{ github.repository }} issue create  \
+              --title "Rolling Build Failure $(date +'%Y-%m-%d')" \
+              --body "cc @microsoft/aifx-compilers 
+                      The rolling build has failed. See: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+        env:
+          GH_TOKEN: ${{ github.token }}
