@@ -5,6 +5,9 @@ on:
     - cron: '23 10 * * *'  # random time in the middle of the night PT
   workflow_dispatch:
     inputs:
+      notify-on-failure:
+        default: false
+        type: boolean
       force-failure:
         default: false
         type: boolean
@@ -14,15 +17,20 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Force Failure
-        if: ${{ github.event.inputs.force-failure }}
+        if: ${{ inputs.force-failure }}
         run: exit 1
+      - name: Checkout Triton-Shared
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
+          path: triton/third_party/triton_shared
       - name: Run Triton-Shared Testing
         uses: ./.github/workflows/test-plugin.yml
         with:
             triton-ref: 'main'
             triton-shared-ref: 'main'
       - name: Report Failure
-        if: ${{ failure() }}
+        if: ${{ inputs.notify-on-failure && failure() }}
         run: |
           issues=$(gh --repo microsoft/triton-shared issue list --label nightly-build-failure --state open)
           build_url="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
