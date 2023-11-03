@@ -25,7 +25,6 @@ jobs:
     if: ${{ always() && inputs.notify-on-failure && needs.call-workflow.result == 'failure' }}
     steps:
       - name: Report Failure
-        if: ${{ inputs.notify-on-failure && failure() }}
         run: |
           issues=$(gh --repo microsoft/triton-shared issue list --label nightly-build-failure --state open)
           build_url="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
