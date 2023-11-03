@@ -9,6 +9,9 @@ on:
       triton-shared-ref:
         required: true
         type: string
+      force-failure:
+        default: false
+        type: boolean
   workflow_dispatch:
     inputs:
       triton-ref:
@@ -17,12 +20,19 @@ on:
       triton-shared-ref:
         required: true
         type: string
+      force-failure:
+        default: false
+        type: boolean
+
 
 jobs:
   build_and_test_triton_shared:
     runs-on: ubuntu-latest
 
     steps:
+    - name: Force Failure
+      if: ${{ inputs.force-failure }}
+      run: exit 1
 
     - name: Checkout Triton
       uses: actions/checkout@v4
@@ -72,3 +82,25 @@ jobs:
           echo "Coult not find '${LIT_TEST_DIR}'" ; exit -1
         fi
         lit -v "${LIT_TEST_DIR}"
+        
+    - name: Report Failure
+      if: ${{ inputs.notify-on-failure && failure() }}
+      run: |
+        issues=$(gh --repo microsoft/triton-shared issue list --label nightly-build-failure --state open)
+        build_url="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+        notificiation_list="@microsoft/aifx-compilers"
+        repo=microsoft/triton-shared #"${{ github.repository }}"
+        if [ -z "$issues" ]; then
+          gh --repo $repo issue create  \
+              --title "Nightly Build Failure $(date +'%Y-%m-%d')" \
+              --label "nightly-build-failure" \
+              --body "cc $notificiation_list
+                      The nightly build has failed. See: $build_url"
+        else
+          issue_number=$(echo "$issues" | head -n 1 | awk '{print $1}')
+          gh --repo $repo issue comment $issue_number \
+              --body "cc $notificiation_list
+                      The nightly build has failed again. See: $build_url"
+        fi
+      env:
+        GH_TOKEN: ${{ github.token }}
