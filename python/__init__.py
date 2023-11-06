@@ -14,7 +14,7 @@ from triton.runtime.jit import version_key
 def _get_triton_shared_opt_path() -> str:
     path = os.getenv("TRITON_SHARED_OPT_PATH", "")
     if path == "":
-        assert Exception("TRITON_SHARED_OPT_PATH is not set.")
+        raise Exception("TRITON_SHARED_OPT_PATH is not set.")
     return path
 
 
@@ -22,7 +22,7 @@ def _get_llvm_bin_path(bin_name: str) -> str:
     path = os.getenv("LLVM_BINARY_DIR", "")
     if path == "":
         raise Exception("LLVM_BINARY_DIR is not set.")
-    return f"{path}/{bin_name}"
+    return os.path.join(path, bin_name)
 
 
 def _ttir_to_ttsharedir(mod):
@@ -33,8 +33,7 @@ def _ttir_to_ttsharedir(mod):
         dst_path = os.path.join(tmpdir, "ttshared.mlir")
         Path(src_path).write_text(ttir_code)
         triton_shared_opt_path = _get_triton_shared_opt_path()
-        ret = subprocess.check_call([triton_shared_opt_path, src_path, "--triton-to-linalg", "-o", dst_path])
-        assert ret == 0
+        subprocess.check_call([triton_shared_opt_path, src_path, "--triton-to-linalg", "-o", dst_path])
         return Path(dst_path).read_text()
 
 
@@ -51,7 +50,7 @@ def _ttsharedir_to_llir(ttsharedir: str):
         Path(ttshared_path).write_text(ttsharedir)
         mlir_opt_path = _get_llvm_bin_path("mlir-opt")
         # TritonShared-MLIR to LLVM-MLIR
-        ret = subprocess.check_call([mlir_opt_path, ttshared_path,
+        subprocess.check_call([mlir_opt_path, ttshared_path,
             "--convert-linalg-to-affine-loops",
             "--eliminate-empty-tensors",
             "--empty-tensor-to-alloc-tensor",
@@ -72,15 +71,13 @@ def _ttsharedir_to_llir(ttsharedir: str):
             "--reconcile-unrealized-casts",
             "-o",
             llmlir_path])
-        assert ret == 0
 
         # LLVM-MLIR to LLVM-IR
         mlir_translate_path = _get_llvm_bin_path("mlir-translate")
-        ret = subprocess.check_call([mlir_translate_path, llmlir_path,
+        subprocess.check_call([mlir_translate_path, llmlir_path,
             "--mlir-to-llvmir",
             "-o",
             llir_path])
-        assert ret == 0
         return Path(llir_path).read_text()
 
 
@@ -93,11 +90,9 @@ def _llir_to_bin(llir: str):
     with tempfile.TemporaryDirectory() as tmpdir:
         src_path = os.path.join(tmpdir, "kernel.ll")
         dst_path = os.path.join(tmpdir, "kernel.o")
-        with open(src_path, "w") as f:
-            f.write(llir)
+        Path(src_path).write_text(llir)
         llc_path = _get_llvm_bin_path("llc")
-        ret = subprocess.check_call([llc_path, src_path, "-o", dst_path])
-        assert ret == 0
+        subprocess.check_call([llc_path, src_path, "-o", dst_path])
         # Actually it's text-format assembly.  Use read_text().
         return Path(dst_path).read_text()
 
@@ -346,25 +341,27 @@ class TritonSharedRefCPUBackend(BaseBackend):
         so_name = f"{name}.py"
         # retrieve stub from cache if it exists
         cache_path = so_cache_manager.get_file(so_name)
-        if cache_path is None:
-            kernel_placeholder_name = "KERNEL_NAME_PLACEHOLDER"
-            with tempfile.TemporaryDirectory() as tmpdir:
-                # Later KERNEL_NAME_PLACEHOLDER will be used to assign the kernel name
-                # in the following launch function.
-                launcher_src = _generate_launcher(constants, signature, kernel_placeholder_name)
-                # This function was renamed and made public in Python 3.10
-                if hasattr(sysconfig, 'get_default_scheme'):
-                    scheme = sysconfig.get_default_scheme()
-                else:
-                    scheme = sysconfig._get_default_scheme()
-                # 'posix_local' is a custom scheme on Debian. However, starting Python 3.10, the default install
-                # path changes to include 'local'. This change is required to use triton with system-wide python.
-                if scheme == 'posix_local':
-                    scheme = 'posix_prefix'
-                py_include_dir = sysconfig.get_paths(scheme=scheme)["include"]
+        if cache_path is not None:
+            return cache_path
 
-                dst_path = os.path.join(tmpdir, so_name)
-                py_src = f"""
+        kernel_placeholder_name = "KERNEL_NAME_PLACEHOLDER"
+        with tempfile.TemporaryDirectory() as tmpdir:
+            # Later KERNEL_NAME_PLACEHOLDER will be used to assign the kernel name
+            # in the following launch function.
+            launcher_src = _generate_launcher(constants, signature, kernel_placeholder_name)
+            # This function was renamed and made public in Python 3.10
+            if hasattr(sysconfig, 'get_default_scheme'):
+                scheme = sysconfig.get_default_scheme()
+            else:
+                scheme = sysconfig._get_default_scheme()
+            # 'posix_local' is a custom scheme on Debian. However, starting Python 3.10, the default install
+            # path changes to include 'local'. This change is required to use triton with system-wide python.
+            if scheme == 'posix_local':
+                scheme = 'posix_prefix'
+            py_include_dir = sysconfig.get_paths(scheme=scheme)["include"]
+
+            dst_path = os.path.join(tmpdir, so_name)
+            py_src = f"""
 import os, subprocess, tempfile
 import importlib.util
 from pathlib import Path
@@ -385,9 +382,7 @@ def launch(gridX, gridY, gridZ, num_warps, num_ctas, clusterDim0, clusterDim1, c
         Path(asm_src_path).write_text(asm_src)
         Path(launcher_src_path).write_text(launcher_src)
         # Compile it together.
-        ret = subprocess.check_call(["g++", launcher_src_path, asm_src_path, f"-I{py_include_dir}", f"-I{Path(__file__).resolve().parent}", "-shared", "-fPIC", "-o", so_path])
-        if ret != 0:
-            raise AssertionError("Kernel compilation failed.")
+        subprocess.check_call(["g++", launcher_src_path, asm_src_path, f"-I{py_include_dir}", f"-I{Path(__file__).resolve().parent}", "-shared", "-fPIC", "-o", so_path])
 
         # Load and launch the compiled kernel.
         spec = importlib.util.spec_from_file_location("__triton_shared_ref_cpu_kernel_launcher", so_path)
@@ -395,11 +390,7 @@ def launch(gridX, gridY, gridZ, num_warps, num_ctas, clusterDim0, clusterDim1, c
         spec.loader.exec_module(mod)
         return mod.launch(gridX, gridY, gridZ, launch_enter_hook, launch_exit_hook, compiled_kernel, *args)
 """
-                Path(dst_path).write_text(py_src)
-                with open(dst_path, "rb") as f:
-                    return so_cache_manager.put(f.read(), so_name, binary=True)
-        else:
-            return cache_path
+            return so_cache_manager.put(py_src, so_name, binary=False)
 
 
 register_backend("cpu", TritonSharedRefCPUBackend)

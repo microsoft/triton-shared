@@ -8,5 +8,5 @@ if(TRITON_BUILD_PYTHON_MODULE)
          ${CMAKE_CURRENT_SOURCE_DIR}/ExecutionEngine/CRunnerUtils.h
          ${CMAKE_CURRENT_SOURCE_DIR}/ExecutionEngine/CRunnerUtils.cpp
          DESTINATION ${PYTHON_THIRD_PARTY_PATH}/cpu/)
-    # TODO: perhaps we want to install binary files used in __init__.py
+    # TODO: perhaps we want to install binary files used by __init__.py
 endif()
