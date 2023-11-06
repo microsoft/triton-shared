@@ -3,14 +3,14 @@ name: Nightly Tests
 on:
   schedule:
     - cron: '23 10 * * *'  # random time in the middle of the night PT
-  workflow_dispatch:
-    inputs:
-      notify-on-failure:
-        default: false
-        type: boolean
-      force-failure:
-        default: false
-        type: boolean
+  # workflow_dispatch:
+  #   inputs:
+  #     notify-on-failure:
+  #       default: false
+  #       type: boolean
+  #     force-failure:
+  #       default: false
+  #       type: boolean
   workflow_call:
     inputs:
       notify-on-failure:
