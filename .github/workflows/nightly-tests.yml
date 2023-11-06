@@ -20,8 +20,8 @@ jobs:
         triton-shared-ref: 'main'
         # The `inputs` variable is not available when the workflow is automatically triggered by a schedule.
         # In such case, `inputs.force-failure` is an empty string which breaks the workflow. As a workaround,
-        # compare the user provided input with `true` instead of using it directly.
-        force-failure: ${{ inputs.force-failure == 'true' }}
+        # check the user provided input if it contains `true` instead of using the value directly.
+        force-failure: ${{ contains(inputs.force-failure, 'true') }}
   report-failure:
     runs-on: ubuntu-latest
     needs: [call-workflow]
