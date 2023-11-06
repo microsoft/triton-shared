@@ -11,6 +11,14 @@ on:
       force-failure:
         default: false
         type: boolean
+  workflow_call:
+    inputs:
+      notify-on-failure:
+        default: false
+        type: boolean
+      force-failure:
+        default: false
+        type: boolean
 
 jobs:
   call-workflow:
