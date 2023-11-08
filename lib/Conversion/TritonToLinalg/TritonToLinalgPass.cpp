@@ -7,6 +7,7 @@
 
 #include "triton-shared/Analysis/UseAnalysis.h"
 #include "triton-shared/Conversion/TritonToLinalg/TritonToLinalg.h"
+#include "triton-shared/Dialect/TritonTilingExt/IR/TritonTilingExtDialect.h"
 
 #include "triton/Dialect/Triton/IR/Dialect.h"
 
@@ -90,7 +91,7 @@ public:
         .insert<func::FuncDialect, arith::ArithDialect, math::MathDialect,
                 linalg::LinalgDialect, affine::AffineDialect, scf::SCFDialect,
                 tensor::TensorDialect, bufferization::BufferizationDialect,
-                memref::MemRefDialect>();
+                memref::MemRefDialect, ttx::TritonTilingExtDialect>();
   }
 
   void runOnOperation() override {
@@ -114,12 +115,12 @@ public:
     ConversionTarget target(getContext());
     TritonTypeConverter tritonTypeConverter;
 
-    target.addLegalDialect<func::FuncDialect, arith::ArithDialect,
-                           math::MathDialect, linalg::LinalgDialect,
-                           affine::AffineDialect, scf::SCFDialect,
-                           cf::ControlFlowDialect, tensor::TensorDialect,
-                           bufferization::BufferizationDialect,
-                           memref::MemRefDialect>();
+    target.addLegalDialect<
+        func::FuncDialect, arith::ArithDialect, math::MathDialect,
+        linalg::LinalgDialect, affine::AffineDialect, scf::SCFDialect,
+        cf::ControlFlowDialect, tensor::TensorDialect,
+        bufferization::BufferizationDialect, memref::MemRefDialect,
+        ttx::TritonTilingExtDialect>();
 
     target.addLegalOp<ModuleOp>();
 

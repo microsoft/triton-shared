@@ -9,6 +9,7 @@
 #include "triton-shared/Analysis/MaskAnalysis.h"
 #include "triton-shared/Analysis/OpFoldResultUtils.h"
 #include "triton-shared/Analysis/PtrAnalysis.h"
+#include "triton-shared/Dialect/TritonTilingExt/IR/TritonTilingExtDialect.h"
 
 #include "triton/Dialect/Triton/IR/Dialect.h"
 
@@ -1230,6 +1231,73 @@ struct UnrealizedCastConverter
   }
 };
 
+class CumSumConverter : public OpConversionPattern<triton::ScanOp> {
+  using OpConversionPattern<triton::ScanOp>::OpConversionPattern;
+
+  // CumSum is a specific instance of Scan that looks like the following:
+  //       %1 = "tt.scan"(%0) <{axis = 1 : i32}> ({
+  //       ^bb0(%arg0: f32, %arg1: f32):
+  //         %2 = arith.addf %arg0, %arg1 : f32
+  //         tt.scan.return %2 : f32
+  //       }) : (tensor<4x4xf32>) -> tensor<4x4xf32>
+  bool isCumSum(triton::ScanOp op) const {
+    auto scanBlock = op.getBody();
+    auto ops = llvm::map_to_vector(scanBlock->without_terminator(),
+                                   [](Operation &op) { return &op; });
+
+    if (ops.size() != 1) {
+      return false;
+    }
+
+    if (auto addOp = dyn_cast<arith::AddFOp>(ops.front())) {
+      if (addOp.getResult() != scanBlock->getTerminator()->getOperand(0)) {
+        return false;
+      }
+
+      auto blockArgs =
+          llvm::map_range(scanBlock->getArguments(), [](BlockArgument arg) {
+            return dyn_cast<Value>(arg);
+          });
+
+      auto addArgs = addOp.getOperands();
+
+      return DenseSet<Value>(blockArgs.begin(), blockArgs.end()) ==
+             DenseSet<Value>(addArgs.begin(), addArgs.end());
+    }
+
+    return false;
+  }
+
+public:
+  LogicalResult
+  matchAndRewrite(triton::ScanOp op, OpAdaptor adaptor,
+                  ConversionPatternRewriter &rewriter) const override {
+    if (!isCumSum(op)) {
+      return rewriter.notifyMatchFailure(
+          op, "Only support cumsum variant of scan op");
+    }
+
+    auto input = op.getOperand(0);
+    auto axis = op.getAxis();
+    auto type = dyn_cast<RankedTensorType>(input.getType());
+
+    if (type.getRank() != 1 && type.getRank() != 2 &&
+        axis != type.getRank() - 1) {
+      return rewriter.notifyMatchFailure(
+          op, "Only support lowering scan op to cumsum with rank "
+              "= {1, 2} and axis = rank - 1");
+    }
+
+    Value init = rewriter.create<tensor::EmptyOp>(op.getLoc(), type.getShape(),
+                                                  type.getElementType());
+
+    rewriter.replaceOpWithNewOp<ttx::CumSumOp>(
+        op, input, rewriter.getUI32IntegerAttr(axis), init);
+
+    return success();
+  }
+};
+
 } // namespace
 
 void mlir::triton::populateTritonToLinalgCanonicalizationPatterns(
@@ -1264,6 +1332,7 @@ void mlir::triton::populateTritonToLinalgConversionPatterns(
   patterns.add<ReduceConverter>(patterns.getContext());
   patterns.add<DenseConstantConverter>(patterns.getContext());
   patterns.add<UnrealizedCastConverter>(patterns.getContext());
+  patterns.add<CumSumConverter>(patterns.getContext());
 
   // Note: the ordering here matters!
   // MetaOpConverter has PatternBenefit == 10 which should take precedence over
