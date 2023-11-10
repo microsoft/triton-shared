@@ -2,8 +2,6 @@ name: Bug Report
 description: File a bug report
 title: "[Bug]: "
 labels: ["bug", "triage"]
-assignees:
-  - nhat-nguyen
 body:
   - type: markdown
     attributes:
@@ -22,7 +20,7 @@ body:
       description: Please copy and paste the triton IR that results in the crash
       render: mlir
   - type: textarea
-    id: crash log
+    id: crash-log
     attributes:
       label: crash log
       description: Please copy and paste the crash log
