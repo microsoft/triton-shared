@@ -22,7 +22,7 @@ body:
   - type: textarea
     id: crash-log
     attributes:
-      label: crash log
+      label: Crash log
       description: Please copy and paste the crash log
       render: shell
   - type: textarea
