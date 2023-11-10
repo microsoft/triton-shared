@@ -15,6 +15,7 @@ add_mlir_conversion_library(TritonToLinalg
   Core
 
   LINK_LIBS PUBLIC
+  TritonTilingExtIR
   MLIRArithDialect
   MLIRDialectUtils
   MLIRIR
