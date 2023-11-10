@@ -16,7 +16,7 @@ body:
   - type: textarea
     id: triton-ir
     attributes:
-      label: triton IR
+      label: Triton IR
       description: Please copy and paste the triton IR that results in the crash
       render: mlir
   - type: textarea
