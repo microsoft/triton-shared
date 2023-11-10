@@ -10,7 +10,7 @@ body:
   - type: textarea
     id: triton-python
     attributes:
-      label: `Triton` `python` code
+      label: Triton python code
       description: Please copy and paste the triton python code that was used to generate the IR
       render: mlir
   - type: textarea
@@ -26,7 +26,7 @@ body:
       description: Please copy and paste the crash log
       render: shell
   - type: textarea
-    id: what-happened
+    id: additional-info
     attributes:
-      label: What happened?
+      label: Additional information
       description: Please tell us any additional commands necessary to reproduce this crash
