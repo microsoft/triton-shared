@@ -59,6 +59,7 @@ jobs:
         python3 -m pip install --upgrade pip
         python3 -m pip install cmake==3.24
         python3 -m pip install ninja
+        python3 -m pip install pytest
         python3 -m pip uninstall -y triton
         python3 setup.py build
         python3 -m pip install --no-build-isolation -vvv '.[tests]'
@@ -67,9 +68,12 @@ jobs:
       run: |
         python3 -m pip install torch --index-url https://download.pytorch.org/whl/cpu
 
-    - name: Run an example
+    - name: Prepare cpu backend environment
+      working-directory: triton/python
       run: |
-        cd triton/python
         export TRITON_SHARED_OPT_PATH="$(pwd)/build/$(ls $(pwd)/build | grep -i cmake)/third_party/triton_shared/tools/triton-shared-opt/triton-shared-opt"
         export LLVM_BINARY_DIR="${HOME}/.triton/llvm/$(ls ${HOME}/.triton/llvm/ | grep -i llvm)/bin"
-        python3 ../third_party/triton_shared/python/examples/reduce.py
+
+    - name: Run examples
+      working-directory: triton/third_party/triton_shared/python/examples
+      run: pytest .
