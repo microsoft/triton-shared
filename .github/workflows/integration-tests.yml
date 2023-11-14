@@ -5,16 +5,18 @@ on:
     branches: [ "main" ]
   push:
     branches: [ "main" ]
-            
+
 jobs:
   call-workflow:
     uses: ./.github/workflows/test-plugin.yml
     with:
-        triton-ref: '05dc28be0e72dd496300a31b99a21a5a5118f8e9' # known good commit "[CI] refactor workflows (#2504)"
+        # [BACKEND] Fix layouts in nvgpu RewriteTensorPointer. (#2634)
+        triton-ref: '0e3bf3f58061bd62725e7c502e7e0af19690df1c'
         triton-shared-ref: ${{ github.ref }}
 
   test-cpuref:
     uses: ./.github/workflows/test-cpuref.yml
     with:
-        triton-ref: '768fc1fcd98ecfc0892f8982b0bb009dd7bb11ea' # known good commit "[CI] refactor workflows (#2504)"
+        # [BACKEND] Fix layouts in nvgpu RewriteTensorPointer. (#2634)
+        triton-ref: '0e3bf3f58061bd62725e7c502e7e0af19690df1c'
         triton-shared-ref: ${{ github.ref }}
