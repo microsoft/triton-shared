@@ -300,12 +300,12 @@ class TritonSharedRefCPUBackend(BaseBackend):
 
     def get_driver(self):
         return None
-    
+
     def get_version_key(self):
         if self.version_key is None:
             self.version_key = compute_core_version_key()
         return self.version_key
-    
+
     def get_stream(self, idx=None) -> int:
         # Returns int to make Triton happy.
         return 0
@@ -365,7 +365,6 @@ class TritonSharedRefCPUBackend(BaseBackend):
                 scheme = 'posix_prefix'
             py_include_dir = sysconfig.get_paths(scheme=scheme)["include"]
 
-            dst_path = os.path.join(tmpdir, so_name)
             py_src = f"""
 import os, subprocess, tempfile
 import importlib.util
