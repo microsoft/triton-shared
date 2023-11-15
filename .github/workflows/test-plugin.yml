@@ -82,3 +82,18 @@ jobs:
           echo "Coult not find '${LIT_TEST_DIR}'" ; exit -1
         fi
         lit -v "${LIT_TEST_DIR}"
+
+    - name: Install CPU backend test dependencies
+      run: |
+        python3 -m pip install torch --index-url https://download.pytorch.org/whl/cpu
+        python3 -m pip install pytest
+
+    - name: Prepare cpu backend environment
+      working-directory: triton/python
+      run: |
+        echo "TRITON_SHARED_OPT_PATH=$(pwd)/build/$(ls $(pwd)/build | grep -i cmake)/third_party/triton_shared/tools/triton-shared-opt/triton-shared-opt" >> "${GITHUB_ENV}"
+        echo "LLVM_BINARY_DIR=${HOME}/.triton/llvm/$(ls ${HOME}/.triton/llvm/ | grep -i llvm)/bin" >> "${GITHUB_ENV}"
+
+    - name: Run examples
+      working-directory: triton/third_party/triton_shared/python/examples
+      run: pytest .
