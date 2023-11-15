@@ -341,7 +341,7 @@ class TritonSharedRefCPUBackend(BaseBackend):
 
     def make_launcher_stub(self, name, signature, constants, ids):
         # name of files that are cached
-        so_cache_key = make_so_cache_key(self.version_key, signature, constants, ids)
+        so_cache_key = make_so_cache_key(self.get_version_key(), signature, constants, ids)
         so_cache_manager = get_cache_manager(so_cache_key)
         so_name = f"{name}.py"
         # retrieve stub from cache if it exists
