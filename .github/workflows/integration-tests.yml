@@ -16,5 +16,5 @@ jobs:
   test-cpuref:
     uses: ./.github/workflows/test-cpuref.yml
     with:
-        triton-ref: '05dc28be0e72dd496300a31b99a21a5a5118f8e9' # known good commit "[CI] refactor workflows (#2504)"
+        triton-ref: '768fc1fcd98ecfc0892f8982b0bb009dd7bb11ea' # known good commit "[CI] refactor workflows (#2504)"
         triton-shared-ref: ${{ github.ref }}
