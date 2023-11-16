@@ -124,3 +124,41 @@ module {
 // CHECK:    affine.store %[[VAL_12]], %[[VAL_13]][0] : memref<1xi32, strided<[1]>>
 // CHECK:    return
 // CHECK:  }
+
+// -----
+
+module {
+  tt.func public @fold_cmpf(%arg0: !tt.ptr<f32>) {
+    %cst_0 = arith.constant dense<0.> : tensor<4096xf32>
+    %21 = "tt.reduce"(%cst_0) <{axis = 0 : i32}> ({
+    ^bb0(%arg5: f32, %arg6: f32):
+      %36 = arith.cmpf ogt, %arg5, %arg6 : f32
+      %37 = arith.cmpf une, %arg5, %arg5 : f32
+      %38 = arith.ori %36, %37 : i1
+      %39 = arith.select %38, %arg5, %arg6 : f32
+      tt.reduce.return %39 : f32
+    }) : (tensor<4096xf32>) -> f32
+    tt.store %arg0, %21 {cache = 1 : i32, evict = 1 : i32} : f32
+    tt.return
+  }
+}
+// CHECK: arith.maximumf
+
+// -----
+
+module {
+  tt.func public @fold_cmpi(%arg0: !tt.ptr<i32>) {
+    %cst_0 = arith.constant dense<0> : tensor<4096xi32>
+    %21 = "tt.reduce"(%cst_0) <{axis = 0 : i32}> ({
+    ^bb0(%arg5: i32, %arg6: i32):
+      %36 = arith.cmpi ugt, %arg5, %arg6 : i32
+      %37 = arith.cmpi ne, %arg5, %arg5 : i32
+      %38 = arith.ori %36, %37 : i1
+      %39 = arith.select %38, %arg5, %arg6 : i32
+      tt.reduce.return %39 : i32
+    }) : (tensor<4096xi32>) -> i32
+    tt.store %arg0, %21 {cache = 1 : i32, evict = 1 : i32} : i32
+    tt.return
+  }
+}
+// CHECK: arith.maxui

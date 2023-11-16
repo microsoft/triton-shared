@@ -1122,6 +1122,94 @@ public:
   }
 };
 
+template <typename CmpOp> struct CmpFold : public OpRewritePattern<CmpOp> {
+  using OpRewritePattern<CmpOp>::OpRewritePattern;
+
+  CmpFold(MLIRContext *context)
+      : OpRewritePattern<CmpOp>(context, /*benefit=*/20) {}
+
+  LogicalResult matchAndRewrite(CmpOp cmpOp,
+                                PatternRewriter &rewriter) const final {
+    if (cmpOp.getLhs() == cmpOp.getRhs()) {
+      rewriteOpWithBool(rewriter, cmpOp, cmpOp.getPredicate());
+      return success();
+    }
+    return failure();
+  }
+
+  void rewriteOpWithBool(PatternRewriter &rewriter, arith::CmpFOp cmpOp,
+                         arith::CmpFPredicate pred) const {
+    switch (pred) {
+    case arith::CmpFPredicate::ONE:
+    case arith::CmpFPredicate::UNE:
+      rewriter.replaceOpWithNewOp<arith::ConstantOp>(
+          cmpOp, BoolAttr::get(cmpOp.getContext(), false));
+      break;
+    case arith::CmpFPredicate::OEQ:
+    case arith::CmpFPredicate::UEQ:
+      rewriter.replaceOpWithNewOp<arith::ConstantOp>(
+          cmpOp, BoolAttr::get(cmpOp.getContext(), true));
+      break;
+    default:
+      llvm_unreachable("Unhandled predicate");
+    }
+  }
+
+  void rewriteOpWithBool(PatternRewriter &rewriter, arith::CmpIOp cmpOp,
+                         arith::CmpIPredicate pred) const {
+    switch (pred) {
+    case arith::CmpIPredicate::ne:
+      rewriter.replaceOpWithNewOp<arith::ConstantOp>(
+          cmpOp, BoolAttr::get(cmpOp.getContext(), false));
+      break;
+    case arith::CmpIPredicate::eq:
+      rewriter.replaceOpWithNewOp<arith::ConstantOp>(
+          cmpOp, BoolAttr::get(cmpOp.getContext(), true));
+      break;
+    default:
+      llvm_unreachable("Unhandled predicate");
+    }
+  }
+};
+
+struct ORIFold : public OpRewritePattern<arith::OrIOp> {
+  using OpRewritePattern<arith::OrIOp>::OpRewritePattern;
+
+  ORIFold(MLIRContext *context)
+      : OpRewritePattern<arith::OrIOp>(context, /*benefit=*/10) {}
+
+  LogicalResult matchAndRewrite(arith::OrIOp oriOp,
+                                PatternRewriter &rewriter) const final {
+    if (oriOp.getLhs() != oriOp.getRhs()) {
+      return failure();
+    }
+    return (operandDispatcher(oriOp.getLhs(), true, rewriter, oriOp) ||
+            operandDispatcher(oriOp.getRhs(), false, rewriter, oriOp))
+               ? success()
+               : failure();
+  }
+
+private:
+  bool operandDispatcher(Value value, bool isLhs, PatternRewriter &rewriter,
+                         arith::OrIOp oriOp) const {
+    if (auto boolOp = value.getDefiningOp<arith::ConstantOp>()) {
+      if (auto boolAttr = dyn_cast<BoolAttr>(boolOp.getValue())) {
+        bool boolVal = boolAttr.getValue();
+        if (boolVal) {
+          rewriter.replaceOpWithNewOp<arith::ConstantOp>(
+              oriOp, BoolAttr::get(oriOp.getContext(), true));
+        } else {
+          oriOp.getResult().replaceAllUsesWith(isLhs ? oriOp.getRhs()
+                                                     : oriOp.getLhs());
+          rewriter.eraseOp(oriOp);
+        }
+        return true;
+      }
+    }
+    return false;
+  }
+};
+
 // Convert a pair of cmpf and select to either min or max.
 // Leave the pattern as simple as possible because triton has plans to emit
 // min and max directly.
@@ -1302,7 +1390,8 @@ public:
 
 void mlir::triton::populateTritonToLinalgCanonicalizationPatterns(
     RewritePatternSet &patterns) {
-  patterns.add<MinMaxConverter<arith::CmpFOp>, MinMaxConverter<arith::CmpIOp>>(
+  patterns.add<MinMaxConverter<arith::CmpFOp>, MinMaxConverter<arith::CmpIOp>,
+               CmpFold<arith::CmpFOp>, CmpFold<arith::CmpIOp>, ORIFold>(
       patterns.getContext());
 }
 
