@@ -1,4 +1,4 @@
-// RUN: triton-opt --triton-to-linalg --split-input-file %s | FileCheck %s
+// RUN: triton-shared-opt --triton-to-linalg --split-input-file %s | FileCheck %s
 
 // @triton.jit
 // def test(
