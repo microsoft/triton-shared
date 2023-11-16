@@ -574,16 +574,14 @@ public:
       // The workaround is to broadcast the pointers early in the address
       // calculation. A proper fix is complicated, but at least we can provide a
       // better error message.
-      op.emitError("LoadOp expects a memref, not a memref of pointers");
-      return failure();
+      return rewriter.notifyMatchFailure(
+          op, "LoadOp expects a memref, not a memref of pointers");
     }
 
-    DictionaryAttr attrs;
     auto tensorType =
-        RankedTensorType::get(type.getShape(), type.getElementType(), attrs);
+        RankedTensorType::get(type.getShape(), type.getElementType());
     auto alloc = rewriter.create<memref::AllocOp>(
-        loc, MemRefType::get(type.getShape(), type.getElementType(),
-                             AffineMap(), attrs));
+        loc, MemRefType::get(type.getShape(), type.getElementType()));
 
     if (!mask) {
       assert(!other && "other value used in non-masked load");
@@ -626,7 +624,8 @@ public:
     auto isContMask = mstate.parse(mask, loc, rewriter);
 
     if (isContMask.failed()) {
-      return op.emitError("Cannot lower continuous masked loads");
+      return rewriter.notifyMatchFailure(
+          op, "Cannot lower continuous masked loads");
     }
 
     // fill load destination with other value
@@ -930,8 +929,9 @@ private:
     // subview that skips over each first element.
     if (reductionOps.size() != 1 ||
         !isReductionOpSupported(reductionOps.front())) {
-      return op.emitError("Only support lowering reduction with body "
-                          "containing one max(i/f) or add(i/f).");
+      return rewriter.notifyMatchFailure(
+          op, "Only support lowering reduction with body "
+              "containing 1 max(i/f) or addf.");
     }
 
     auto rop = reductionOps.front();
@@ -1375,8 +1375,6 @@ struct GetProgramIDConverter
       getMaxEnumValForProgramIDDim() + 1;
 
 public:
-  GetProgramIDConverter(MLIRContext *context) : OpConversionPattern(context) {}
-
   LogicalResult
   matchAndRewrite(triton::GetProgramIdOp op, OpAdaptor adaptor,
                   ConversionPatternRewriter &rewriter) const override {
@@ -1642,6 +1640,7 @@ void mlir::triton::populateTritonToLinalgConversionPatterns(
     unsigned int launchGridRank) {
   populateFunctionOpInterfaceTypeConversionPattern<triton::FuncOp>(
       patterns, typeConverter);
+
   patterns.add<MetaOpConverter>(patterns.getContext());
   patterns.add<StoreConverter>(patterns.getContext());
   patterns.add<AddPtrConverter>(patterns.getContext());

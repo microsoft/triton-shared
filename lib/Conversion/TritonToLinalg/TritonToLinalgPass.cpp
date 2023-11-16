@@ -49,7 +49,7 @@ public:
   }
 };
 
-struct TritonToLinalgPass : public TritonToLinalgBase<TritonToLinalgPass> {
+class TritonToLinalgPass : public TritonToLinalgBase<TritonToLinalgPass> {
 
   static auto constexpr LAUNCH_GRID_RANK = getMaxEnumValForProgramIDDim() + 1;
   static unsigned int constexpr TRITON_PROGRAM_INFO_ARG_COUNT =
@@ -124,17 +124,6 @@ public:
 
     target.addLegalOp<ModuleOp>();
 
-    target.addIllegalDialect<triton::TritonDialect>();
-
-    // triton.reduce will be lowered to linalg.reduce. Unfortunately, mlir
-    // inserts the ops inside triton.reduce's region BEFORE triton.reduce
-    // itself, so the conversion algorithm will visit triton.reduce_return
-    // first. Without marking this op as legal, the conversion process will fail
-    // because there's no legalization pattern for triton.reduce_return.
-    target.addLegalOp<triton::ReduceReturnOp>();
-
-    target.addLegalOp<triton::ReturnOp>();
-
     // Update function signature to use memrefs
     target.addDynamicallyLegalOp<triton::FuncOp>([&](triton::FuncOp op) {
       return tritonTypeConverter.isSignatureLegal(op.getFunctionType());
@@ -192,7 +181,7 @@ public:
     for (auto func : getOperation().getOps<triton::FuncOp>())
       addProgramInfo(func);
 
-    if (failed(applyFullConversion(moduleOp, target, std::move(patterns))))
+    if (failed(applyPartialConversion(moduleOp, target, std::move(patterns))))
       signalPassFailure();
 
     // Convert tt.func and tt.return into func's counterparts
