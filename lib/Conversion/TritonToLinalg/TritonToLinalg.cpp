@@ -1020,6 +1020,337 @@ public:
   }
 };
 
+template <typename T>
+class ArgMinMaxBaseConverter : public OpConversionPattern<triton::ReduceOp> {
+  using OpConversionPattern<triton::ReduceOp>::OpConversionPattern;
+
+  // We're looking for an op that looks like this:
+  //
+  // %9:2 = "tt.reduce"(%8, %3) <{axis = 0 : i32}> ({
+  // ^bb0(%arg9: f32, %arg10: i32, %arg11: f32, %arg12: i32):
+  // -------------------------------------------------
+  // `matchTieBreakValue`                                |
+  //   %11 = arith.cmpf oeq, %arg9, %arg11 : f32         |
+  //   %12 = arith.cmpi slt, %arg10, %arg12 : i32        |   1.
+  //   %13 = arith.andi %11, %12 : i1                    |
+  // -------------------------------------------------   |-> `matchShouldUpdate`
+  // `matchUpdateCondition`                              |
+  //   %14 = arith.cmpf ogt, %arg9, %arg11 : f32         |   2.
+  // -------------------------------------------------   |
+  //   %15 = arith.ori %14, %13 : i1                     |
+  // -------------------------------------------------
+  //   %16 = arith.select %15, %arg9, %arg11 : f32
+  //   %17 = arith.select %15, %arg10, %arg12 : i32
+  //   tt.reduce.return %16, %17 : f32, i32
+  // }) : (tensor<4096xf32>, tensor<4096xi32>) -> (f32, i32)
+  //
+  // The above mlir code is lowered from this combinator in triton's
+  // standard.py:
+  //
+  //  def _argmax_combine(value1, index1, value2, index2, tie_break_left):
+  //    if tie_break_left:
+  //        tie = value1 == value2 and index1 < index2
+  //    else:
+  //        tie = False
+  //    gt = value1 > value2 or tie
+  //    v_ret = core.where(gt, value1, value2)
+  //    i_ret = core.where(gt, index1, index2)
+  //    return v_ret, i_ret
+
+  LogicalResult matchTieBreakResult(Value currValue, Value currIndex,
+                                    Value reduceValue, Value reduceIndex,
+                                    mlir::Block::iterator &it,
+                                    Value &tileBreakValue) const {
+    // Match the following (section 1. of the above)
+    //
+    //   %11 = arith.cmpf oeq, %arg9, %arg11 : f32
+    //   %12 = arith.cmpi slt, %arg10, %arg12 : i32
+    //   %13 = arith.andi %11, %12 : i1
+    //
+    // which is equivalent to the following python code
+    //
+    //   tie = value1 == value2 and index1 < index2
+
+    // matching: %11 = arith.cmpf oeq, %arg9, %arg11 : f32
+    LLVM_DEBUG(llvm::dbgs() << "Matching: " << *it << "\n");
+    auto eqCmpOp = dyn_cast<arith::CmpFOp>(*it++);
+    if (eqCmpOp) {
+      if (eqCmpOp.getPredicate() != arith::CmpFPredicate::OEQ) {
+        return failure();
+      }
+      if (currValue != eqCmpOp.getLhs() || reduceValue != eqCmpOp.getRhs()) {
+        return failure();
+      }
+    } else {
+      return failure();
+    }
+
+    // matching: %12 = arith.cmpi slt, %arg10, %arg12 : i32
+    LLVM_DEBUG(llvm::dbgs() << "Matching: " << *it << "\n");
+    auto sltCmpOp = dyn_cast<arith::CmpIOp>(*it++);
+    if (sltCmpOp) {
+      if (sltCmpOp.getPredicate() != arith::CmpIPredicate::slt) {
+        return failure();
+      }
+      if (currIndex != sltCmpOp.getLhs() || reduceIndex != sltCmpOp.getRhs()) {
+        return failure();
+      }
+    } else {
+      return failure();
+    }
+
+    // matching: %13 = arith.andi %11, %12 : i1
+    LLVM_DEBUG(llvm::dbgs() << "Matching: " << *it << "\n");
+    auto andOp = dyn_cast<arith::AndIOp>(*it++);
+    if (andOp) {
+      if (andOp.getLhs() != eqCmpOp || andOp.getRhs() != sltCmpOp) {
+        return failure();
+      }
+    } else {
+      return failure();
+    }
+
+    tileBreakValue = andOp;
+    return success();
+  }
+
+  LogicalResult matchShouldUpdateValue(Value currValue, Value currIndex,
+                                       Value reduceValue, Value reduceIndex,
+                                       mlir::Block::iterator &it,
+                                       Value &shouldUpdate) const {
+    Value tieResult;
+    if (failed(matchTieBreakResult(currValue, currIndex, reduceValue,
+                                   reduceIndex, it, tieResult))) {
+      LLVM_DEBUG(llvm::dbgs() << "Tie break result match failed\n");
+      return failure();
+    }
+
+    Value comparisonResult;
+    if (failed(T::matchComparisonResult(currValue, currIndex, reduceValue,
+                                        reduceIndex, it, comparisonResult))) {
+      LLVM_DEBUG(llvm::dbgs() << "Comparison result match failed\n");
+      return failure();
+    }
+
+    // matching: %15 = arith.ori %14, %13 : i1
+    LLVM_DEBUG(llvm::dbgs() << "Matching: " << *it << "\n");
+    auto orOp = dyn_cast<arith::OrIOp>(*it++);
+    if (orOp) {
+      if (orOp.getLhs() != comparisonResult || orOp.getRhs() != tieResult) {
+        return failure();
+      }
+    } else {
+      return failure();
+    }
+
+    shouldUpdate = orOp;
+    return success();
+  }
+
+  Value getInitTensor(ConversionPatternRewriter &rewriter,
+                      ArrayRef<int64_t> shape, Value fillValue,
+                      Location loc) const {
+    Value initTensor =
+        rewriter.create<tensor::EmptyOp>(loc, shape, fillValue.getType());
+    return rewriter
+        .create<linalg::FillOp>(loc, ValueRange{fillValue},
+                                ValueRange{initTensor})
+        .result();
+  }
+
+public:
+  ArgMinMaxBaseConverter(MLIRContext *context) : OpConversionPattern(context) {}
+
+  LogicalResult match(ReduceOp op) const override final {
+    if (op.getBody()->getNumArguments() != 4) {
+      return failure();
+    }
+
+    auto block = op.getBody();
+    auto ops = block->without_terminator();
+
+    Value currValue = block->getArgument(0);
+    Value currIndex = block->getArgument(1);
+    Value reduceValue = block->getArgument(2);
+    Value reduceIndex = block->getArgument(3);
+
+    auto opsIt = ops.begin();
+    Value shouldUpdate;
+    if (failed(matchShouldUpdateValue(currValue, currIndex, reduceValue,
+                                      reduceIndex, opsIt, shouldUpdate))) {
+      return failure();
+    }
+
+    // matching: %16 = arith.select %15, %arg9, %arg11 : f32
+    LLVM_DEBUG(llvm::dbgs() << "Matching: " << *opsIt << "\n");
+    auto valueSelectOp = dyn_cast<arith::SelectOp>(*opsIt++);
+    if (valueSelectOp) {
+      if (valueSelectOp.getCondition() != shouldUpdate ||
+          currValue != valueSelectOp.getTrueValue() ||
+          reduceValue != valueSelectOp.getFalseValue()) {
+        return failure();
+      }
+    } else {
+      return failure();
+    }
+
+    // matching:%17 = arith.select %15, %arg10, %arg12 : i32
+    LLVM_DEBUG(llvm::dbgs() << "Matching: " << *opsIt << "\n");
+    auto indexSelectOp = dyn_cast<arith::SelectOp>(*opsIt++);
+    if (indexSelectOp) {
+      if (indexSelectOp.getCondition() != shouldUpdate ||
+          currIndex != indexSelectOp.getTrueValue() ||
+          reduceIndex != indexSelectOp.getFalseValue()) {
+        return failure();
+      }
+    } else {
+      return failure();
+    }
+
+    // matching: tt.reduce.return %16, %17 : f32, i32
+    LLVM_DEBUG(llvm::dbgs() << "Matching: " << *opsIt << "\n");
+    auto termOp = dyn_cast<triton::ReduceReturnOp>(*opsIt++);
+    if (termOp && termOp == block->getTerminator()) {
+      auto opnds = termOp.getOperands();
+      if (opnds != ArrayRef<Value>{valueSelectOp, indexSelectOp}) {
+        return failure();
+      }
+    } else {
+      return failure();
+    }
+
+    return success();
+  }
+
+  void rewrite(ReduceOp op, OpAdaptor adaptor,
+               ConversionPatternRewriter &rewriter) const override final {
+    auto loc = op.getLoc();
+
+    auto elemTypes = op.getElementTypes();
+
+    // Set the initial value of the rank-0 tensor containing
+    // the result value to either -inf or +inf depending on
+    // whether we're dealing with argmax or argmin
+    auto valueType = elemTypes[0];
+    auto valuesAccBaseVal = rewriter.create<arith::ConstantOp>(
+        loc, valueType,
+        rewriter.getFloatAttr(valueType, T::getBaseReductionValue()));
+
+    // Set the initial value of the rank-0 tensor containing the index of the
+    // min or max value to -1
+    auto indexType = elemTypes[1];
+    auto indicesAccBaseVal = rewriter.create<arith::ConstantOp>(
+        loc, indexType, rewriter.getIntegerAttr(indexType, -1));
+
+    // Get the shape of the resulting tensors (both for values and indices). If
+    // we are reducing to a single scalar, then the result's type is a tensor of
+    // rank-0, otherwise we can reuse the original result shape
+    auto valueResultType = dyn_cast<RankedTensorType>(op.getType(0));
+    const auto isScalarReduce = valueResultType == nullptr;
+    SmallVector<int64_t> reductionResultShape{
+        isScalarReduce ? SmallVector<int64_t>{}
+                       : SmallVector<int64_t>(valueResultType.getShape())};
+
+    SmallVector<Value> outputs{
+        getInitTensor(rewriter, reductionResultShape, valuesAccBaseVal, loc),
+        getInitTensor(rewriter, reductionResultShape, indicesAccBaseVal, loc)};
+
+    auto linalgOp = rewriter.create<linalg::ReduceOp>(
+        loc, adaptor.getOperands(), outputs,
+        SmallVector<int64_t>{adaptor.getAxis()},
+        [&](OpBuilder &b, Location loc, ValueRange inputs) {
+          assert(inputs.size() == 4);
+
+          auto tritonReduceBlock = op.getBody();
+          IRMapping mapping;
+          mapping.map(tritonReduceBlock->getArguments(), inputs);
+
+          for (auto &op : tritonReduceBlock->without_terminator()) {
+            b.clone(op, mapping);
+          }
+
+          auto tritonYield = tritonReduceBlock->getTerminator();
+          auto results =
+              llvm::map_to_vector(tritonYield->getOperands(), [&](Value val) {
+                return mapping.lookup(val);
+              });
+          b.create<linalg::YieldOp>(loc, results);
+        });
+
+    if (isScalarReduce) {
+      SmallVector<Value> reduceResults{
+          rewriter.create<tensor::ExtractOp>(
+              loc, valueType, linalgOp.getResults()[0], ValueRange{}),
+          rewriter.create<tensor::ExtractOp>(
+              loc, indexType, linalgOp.getResults()[1], ValueRange{})};
+      rewriter.replaceOp(op, reduceResults);
+    } else {
+      rewriter.replaceOp(op, linalgOp);
+    }
+  }
+};
+
+struct ArgMaxConverter : public ArgMinMaxBaseConverter<ArgMaxConverter> {
+  static LogicalResult matchComparisonResult(Value currValue, Value currIndex,
+                                             Value reduceValue,
+                                             Value reduceIndex,
+                                             mlir::Block::iterator &it,
+                                             Value &comparisonResult) {
+    // %14 = arith.cmpf ogt, %arg9, %arg11 : f32
+    // This corresponds to section 2. of the sample snippet in
+    // ArgMinMaxBaseConverter
+    auto cmpOp = dyn_cast<arith::CmpFOp>(*it++);
+    if (cmpOp) {
+      if (cmpOp.getPredicate() != arith::CmpFPredicate::OGT ||
+          currValue != cmpOp.getLhs() || reduceValue != cmpOp.getRhs()) {
+        return failure();
+      }
+    } else {
+      return failure();
+    }
+
+    comparisonResult = cmpOp;
+    return success();
+  }
+
+  static float getBaseReductionValue() {
+    return -std::numeric_limits<float>::infinity();
+  }
+
+  ArgMaxConverter(MLIRContext *context) : ArgMinMaxBaseConverter(context) {}
+};
+
+struct ArgMinConverter : public ArgMinMaxBaseConverter<ArgMinConverter> {
+  static LogicalResult matchComparisonResult(Value currValue, Value currIndex,
+                                             Value reduceValue,
+                                             Value reduceIndex,
+                                             mlir::Block::iterator &it,
+                                             Value &comparisonResult) {
+    // %14 = arith.cmpf olt, %arg9, %arg11 : f32
+    // This corresponds to section 2. of the sample snippet in
+    // ArgMinMaxBaseConverter
+    LLVM_DEBUG(llvm::dbgs() << "Matching: " << *it << "\n");
+    auto cmpOp = dyn_cast<arith::CmpFOp>(*it++);
+    if (cmpOp) {
+      if (cmpOp.getPredicate() != arith::CmpFPredicate::OLT ||
+          currValue != cmpOp.getLhs() || reduceValue != cmpOp.getRhs()) {
+        return failure();
+      }
+    } else {
+      return failure();
+    }
+
+    comparisonResult = cmpOp;
+    return success();
+  }
+
+  static float getBaseReductionValue() {
+    return std::numeric_limits<float>::infinity();
+  }
+
+  ArgMinConverter(MLIRContext *context) : ArgMinMaxBaseConverter(context) {}
+};
+
 // get_program_id and get_num_programs:
 // When launching triton kernels, we pass 6 additional arguments to indicate
 // num_programs and program_id. Amongst those six, we have 3 arguments
@@ -1328,10 +1659,23 @@ void mlir::triton::populateTritonToLinalgConversionPatterns(
   patterns.add<AssertConverter>(patterns.getContext());
   patterns.add<MatmulConverter>(patterns.getContext());
   patterns.add<SplatConverter>(patterns.getContext());
-  patterns.add<ReduceConverter>(patterns.getContext());
   patterns.add<DenseConstantConverter>(patterns.getContext());
   patterns.add<UnrealizedCastConverter>(patterns.getContext());
   patterns.add<CumSumConverter>(patterns.getContext());
+
+  // Reduce converters
+  // Triton's reduce op is idential to linalg.reduce op, so we can clone
+  // `tt.reduce` body to `linalg.reduce`. Unfortunately, we still need to
+  // perform pattern matching to know what reduce ops we are dealing with
+  // so that we know how to initialize the initial reduce values correctly.
+  //
+  // We can do this in a generic way without pattern matching by always using
+  // the first elements along the reduction axis and perform the reduction on
+  // the remaining elements. However, this results in creatings sub-tensors that
+  // aren't always multiple of 2s, which are sub-optimal for certain hardwares.
+  patterns.add<ArgMinConverter>(patterns.getContext());
+  patterns.add<ArgMaxConverter>(patterns.getContext());
+  patterns.add<ReduceConverter>(patterns.getContext());
 
   // Note: the ordering here matters!
   // MetaOpConverter has PatternBenefit == 10 which should take precedence over
