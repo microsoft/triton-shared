@@ -5,10 +5,31 @@ import triton.language as tl
 
 
 @triton.jit
+def wrap_stacked_masked_loop(
+    a_ptr, c_ptr, M, N, stride_am, stride_an, stride_cm, stride_cn, BLOCK_SIZE_K: tl.constexpr
+):
+    BLOCK_SIZE_K = 4
+    offs_am = (2 + tl.arange(0, 4)) % M
+    offs_an = 3 + tl.arange(0, 4)
+    a_ptrs = a_ptr + (offs_am[:, None] * stride_am + offs_an[None, :] * stride_an)
+
+    offs_cm = tl.arange(0, 4)
+    offs_cn = tl.arange(0, 4)
+    c_ptrs = c_ptr + stride_cm * offs_cm[:, None] + stride_cn * offs_cn[None, :]
+
+    offs_k = tl.arange(0, 4)
+
+    for k in range(0, 2):
+        a = tl.load(a_ptrs, mask=offs_k[None, :] < 3, other=-99)
+        tl.store(c_ptrs, a)
+        a_ptrs += BLOCK_SIZE_K * stride_an
+        c_ptrs += BLOCK_SIZE_K * stride_an
+
+
+@triton.jit
 def wrap_side_by_side_masked_loop(
     a_ptr, c_ptr, M, N, stride_am, stride_an, stride_cm, stride_cn, BLOCK_SIZE_K: tl.constexpr
 ):
-    k = 1
     offs_am = 2 + tl.arange(0, 4)
     offs_an = (6 + tl.arange(0, 4)) % N
     a_ptrs = a_ptr + (offs_am[:, None] * stride_am + offs_an[None, :] * stride_an)
@@ -175,5 +196,43 @@ def compile():
     print(ret.asm["ttir"])
 
 
-test()
+
+def test_stacked():
+    M = 4
+    N = 12
+    BLOCK_SIZE_M = 4
+    BLOCK_SIZE_N = 4
+    A = torch.arange(0, M * N, device="cpu", dtype=torch.float32).reshape((M, N))
+    out = torch.full((BLOCK_SIZE_M, N), 88888, device="cpu", dtype=torch.float32)
+    print(out)
+    grid = lambda meta: (1,)
+
+    wrap_stacked_masked_loop[grid](
+        A,
+        out,
+        M,
+        N,
+        A.stride(0),
+        A.stride(1),
+        out.stride(0),
+        out.stride(1),
+        BLOCK_SIZE_K=4
+    )
+
+    expected_out = torch.tensor(
+        [
+            [27.0, 28.0, 29.0, -99.0, 31.0, 32.0, 33.0, -99.0, 88888, 88888, 88888, 88888,],
+            [39.0, 40.0, 41.0, -99.0, 43.0, 44.0, 45.0, -99.0, 88888, 88888, 88888, 88888,],
+            [3.0, 4.0, 5.0, -99.0, 7.0, 8.0, 9.0, -99.0, 88888, 88888, 88888, 88888,],
+            [15.0, 16.0, 17.0, -99.0, 19.0, 20.0, 21.0, -99.0, 88888, 88888, 88888, 88888,],
+        ],
+    )
+
+    print(A)
+    print(out.int())
+    assert torch.equal(expected_out.int(), out.int())
+    print('Hooooray stacked')
+
+# test()
 # compile()
+test_stacked()

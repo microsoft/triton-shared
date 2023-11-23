@@ -137,12 +137,6 @@ static memref::SubViewOp createSubview(Value src, Location loc, OpBuilder &b,
 std::pair<memref::SubViewOp, memref::SubViewOp>
 MaskState::getSideBySideSubviews(Value block1, Value block2, const Location loc,
                                  ConversionPatternRewriter &rewriter) const {
-
-  // assert(block1.getResultRank() == 2 && block2.getResultRank() == 2 &&
-  //        getRank() == 2);
-
-  OpFoldResult one = rewriter.getIndexAttr(1);
-
   OpFoldResult subviewRowFull = dims[0];
   OpFoldResult subviewColFull = dims[1];
   OpFoldResult col1 = (Value)rewriter.create<memref::DimOp>(loc, block1, 1);
@@ -151,11 +145,11 @@ MaskState::getSideBySideSubviews(Value block1, Value block2, const Location loc,
       subOFRs(subviewColFull, subviewCol1, loc, rewriter);
 
   SmallVector<OpFoldResult> offsets(getRank(), rewriter.getIndexAttr(0));
-  // SmallVector<OpFoldResult> strides = block1.getMixedStrides();
+  SmallVector<OpFoldResult> strides(getRank(), rewriter.getIndexAttr(1));
   auto sv1 = createSubview(block1, loc, rewriter, offsets,
-                           {subviewRowFull, subviewCol1}, {one, one});
+                           {subviewRowFull, subviewCol1}, strides);
   auto sv2 = createSubview(block2, loc, rewriter, offsets,
-                           {subviewRowFull, subviewCol2}, {one, one});
+                           {subviewRowFull, subviewCol2}, strides);
 
   return {sv1, sv2};
 }
@@ -163,10 +157,6 @@ MaskState::getSideBySideSubviews(Value block1, Value block2, const Location loc,
 std::pair<memref::SubViewOp, memref::SubViewOp>
 MaskState::getStackedSubviews(Value block1, Value block2, const Location loc,
                               ConversionPatternRewriter &rewriter) const {
-  // assert(block1.getResultRank() == 2 && block2.getResultRank() == 2 &&
-  //        getRank() == 2);
-  OpFoldResult one = rewriter.getIndexAttr(1);
-
   OpFoldResult subviewRowFull = dims[0];
   OpFoldResult subviewColFull = dims[1];
   OpFoldResult row1 = (Value)rewriter.create<memref::DimOp>(loc, block1, 0);
@@ -175,11 +165,11 @@ MaskState::getStackedSubviews(Value block1, Value block2, const Location loc,
       subOFRs(subviewRowFull, subviewRow1, loc, rewriter);
 
   SmallVector<OpFoldResult> offsets(getRank(), rewriter.getIndexAttr(0));
-  // SmallVector<OpFoldResult> strides = block1.getMixedStrides();
+  SmallVector<OpFoldResult> strides(getRank(), rewriter.getIndexAttr(1));
   auto sv1 = createSubview(block1, loc, rewriter, offsets,
-                           {subviewRow1, subviewColFull}, {one, one});
+                           {subviewRow1, subviewColFull}, strides);
   auto sv2 = createSubview(block2, loc, rewriter, offsets,
-                           {subviewRow2, subviewColFull}, {one, one});
+                           {subviewRow2, subviewColFull}, strides);
   return {sv1, sv2};
 }
 
