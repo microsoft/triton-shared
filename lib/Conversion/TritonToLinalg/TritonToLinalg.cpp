@@ -501,10 +501,23 @@ private:
     auto zero =
         rewriter.create<arith::ConstantOp>(loc, rewriter.getIndexAttr(0));
 
+    auto one =
+        rewriter.create<arith::ConstantOp>(loc, rewriter.getIndexAttr(1));
+    auto four =
+        rewriter.create<arith::ConstantOp>(loc, rewriter.getIndexAttr(4));
+    auto eight =
+        rewriter.create<arith::ConstantOp>(loc, rewriter.getIndexAttr(8));
+    auto _16 =
+        rewriter.create<arith::ConstantOp>(loc, rewriter.getIndexAttr(16));
+
     auto block1Dst = rewriter.create<memref::SubViewOp>(
         loc, dst, /* offsets */ ValueRange{zero, zero},
         ofrsToIndexValues(block1.getMixedSizes(), loc, rewriter),
-        ofrsToIndexValues(block1.getMixedStrides(), loc, rewriter));
+        ValueRange{one, one});
+
+    // block1Dst = rewriter.create<memref::SubViewOp>(
+    //     loc, dst, /* offsets */ ValueRange{zero, zero},
+    //     /*size*/ ValueRange{four, four}, ValueRange{one, one});
 
     auto block2Dst = rewriter.create<memref::SubViewOp>(
         loc, dst,
@@ -512,7 +525,7 @@ private:
         ValueRange{zero,
                    ofrToIndexValue(block1.getMixedSizes()[1], loc, rewriter)},
         ofrsToIndexValues(block2.getMixedSizes(), loc, rewriter),
-        ofrsToIndexValues(block2.getMixedStrides(), loc, rewriter));
+        ValueRange{one, one});
 
     rewriter.create<memref::CopyOp>(loc, block1.getResult(), block1Dst);
     rewriter.create<memref::CopyOp>(loc, block2.getResult(), block2Dst);

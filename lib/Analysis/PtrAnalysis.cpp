@@ -29,11 +29,16 @@ static void assertValidUnrealizedCast(UnrealizedConversionCastOp op) {
 }
 
 MemRefType PtrState::getResultMemrefType(MLIRContext *context, int64_t offset,
-                                         ArrayRef<int64_t> resultShape) const {
+                                         ArrayRef<int64_t> resultShape,
+                                         bool useDynamicStrides) const {
 
   SmallVector<int64_t> staticStrides;
-  SmallVector<Value> dynamicStrides;
-  dispatchIndexOpFoldResults(strides, dynamicStrides, staticStrides);
+  if (useDynamicStrides) {
+    staticStrides.append(strides.size(), ShapedType::kDynamic);
+  } else {
+    SmallVector<Value> dynamicStrides;
+    dispatchIndexOpFoldResults(strides, dynamicStrides, staticStrides);
+  }
 
   auto elementType = source.getType().cast<BaseMemRefType>().getElementType();
   auto layout =
@@ -196,7 +201,8 @@ PtrState::createStackedCastOps(ArrayRef<int64_t> resultShape,
                                 // the same as the original row. The last chunk
                                 // may be smaller due to wrapping around.
           resultShape[1],       // Col stays the same.
-      });
+      },
+      true /*useDynamicStrides*/);
 
   Value rowSize = ofrToIndexValue(sizes[0], loc, rewriter);
   Value colSize = ofrToIndexValue(sizes[1], loc, rewriter);
@@ -287,7 +293,8 @@ PtrState::createSideBySideCastOps(ArrayRef<int64_t> resultShape,
           ShapedType::kDynamic // Column is dynamic, in most cases, this should
                                // be the same as the original column. The last
                                // chunk may be smaller due to wrapping around.
-      });
+      },
+      true /*useDynamicStrides*/);
 
   Value rowSize = ofrToIndexValue(sizes[0], loc, rewriter);
   Value colSize = ofrToIndexValue(sizes[1], loc, rewriter);
@@ -295,24 +302,31 @@ PtrState::createSideBySideCastOps(ArrayRef<int64_t> resultShape,
   Value modN = rewriter.create<arith::IndexCastOp>(loc, rewriter.getIndexType(),
                                                    modulos[1]->size);
 
-  SmallVector<Value> strideVals = ofrsToIndexValues(strides, loc, rewriter);
-
   Value x = rewriter.create<arith::RemSIOp>(loc, targetOffset, modN);
   Value y = rewriter.create<arith::SubIOp>(loc, targetOffset, x);
+
+  Value zero =
+      rewriter.create<arith::ConstantOp>(loc, rewriter.getIndexAttr(0));
+
+  Value strideRow = ofrToIndexValue(strides[0], loc, rewriter);
+  Value strideCol = ofrToIndexValue(strides[1], loc, rewriter);
 
   // First chunk
   Value nextOffset = rewriter.create<arith::AddIOp>(loc, x, colSize);
   Value clampedOffset = rewriter.create<arith::MinSIOp>(loc, nextOffset, modN);
   Value d1 = rewriter.create<arith::SubIOp>(loc, clampedOffset, x);
   SmallVector<Value> sizes1{rowSize, d1};
+  // SmallVector<Value> sizes1{zero, zero};
+
   auto cast1 = rewriter.create<memref::ReinterpretCastOp>(
-      loc, resultType, source, targetOffset, sizes1, strideVals);
+      loc, resultType, source, targetOffset, sizes1,
+      ValueRange{strideRow, strideCol});
 
   // Second chunk
   Value d2 = rewriter.create<arith::SubIOp>(loc, colSize, d1);
   SmallVector<Value> sizes2{rowSize, d2};
   auto cast2 = rewriter.create<memref::ReinterpretCastOp>(
-      loc, resultType, source, y, sizes2, strideVals);
+      loc, resultType, source, y, sizes2, ValueRange{strideRow, strideCol});
 
   return {cast1, cast2};
 }

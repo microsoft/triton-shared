@@ -61,7 +61,8 @@ public:
   bool hasModulo() const;
 
   MemRefType getResultMemrefType(MLIRContext *context, int64_t offset,
-                                 ArrayRef<int64_t> resultShape) const;
+                                 ArrayRef<int64_t> resultShape,
+                                 bool useDynamicStrides = false) const;
 
   // Process addition of two PtrStates.
   void addState(const PtrState &lhsState, const PtrState &rhsState,
