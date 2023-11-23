@@ -234,5 +234,5 @@ def test_stacked():
     print('Hooooray stacked')
 
 # test()
-# compile()
+compile()
 test_stacked()
