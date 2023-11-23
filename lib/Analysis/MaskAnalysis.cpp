@@ -135,50 +135,51 @@ static memref::SubViewOp createSubview(Value src, Location loc, OpBuilder &b,
 // + colView2 = colFull - colView1
 // + rowView1 = rowView2 = row = rowFull
 std::pair<memref::SubViewOp, memref::SubViewOp>
-MaskState::getSideBySideSubviews(memref::ReinterpretCastOp block1,
-                                 memref::ReinterpretCastOp block2,
-                                 const Location loc,
+MaskState::getSideBySideSubviews(Value block1, Value block2, const Location loc,
                                  ConversionPatternRewriter &rewriter) const {
 
-  assert(block1.getResultRank() == 2 && block2.getResultRank() == 2 &&
-         getRank() == 2);
+  // assert(block1.getResultRank() == 2 && block2.getResultRank() == 2 &&
+  //        getRank() == 2);
+
+  OpFoldResult one = rewriter.getIndexAttr(1);
 
   OpFoldResult subviewRowFull = dims[0];
   OpFoldResult subviewColFull = dims[1];
-  OpFoldResult col1 = block1.getMixedSizes()[1];
+  OpFoldResult col1 = (Value)rewriter.create<memref::DimOp>(loc, block1, 1);
   OpFoldResult subviewCol1 = minOFRs(col1, subviewColFull, loc, rewriter);
   OpFoldResult subviewCol2 =
       subOFRs(subviewColFull, subviewCol1, loc, rewriter);
 
   SmallVector<OpFoldResult> offsets(getRank(), rewriter.getIndexAttr(0));
-  SmallVector<OpFoldResult> strides = block1.getMixedStrides();
-  auto sv1 = createSubview(block1.getResult(), loc, rewriter, offsets,
-                           {subviewRowFull, subviewCol1}, strides);
-  auto sv2 = createSubview(block2.getResult(), loc, rewriter, offsets,
-                           {subviewRowFull, subviewCol2}, strides);
+  // SmallVector<OpFoldResult> strides = block1.getMixedStrides();
+  auto sv1 = createSubview(block1, loc, rewriter, offsets,
+                           {subviewRowFull, subviewCol1}, {one, one});
+  auto sv2 = createSubview(block2, loc, rewriter, offsets,
+                           {subviewRowFull, subviewCol2}, {one, one});
 
   return {sv1, sv2};
 }
 
-std::pair<memref::SubViewOp, memref::SubViewOp> MaskState::getStackedSubviews(
-    memref::ReinterpretCastOp block1, memref::ReinterpretCastOp block2,
-    const Location loc, ConversionPatternRewriter &rewriter) const {
-  assert(block1.getResultRank() == 2 && block2.getResultRank() == 2 &&
-         getRank() == 2);
+std::pair<memref::SubViewOp, memref::SubViewOp>
+MaskState::getStackedSubviews(Value block1, Value block2, const Location loc,
+                              ConversionPatternRewriter &rewriter) const {
+  // assert(block1.getResultRank() == 2 && block2.getResultRank() == 2 &&
+  //        getRank() == 2);
+  OpFoldResult one = rewriter.getIndexAttr(1);
 
   OpFoldResult subviewRowFull = dims[0];
   OpFoldResult subviewColFull = dims[1];
-  OpFoldResult row1 = block1.getMixedSizes()[0];
+  OpFoldResult row1 = (Value)rewriter.create<memref::DimOp>(loc, block1, 0);
   OpFoldResult subviewRow1 = minOFRs(row1, subviewRowFull, loc, rewriter);
   OpFoldResult subviewRow2 =
       subOFRs(subviewRowFull, subviewRow1, loc, rewriter);
 
   SmallVector<OpFoldResult> offsets(getRank(), rewriter.getIndexAttr(0));
-  SmallVector<OpFoldResult> strides = block1.getMixedStrides();
-  auto sv1 = createSubview(block1.getResult(), loc, rewriter, offsets,
-                           {subviewRow1, subviewColFull}, strides);
-  auto sv2 = createSubview(block2.getResult(), loc, rewriter, offsets,
-                           {subviewRow2, subviewColFull}, strides);
+  // SmallVector<OpFoldResult> strides = block1.getMixedStrides();
+  auto sv1 = createSubview(block1, loc, rewriter, offsets,
+                           {subviewRow1, subviewColFull}, {one, one});
+  auto sv2 = createSubview(block2, loc, rewriter, offsets,
+                           {subviewRow2, subviewColFull}, {one, one});
   return {sv1, sv2};
 }
 

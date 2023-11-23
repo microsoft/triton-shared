@@ -1237,16 +1237,16 @@ void PtrAnalysis::rewriteForOp(
         for (auto &[unrealizedCastOp, chunkData, state] : moduloStates) {
           SmallVector<Value> newReinterpretCasts;
           for (auto &chunk : chunkData) {
-            auto initReintCast =
-                chunk.reinterpretCast
-                    .getDefiningOp<memref::ReinterpretCastOp>();
+            // auto initReintCast =
+            //     chunk.reinterpretCast
+            //         .getDefiningOp<memref::ReinterpretCastOp>();
 
-            auto newReintCast = b.create<memref::ReinterpretCastOp>(
-                loc, initReintCast.getResult().getType(),
-                args[chunk.initArgIndex], zero, initReintCast.getSizes(),
-                initReintCast.getStrides());
+            // auto newReintCast = b.create<memref::ReinterpretCastOp>(
+            //     loc, initReintCast.getResult().getType(),
+            //     args[chunk.initArgIndex], zero, initReintCast.getSizes(),
+            //     initReintCast.getStrides());
 
-            newReinterpretCasts.push_back(newReintCast);
+            newReinterpretCasts.push_back(args[chunk.initArgIndex]);
           }
 
           auto combinedCast = b.create<UnrealizedConversionCastOp>(
