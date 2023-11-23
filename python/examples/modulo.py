@@ -233,6 +233,6 @@ def test_stacked():
     assert torch.equal(expected_out.int(), out.int())
     print('Hooooray stacked')
 
-# test()
-compile()
+test()
+# compile()
 test_stacked()
