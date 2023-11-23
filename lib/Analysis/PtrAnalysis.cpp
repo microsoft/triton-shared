@@ -394,6 +394,8 @@ void PtrAnalysis::visitOperandMakeRange(
   auto start = rangeOp.getStart();
   auto end = rangeOp.getEnd();
   auto stride = (end - start + shape[0] - 1) / shape[0];
+  assert(stride == 1 &&
+         "Expect make_range op to always return tensor of stride 1");
 
   state.offsets.push_back(rewriter.getIndexAttr(start));
   state.sizes.push_back(rewriter.getIndexAttr(shape[0]));
