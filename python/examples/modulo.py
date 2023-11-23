@@ -8,9 +8,9 @@ def wrap_side_by_side_loop(
     a_ptr, c_ptr, M, N, stride_am, stride_an, stride_cm, stride_cn, BLOCK_SIZE_K: tl.constexpr
 ):
     offs_am = tl.arange(0, 4)
-    offs_an = (tl.arange(0, 4)) % N
+    offs_an = (6 + tl.arange(0, 4)) % N
     a_ptrs = a_ptr + (offs_am[:, None] * stride_am + offs_an[None, :] * stride_an)
-
+    k = 12322111111111
     offs_k = tl.arange(0, 4)
 
     offs_cm = tl.arange(0, 4)
@@ -21,7 +21,7 @@ def wrap_side_by_side_loop(
         a = tl.load(a_ptrs)
         tl.store(c_ptrs, a)
         a_ptrs += BLOCK_SIZE_K * stride_am
-        c_ptrs += BLOCK_SIZE_K * stride_an
+        c_ptrs += BLOCK_SIZE_K * stride_am
 
 
 
@@ -93,14 +93,14 @@ def mod_2d(
 def test():
     M = 12
     N = 8
-    BLOCK_SIZE_M = 4
+    BLOCK_SIZE_M = 5
     BLOCK_SIZE_N = 4
     A = torch.arange(0, M * N, device="cpu", dtype=torch.float32).reshape((M, N))
-    out = torch.full((BLOCK_SIZE_M, 12), 88888, device="cpu", dtype=torch.float32)
+    out = torch.full((M, N), 88888, device="cpu", dtype=torch.float32)
     print(out)
     grid = lambda meta: (1,)
 
-    wrap_side_by_side_loop_unroll[grid](
+    wrap_side_by_side_loop[grid](
         A,
         out,
         M,
@@ -112,18 +112,24 @@ def test():
         BLOCK_SIZE_K=4
     )
 
-    expected_out = torch.tensor(
-        [
-            [22.0, 23.0, 16.0, 17.0, 54.0, 55.0, 48.0, 49.0],
-            [30.0, 31.0, 24.0, 25.0, 62.0, 63.0, 56.0, 57.0],
-            [-99.0, -99.0, -99.0, -99.0, -99.0, -99.0, -99.0, -99.0],
-            [-99.0, -99.0, -99.0, -99.0, -99.0, -99.0, -99.0, -99.0],
-        ]
-    )
+    expected_out = torch.tensor([[    6,     7,     0,     1, 88888, 88888, 88888, 88888],
+        [   14,    15,     8,     9, 88888, 88888, 88888, 88888],
+        [   22,    23,    16,    17, 88888, 88888, 88888, 88888],
+        [   30,    31,    24,    25, 88888, 88888, 88888, 88888],
+        [   38,    39,    32,    33, 88888, 88888, 88888, 88888],
+        [   46,    47,    40,    41, 88888, 88888, 88888, 88888],
+        [   54,    55,    48,    49, 88888, 88888, 88888, 88888],
+        [   62,    63,    56,    57, 88888, 88888, 88888, 88888],
+        [   70,    71,    64,    65, 88888, 88888, 88888, 88888],
+        [   78,    79,    72,    73, 88888, 88888, 88888, 88888],
+        [   86,    87,    80,    81, 88888, 88888, 88888, 88888],
+        [   94,    95,    88,    89, 88888, 88888, 88888, 88888]], dtype=torch.int32)
+
 
     print(A)
     print(out.int())
-    # assert torch.equal(expected_out.int(), out.int())
+    assert torch.equal(expected_out.int(), out.int())
+    print('Hooooray')
 
 
 def compile():
