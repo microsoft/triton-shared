@@ -786,9 +786,6 @@ struct MatmulConverter : public OpConversionPattern<triton::DotOp> {
   LogicalResult
   matchAndRewrite(triton::DotOp op, OpAdaptor adaptor,
                   ConversionPatternRewriter &rewriter) const override {
-    auto dstType = op.getType().cast<RankedTensorType>();
-    auto loc = op.getLoc();
-
     auto opa = adaptor.getA();
     auto opb = adaptor.getB();
     auto opc = adaptor.getC();
@@ -810,12 +807,23 @@ struct MatmulConverter : public OpConversionPattern<triton::DotOp> {
       }
     }
 
-    auto init = rewriter.create<tensor::EmptyOp>(loc, dstType.getShape(),
-                                                 dstType.getElementType());
+    auto dstType = cast<RankedTensorType>(op.getType());
+    auto elemType = dstType.getElementType();
+    auto loc = op.getLoc();
+
+    auto init =
+        rewriter.create<tensor::EmptyOp>(loc, dstType.getShape(), elemType);
+
+    auto zero = rewriter.create<mlir::arith::ConstantOp>(
+        op.getLoc(), elemType, rewriter.getFloatAttr(elemType, 0));
+
+    auto zeroes =
+        rewriter.create<linalg::FillOp>(loc, ValueRange{zero}, ValueRange{init})
+            .result();
 
     auto res = rewriter
                    .create<linalg::MatmulOp>(loc, ValueRange{opa, opb},
-                                             ValueRange{init})
+                                             ValueRange{zeroes})
                    .getResult(0);
 
     if (!skipC) {
