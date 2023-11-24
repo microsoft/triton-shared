@@ -8,16 +8,15 @@ import triton.language as tl
 def wrap_stacked_masked_loop(
     a_ptr, c_ptr, M, N, stride_am, stride_an, stride_cm, stride_cn, BLOCK_SIZE_K: tl.constexpr
 ):
-    BLOCK_SIZE_K = 4
-    offs_am = (2 + tl.arange(0, 4)) % M
-    offs_an = 3 + tl.arange(0, 4)
+    offs_am = (2 + tl.arange(0, BLOCK_SIZE_K)) % M
+    offs_an = 3 + tl.arange(0, BLOCK_SIZE_K)
     a_ptrs = a_ptr + (offs_am[:, None] * stride_am + offs_an[None, :] * stride_an)
 
-    offs_cm = tl.arange(0, 4)
-    offs_cn = tl.arange(0, 4)
+    offs_cm = tl.arange(0, BLOCK_SIZE_K)
+    offs_cn = tl.arange(0, BLOCK_SIZE_K)
     c_ptrs = c_ptr + stride_cm * offs_cm[:, None] + stride_cn * offs_cn[None, :]
 
-    offs_k = tl.arange(0, 4)
+    offs_k = tl.arange(0, BLOCK_SIZE_K)
 
     for k in range(0, 2):
         a = tl.load(a_ptrs, mask=offs_k[None, :] < 3, other=-99)
@@ -30,14 +29,14 @@ def wrap_stacked_masked_loop(
 def wrap_side_by_side_masked_loop(
     a_ptr, c_ptr, M, N, stride_am, stride_an, stride_cm, stride_cn, BLOCK_SIZE_K: tl.constexpr
 ):
-    offs_am = 2 + tl.arange(0, 4)
-    offs_an = (6 + tl.arange(0, 4)) % N
+    offs_am = 2 + tl.arange(0, BLOCK_SIZE_K)
+    offs_an = (6 + tl.arange(0, BLOCK_SIZE_K)) % N
     a_ptrs = a_ptr + (offs_am[:, None] * stride_am + offs_an[None, :] * stride_an)
 
-    offs_k = tl.arange(0, 4)
+    offs_k = tl.arange(0, BLOCK_SIZE_K)
 
-    offs_cm = tl.arange(0, 4)
-    offs_cn = tl.arange(0, 4)
+    offs_cm = tl.arange(0, BLOCK_SIZE_K)
+    offs_cn = tl.arange(0, BLOCK_SIZE_K)
     c_ptrs = c_ptr + stride_cm * offs_cm[:, None] + stride_cn * offs_cn[None, :]
 
     for k in range(0, 2):
@@ -54,8 +53,6 @@ def wrap_side_by_side_loop(
     offs_am = tl.arange(0, 4)
     offs_an = (6 + tl.arange(0, 4)) % N
     a_ptrs = a_ptr + (offs_am[:, None] * stride_am + offs_an[None, :] * stride_an)
-    k = 123221111111112333
-    offs_k = tl.arange(0, 4)
 
     offs_cm = tl.arange(0, 4)
     offs_cn = tl.arange(0, 4)
@@ -76,8 +73,6 @@ def wrap_side_by_side_loop_unroll(
     offs_am = tl.arange(0, 4)
     offs_an = (6 + tl.arange(0, 4)) % N
     a_ptrs = a_ptr + (offs_am[:, None] * stride_am + offs_an[None, :] * stride_an)
-
-    offs_k = tl.arange(0, 4)
 
     offs_cm = tl.arange(0, 4)
     offs_cn = tl.arange(0, 4)
@@ -118,10 +113,6 @@ def mod_1d(
 def mod_2d(
     a_ptr, c_ptr, M, N, stride_am, stride_an, stride_cm, stride_cn, BLOCK_SIZE_K: tl.constexpr
 ):
-    k = 1111
-    h = 1
-    k = 1222222
-    www = 13
     offs_am = 2 + tl.arange(0, 4)
     offs_an = (6 + tl.arange(0, 4)) % N
     a_ptrs = a_ptr + (offs_am[:, None] * stride_am + offs_an[None, :] * stride_an)
@@ -134,11 +125,9 @@ def mod_2d(
     tl.store(c_ptrs, a)
 
 
-def test():
+def test_side_by_side():
     M = 12
     N = 8
-    BLOCK_SIZE_M = 5
-    BLOCK_SIZE_N = 4
     A = torch.arange(0, M * N, device="cpu", dtype=torch.float32).reshape((M, N))
     out = torch.full((M, N), 88888, device="cpu", dtype=torch.float32)
     print(out)
@@ -155,20 +144,6 @@ def test():
         out.stride(1),
         BLOCK_SIZE_K=4
     )
-
-    # no mask
-    # expected_out = torch.tensor([[    6,     7,     0,     1, 88888, 88888, 88888, 88888],
-    #     [   14,    15,     8,     9, 88888, 88888, 88888, 88888],
-    #     [   22,    23,    16,    17, 88888, 88888, 88888, 88888],
-    #     [   30,    31,    24,    25, 88888, 88888, 88888, 88888],
-    #     [   38,    39,    32,    33, 88888, 88888, 88888, 88888],
-    #     [   46,    47,    40,    41, 88888, 88888, 88888, 88888],
-    #     [   54,    55,    48,    49, 88888, 88888, 88888, 88888],
-    #     [   62,    63,    56,    57, 88888, 88888, 88888, 88888],
-    #     [   70,    71,    64,    65, 88888, 88888, 88888, 88888],
-    #     [   78,    79,    72,    73, 88888, 88888, 88888, 88888],
-    #     [   86,    87,    80,    81, 88888, 88888, 88888, 88888],
-    #     [   94,    95,    88,    89, 88888, 88888, 88888, 88888]], dtype=torch.int32)
 
     expected_out = torch.tensor([[   22,    23,    16,    17,    54,    55,    48,    49],
         [   30,    31,    24,    25,    62,    63,    56,    57],
@@ -233,6 +208,75 @@ def test_stacked():
     assert torch.equal(expected_out.int(), out.int())
     print('Hooooray stacked')
 
-test()
+
+def test_torch_inductor_pattern():
+    def compile():
+        ret = triton.compile(triton_, signature="*i32,*i32,i32,i32,i32", constants={"XBLOCK": 64, "RBLOCK": 64})
+        print(ret.asm["ttir"])
+
+
+    @triton.jit
+    def triton_(in_ptr2, out_ptr2, rnumel, XBLOCK : tl.constexpr, RBLOCK : tl.constexpr):
+        xnumel = 128
+        rnumel = 32
+        xoffset = tl.program_id(0) * XBLOCK
+        xindex = xoffset + tl.arange(0, XBLOCK)[:, None]
+        rbase = tl.arange(0, RBLOCK)[None, :]
+        x0 = xindex % 7
+        x0 = xindex
+        roffset = 0
+        rindex = roffset + rbase
+        rmask = rindex < rnumel
+        r2 = rindex
+        tmp3 = tl.load(in_ptr2 + (r2 + (xnumel*x0)), rmask, other=77)
+        tl.store(out_ptr2 + (XBLOCK * tl.arange(0, RBLOCK)[None, :] + tl.arange(0, XBLOCK)[:, None]), tmp3)
+
+    device = "cpu"
+    xnumel = 128
+    rnumel = 32
+
+    XBLOCK = 4
+    RBLOCK = 64
+    A = torch.arange(0, xnumel * rnumel, device=device, dtype=torch.int32).reshape((xnumel, rnumel))
+    out = torch.full((XBLOCK, RBLOCK), 88888, device=device, dtype=torch.int32)
+    grid = lambda meta: (1,)
+
+    triton_[grid](
+        A,
+        out,
+        rnumel,
+        XBLOCK=XBLOCK,
+        RBLOCK=RBLOCK
+    )
+
+    expected_out = torch.tensor([[  0, 128, 256, 384,   1, 129, 257, 385,   2, 130, 258, 386,   3, 131,
+        259, 387,   4, 132, 260, 388,   5, 133, 261, 389,   6, 134, 262, 390,
+        7, 135, 263, 391,   8, 136, 264, 392,   9, 137, 265, 393,  10, 138,
+        266, 394,  11, 139, 267, 395,  12, 140, 268, 396,  13, 141, 269, 397,
+        14, 142, 270, 398,  15, 143, 271, 399],
+        [ 16, 144, 272, 400,  17, 145, 273, 401,  18, 146, 274, 402,  19, 147,
+        275, 403,  20, 148, 276, 404,  21, 149, 277, 405,  22, 150, 278, 406,
+        23, 151, 279, 407,  24, 152, 280, 408,  25, 153, 281, 409,  26, 154,
+        282, 410,  27, 155, 283, 411,  28, 156, 284, 412,  29, 157, 285, 413,
+        30, 158, 286, 414,  31, 159, 287, 415],
+        [ 77,  77,  77,  77,  77,  77,  77,  77,  77,  77,  77,  77,  77,  77,
+        77,  77,  77,  77,  77,  77,  77,  77,  77,  77,  77,  77,  77,  77,
+        77,  77,  77,  77,  77,  77,  77,  77,  77,  77,  77,  77,  77,  77,
+        77,  77,  77,  77,  77,  77,  77,  77,  77,  77,  77,  77,  77,  77,
+        77,  77,  77,  77,  77,  77,  77,  77],
+        [ 77,  77,  77,  77,  77,  77,  77,  77,  77,  77,  77,  77,  77,  77,
+        77,  77,  77,  77,  77,  77,  77,  77,  77,  77,  77,  77,  77,  77,
+        77,  77,  77,  77,  77,  77,  77,  77,  77,  77,  77,  77,  77,  77,
+        77,  77,  77,  77,  77,  77,  77,  77,  77,  77,  77,  77,  77,  77,
+        77,  77,  77,  77,  77,  77,  77,  77]], device=device,
+    dtype=torch.int32)
+
+    print(out)
+    assert torch.equal(expected_out.int(), out.int())
+    print('Passed')
+
+
+
+# test()
 # compile()
-test_stacked()
+# test_stacked()
