@@ -401,8 +401,7 @@ void PtrAnalysis::visitOperandRem(
     assert(!state.modulos.back().has_value() &&
            "No support for multiple modulos within an expression");
 
-    state.modulos.back() =
-        ModuloState(rhsState.scalar, rewriter.getIndexAttr(0));
+    state.modulos.back() = ModuloState{rhsState.scalar};
 
   } else if (state.getRank() == 2) {
     // torch inductor expands the tensor shape before applying the modulo
@@ -415,9 +414,9 @@ void PtrAnalysis::visitOperandRem(
     // In both cases, we apply the modulo to the non-singleton dimension.
     auto shape = cast<TensorType>(remOp.getResult().getType()).getShape();
     if (shape[0] == 1) {
-      state.modulos[1] = ModuloState(rhsState.scalar, rewriter.getIndexAttr(0));
+      state.modulos[1] = ModuloState{rhsState.scalar};
     } else if (shape[1] == 1) {
-      state.modulos[0] = ModuloState(rhsState.scalar, rewriter.getIndexAttr(0));
+      state.modulos[0] = ModuloState{rhsState.scalar};
     } else {
       assert(false && "Do not support taking modulo on a 2D tensor with no "
                       "singleton dimension");
