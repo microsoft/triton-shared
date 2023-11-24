@@ -386,15 +386,45 @@ void PtrAnalysis::visitOperandRem(
     ConversionPatternRewriter &rewriter,
     const llvm::SmallDenseMap<Value, PtrState> &knownPtrs) {
   assert(state.isEmpty());
-  visitOperand(remOp.getLhs(), state, loc, rewriter, knownPtrs);
-  assert(state.getRank() == 1 && !state.modulos.back().has_value() &&
-         "No support for multiple modulos within an expression");
 
   PtrState rhsState;
   visitOperand(remOp.getRhs(), rhsState, loc, rewriter, knownPtrs);
   assert(rhsState.scalar);
 
-  state.modulos.back() = ModuloState(rhsState.scalar, rewriter.getIndexAttr(0));
+  visitOperand(remOp.getLhs(), state, loc, rewriter, knownPtrs);
+  if (state.getRank() == 1) {
+    // Apply the modulo pattern before expanding shape, the common pattern is
+    // offs_am = (pid_m * BLOCK_SIZE_M + tl.arange(0, BLOCK_SIZE_M)) % M
+    // a_ptrs = a_ptr + (offs_am[:, None] * stride_am + offs_k[None, :] *
+    // stride_ak)
+
+    assert(!state.modulos.back().has_value() &&
+           "No support for multiple modulos within an expression");
+
+    state.modulos.back() =
+        ModuloState(rhsState.scalar, rewriter.getIndexAttr(0));
+
+  } else if (state.getRank() == 2) {
+    // torch inductor expands the tensor shape before applying the modulo
+    // pattern.
+    //
+    // We only support either:
+    // - (tl.arange(0, end)[:, None] % mod), or
+    // - (tl.arange(0, end)[None, :] % mod)
+    //
+    // In both cases, we apply the modulo to the non-singleton dimension.
+    auto shape = cast<TensorType>(remOp.getResult().getType()).getShape();
+    if (shape[0] == 1) {
+      state.modulos[1] = ModuloState(rhsState.scalar, rewriter.getIndexAttr(0));
+    } else if (shape[1] == 1) {
+      state.modulos[0] = ModuloState(rhsState.scalar, rewriter.getIndexAttr(0));
+    } else {
+      assert(false && "Do not support taking modulo on a 2D tensor with no "
+                      "singleton dimension");
+    }
+  } else {
+    assert(false && "Unsupported modulo pattern");
+  }
 }
 
 void PtrAnalysis::visitOperandMakeRange(

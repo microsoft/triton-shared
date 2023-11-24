@@ -24,7 +24,13 @@ namespace triton {
 
 struct ModuloState {
   Value size;
+
+  // offset is used to determine the wraparound point for patterns like
+  // offset + (tl.arange(0, 256) % 12)
+  // The current code assumes that the modulo operator always runs last.
+  // This is not used at the moment as there haven't been enough use cases.
   OpFoldResult offset;
+
   ModuloState() {}
   ModuloState(Value size, OpFoldResult offset) : size{size}, offset{offset} {}
 
