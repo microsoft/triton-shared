@@ -139,7 +139,8 @@ MaskState::getSideBySideSubviews(Value block1, Value block2, const Location loc,
                                  ConversionPatternRewriter &rewriter) const {
   OpFoldResult subviewRowFull = dims[0];
   OpFoldResult subviewColFull = dims[1];
-  OpFoldResult col1 = (Value)rewriter.create<memref::DimOp>(loc, block1, 1);
+  OpFoldResult col1 =
+      rewriter.create<memref::DimOp>(loc, block1, 1).getResult();
   OpFoldResult subviewCol1 = minOFRs(col1, subviewColFull, loc, rewriter);
   OpFoldResult subviewCol2 =
       subOFRs(subviewColFull, subviewCol1, loc, rewriter);
@@ -159,7 +160,8 @@ MaskState::getStackedSubviews(Value block1, Value block2, const Location loc,
                               ConversionPatternRewriter &rewriter) const {
   OpFoldResult subviewRowFull = dims[0];
   OpFoldResult subviewColFull = dims[1];
-  OpFoldResult row1 = (Value)rewriter.create<memref::DimOp>(loc, block1, 0);
+  OpFoldResult row1 =
+      rewriter.create<memref::DimOp>(loc, block1, 0).getResult();
   OpFoldResult subviewRow1 = minOFRs(row1, subviewRowFull, loc, rewriter);
   OpFoldResult subviewRow2 =
       subOFRs(subviewRowFull, subviewRow1, loc, rewriter);
