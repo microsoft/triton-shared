@@ -1,0 +1,9 @@
+jobs:
+- job: Test-Arm-CPU
+  timeoutInMinutes: 8
+  pool:
+    vmImage: 'ubuntu-latest'
+
+  steps:
+  - script: |
+      ls
