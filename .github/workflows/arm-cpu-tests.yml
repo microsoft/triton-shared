@@ -1,6 +1,8 @@
 name: ARM CPU Triton Shared Testing
 
 on:
+  pull_request:
+    branches: [ "main" ]
   workflow_dispatch:
 
 
