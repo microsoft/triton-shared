@@ -1,0 +1,15 @@
+name: ARM CPU Triton Shared Testing
+
+on:
+  pull_request:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+
+jobs:
+  test_triton_shared_arm:
+    runs-on: ["self-hosted", "1ES.Pool=triton-shared-github-arm"]
+
+    steps:
+    - name: Check Architecture
+      run: uname -a
