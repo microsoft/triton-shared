@@ -305,7 +305,7 @@ PtrState::createSideBySideCastOps(ArrayRef<int64_t> resultShape,
   Value x = rewriter.create<arith::RemSIOp>(loc, targetOffset, modN);
   Value y = rewriter.create<arith::SubIOp>(loc, targetOffset, x);
 
-  Value strideCol = ofrToIndexValue(strides[1], loc, rewriter);
+  SmallVector<Value> strideVals = ofrToIndexValues(strides, loc, rewriter);
 
   // First chunk
   Value nextOffset = rewriter.create<arith::AddIOp>(loc, x, colSize);
@@ -316,7 +316,7 @@ PtrState::createSideBySideCastOps(ArrayRef<int64_t> resultShape,
   // Note that stride(0) here is the same as d1 since we have split the block
   // into two smaller chunks
   auto cast1 = rewriter.create<memref::ReinterpretCastOp>(
-      loc, resultType, source, targetOffset, sizes1, ValueRange{d1, strideCol});
+      loc, resultType, source, targetOffset, sizes1, strideVals);
 
   // Second chunk
   Value d2 = rewriter.create<arith::SubIOp>(loc, colSize, d1);
@@ -325,7 +325,7 @@ PtrState::createSideBySideCastOps(ArrayRef<int64_t> resultShape,
   // Note that stride(0) here is the same as d2 since we have split the block
   // into two smaller chunks
   auto cast2 = rewriter.create<memref::ReinterpretCastOp>(
-      loc, resultType, source, y, sizes2, ValueRange{d2, strideCol});
+      loc, resultType, source, y, sizes2, strideVals);
 
   return {cast1, cast2};
 }
