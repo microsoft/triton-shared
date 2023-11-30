@@ -305,7 +305,7 @@ PtrState::createSideBySideCastOps(ArrayRef<int64_t> resultShape,
   Value x = rewriter.create<arith::RemSIOp>(loc, targetOffset, modN);
   Value y = rewriter.create<arith::SubIOp>(loc, targetOffset, x);
 
-  SmallVector<Value> strideVals = ofrToIndexValues(strides, loc, rewriter);
+  SmallVector<Value> strideVals = ofrsToIndexValues(strides, loc, rewriter);
 
   // First chunk
   Value nextOffset = rewriter.create<arith::AddIOp>(loc, x, colSize);
