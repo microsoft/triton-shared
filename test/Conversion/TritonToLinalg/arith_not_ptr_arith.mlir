@@ -34,6 +34,6 @@ module {
 // CHECK:             %[[VAL_15:.*]] = arith.addi %[[VAL_12]], %[[VAL_13]] : i32
 // CHECK:             linalg.yield %[[VAL_15]] : i32
 // CHECK:           } -> tensor<1024xi32>
-// CHECK:           memref.tensor_store %[[VAL_16:.*]], %[[VAL_6]] : memref<1024xi32, strided<[1]>>
+// CHECK:           bufferization.materialize_in_destination %[[VAL_16:.*]] in writable %[[VAL_6]] : (tensor<1024xi32>, memref<1024xi32, strided<[1]>>) -> ()
 // CHECK:           return
 // CHECK:         }

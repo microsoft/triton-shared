@@ -63,6 +63,6 @@ module {
 // CHECK:             [[VAR_8_:%.+]] = arith.fptosi [[in_]] : f32 to i32
 // CHECK:             linalg.yield [[VAR_8_]] : i32
 // CHECK:           } -> tensor<4096xi32>
-// CHECK:           memref.tensor_store [[VAR_7_]], [[VAR_reinterpret_cast_0_]] : memref<4096xi32, strided<[1], offset: ?>>
+// CHECK:           bufferization.materialize_in_destination [[VAR_7_]] in writable [[VAR_reinterpret_cast_0_]] : (tensor<4096xi32>, memref<4096xi32, strided<[1], offset: ?>>) -> ()
 // CHECK:           return
 // CHECK:         }

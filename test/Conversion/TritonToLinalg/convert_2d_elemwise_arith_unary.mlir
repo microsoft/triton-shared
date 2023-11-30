@@ -85,10 +85,10 @@ module {
 // CHECK:             %[[VAL_42:.*]] = math.sqrt %[[VAL_40]] : f32
 // CHECK:             linalg.yield %[[VAL_42]] : f32
 // CHECK:           } -> tensor<128x128xf32>
-// CHECK:           memref.tensor_store %[[VAL_43:.*]], %[[VAL_3]] : memref<128x128xbf16>
-// CHECK:           memref.tensor_store %[[VAL_44:.*]], %[[VAL_4]] : memref<128x128xf32>
-// CHECK:           memref.tensor_store %[[VAL_45:.*]], %[[VAL_5]] : memref<128x128xf32>
-// CHECK:           memref.tensor_store %[[VAL_46:.*]], %[[VAL_6]] : memref<128x128xf32>
-// CHECK:           memref.tensor_store %[[VAL_47:.*]], %[[VAL_7]] : memref<128x128xf32>
+// CHECK:           bufferization.materialize_in_destination %[[VAL_43:.*]] in writable %[[VAL_3]] : (tensor<128x128xbf16>, memref<128x128xbf16>) -> ()
+// CHECK:           bufferization.materialize_in_destination %[[VAL_44:.*]] in writable %[[VAL_4]] : (tensor<128x128xf32>, memref<128x128xf32>) -> ()
+// CHECK:           bufferization.materialize_in_destination %[[VAL_45:.*]] in writable %[[VAL_5]] : (tensor<128x128xf32>, memref<128x128xf32>) -> ()
+// CHECK:           bufferization.materialize_in_destination %[[VAL_46:.*]] in writable %[[VAL_6]] : (tensor<128x128xf32>, memref<128x128xf32>) -> ()
+// CHECK:           bufferization.materialize_in_destination %[[VAL_47:.*]] in writable %[[VAL_7]] : (tensor<128x128xf32>, memref<128x128xf32>) -> ()
 // CHECK:           return
 // CHECK:         }

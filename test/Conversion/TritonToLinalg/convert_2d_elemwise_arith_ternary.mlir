@@ -50,6 +50,6 @@ module {
 // CHECK:             %[[VAL_21:.*]] = arith.select %[[VAL_17]], %[[VAL_18]], %[[VAL_19]] : f32
 // CHECK:             linalg.yield %[[VAL_21]] : f32
 // CHECK:           } -> tensor<128x128xf32>
-// CHECK:           memref.tensor_store %[[VAL_22:.*]], %[[VAL_3]] : memref<128x128xf32>
+// CHECK:           bufferization.materialize_in_destination %[[VAL_22:.*]] in writable %[[VAL_3]] : (tensor<128x128xf32>, memref<128x128xf32>) -> ()
 // CHECK:           return
 // CHECK:         }

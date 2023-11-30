@@ -44,6 +44,6 @@ module {
 // CHECK:           %[[VAL_13:.*]] = memref.alloc() : memref<1024xbf16>
 // CHECK:           memref.copy %[[VAL_10]], %[[VAL_13]] : memref<1024xbf16, strided<[?], offset: ?>> to memref<1024xbf16>
 // CHECK:           %[[VAL_14:.*]] = bufferization.to_tensor %[[VAL_13]] restrict writable : memref<1024xbf16>
-// CHECK:           memref.tensor_store %[[VAL_14]], %[[VAL_12]] : memref<1024xbf16, strided<[1], offset: ?>>
+// CHECK:           bufferization.materialize_in_destination %[[VAL_14]] in writable %[[VAL_12]] : (tensor<1024xbf16>, memref<1024xbf16, strided<[1], offset: ?>>) -> ()
 // CHECK:           return
 // CHECK:         }

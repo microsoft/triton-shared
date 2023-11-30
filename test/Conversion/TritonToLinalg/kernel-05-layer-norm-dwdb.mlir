@@ -173,7 +173,7 @@ module {
 // CHECK:           [[VAR_13_:%.+]] = arith.subi [[VAR_12_]], [[VAR_9_]] : index
 // CHECK-DAG:       [[VAR_extracted_slice_:%.+]] = tensor.extract_slice [[VAR_reduced_]][0] {{.}}[[VAR_13_]]{{.}} [1] : tensor<256xf32> to tensor<?xf32>
 // CHECK-DAG:       [[VAR_subview_:%.+]] = memref.subview [[VAR_reinterpret_cast_]][0] {{.}}[[VAR_13_]]{{.}} [1] : memref<256xf32, strided<[1], offset: ?>> to memref<?xf32, strided<[1], offset: ?>>
-// CHECK:           memref.tensor_store [[VAR_extracted_slice_]], [[VAR_subview_]] : memref<?xf32, strided<[1], offset: ?>>
+// CHECK:           bufferization.materialize_in_destination [[VAR_extracted_slice_]] in writable [[VAR_subview_]] : (tensor<?xf32>, memref<?xf32, strided<[1], offset: ?>>) -> ()
 // CHECK:           [[VAR_14_:%.+]] = arith.index_cast [[VAR_2_]] : i32 to index
 // CHECK-DAG:       [[VAR_reinterpret_cast_1_:%.+]] = memref.reinterpret_cast [[PARAM_3_]] to offset: {{.}}[[VAR_14_]]{{.}}, sizes: [256], strides: [1] : memref<*xf32> to memref<256xf32, strided<[1], offset: ?>>
 // CHECK-DAG:       [[VAR_15_:%.+]] = arith.index_cast [[VAR_2_]] : i32 to index
@@ -184,6 +184,6 @@ module {
 // CHECK:           [[VAR_19_:%.+]] = arith.subi [[VAR_18_]], [[VAR_15_]] : index
 // CHECK-DAG:       [[VAR_extracted_slice_2_:%.+]] = tensor.extract_slice [[VAR_reduced_0_]][0] {{.}}[[VAR_19_]]{{.}} [1] : tensor<256xf32> to tensor<?xf32>
 // CHECK-DAG:       [[VAR_subview_3_:%.+]] = memref.subview [[VAR_reinterpret_cast_1_]][0] {{.}}[[VAR_19_]]{{.}} [1] : memref<256xf32, strided<[1], offset: ?>> to memref<?xf32, strided<[1], offset: ?>>
-// CHECK:           memref.tensor_store [[VAR_extracted_slice_2_]], [[VAR_subview_3_]] : memref<?xf32, strided<[1], offset: ?>>
+// CHECK:           bufferization.materialize_in_destination [[VAR_extracted_slice_2_]] in writable [[VAR_subview_3_]] : (tensor<?xf32>, memref<?xf32, strided<[1], offset: ?>>) -> ()
 // CHECK:           return
 // CHECK:         }
