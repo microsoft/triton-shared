@@ -1,5 +1,5 @@
 jobs:
-- job: Test-Arm-CPU
+- job: TestArmCPU
   timeoutInMinutes: 8
   pool:
     vmImage: 'ubuntu-latest'
