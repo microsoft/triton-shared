@@ -107,7 +107,6 @@ jobs:
     - name: Check Architecture
       run: uname -a
 
-    steps:
     - name: Force Failure
       if: ${{ inputs.force-failure }}
       run: exit 1
