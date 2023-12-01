@@ -53,6 +53,6 @@ module {
 // CHECK:               %[[VAL_15:.*]] = arith.maximumf %[[VAL_13]], %[[VAL_14]] : bf16
 // CHECK:               linalg.yield %[[VAL_15]] : bf16
 // CHECK:             }
-// CHECK:           memref.tensor_store %[[VAL_12]], %[[VAL_1]] : memref<256x16xbf16>
+// CHECK:           bufferization.materialize_in_destination %[[VAL_12]] in %[[VAL_1]]
 // CHECK:           return
 // CHECK:         }

@@ -52,6 +52,6 @@ module {
 // CHECK:           %[[VAL_23:.*]] = arith.muli %[[ARG_8]], %[[VAL_3]] : i32
 // CHECK:           %[[VAL_24:.*]] = arith.index_cast %[[VAL_23]] : i32 to index
 // CHECK:           %[[VAL_25:.*]] = memref.reinterpret_cast %[[VAL_0]] to offset: {{\[}}%[[VAL_24]]], sizes: [1024], strides: [1] : memref<*xf32> to memref<1024xf32, strided<[1], offset: ?>>
-// CHECK:           memref.tensor_store %[[VAL_26:.*]], %[[VAL_25]] : memref<1024xf32, strided<[1], offset: ?>>
+// CHECK:           bufferization.materialize_in_destination %[[VAL_26:.*]] in %[[VAL_25]]
 // CHECK:           return
 // CHECK:         }

@@ -73,6 +73,6 @@ module {
 // CHECK:             %[[VAL_25:.*]] = arith.addf %[[VAL_22]], %[[VAL_23]] : bf16
 // CHECK:             linalg.yield %[[VAL_25]] : bf16
 // CHECK:           } -> tensor<128x256xbf16>
-// CHECK:           memref.tensor_store %[[VAL_26:.*]], %[[VAL_16]] : memref<128x256xbf16, strided<[?, 1]>>
+// CHECK:           bufferization.materialize_in_destination %[[VAL_26:.*]] in %[[VAL_16]]
 // CHECK:           return
 // CHECK:         }

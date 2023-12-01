@@ -730,7 +730,7 @@ struct StoreConverter : public OpConversionPattern<triton::StoreOp> {
 
     // 1. Simple case where no mask is used.
     if (!mask) {
-      rewriter.create<memref::TensorStoreOp>(loc, val, ptr);
+      rewriter.create<bufferization::MaterializeInDestinationOp>(loc, val, ptr);
       rewriter.eraseOp(op);
       return success();
     }
@@ -747,7 +747,7 @@ struct StoreConverter : public OpConversionPattern<triton::StoreOp> {
     auto srcSlice = mstate.getExtractSlice(val, loc, rewriter);
     auto dstSubview = mstate.getSubview(ptr, loc, rewriter);
 
-    rewriter.create<memref::TensorStoreOp>(loc, srcSlice, dstSubview);
+    rewriter.create<bufferization::MaterializeInDestinationOp>(loc, srcSlice, dstSubview);
     rewriter.eraseOp(op);
 
     return success();

@@ -102,7 +102,7 @@ module {
 // CHECK:             [[VAR_13_2_:%.+]] = arith.sitofp [[in_]] : i32 to f32
 // CHECK:             linalg.yield [[VAR_13_2_]] : f32
 // CHECK:           } -> tensor<4xf32>
-// CHECK:           memref.tensor_store [[VAR_12_]], [[VAR_reinterpret_cast_0_]] : memref<4xf32, strided<[1]>>
+// CHECK:           bufferization.materialize_in_destination [[VAR_12_]] in [[VAR_reinterpret_cast_0_]]
 // CHECK:           return
 // CHECK:         }
 
@@ -210,6 +210,6 @@ module {
 // CHECK:             [[VAR_13_2_:%.+]] = arith.sitofp [[in_]] : i32 to f32
 // CHECK:             linalg.yield [[VAR_13_2_]] : f32
 // CHECK:           } -> tensor<4xf32>
-// CHECK:           memref.tensor_store [[VAR_12_]], [[VAR_reinterpret_cast_0_]] : memref<4xf32, strided<[1]>>
+// CHECK:           bufferization.materialize_in_destination [[VAR_12_]] in [[VAR_reinterpret_cast_0_]]
 // CHECK:           return
 // CHECK:         }

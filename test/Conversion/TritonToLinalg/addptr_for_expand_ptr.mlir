@@ -65,7 +65,7 @@ module {
 // CHECK:             %[[VAL_15:.*]] = memref.alloc() : memref<256x256xbf16>
 // CHECK:             memref.copy %[[VAL_14]], %[[VAL_15]] : memref<256x256xbf16, strided<[?, 1], offset: ?>> to memref<256x256xbf16>
 // CHECK:             %[[VAL_16:.*]] = bufferization.to_tensor %[[VAL_15]] restrict writable : memref<256x256xbf16>
-// CHECK:             memref.tensor_store %[[VAL_16]], %[[VAL_14]] : memref<256x256xbf16, strided<[?, 1], offset: ?>>
+// CHECK:             bufferization.materialize_in_destination %[[VAL_16]] in %[[VAL_14]]
 // CHECK:             %[[VAL_17:.*]] = arith.addi %[[VAL_12]], %[[VAL_9]] : index
 // CHECK:             scf.yield %[[VAL_17]] : index
 // CHECK:           }

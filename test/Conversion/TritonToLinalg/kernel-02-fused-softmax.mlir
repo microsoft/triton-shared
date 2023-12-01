@@ -100,6 +100,6 @@ module {
 // CHECK:           [[VAR_18_:%.+]] = arith.minsi [[VAR_17_]], [[CST_128_]] : index
 // CHECK-DAG:       [[VAR_extracted_slice_:%.+]] = tensor.extract_slice [[VAR_14_]][0] {{.}}[[VAR_18_]]{{.}} [1] : tensor<128xf32> to tensor<?xf32>
 // CHECK-DAG:       [[VAR_subview_6_:%.+]] = memref.subview [[VAR_reinterpret_cast_5_]][0] {{.}}[[VAR_18_]]{{.}} [1]{{.*}} : memref<128xf32, strided<[1], offset: ?>> to memref<?xf32, strided<[1], offset: ?>>
-// CHECK:           memref.tensor_store [[VAR_extracted_slice_]], [[VAR_subview_6_]] : memref<?xf32, strided<[1], offset: ?>>
+// CHECK:           bufferization.materialize_in_destination [[VAR_extracted_slice_]] in [[VAR_subview_6_]]
 // CHECK:           return
 // CHECK:         }

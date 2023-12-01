@@ -307,7 +307,7 @@ module {
 // CHECK:             [[VAR_60_:%.+]] = arith.subi [[VAR_59_]], [[VAR_56_]] : index
 // CHECK-DAG:         [[VAR_extracted_slice_:%.+]] = tensor.extract_slice [[VAR_52_]][0] {{.}}[[VAR_60_]]{{.}} [1] : tensor<256xf32> to tensor<?xf32>
 // CHECK-DAG:         [[VAR_subview_16_:%.+]] = memref.subview [[VAR_reinterpret_cast_15_]][0] {{.}}[[VAR_60_]]{{.}} [1] : memref<256xf32, strided<[1], offset: ?>> to memref<?xf32, strided<[1], offset: ?>>
-// CHECK:             memref.tensor_store [[VAR_extracted_slice_]], [[VAR_subview_16_]] : memref<?xf32, strided<[1], offset: ?>>
+// CHECK:             bufferization.materialize_in_destination [[VAR_extracted_slice_]] in [[VAR_subview_16_]]
 // CHECK:           }
 // CHECK:           return
 // CHECK:         }

@@ -79,10 +79,10 @@ module {
 // CHECK:             %[[VAL_42:.*]] = math.sqrt %[[VAL_40]] : f32
 // CHECK:             linalg.yield %[[VAL_42]] : f32
 // CHECK:           } -> tensor<1024xf32>
-// CHECK:           memref.tensor_store %[[VAL_43:.*]], %[[VAL_3]] : memref<1024xbf16>
-// CHECK:           memref.tensor_store %[[VAL_44:.*]], %[[VAL_4]] : memref<1024xf32>
-// CHECK:           memref.tensor_store %[[VAL_45:.*]], %[[VAL_5]] : memref<1024xf32>
-// CHECK:           memref.tensor_store %[[VAL_46:.*]], %[[VAL_6]] : memref<1024xf32>
-// CHECK:           memref.tensor_store %[[VAL_47:.*]], %[[VAL_7]] : memref<1024xf32>
+// CHECK:           bufferization.materialize_in_destination %[[VAL_43:.*]] in %[[VAL_3]]
+// CHECK:           bufferization.materialize_in_destination %[[VAL_44:.*]] in %[[VAL_4]]
+// CHECK:           bufferization.materialize_in_destination %[[VAL_45:.*]] in %[[VAL_5]]
+// CHECK:           bufferization.materialize_in_destination %[[VAL_46:.*]] in %[[VAL_6]]
+// CHECK:           bufferization.materialize_in_destination %[[VAL_47:.*]] in %[[VAL_7]]
 // CHECK:           return
 // CHECK:         }

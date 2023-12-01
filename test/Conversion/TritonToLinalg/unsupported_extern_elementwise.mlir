@@ -30,6 +30,6 @@ module {
 // CHECK:           [[VAR_2_:%.+]] = bufferization.to_tensor [[RES_]] restrict writable : memref<8xi32>
 // CHECK-DAG:       [[VAR_3_:%.+]] = tt.extern_elementwise [[VAR_2_]], [[VAR_1_]] {libname = "libdevice", libpath = "/path/to/something", pure = true, symbol = "some_symbol"} : (tensor<8xi32>, tensor<8xi32>) -> tensor<8xi32>
 // CHECK-DAG:       [[VAR_reinterpret_cast_0_:%.+]] = memref.reinterpret_cast [[PARAM_1_]] to offset: [0], sizes: [8], strides: [1] : memref<*xi32> to memref<8xi32, strided<[1]>>
-// CHECK:           memref.tensor_store [[VAR_3_]], [[VAR_reinterpret_cast_0_]] : memref<8xi32, strided<[1]>>
+// CHECK:           bufferization.materialize_in_destination [[VAR_3_]] in [[VAR_reinterpret_cast_0_]]
 // CHECK:           return
 // CHECK:         }
