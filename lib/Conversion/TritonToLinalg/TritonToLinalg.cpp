@@ -489,62 +489,76 @@ struct LoadConverter : public OpConversionPattern<triton::LoadOp> {
 private:
   using OpConversionPattern<triton::LoadOp>::OpConversionPattern;
 
-  template <typename SourceOpTy>
-  void createSideBySideCopies(SourceOpTy block1, SourceOpTy block2, Value dst,
+  void createSideBySideCopies(Value block1, Value block2, Value dst,
                               Location loc,
                               ConversionPatternRewriter &rewriter) const {
-    static_assert((std::is_same<SourceOpTy, memref::ReinterpretCastOp>() ||
-                   std::is_same<SourceOpTy, memref::SubViewOp>()) &&
-                  "Expect source of split pointers to come from either "
-                  "reinterpret_cast or subview ops");
 
     auto zero =
         rewriter.create<arith::ConstantOp>(loc, rewriter.getIndexAttr(0));
 
-    auto block1Dst = rewriter.create<memref::SubViewOp>(
-        loc, dst, /* offsets */ ValueRange{zero, zero},
-        ofrsToIndexValues(block1.getMixedSizes(), loc, rewriter),
-        ofrsToIndexValues(block1.getMixedStrides(), loc, rewriter));
+    auto one =
+        rewriter.create<arith::ConstantOp>(loc, rewriter.getIndexAttr(1));
 
-    auto block2Dst = rewriter.create<memref::SubViewOp>(
-        loc, dst,
-        /* offsets */
-        ValueRange{zero,
-                   ofrToIndexValue(block1.getMixedSizes()[1], loc, rewriter)},
-        ofrsToIndexValues(block2.getMixedSizes(), loc, rewriter),
-        ofrsToIndexValues(block2.getMixedStrides(), loc, rewriter));
+    Value block1Row = rewriter.create<memref::DimOp>(loc, block1, 0);
+    Value block1Col = rewriter.create<memref::DimOp>(loc, block1, 1);
 
-    rewriter.create<memref::CopyOp>(loc, block1.getResult(), block1Dst);
-    rewriter.create<memref::CopyOp>(loc, block2.getResult(), block2Dst);
+    Value block2Row = rewriter.create<memref::DimOp>(loc, block2, 0);
+    Value block2Col = rewriter.create<memref::DimOp>(loc, block2, 1);
+
+    auto block1Dst =
+        rewriter.create<memref::SubViewOp>(loc, dst, /* offsets */
+                                           ValueRange{zero, zero},
+                                           /* sizes */
+                                           ValueRange{block1Row, block1Col},
+                                           /* strides */
+                                           ValueRange{one, one});
+
+    auto block2Dst =
+        rewriter.create<memref::SubViewOp>(loc, dst,
+                                           /* offsets */
+                                           ValueRange{zero, block1Col},
+                                           /* sizes */
+                                           ValueRange{block2Row, block2Col},
+                                           /* strides */
+                                           ValueRange{one, one});
+
+    rewriter.create<memref::CopyOp>(loc, block1, block1Dst);
+    rewriter.create<memref::CopyOp>(loc, block2, block2Dst);
   }
 
-  template <typename SourceOpTy>
-  void createStackedCopies(SourceOpTy block1, SourceOpTy block2, Value dst,
-                           Location loc,
+  void createStackedCopies(Value block1, Value block2, Value dst, Location loc,
                            ConversionPatternRewriter &rewriter) const {
-    static_assert((std::is_same<SourceOpTy, memref::ReinterpretCastOp>() ||
-                   std::is_same<SourceOpTy, memref::SubViewOp>()) &&
-                  "Expect source of split pointers to come from either "
-                  "reinterpret_cast or subview ops");
 
     auto zero =
         rewriter.create<arith::ConstantOp>(loc, rewriter.getIndexAttr(0));
+    auto one =
+        rewriter.create<arith::ConstantOp>(loc, rewriter.getIndexAttr(1));
 
-    auto block1Dst = rewriter.create<memref::SubViewOp>(
-        loc, dst, /* offsets */ ValueRange{zero, zero},
-        ofrsToIndexValues(block1.getMixedSizes(), loc, rewriter),
-        ofrsToIndexValues(block1.getMixedStrides(), loc, rewriter));
+    Value block1Row = rewriter.create<memref::DimOp>(loc, block1, 0);
+    Value block1Col = rewriter.create<memref::DimOp>(loc, block1, 1);
 
-    auto block2Dst = rewriter.create<memref::SubViewOp>(
-        loc, dst,
-        /* offsets */
-        ValueRange{ofrToIndexValue(block1.getMixedSizes()[0], loc, rewriter),
-                   zero},
-        ofrsToIndexValues(block2.getMixedSizes(), loc, rewriter),
-        ofrsToIndexValues(block2.getMixedStrides(), loc, rewriter));
+    Value block2Row = rewriter.create<memref::DimOp>(loc, block2, 0);
+    Value block2Col = rewriter.create<memref::DimOp>(loc, block2, 1);
 
-    rewriter.create<memref::CopyOp>(loc, block1.getResult(), block1Dst);
-    rewriter.create<memref::CopyOp>(loc, block2.getResult(), block2Dst);
+    auto block1Dst =
+        rewriter.create<memref::SubViewOp>(loc, dst, /* offsets */
+                                           ValueRange{zero, zero},
+                                           /* sizes */
+                                           ValueRange{block1Row, block1Col},
+                                           /* strides */
+                                           ValueRange{one, one});
+
+    auto block2Dst =
+        rewriter.create<memref::SubViewOp>(loc, dst,
+                                           /* offsets */
+                                           ValueRange{block1Row, zero},
+                                           /* sizes */
+                                           ValueRange{block2Row, block2Col},
+                                           /* strides */
+                                           ValueRange{one, one});
+
+    rewriter.create<memref::CopyOp>(loc, block1, block1Dst);
+    rewriter.create<memref::CopyOp>(loc, block2, block2Dst);
   }
 
 public:
@@ -591,8 +605,8 @@ public:
                 ModuloState::WraparoundAttr)) {
 
           auto memrefs = unrealizedCast.getOperands();
-          auto block1 = memrefs[0].getDefiningOp<memref::ReinterpretCastOp>();
-          auto block2 = memrefs[1].getDefiningOp<memref::ReinterpretCastOp>();
+          auto block1 = memrefs[0];
+          auto block2 = memrefs[1];
 
           if (wrapType.getValue().equals(ModuloState::WraparoundSideBySide)) {
             createSideBySideCopies(block1, block2, alloc, loc, rewriter);
@@ -671,8 +685,8 @@ public:
               ModuloState::WraparoundAttr)) {
 
         auto memrefs = unrealizedCast.getOperands();
-        auto block1 = memrefs[0].getDefiningOp<memref::ReinterpretCastOp>();
-        auto block2 = memrefs[1].getDefiningOp<memref::ReinterpretCastOp>();
+        auto block1 = memrefs[0];
+        auto block2 = memrefs[1];
 
         if (wrapType.getValue().equals(ModuloState::WraparoundSideBySide)) {
           auto [subview1, subview2] =
@@ -790,9 +804,6 @@ struct MatmulConverter : public OpConversionPattern<triton::DotOp> {
   LogicalResult
   matchAndRewrite(triton::DotOp op, OpAdaptor adaptor,
                   ConversionPatternRewriter &rewriter) const override {
-    auto dstType = op.getType().cast<RankedTensorType>();
-    auto loc = op.getLoc();
-
     auto opa = adaptor.getA();
     auto opb = adaptor.getB();
     auto opc = adaptor.getC();
@@ -814,12 +825,23 @@ struct MatmulConverter : public OpConversionPattern<triton::DotOp> {
       }
     }
 
-    auto init = rewriter.create<tensor::EmptyOp>(loc, dstType.getShape(),
-                                                 dstType.getElementType());
+    auto dstType = cast<RankedTensorType>(op.getType());
+    auto elemType = dstType.getElementType();
+    auto loc = op.getLoc();
+
+    auto init =
+        rewriter.create<tensor::EmptyOp>(loc, dstType.getShape(), elemType);
+
+    auto zero = rewriter.create<mlir::arith::ConstantOp>(
+        op.getLoc(), elemType, rewriter.getFloatAttr(elemType, 0));
+
+    auto zeroes =
+        rewriter.create<linalg::FillOp>(loc, ValueRange{zero}, ValueRange{init})
+            .result();
 
     auto res = rewriter
                    .create<linalg::MatmulOp>(loc, ValueRange{opa, opb},
-                                             ValueRange{init})
+                                             ValueRange{zeroes})
                    .getResult(0);
 
     if (!skipC) {
