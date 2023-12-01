@@ -12,7 +12,7 @@ The middle-layer uses MLIR's Linalg and Tenor Dialects for operations on Triton 
 
 ## Usage
 This repo doesn't build by itself and must instead by built from within a [Triton repo](https://github.com/openai/triton) where it is included as a submodule.
-To add the shared middle-layer in your Triton build do `export TRITON_CODEGEN_TRITON_SHARED=1` before invoking your build. 
+To add the shared middle-layer in your Triton build do `export TRITON_CODEGEN_TRITON_SHARED=1` before invoking your build.
 Once it is part of the Triton build it can be leveraged in two ways:
 
 ### 1. Stand-Alone
@@ -96,13 +96,13 @@ Important details to note:
 
 + `tt.load` (together with all of its related address calculation instructions such as `tt.addptr` and `tt.splat`) are lowered to a combination of `memref.reinterpret_cast`, `memref.alloc`, and `memref.copy`. After the initialization of the local buffer, we convert the memref back to a tensor using `bufferization.to_tensor`; this op is automatically removed during bufferization.
 
-+ `tt.store` lowers to a combination of `memref.reinterpret_cast` and either `affine.store` or `memref.tensor_store`:
++ `tt.store` lowers to a combination of `memref.reinterpret_cast` and either `affine.store` or `bufferization.materialize_in_destination`:
 
 ```
 %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [...] memref<*xf32> to memref<1024xf32>
 %extracted_slice = tensor.extract_slice %15[0] [%21] [1] : tensor<1024xf32> to tensor<?xf32>
 %subview = memref.subview %reinterpret_cast[0] [%21] [1] : memref<1024xf32> to memref<?xf32>
-memref.tensor_store %extracted_slice, %subview : memref<?xf32>
+bufferization.materialize_in_destination %extracted_slice, %subview : memref<?xf32>
 ```
 
 + element-wise `arith` and `math` operators are converted to their corresponding `linalg.generic` version.
@@ -137,8 +137,8 @@ contact [opencode@microsoft.com](mailto:opencode@microsoft.com) with any additio
 
 ## Trademarks
 
-This project may contain trademarks or logos for projects, products, or services. Authorized use of Microsoft 
-trademarks or logos is subject to and must follow 
+This project may contain trademarks or logos for projects, products, or services. Authorized use of Microsoft
+trademarks or logos is subject to and must follow
 [Microsoft's Trademark & Brand Guidelines](https://www.microsoft.com/en-us/legal/intellectualproperty/trademarks/usage/general).
 Use of Microsoft trademarks or logos in modified versions of this project must not cause confusion or imply Microsoft sponsorship.
 Any use of third-party trademarks or logos are subject to those third-party's policies.

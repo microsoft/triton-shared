@@ -30,15 +30,15 @@ module {
 // CHECK:     %reinterpret_cast = memref.reinterpret_cast %arg0 to offset: [%c0], sizes: [1], strides: [1] : memref<*xi32> to memref<1xi32, strided<[1], offset: ?>>
 // CHECK:     %0 = tensor.empty() : tensor<1xi32>
 // CHECK:     %1 = linalg.fill ins(%arg1 : i32) outs(%0 : tensor<1xi32>) -> tensor<1xi32>
-// CHECK:     memref.tensor_store %1, %reinterpret_cast : memref<1xi32, strided<[1], offset: ?>>
+// CHECK:     bufferization.materialize_in_destination %1 in writable %reinterpret_cast : (tensor<1xi32>, memref<1xi32, strided<[1], offset: ?>>) -> ()
 // CHECK:     %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%c1], sizes: [1], strides: [1] : memref<*xi32> to memref<1xi32, strided<[1], offset: ?>>
 // CHECK:     %2 = tensor.empty() : tensor<1xi32>
 // CHECK:     %3 = linalg.fill ins(%arg2 : i32) outs(%2 : tensor<1xi32>) -> tensor<1xi32>
-// CHECK:     memref.tensor_store %3, %reinterpret_cast_0 : memref<1xi32, strided<[1], offset: ?>>
+// CHECK:     bufferization.materialize_in_destination %3 in writable %reinterpret_cast_0 : (tensor<1xi32>, memref<1xi32, strided<[1], offset: ?>>) -> ()
 // CHECK:     %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%c2], sizes: [1], strides: [1] : memref<*xi32> to memref<1xi32, strided<[1], offset: ?>>
 // CHECK:     %4 = tensor.empty() : tensor<1xi32>
 // CHECK:     %5 = linalg.fill ins(%arg3 : i32) outs(%4 : tensor<1xi32>) -> tensor<1xi32>
-// CHECK:     memref.tensor_store %5, %reinterpret_cast_1 : memref<1xi32, strided<[1], offset: ?>>
+// CHECK:     bufferization.materialize_in_destination %5 in writable %reinterpret_cast_1 : (tensor<1xi32>, memref<1xi32, strided<[1], offset: ?>>) -> ()
 // CHECK:     return
 // CHECK:   }
 // CHECK: }

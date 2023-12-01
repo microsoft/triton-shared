@@ -86,7 +86,15 @@ module {
 // CHECK:           %[[VAL_37:.*]] = arith.muli %[[ARG_8]], %[[VAL_3]] : i32
 // CHECK:           %[[VAL_38:.*]] = arith.index_cast %[[VAL_37]] : i32 to index
 // CHECK:           %[[VAL_39:.*]] = arith.addi %[[VAL_38]], %[[VAL_8]] : index
+<<<<<<< HEAD
 // CHECK:           %[[VAL_40:.*]] = memref.reinterpret_cast %[[VAL_0]] to offset: {{\[}}%[[VAL_39]]], sizes: [128, 128], strides: [1, 1] : memref<*xf32> to memref<128x128xf32, strided<[1, 1], offset: ?>>
 // CHECK:           memref.tensor_store %[[VAL_41:.*]]#0, %[[VAL_40]] : memref<128x128xf32, strided<[1, 1], offset: ?>>
+||||||| de797bb
+// CHECK:           %[[VAL_40:.*]] = memref.reinterpret_cast %[[VAL_0]] to offset: {{\[}}%[[VAL_39]]], sizes: [128, 128], strides: [2, 1] : memref<*xf32> to memref<128x128xf32, strided<[2, 1], offset: ?>>
+// CHECK:           memref.tensor_store %[[VAL_41:.*]]#0, %[[VAL_40]] : memref<128x128xf32, strided<[2, 1], offset: ?>>
+=======
+// CHECK:           %[[VAL_40:.*]] = memref.reinterpret_cast %[[VAL_0]] to offset: {{\[}}%[[VAL_39]]], sizes: [128, 128], strides: [1, 1] : memref<*xf32> to memref<128x128xf32, strided<[1, 1], offset: ?>>
+// CHECK:           bufferization.materialize_in_destination %[[VAL_41:.*]]#0 in writable %[[VAL_40]] : (tensor<128x128xf32>, memref<128x128xf32, strided<[1, 1], offset: ?>>) -> ()
+>>>>>>> nhat/fix_nightly
 // CHECK:           return
 // CHECK:         }

@@ -67,7 +67,7 @@ module {
 // CHECK:           %[[VAL_15:.*]] = memref.reinterpret_cast %[[VAL_2]] to offset: [0], sizes: [128, 256], strides: {{\[}}%[[VAL_6]], 1] : memref<*xbf16> to memref<128x256xbf16, strided<[?, 1]>>
 // CHECK:           %[[VAL_18:.*]] = tensor.empty() : tensor<128x256xbf16>
 // CHECK:           %[[VAL_19:.*]] = linalg.matmul ins(%[[VAL_11]], %[[VAL_14]] : tensor<128x64xbf16>, tensor<64x256xbf16>) outs(%[[VAL_18]] : tensor<128x256xbf16>) -> tensor<128x256xbf16>
-// CHECK:           memref.tensor_store %[[VAL_19]], %[[VAL_15]] : memref<128x256xbf16, strided<[?, 1]>>
-// CHECK:           memref.tensor_store %[[VAL_17]], %[[VAL_15]] : memref<128x256xbf16, strided<[?, 1]>>
+// CHECK:           bufferization.materialize_in_destination %[[VAL_19]] in writable %[[VAL_15]] : (tensor<128x256xbf16>, memref<128x256xbf16, strided<[?, 1]>>) -> ()
+// CHECK:           bufferization.materialize_in_destination %[[VAL_17]] in writable %[[VAL_15]] : (tensor<128x256xbf16>, memref<128x256xbf16, strided<[?, 1]>>) -> ()
 // CHECK:           return
 // CHECK:         }
