@@ -67,6 +67,12 @@ def _ttsharedir_to_llir(ttsharedir: str):
             "--expand-strided-metadata",
             "--finalize-memref-to-llvm",
             "--convert-func-to-llvm",
+            # Lowering memrefs creates more affine.apply ops.
+            # Lowering these affine ops again creates further arith ops,
+            # so we have to run these two passes again here.
+            "--lower-affine",
+            "--convert-arith-to-llvm",
+            # Remove all unrealized casts created
             "--reconcile-unrealized-casts",
             "-o",
             llmlir_path])

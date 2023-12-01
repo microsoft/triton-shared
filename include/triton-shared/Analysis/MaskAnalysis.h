@@ -67,13 +67,11 @@ struct MaskState {
                                ConversionPatternRewriter &rewriter) const;
 
   std::pair<memref::SubViewOp, memref::SubViewOp>
-  getSideBySideSubviews(memref::ReinterpretCastOp chunk1,
-                        memref::ReinterpretCastOp chunk2, const Location loc,
+  getSideBySideSubviews(Value block1, Value block2, const Location loc,
                         ConversionPatternRewriter &rewriter) const;
 
   std::pair<memref::SubViewOp, memref::SubViewOp>
-  getStackedSubviews(memref::ReinterpretCastOp chunk1,
-                     memref::ReinterpretCastOp chunk2, const Location loc,
+  getStackedSubviews(Value block1, Value block2, const Location loc,
                      ConversionPatternRewriter &rewriter) const;
 
 private:
