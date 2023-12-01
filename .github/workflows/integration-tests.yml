@@ -10,6 +10,6 @@ jobs:
   call-workflow:
     uses: ./.github/workflows/test-plugin.yml
     with:
-        # [BACKEND] Fix layouts in nvgpu RewriteTensorPointer. (#2634)
-        triton-ref: '0e3bf3f58061bd62725e7c502e7e0af19690df1c'
+        # [LINEINFO] Specify explicit locations when ops are combined (#2734)
+        triton-ref: '9f4ad17c22b889d3804d1a1c38ed79b0e936e82'
         triton-shared-ref: ${{ github.ref }}
