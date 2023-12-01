@@ -70,7 +70,7 @@ module {
 // CHECK-DAG:       [[VAR_4_:%.+]] = tensor.empty() : tensor<128x256xbf16>
 // CHECK:           [[VAR_5_:%.+]] = linalg.fill ins([[CST_0_dot_000000_]] : bf16) outs([[VAR_4_]] : tensor<128x256xbf16>) -> tensor<128x256xbf16>
 // CHECK:           [[VAR_6_:%.+]] = linalg.matmul ins([[VAR_2_]], [[VAR_3_]] : tensor<128x64xbf16>, tensor<64x256xbf16>) outs([[VAR_5_]] : tensor<128x256xbf16>) -> tensor<128x256xbf16>
-// CHECK:           memref.tensor_store [[VAR_6_]], [[VAR_reinterpret_cast_2_]] : memref<128x256xbf16, strided<[?, 1]>>
-// CHECK:           memref.tensor_store [[VAR_1_]], [[VAR_reinterpret_cast_2_]] : memref<128x256xbf16, strided<[?, 1]>>
+// CHECK:           bufferization.materialize_in_destination [[VAR_6_]] in writable [[VAR_reinterpret_cast_2_]]
+// CHECK:           bufferization.materialize_in_destination [[VAR_1_]] in writable [[VAR_reinterpret_cast_2_]]
 // CHECK:           return
 // CHECK:         }

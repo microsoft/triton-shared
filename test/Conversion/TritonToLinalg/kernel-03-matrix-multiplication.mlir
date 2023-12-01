@@ -212,6 +212,6 @@ module {
 // CHECK:           [[VAR_50_:%.+]] = arith.minsi [[VAR_48_]], [[CST_256_]] : index
 // CHECK-DAG:       [[VAR_extracted_slice_:%.+]] = tensor.extract_slice [[VAR_31_]][0, 0] {{.}}[[VAR_49_]], [[VAR_50_]]{{.}} [1, 1] : tensor<128x256xbf16> to tensor<?x?xbf16>
 // CHECK-DAG:       [[VAR_subview_:%.+]] = memref.subview [[VAR_reinterpret_cast_1_]][0, 0] {{.}}[[VAR_49_]], [[VAR_50_]]{{.}} [1, 1] : memref<128x256xbf16, strided<[?, ?], offset: ?>> to memref<?x?xbf16, strided<[?, ?], offset: ?>>
-// CHECK:           memref.tensor_store [[VAR_extracted_slice_]], [[VAR_subview_]] : memref<?x?xbf16, strided<[?, ?], offset: ?>>
+// CHECK:           bufferization.materialize_in_destination [[VAR_extracted_slice_]] in writable [[VAR_subview_]]
 // CHECK:           return
 // CHECK:         }
