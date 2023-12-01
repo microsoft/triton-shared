@@ -29,11 +29,16 @@ static void assertValidUnrealizedCast(UnrealizedConversionCastOp op) {
 }
 
 MemRefType PtrState::getResultMemrefType(MLIRContext *context, int64_t offset,
-                                         ArrayRef<int64_t> resultShape) const {
+                                         ArrayRef<int64_t> resultShape,
+                                         bool useDynamicStrides) const {
 
   SmallVector<int64_t> staticStrides;
-  SmallVector<Value> dynamicStrides;
-  dispatchIndexOpFoldResults(strides, dynamicStrides, staticStrides);
+  if (useDynamicStrides) {
+    staticStrides.append(strides.size(), ShapedType::kDynamic);
+  } else {
+    SmallVector<Value> dynamicStrides;
+    dispatchIndexOpFoldResults(strides, dynamicStrides, staticStrides);
+  }
 
   auto elementType = source.getType().cast<BaseMemRefType>().getElementType();
   auto layout =
@@ -196,7 +201,8 @@ PtrState::createStackedCastOps(ArrayRef<int64_t> resultShape,
                                 // the same as the original row. The last chunk
                                 // may be smaller due to wrapping around.
           resultShape[1],       // Col stays the same.
-      });
+      },
+      true /*useDynamicStrides*/);
 
   Value rowSize = ofrToIndexValue(sizes[0], loc, rewriter);
   Value colSize = ofrToIndexValue(sizes[1], loc, rewriter);
@@ -287,7 +293,8 @@ PtrState::createSideBySideCastOps(ArrayRef<int64_t> resultShape,
           ShapedType::kDynamic // Column is dynamic, in most cases, this should
                                // be the same as the original column. The last
                                // chunk may be smaller due to wrapping around.
-      });
+      },
+      true /*useDynamicStrides*/);
 
   Value rowSize = ofrToIndexValue(sizes[0], loc, rewriter);
   Value colSize = ofrToIndexValue(sizes[1], loc, rewriter);
@@ -295,22 +302,24 @@ PtrState::createSideBySideCastOps(ArrayRef<int64_t> resultShape,
   Value modN = rewriter.create<arith::IndexCastOp>(loc, rewriter.getIndexType(),
                                                    modulos[1]->size);
 
-  SmallVector<Value> strideVals = ofrsToIndexValues(strides, loc, rewriter);
-
   Value x = rewriter.create<arith::RemSIOp>(loc, targetOffset, modN);
   Value y = rewriter.create<arith::SubIOp>(loc, targetOffset, x);
+
+  SmallVector<Value> strideVals = ofrsToIndexValues(strides, loc, rewriter);
 
   // First chunk
   Value nextOffset = rewriter.create<arith::AddIOp>(loc, x, colSize);
   Value clampedOffset = rewriter.create<arith::MinSIOp>(loc, nextOffset, modN);
   Value d1 = rewriter.create<arith::SubIOp>(loc, clampedOffset, x);
   SmallVector<Value> sizes1{rowSize, d1};
+
   auto cast1 = rewriter.create<memref::ReinterpretCastOp>(
       loc, resultType, source, targetOffset, sizes1, strideVals);
 
   // Second chunk
   Value d2 = rewriter.create<arith::SubIOp>(loc, colSize, d1);
   SmallVector<Value> sizes2{rowSize, d2};
+
   auto cast2 = rewriter.create<memref::ReinterpretCastOp>(
       loc, resultType, source, y, sizes2, strideVals);
 
@@ -372,15 +381,46 @@ void PtrAnalysis::visitOperandRem(
     ConversionPatternRewriter &rewriter,
     const llvm::SmallDenseMap<Value, PtrState> &knownPtrs) {
   assert(state.isEmpty());
-  visitOperand(remOp.getLhs(), state, loc, rewriter, knownPtrs);
-  assert(state.getRank() == 1 && !state.modulos.back().has_value() &&
-         "No support for multiple modulos within an expression");
 
   PtrState rhsState;
   visitOperand(remOp.getRhs(), rhsState, loc, rewriter, knownPtrs);
   assert(rhsState.scalar);
 
-  state.modulos.back() = ModuloState(rhsState.scalar, rewriter.getIndexAttr(0));
+  visitOperand(remOp.getLhs(), state, loc, rewriter, knownPtrs);
+
+  // If there are multiple modulo ops on an expression (e.g.: (a % b) % c), we
+  // would have already populated the modulo states after visiting the lhs.
+  // Assert that all the modulo states are empty.
+  assert(llvm::all_of(state.modulos,
+                      [](auto modState) { return !modState.has_value(); }) &&
+         "No support for multiple modulo within an expression");
+
+  if (state.getRank() == 1) {
+    // Apply the modulo before expanding shape, the common pattern is
+    // offs_am = (pid_m * BLOCK_SIZE_M + tl.arange(0, BLOCK_SIZE_M)) % M
+    // a_ptrs = a_ptr + (offs_am[:, None] * stride_am + offs_k[None, :] *
+    // stride_ak)
+    state.modulos.back() = ModuloState{rhsState.scalar};
+  } else if (state.getRank() == 2) {
+    // torch inductor expands the tensor shape before applying the modulo.
+    //
+    // We only support either:
+    // - (tl.arange(0, end)[:, None] % mod), or
+    // - (tl.arange(0, end)[None, :] % mod)
+    //
+    // In both cases, we apply the modulo to the non-singleton dimension.
+    auto shape = cast<TensorType>(remOp.getResult().getType()).getShape();
+    if (shape[0] == 1) {
+      state.modulos[1] = ModuloState{rhsState.scalar};
+    } else if (shape[1] == 1) {
+      state.modulos[0] = ModuloState{rhsState.scalar};
+    } else {
+      assert(false && "Taking modulo on a 2D tensor with no singleton "
+                      "dimension not supported");
+    }
+  } else {
+    assert(false && "Unsupported modulo pattern");
+  }
 }
 
 void PtrAnalysis::visitOperandMakeRange(
@@ -1223,16 +1263,7 @@ void PtrAnalysis::rewriteForOp(
         for (auto &[unrealizedCastOp, chunkData, state] : moduloStates) {
           SmallVector<Value> newReinterpretCasts;
           for (auto &chunk : chunkData) {
-            auto initReintCast =
-                chunk.reinterpretCast
-                    .getDefiningOp<memref::ReinterpretCastOp>();
-
-            auto newReintCast = b.create<memref::ReinterpretCastOp>(
-                loc, initReintCast.getResult().getType(),
-                args[chunk.initArgIndex], zero, initReintCast.getSizes(),
-                initReintCast.getStrides());
-
-            newReinterpretCasts.push_back(newReintCast);
+            newReinterpretCasts.push_back(args[chunk.initArgIndex]);
           }
 
           auto combinedCast = b.create<UnrealizedConversionCastOp>(

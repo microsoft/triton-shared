@@ -51,3 +51,5 @@ def test():
     print(ret.asm["ttsharedir"])
     print(ret.asm["llir"])
     print(ret.asm["cpuasm"])
+
+test()
