@@ -10,6 +10,6 @@ jobs:
   call-workflow:
     uses: ./.github/workflows/test-plugin.yml
     with:
-        # [LINEINFO] Specify explicit locations when ops are combined (#2734)
-        triton-ref: '9f4ad17c22b889d3804d1a1c38ed79b0e936e82'
+        # [BACKEND] Refactor wgmma descriptor creation
+        triton-ref: '56c284cf7e39f249cdf1d8d5dba7892deb0286d6'
         triton-shared-ref: ${{ github.ref }}
