@@ -17,7 +17,7 @@ module {
 // CHECK:           %[[VAL_8:.*]] = linalg.fill ins(%[[VAL_0]] : f32) outs(%[[VAL_7]] : tensor<1024xf32>) -> tensor<1024xf32>
 // CHECK:           %[[VAL_9:.*]] = tensor.empty() : tensor<128x256xbf16>
 // CHECK:           %[[VAL_10:.*]] = linalg.fill ins(%[[VAL_1]] : bf16) outs(%[[VAL_9]] : tensor<128x256xbf16>) -> tensor<128x256xbf16>
-// CHECK:           memref.tensor_store %[[VAL_8]], %[[VAL_2]] : memref<1024xf32>
-// CHECK:           memref.tensor_store %[[VAL_10]], %[[VAL_3]] : memref<128x256xbf16>
+// CHECK:           bufferization.materialize_in_destination %[[VAL_8]] in writable %[[VAL_2]]
+// CHECK:           bufferization.materialize_in_destination %[[VAL_10]] in writable %[[VAL_3]]
 // CHECK:           return
 // CHECK:         }

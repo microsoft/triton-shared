@@ -103,6 +103,6 @@ module {
 // CHECK:           %[[VAL_40:.*]] = arith.minsi %[[VAL_38]], %[[VAL_11]] : index
 // CHECK:           %[[VAL_41:.*]] = tensor.extract_slice %[[VAL_32]][0, 0] {{\[}}%[[VAL_39]], %[[VAL_40]]] [1, 1] : tensor<128x256xbf16> to tensor<?x?xbf16>
 // CHECK:           %[[VAL_42:.*]] = memref.subview %[[VAL_17]][0, 0] {{\[}}%[[VAL_39]], %[[VAL_40]]] [1, 1] : memref<128x256xbf16, strided<[1, ?], offset: ?>> to memref<?x?xbf16, strided<[1, ?], offset: ?>>
-// CHECK:           memref.tensor_store %[[VAL_41]], %[[VAL_42]] : memref<?x?xbf16, strided<[1, ?], offset: ?>>
+// CHECK:           bufferization.materialize_in_destination %[[VAL_41]] in writable %[[VAL_42]]
 // CHECK:           return
 // CHECK:         }

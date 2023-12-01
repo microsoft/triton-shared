@@ -79,6 +79,6 @@ module {
 // CHECK:             [[VAR_8_:%.+]] = arith.addf [[in_]], [[in_1]] : bf16
 // CHECK:             linalg.yield [[VAR_8_]] : bf16
 // CHECK:           } -> tensor<128x256xbf16>
-// CHECK:           memref.tensor_store [[VAR_7_]], [[VAR_reinterpret_cast_2_]] : memref<128x256xbf16, strided<[?, 1]>>
+// CHECK:           bufferization.materialize_in_destination [[VAR_7_]] in writable [[VAR_reinterpret_cast_2_]]
 // CHECK:           return
 // CHECK:         }
