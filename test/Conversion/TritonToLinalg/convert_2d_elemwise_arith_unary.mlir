@@ -85,10 +85,10 @@ module {
 // CHECK:             %[[VAL_42:.*]] = math.sqrt %[[VAL_40]] : f32
 // CHECK:             linalg.yield %[[VAL_42]] : f32
 // CHECK:           } -> tensor<128x128xf32>
-// CHECK:           bufferization.materialize_in_destination %[[VAL_43:.*]] in %[[VAL_3]]
-// CHECK:           bufferization.materialize_in_destination %[[VAL_44:.*]] in %[[VAL_4]]
-// CHECK:           bufferization.materialize_in_destination %[[VAL_45:.*]] in %[[VAL_5]]
-// CHECK:           bufferization.materialize_in_destination %[[VAL_46:.*]] in %[[VAL_6]]
-// CHECK:           bufferization.materialize_in_destination %[[VAL_47:.*]] in %[[VAL_7]]
+// CHECK:           bufferization.materialize_in_destination %[[VAL_43:.*]] in writable %[[VAL_3]]
+// CHECK:           bufferization.materialize_in_destination %[[VAL_44:.*]] in writable %[[VAL_4]]
+// CHECK:           bufferization.materialize_in_destination %[[VAL_45:.*]] in writable %[[VAL_5]]
+// CHECK:           bufferization.materialize_in_destination %[[VAL_46:.*]] in writable %[[VAL_6]]
+// CHECK:           bufferization.materialize_in_destination %[[VAL_47:.*]] in writable %[[VAL_7]]
 // CHECK:           return
 // CHECK:         }

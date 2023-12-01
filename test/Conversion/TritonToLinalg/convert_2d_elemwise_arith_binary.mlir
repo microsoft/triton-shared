@@ -49,7 +49,7 @@ module {
 // CHECK:             %[[VAL_22:.*]] = arith.subf %[[VAL_19]], %[[VAL_20]] : f32
 // CHECK:             linalg.yield %[[VAL_22]] : f32
 // CHECK:           } -> tensor<128x128xf32>
-// CHECK:           bufferization.materialize_in_destination %[[VAL_23:.*]] in %[[VAL_2]]
-// CHECK:           bufferization.materialize_in_destination %[[VAL_24:.*]] in %[[VAL_3]]
+// CHECK:           bufferization.materialize_in_destination %[[VAL_23:.*]] in writable %[[VAL_2]]
+// CHECK:           bufferization.materialize_in_destination %[[VAL_24:.*]] in writable %[[VAL_3]]
 // CHECK:           return
 // CHECK:         }

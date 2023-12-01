@@ -51,6 +51,6 @@ module {
 // CHECK:           %[[VAL_20:.*]] = arith.index_cast %[[VAL_19]] : i32 to index
 // CHECK:           %[[VAL_21:.*]] = arith.addi %[[VAL_20]], %[[VAL_8]] : index
 // CHECK:           %[[VAL_22:.*]] = memref.reinterpret_cast %[[VAL_0]] to offset: {{\[}}%[[VAL_21]]], sizes: [128, 128], strides: [1, 1] : memref<*xf32> to memref<128x128xf32, strided<[1, 1], offset: ?>>
-// CHECK:           bufferization.materialize_in_destination %[[VAL_23:.*]] in %[[VAL_22]]
+// CHECK:           bufferization.materialize_in_destination %[[VAL_23:.*]] in writable %[[VAL_22]]
 // CHECK:           return
 // CHECK:         }

@@ -87,7 +87,7 @@ module {
 // CHECK:     %15 = arith.muli %11, %13 : index
 // CHECK:     %16 = arith.addi %14, %15 : index
 // CHECK:     %reinterpret_cast_1 = memref.reinterpret_cast %arg2 to offset: [%16], sizes: [128, 64], strides: [%12, %13] : memref<*xbf16> to memref<128x64xbf16, strided<[?, ?], offset: ?>>
-// CHECK:     bufferization.materialize_in_destination %8#0 in %reinterpret_cast_1
+// CHECK:     bufferization.materialize_in_destination %8#0 in writable %reinterpret_cast_1
 // CHECK:     return
 // CHECK:   }
 // CHECK: }

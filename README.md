@@ -102,7 +102,7 @@ Important details to note:
 %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [...] memref<*xf32> to memref<1024xf32>
 %extracted_slice = tensor.extract_slice %15[0] [%21] [1] : tensor<1024xf32> to tensor<?xf32>
 %subview = memref.subview %reinterpret_cast[0] [%21] [1] : memref<1024xf32> to memref<?xf32>
-bufferization.materialize_in_destination %extracted_slice in %subview
+bufferization.materialize_in_destination %extracted_slice in writable %subview
 ```
 
 + element-wise `arith` and `math` operators are converted to their corresponding `linalg.generic` version.

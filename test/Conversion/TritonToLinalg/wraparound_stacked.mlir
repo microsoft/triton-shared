@@ -106,7 +106,7 @@ module {
 // CHECK:             memref.copy [[VAR_subview_]], [[VAR_subview_]]_5 : memref<?x3xf32, strided<[?, ?], offset: ?>> to memref<?x3xf32, strided<[?, ?]>>
 // CHECK:             memref.copy [[VAR_subview_4_]], [[VAR_subview_6_]] : memref<?x3xf32, strided<[?, ?], offset: ?>> to memref<?x3xf32, strided<[?, ?], offset: ?>>
 // CHECK:             [[VAR_23_:%.+]] = bufferization.to_tensor [[RES_]] restrict writable : memref<4x4xf32>
-// CHECK:             bufferization.materialize_in_destination [[VAR_23_]] in [[VAR_arg16_]]
+// CHECK:             bufferization.materialize_in_destination [[VAR_23_]] in writable [[VAR_arg16_]]
 // CHECK:             [[VAR_24_:%.+]] = arith.index_cast [[VAR_14_]] : i32 to index
 // CHECK:             [[VAR_25_:%.+]] = arith.addi [[VAR_arg17_]], [[VAR_24_]] : index
 // CHECK:             [[VAR_26_:%.+]] = arith.addi [[VAR_25_]], [[VAR_19_]] : index

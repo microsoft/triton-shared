@@ -46,6 +46,6 @@ module {
 // CHECK:               %[[VAL_16:.*]] = arith.addf %[[VAL_14]], %[[VAL_15]] : bf16
 // CHECK:               linalg.yield %[[VAL_16]] : bf16
 // CHECK:             }
-// CHECK:           bufferization.materialize_in_destination %[[VAL_13]] in %[[VAL_8]]
+// CHECK:           bufferization.materialize_in_destination %[[VAL_13]] in writable %[[VAL_8]]
 // CHECK:           return
 // CHECK:         }

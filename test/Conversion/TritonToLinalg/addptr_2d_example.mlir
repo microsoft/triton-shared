@@ -64,6 +64,6 @@ module {
 // CHECK:           } -> tensor<4x256xbf16>
 // CHECK:           %[[VAL_21:.*]] = arith.index_cast %[[VAL_3]] : i32 to index
 // CHECK:           %[[VAL_22:.*]] = memref.reinterpret_cast %[[VAL_2]] to offset: {{\[}}%[[VAL_21]]], sizes: [4, 256], strides: [1, %[[VAL_7]]] : memref<*xbf16> to memref<4x256xbf16, strided<[1, ?], offset: ?>>
-// CHECK:           bufferization.materialize_in_destination %[[VAL_23:.*]] in %[[VAL_22]]
+// CHECK:           bufferization.materialize_in_destination %[[VAL_23:.*]] in writable %[[VAL_22]]
 // CHECK:           return
 // CHECK:         }
