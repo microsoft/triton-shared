@@ -4,32 +4,6 @@ import triton
 import triton.language as tl
 
 
-# `triton.jit`'ed functions can be auto-tuned by using the `triton.autotune` decorator, which consumes:
-#   - A list of `triton.Config` objects that define different configurations of
-#       meta-parameters (e.g., `BLOCK_SIZE_M`) and compilation options (e.g., `num_warps`) to try
-#   - An auto-tuning *key* whose change in values will trigger evaluation of all the
-#       provided configs
-# @triton.autotune(
-#     configs=[
-#         triton.Config({'BLOCK_SIZE_M': 128, 'BLOCK_SIZE_N': 256, 'BLOCK_SIZE_K': 64, 'GROUP_SIZE_M': 8}, num_stages=3,
-#                       num_warps=8),
-#         triton.Config({'BLOCK_SIZE_M': 64, 'BLOCK_SIZE_N': 256, 'BLOCK_SIZE_K': 32, 'GROUP_SIZE_M': 8}, num_stages=4,
-#                       num_warps=4),
-#         triton.Config({'BLOCK_SIZE_M': 128, 'BLOCK_SIZE_N': 128, 'BLOCK_SIZE_K': 32, 'GROUP_SIZE_M': 8}, num_stages=4,
-#                       num_warps=4),
-#         triton.Config({'BLOCK_SIZE_M': 128, 'BLOCK_SIZE_N': 64, 'BLOCK_SIZE_K': 32, 'GROUP_SIZE_M': 8}, num_stages=4,
-#                       num_warps=4),
-#         triton.Config({'BLOCK_SIZE_M': 64, 'BLOCK_SIZE_N': 128, 'BLOCK_SIZE_K': 32, 'GROUP_SIZE_M': 8}, num_stages=4,
-#                       num_warps=4),
-#         triton.Config({'BLOCK_SIZE_M': 128, 'BLOCK_SIZE_N': 32, 'BLOCK_SIZE_K': 32, 'GROUP_SIZE_M': 8}, num_stages=4,
-#                       num_warps=4),
-#         triton.Config({'BLOCK_SIZE_M': 64, 'BLOCK_SIZE_N': 32, 'BLOCK_SIZE_K': 32, 'GROUP_SIZE_M': 8}, num_stages=5,
-#                       num_warps=2),
-#         triton.Config({'BLOCK_SIZE_M': 32, 'BLOCK_SIZE_N': 64, 'BLOCK_SIZE_K': 32, 'GROUP_SIZE_M': 8}, num_stages=5,
-#                       num_warps=2),
-#     ],
-#     key=['M', 'N', 'K'],
-# )
 @triton.jit
 def matmul_kernel(
         # Pointers to matrices
@@ -148,10 +122,10 @@ def test_matmul():
     cols1 = 167
     rows2 = 167
     cols2 = 321
+    # a = torch.randn((rows1, cols1), device='cuda', dtype=torch.float32)
+    # b = torch.randn((rows2, cols2), device='cuda', dtype=torch.float32)
     a = torch.randn((rows1, cols1), device='cpu', dtype=torch.float32)
     b = torch.randn((rows2, cols2), device='cpu', dtype=torch.float32)
-    # a = torch.full((rows1, cols1), 1, device='cpu', dtype=torch.float32)
-    # b = torch.full((rows2, cols2), 1, device='cpu', dtype=torch.float32)
     triton_output = matmul(a, b)
     torch_output = torch.matmul(a, b)
     print(f"triton_output={triton_output}")

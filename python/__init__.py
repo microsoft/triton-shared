@@ -28,8 +28,8 @@ def _ttir_to_ttsharedir(mod):
     # Get Triton-MLIR as string
     ttir_code = str(mod)
     with tempfile.TemporaryDirectory() as tmpdir:
-        src_path = os.path.join('/home/nhat/github/triton/third_party/triton_shared/tmp_cpu', "tt.mlir")
-        dst_path = os.path.join('/home/nhat/github/triton/third_party/triton_shared/tmp_cpu', "ttshared.mlir")
+        src_path = os.path.join('/home/nhat/triton-ir', "tt.mlir")
+        dst_path = os.path.join('/home/nhat/triton-ir', "ttshared.mlir")
         Path(src_path).write_text(ttir_code)
         triton_shared_opt_path = _get_triton_shared_opt_path()
         subprocess.check_call([triton_shared_opt_path, src_path, "--triton-to-linalg", "-o", dst_path])
@@ -43,9 +43,9 @@ def _optimize_ttsharedir(ttsharedir: str):
 
 def _ttsharedir_to_llir(ttsharedir: str):
     with tempfile.TemporaryDirectory() as tmpdir:
-        ttshared_path = os.path.join(tmpdir, "ttshared.mlir")
-        llmlir_path = os.path.join(tmpdir, "ll.mlir")
-        llir_path = os.path.join(tmpdir, "ll.ir")
+        ttshared_path = os.path.join('/home/nhat/triton-ir', "ttshared.mlir")
+        llmlir_path = os.path.join('/home/nhat/triton-ir', "ll.mlir")
+        llir_path = os.path.join('/home/nhat/triton-ir', "ll.ir")
         Path(ttshared_path).write_text(ttsharedir)
         mlir_opt_path = _get_llvm_bin_path("mlir-opt")
         # TritonShared-MLIR to LLVM-MLIR
