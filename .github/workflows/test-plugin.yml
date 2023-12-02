@@ -129,6 +129,12 @@ jobs:
       run: |
         rm -rf ~/.triton
 
+    - name: install pip
+      run: |
+        wget https://bootstrap.pypa.io/get-pip.py
+        python3 get-pip.py --user
+        rm get-pip.py
+  
     - name: Update PATH
       run: |
         echo "PATH=${HOME}/.local/bin:${PATH}" >> "${GITHUB_ENV}"
