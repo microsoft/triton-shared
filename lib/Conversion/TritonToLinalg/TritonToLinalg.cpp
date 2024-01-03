@@ -1522,10 +1522,12 @@ struct MinMaxConverter : public OpRewritePattern<CmpOp> {
                            arith::CmpFPredicate pred) const {
     switch (pred) {
     case arith::CmpFPredicate::OGT:
+    case arith::CmpFPredicate::OGE:
       rewriter.replaceOpWithNewOp<arith::MaximumFOp>(selectOp, cmpOp.getLhs(),
                                                      cmpOp.getRhs());
       break;
     case arith::CmpFPredicate::OLT:
+    case arith::CmpFPredicate::OLE:
       rewriter.replaceOpWithNewOp<arith::MinimumFOp>(selectOp, cmpOp.getLhs(),
                                                      cmpOp.getRhs());
       break;
