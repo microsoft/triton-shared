@@ -8,7 +8,10 @@ The basic intended architecture looks like this:
 
 [Triton IR] -> [Middle Layer] -> [HW specific IR]
 
-The middle-layer uses MLIR's Linalg and Tenor Dialects for operations on Triton block values. Operations on Triton pointers use the Memref Dialect.
+The middle-layer uses MLIR's Linalg and Tensor Dialects for operations on Triton block values. Operations on Triton pointers use the Memref Dialect.
+
+## Motivation
+[This talk at the 2023 Triton Developer Conferene](https://www.youtube.com/watch?v=y2V3ucS1pfQ) gives some backgorund on the project and its goals.
 
 ## Usage
 This repo doesn't build by itself and must instead by built from within a [Triton repo](https://github.com/openai/triton) where it is included as a submodule.
