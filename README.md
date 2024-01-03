@@ -10,6 +10,9 @@ The basic intended architecture looks like this:
 
 The middle-layer uses MLIR's Linalg and Tensor Dialects for operations on Triton block values. Operations on Triton pointers use the Memref Dialect.
 
+## Motivation
+[This talk at the 2023 Triton Developer Conferene](https://www.youtube.com/watch?v=y2V3ucS1pfQ) gives some backgorund on the project and its goals.
+
 ## Usage
 This repo doesn't build by itself and must instead by built from within a [Triton repo](https://github.com/openai/triton) where it is included as a submodule.
 To add the shared middle-layer in your Triton build do `export TRITON_CODEGEN_TRITON_SHARED=1` before invoking your build. 
