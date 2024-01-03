@@ -864,8 +864,10 @@ private:
   }
 
   bool isReductionOpSupported(Operation *redOp) const {
-    return isa<arith::AddFOp, arith::AddIOp, arith::MaximumFOp, arith::MinSIOp,
-               arith::MinUIOp, arith::MaxSIOp, arith::MaxUIOp>(redOp);
+    return isa<arith::AddFOp, arith::AddIOp, arith::MaximumFOp,
+               arith::MaxNumFOp, arith::MinimumFOp, arith::MinNumFOp,
+               arith::MinSIOp, arith::MinUIOp, arith::MaxSIOp, arith::MaxUIOp>(
+        redOp);
   }
 
   arith::ConstantOp getRedBaseConstOp(ConversionPatternRewriter &rewriter,
@@ -881,9 +883,13 @@ private:
             .Case([&](arith::AddIOp) {
               return rewriter.getIntegerAttr(constantType, 0);
             })
-            .Case([&](arith::MaximumFOp) {
+            .Case<arith::MaximumFOp, arith::MaxNumFOp>([&](auto) {
               return rewriter.getFloatAttr(
                   constantType, -std::numeric_limits<float>::infinity());
+            })
+            .Case<arith::MinimumFOp, arith::MinNumFOp>([&](auto) {
+              return rewriter.getFloatAttr(
+                  constantType, std::numeric_limits<float>::infinity());
             })
             .Case([&](arith::MinSIOp) {
               return rewriter.getIntegerAttr(constantType,
@@ -928,8 +934,9 @@ private:
           }
           return b.create<arith::AddFOp>(loc, lhs, rhs);
         })
-        .Case<arith::AddIOp, arith::MaximumFOp, arith::MinSIOp, arith::MinUIOp,
-              arith::MaxSIOp, arith::MaxUIOp>([&](auto redOp) {
+        .Case<arith::AddIOp, arith::MaximumFOp, arith::MaxNumFOp,
+              arith::MinimumFOp, arith::MinNumFOp, arith::MinSIOp,
+              arith::MinUIOp, arith::MaxSIOp, arith::MaxUIOp>([&](auto redOp) {
           return b.create<decltype(redOp)>(loc, lhs, rhs);
         })
         .Default([](Operation *op) {
