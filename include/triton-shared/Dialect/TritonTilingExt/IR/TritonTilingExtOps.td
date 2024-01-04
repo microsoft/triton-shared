@@ -79,7 +79,10 @@ class TritonTilingExt_TilingOp<string mnemonic> : Op<TritonTilingExt_Dialect, mn
 
   code baseClassDecls = [{
     // Implemented as part of DestinationStyleOpInterface
-    MutableOperandRange getDpsInitsMutable() { return getOutputsMutable(); }
+    std::pair<int64_t, int64_t> getDpsInitsPositionRange() {
+      int64_t getNumOperands = this->getNumOperands();
+      return {getNumOperands - getOutputs().size(), getNumOperands};
+    }
   }];
 
   // Custom print() and parse() methods to make the TritonTilingExt ops have similar looks

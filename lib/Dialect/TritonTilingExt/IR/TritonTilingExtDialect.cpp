@@ -192,8 +192,8 @@ FailureOr<TilingResult> getTiledImplementation(TritonTilingExtOpTy op,
   }
 
   SmallVector<Type> resultTensorTypes = llvm::to_vector(
-      llvm::map_range(op.getDpsInitsMutable(), [&](OpOperand &opOperand) {
-        return tiledValues[opOperand.getOperandNumber()].getType();
+      llvm::map_range(op.getDpsInitOperands(), [&](OpOperand *opOperand) {
+        return tiledValues[opOperand->getOperandNumber()].getType();
       }));
 
   Operation *tiledOp = clone(b, op, resultTensorTypes, tiledValues);
@@ -346,20 +346,20 @@ generateResultTileValue(TritonTilingExtOpTy op, OpBuilder &b,
 static void getTritonTilingExtEffectsImpl(
     SmallVectorImpl<SideEffects::EffectInstance<MemoryEffects::Effect>>
         &effects,
-    ValueRange results, const ValueRange inputOperands,
-    ValueRange outputOperands) {
-  for (auto operand : inputOperands) {
-    if (!llvm::isa<MemRefType>(operand.getType()))
+    ValueRange results, const OpOperandVector &inputOperands,
+    const OpOperandVector &outputOperands) {
+  for (auto *operand : inputOperands) {
+    if (!operand->get().getType().isa<MemRefType>())
       continue;
-    effects.emplace_back(MemoryEffects::Read::get(), operand,
+    effects.emplace_back(MemoryEffects::Read::get(), operand->get(),
                          SideEffects::DefaultResource::get());
   }
-  for (auto operand : outputOperands) {
-    if (!llvm::isa<MemRefType>(operand.getType()))
+  for (auto *operand : outputOperands) {
+    if (!operand->get().getType().isa<MemRefType>())
       continue;
-    effects.emplace_back(MemoryEffects::Read::get(), operand,
+    effects.emplace_back(MemoryEffects::Read::get(), operand->get(),
                          SideEffects::DefaultResource::get());
-    effects.emplace_back(MemoryEffects::Write::get(), operand,
+    effects.emplace_back(MemoryEffects::Write::get(), operand->get(),
                          SideEffects::DefaultResource::get());
   }
 }
@@ -370,7 +370,8 @@ void getEffects(
     SmallVectorImpl<SideEffects::EffectInstance<MemoryEffects::Effect>>
         &effects) {
   getTritonTilingExtEffectsImpl(effects, op.getOperation()->getResults(),
-                                op.getDpsInputs(), op.getDpsInits());
+                                op.getDpsInputOperands(),
+                                op.getDpsInitOperands());
 }
 
 } // namespace ttx
