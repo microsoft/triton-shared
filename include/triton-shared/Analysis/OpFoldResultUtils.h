@@ -1,12 +1,12 @@
 //===----------------------------------------------------------------------===//
 //
-// Copyright (c) Microsoft Corporation.
+// Copyright (c) Microsoft Corporation, Meta Platforms.
 // Licensed under the MIT license.
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef TRITON_ANALYSIS_OPFOLDRESULT_UTILS_H
-#define TRITON_ANALYSIS_OPFOLDRESULT_UTILS_H
+#ifndef TRITON_ANALYSISSTRUCTURED_OPFOLDRESULT_UTILS_H
+#define TRITON_ANALYSISSTRUCTURED_OPFOLDRESULT_UTILS_H
 
 #include "mlir/IR/Location.h"
 #include "mlir/IR/OpDefinition.h"
@@ -21,6 +21,10 @@ class OpBuilder;
 // from getConstantIntValue, which returns an integer if ofr is the constant
 // result of an operation too.
 std::optional<int64_t> getIntAttr(const OpFoldResult ofr);
+
+// Return if ofr contains a constant zero, either represented by an integer
+// attribute or a constant value.
+bool hasConstZero(const OpFoldResult ofr);
 
 // Create a value of index type if necessary from an OpFoldResult.
 Value ofrToIndexValue(const OpFoldResult ofr, const Location loc, OpBuilder &b);
