@@ -208,11 +208,8 @@ PyMODINIT_FUNC PyInit___triton_shared_ref_cpu_kernel_launcher(void) {{
 }}
 """
 
-def get_kernel_bin():
-    return "cpuasm"
 
-
-def make_launcher(launcher_src, kernel_placeholder_name):
+def compile_module(launcher_src, kernel_placeholder_name):
     # This function was renamed and made public in Python 3.10
     if hasattr(sysconfig, 'get_default_scheme'):
         scheme = sysconfig.get_default_scheme()
@@ -263,7 +260,7 @@ class CPULauncher(object):
         launcher_src = _generate_launcher(constants, src.signature, kernel_placeholder_name)
         # Later KERNEL_NAME_PLACEHOLDER will be used to assign the kernel name
         # in the following launch function.
-        self.launch = make_launcher(launcher_src, kernel_placeholder_name)
+        self.launch = compile_module(launcher_src, kernel_placeholder_name)
 
     def __call__(self, *args, **kwargs):
         self.launch(*args, **kwargs)

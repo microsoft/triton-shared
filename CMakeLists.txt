@@ -1,13 +1,6 @@
-
-set(TRITON_SHARED_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
-set(TRITON_SHARED_BINARY_DIR "${CMAKE_CURRENT_BINARY_DIR}")
-
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include)
-include_directories(${CMAKE_CURRENT_BINARY_DIR}/include) # Tablegen'd files
-
-set(TRITON_BUILD_PYTHON_MODULE ON)
+include_directories(${CMAKE_CURRENT_BINARY_DIR}/include)
+# add_compile_definitions(USE_ROCM=1)
 add_subdirectory(include)
 add_subdirectory(lib)
-add_subdirectory(test)
-add_subdirectory(tools)
-add_subdirectory(python)
+add_triton_plugin(TritonShared ${CMAKE_CURRENT_SOURCE_DIR}/triton_shared.cc LINK_LIBS TritonSharedAnalysis TritonToLinalg TritonTilingExtIR)
