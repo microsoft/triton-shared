@@ -63,3 +63,5 @@ def test_softmax():
     y_triton = softmax(x)
     y_torch = torch.softmax(x, axis=1)
     assert torch.allclose(y_triton, y_torch), (y_triton, y_torch)
+
+test_softmax()

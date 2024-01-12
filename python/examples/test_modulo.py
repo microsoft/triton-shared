@@ -272,4 +272,6 @@ def test_torch_inductor_pattern():
     print('Passed')
 
 
-test_torch_inductor_pattern()
+# test_stacked()
+test_side_by_side()
+# test_torch_inductor_pattern()

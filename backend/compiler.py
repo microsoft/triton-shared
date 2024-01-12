@@ -121,6 +121,7 @@ class CPUOptions:
     extern_libs = None
     cluster_dims: tuple = (1, 1, 1)
     shared: bool = False
+    allow_fp8e4nv: bool = False
 
     def __post_init__(self):
         pass
