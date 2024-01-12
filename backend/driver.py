@@ -12,28 +12,28 @@ from triton.runtime.build import _build
 from triton.runtime.cache import get_cache_manager
 from triton.backends.driver import DriverBase
 
-dirname = os.path.dirname(os.path.realpath(__file__))
-include_dir = [os.path.join(dirname, "include")]
-library_dir = [os.path.join(dirname, "lib")]
-libraries = ['amdhip64']
+# dirname = os.path.dirname(os.path.realpath(__file__))
+# include_dir = [os.path.join(dirname, "include")]
+# library_dir = [os.path.join(dirname, "lib")]
+# libraries = ['amdhip64']
 
-def compile_module_from_src(src, name):
-    key = hashlib.md5(src.encode("utf-8")).hexdigest()
-    cache = get_cache_manager(key)
-    cache_path = cache.get_file(f"{name}.so")
-    if cache_path is None:
-        with tempfile.TemporaryDirectory() as tmpdir:
-            src_path = os.path.join(tmpdir, "main.c")
-            with open(src_path, "w") as f:
-                f.write(src)
-            so = _build(name, src_path, tmpdir, library_dir, include_dir, libraries)
-            with open(so, "rb") as f:
-                cache_path = cache.put(f.read(), f"{name}.so", binary=True)
-    import importlib.util
-    spec = importlib.util.spec_from_file_location(name, cache_path)
-    mod = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(mod)
-    return mod
+# def compile_module_from_src(src, name):
+#     key = hashlib.md5(src.encode("utf-8")).hexdigest()
+#     cache = get_cache_manager(key)
+#     cache_path = cache.get_file(f"{name}.so")
+#     if cache_path is None:
+#         with tempfile.TemporaryDirectory() as tmpdir:
+#             src_path = os.path.join(tmpdir, "main.c")
+#             with open(src_path, "w") as f:
+#                 f.write(src)
+#             so = _build(name, src_path, tmpdir, library_dir, include_dir, libraries)
+#             with open(so, "rb") as f:
+#                 cache_path = cache.put(f.read(), f"{name}.so", binary=True)
+#     import importlib.util
+#     spec = importlib.util.spec_from_file_location(name, cache_path)
+#     mod = importlib.util.module_from_spec(spec)
+#     spec.loader.exec_module(mod)
+#     return mod
 
 
 # -------------------- Launcher ----------------------------
@@ -230,13 +230,13 @@ def compile_module(launcher_src, kernel_placeholder_name):
         asm_src = compiled_kernel.asm["cpuasm"]
         src = launcher_src.replace(kernel_placeholder_name, compiled_kernel.metadata["name"])
         with tempfile.TemporaryDirectory() as tmpdir:
-            asm_src_path = os.path.join(tmpdir, "kernel.s")
-            launcher_src_path = os.path.join(tmpdir, "main.cxx")
-            so_path = os.path.join(tmpdir, "kernel.so")
-            Path(asm_src_path).write_text(asm_src)
+            asm_src_path = os.path.join('/home/nhat/github/triton/third_party/triton_shared/compile', "kernel.s")
+            launcher_src_path = os.path.join('/home/nhat/github/triton/third_party/triton_shared/compile', "main.cxx")
+            so_path = os.path.join('/home/nhat/github/triton/third_party/triton_shared/compile', "kernel.so")
+            Path(asm_src_path).write_bytes(asm_src)
             Path(launcher_src_path).write_text(src)
             # Compile it together.
-            subprocess.check_call(["g++", launcher_src_path, asm_src_path, f"-I{py_include_dir}", f"-I{Path(__file__).resolve().parent}", "-shared", "-fPIC", "-o", so_path])
+            subprocess.check_call(["g++", launcher_src_path, asm_src_path, "-I/home/nhat/github/triton/third_party/triton_shared/python/ExecutionEngine", f"-I{py_include_dir}", f"-I{Path(__file__).resolve().parent}", "-shared", "-fPIC", "-o", so_path])
 
             # Load and launch the compiled kernel.
             spec = importlib.util.spec_from_file_location("__triton_shared_ref_cpu_kernel_launcher", so_path)
@@ -250,10 +250,6 @@ def compile_module(launcher_src, kernel_placeholder_name):
 class CPULauncher(object):
 
     def __init__(self, src, metadata):
-        ids = {
-            "ids_of_folded_args": metadata.get("ids_of_folded_args", tuple()), "ids_of_const_exprs":
-            src.fn.constexprs if hasattr(src, "fn") else tuple()
-        }
         constants = src.constants if hasattr(src, "constants") else dict()
 
         kernel_placeholder_name = "KERNEL_NAME_PLACEHOLDER"
@@ -271,16 +267,16 @@ class CPUDriver(DriverBase):
     def __init__(self):
         super().__init__()
         self.launcher_cls = CPULauncher
+        self.binary_ext = "cpuasm"
 
     @staticmethod
     def is_active():
-        import torch
-        return torch.version.hip is not None
+        return True
 
     def get_device_capability(self):
         return ("cpu", 0)
 
-    def get_current_stream(self):
+    def get_current_stream(self, device):
         return None
 
     def get_current_device(self):
@@ -293,9 +289,7 @@ class CPUDriver(DriverBase):
         return
 
     def get_current_target(self):
-        device = self.get_current_device()
-        arch = self.utils.get_device_properties(device)['arch']
-        return ("hip", arch.split(':')[0])
+        return ("cpu", "0")
 
     def assemble_tensormap_to_arg(self, tensormaps_info, args):
         return args
