@@ -1662,6 +1662,32 @@ public:
   }
 };
 
+class ReshapeConverter : public OpConversionPattern<triton::ReshapeOp> {
+  using OpConversionPattern<triton::ReshapeOp>::OpConversionPattern;
+
+public:
+  LogicalResult
+  matchAndRewrite(triton::ReshapeOp op, OpAdaptor adaptor,
+                  ConversionPatternRewriter &rewriter) const override {
+    auto loc = op.getLoc();
+    auto input = op.getSrc();
+    auto output = op.getResult();
+
+    auto outputType = dyn_cast<RankedTensorType>(output.getType());
+    if (!outputType) {
+      return failure();
+    }
+    ArrayRef<int64_t> outputShape = outputType.getShape();
+
+    auto shape = rewriter.create<arith::ConstantOp>(
+        loc, rewriter.getI64TensorAttr(outputShape));
+    rewriter.replaceOpWithNewOp<tensor::ReshapeOp>(op, outputType, input,
+                                                   shape);
+
+    return success();
+  }
+};
+
 } // namespace
 
 void mlir::triton::populateTritonToLinalgCanonicalizationPatterns(
@@ -1697,6 +1723,7 @@ void mlir::triton::populateTritonToLinalgConversionPatterns(
   patterns.add<DenseConstantConverter>(patterns.getContext());
   patterns.add<UnrealizedCastConverter>(patterns.getContext());
   patterns.add<CumSumConverter>(patterns.getContext());
+  patterns.add<ReshapeConverter>(patterns.getContext());
 
   // Reduce converters
   // Triton's reduce op is idential to linalg.reduce op, so we can clone
