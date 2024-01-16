@@ -41,8 +41,9 @@ def test():
     torch.testing.assert_close(output, ans, rtol=0.001, atol=1e-5)
     print("Pass!")
 
+    # src = triton.compiler.ASTSource(fn=reduce_kernel_2d, signature="*fp32,*fp32,i32,i32", constants={"BLOCK_SIZE": 32})
     # ret = triton.compile(
-    #     reduce_kernel_2d,
+    #     src,
     #     # signature="*fp32,*fp32,i32,i32",
     #     # constants={"BLOCK_SIZE": 32},
     #     # device_type="cpu",
@@ -51,5 +52,7 @@ def test():
     # print(ret.asm["ttsharedir"])
     # print(ret.asm["llir"])
     # print(ret.asm["cpuasm"])
+    # print('Pass')
 
+test()
 test()

@@ -8,19 +8,19 @@
 extern "C" {
   // Pointer type (=Memref) becomes int64_t + MemRef struct
   // FIXME: understand what this int64_t is used for.
-  void matmul_kernel_0d1d2d34567c89c1011c(int64_t, void*, int64_t, void*, int64_t, void*, int32_t, int32_t, int32_t, int32_t, int32_t, int32_t,
+  void softmax_kernel_0d1d234(int64_t, void*, int64_t, void*, int32_t, int32_t, int32_t,
                        int, int, int, int, int, int);
 }
 
-static void _launch(int gridX, int gridY, int gridZ, void* arg0, void* arg1, void* arg2, int32_t arg3, int32_t arg4, int32_t arg5, int32_t arg6, int32_t arg7, int32_t arg8, int32_t arg9, int32_t arg10, int32_t arg11) {
+static void _launch(int gridX, int gridY, int gridZ, void* arg0, void* arg1, int32_t arg2, int32_t arg3, int32_t arg4) {
   if (gridX*gridY*gridZ > 0) {
     // Cast "function" to the real function type.
     for(int x = 0; x < gridX; x++) {
       for(int y = 0; y < gridY; y++) {
         for(int z = 0; z < gridZ; z++) {
           // Use some random type "char" here.
-          StridedMemRefType<char, 0> ptr_arg0 = {static_cast<char *>(arg0), static_cast<char *>(arg0), 0}; StridedMemRefType<char, 0> ptr_arg1 = {static_cast<char *>(arg1), static_cast<char *>(arg1), 0}; StridedMemRefType<char, 0> ptr_arg2 = {static_cast<char *>(arg2), static_cast<char *>(arg2), 0};
-          matmul_kernel_0d1d2d34567c89c1011c(0, &ptr_arg0, 0, &ptr_arg1, 0, &ptr_arg2, static_cast<int32_t>(arg3), static_cast<int32_t>(arg4), static_cast<int32_t>(arg5), static_cast<int32_t>(arg6), static_cast<int32_t>(arg8), static_cast<int32_t>(arg10),
+          StridedMemRefType<char, 0> ptr_arg0 = {static_cast<char *>(arg0), static_cast<char *>(arg0), 0}; StridedMemRefType<char, 0> ptr_arg1 = {static_cast<char *>(arg1), static_cast<char *>(arg1), 0};
+          softmax_kernel_0d1d234(0, &ptr_arg0, 0, &ptr_arg1, static_cast<int32_t>(arg2), static_cast<int32_t>(arg3), static_cast<int32_t>(arg4),
                         gridX, gridY, gridZ, x, y, z);
         }
       }
@@ -71,9 +71,9 @@ static PyObject* launch(PyObject* self, PyObject* args) {
   PyObject *launch_enter_hook = NULL;
   PyObject *launch_exit_hook = NULL;
   PyObject *compiled_kernel = NULL;
-  PyObject* _arg0;  PyObject* _arg1;  PyObject* _arg2;  int32_t _arg3;  int32_t _arg4;  int32_t _arg5;  int32_t _arg6;  int32_t _arg7;  int32_t _arg8;  int32_t _arg9;  int32_t _arg10;  int32_t _arg11; 
-  if(!PyArg_ParseTuple(args, "iiiOOOOOOiiiiiiiii", &gridX, &gridY, &gridZ, &launch_enter_hook, &launch_exit_hook, &compiled_kernel
-                       , &_arg0, &_arg1, &_arg2, &_arg3, &_arg4, &_arg5, &_arg6, &_arg7, &_arg8, &_arg9, &_arg10, &_arg11)) {
+  PyObject* _arg0;  PyObject* _arg1;  int32_t _arg2;  int32_t _arg3;  int32_t _arg4; 
+  if(!PyArg_ParseTuple(args, "iiiOOOOOiii", &gridX, &gridY, &gridZ, &launch_enter_hook, &launch_exit_hook, &compiled_kernel
+                       , &_arg0, &_arg1, &_arg2, &_arg3, &_arg4)) {
     return NULL;
   }
 
@@ -82,8 +82,8 @@ static PyObject* launch(PyObject* self, PyObject* args) {
   }
 
   // raise exception asap
-  DevicePtrInfo ptr_info0 = getPointer(_arg0, 0); if (!ptr_info0.valid) return NULL;; DevicePtrInfo ptr_info1 = getPointer(_arg1, 1); if (!ptr_info1.valid) return NULL;; DevicePtrInfo ptr_info2 = getPointer(_arg2, 2); if (!ptr_info2.valid) return NULL;; ; ; ; ; ; ; ; ; ;
-  _launch(gridX, gridY, gridZ, ptr_info0.dev_ptr, ptr_info1.dev_ptr, ptr_info2.dev_ptr, _arg3, _arg4, _arg5, _arg6, _arg7, _arg8, _arg9, _arg10, _arg11);
+  DevicePtrInfo ptr_info0 = getPointer(_arg0, 0); if (!ptr_info0.valid) return NULL;; DevicePtrInfo ptr_info1 = getPointer(_arg1, 1); if (!ptr_info1.valid) return NULL;; ; ; ;
+  _launch(gridX, gridY, gridZ, ptr_info0.dev_ptr, ptr_info1.dev_ptr, _arg2, _arg3, _arg4);
 
   if (PyErr_Occurred()) {
     return NULL;

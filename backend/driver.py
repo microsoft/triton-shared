@@ -230,9 +230,10 @@ def compile_module(launcher_src, kernel_placeholder_name):
         asm_src = compiled_kernel.asm["cpuasm"]
         src = launcher_src.replace(kernel_placeholder_name, compiled_kernel.metadata["name"])
         with tempfile.TemporaryDirectory() as tmpdir:
-            asm_src_path = os.path.join('/home/nhat/github/triton/third_party/triton_shared/compile', "kernel.s")
-            launcher_src_path = os.path.join('/home/nhat/github/triton/third_party/triton_shared/compile', "main.cxx")
-            so_path = os.path.join('/home/nhat/github/triton/third_party/triton_shared/compile', "kernel.so")
+            # tmpdir = '/home/nhat/github/triton/third_party/triton_shared/compile'
+            asm_src_path = os.path.join(tmpdir, "kernel.s")
+            launcher_src_path = os.path.join(tmpdir, "main.cxx")
+            so_path = os.path.join(tmpdir, "kernel.so")
             Path(asm_src_path).write_bytes(asm_src)
             Path(launcher_src_path).write_text(src)
             # Compile it together.
