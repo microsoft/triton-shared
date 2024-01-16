@@ -220,6 +220,8 @@ def compile_module(launcher_src, kernel_placeholder_name):
     if scheme == 'posix_local':
         scheme = 'posix_prefix'
     py_include_dir = sysconfig.get_paths(scheme=scheme)["include"]
+    cpu_backend_path = Path(__file__).resolve().parent
+    execution_engine_include_dir = os.path.join(cpu_backend_path, "ExecutionEngine")
 
     def launch(
         gridX, gridY, gridZ, num_warps, num_ctas, clusterDim0, clusterDim1, clusterDim2,
@@ -237,7 +239,7 @@ def compile_module(launcher_src, kernel_placeholder_name):
             Path(asm_src_path).write_bytes(asm_src)
             Path(launcher_src_path).write_text(src)
             # Compile it together.
-            subprocess.check_call(["g++", launcher_src_path, asm_src_path, "-I/home/nhat/github/triton/third_party/triton_shared/python/ExecutionEngine", f"-I{py_include_dir}", f"-I{Path(__file__).resolve().parent}", "-shared", "-fPIC", "-o", so_path])
+            subprocess.check_call(["g++", launcher_src_path, asm_src_path, f"-I{py_include_dir}", f"-I{execution_engine_include_dir}", "-shared", "-fPIC", "-o", so_path])
 
             # Load and launch the compiled kernel.
             spec = importlib.util.spec_from_file_location("__triton_shared_ref_cpu_kernel_launcher", so_path)
