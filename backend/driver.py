@@ -8,32 +8,8 @@ import sysconfig
 
 from pathlib import Path
 
-from triton.runtime.build import _build
 from triton.runtime.cache import get_cache_manager
 from triton.backends.driver import DriverBase
-
-# dirname = os.path.dirname(os.path.realpath(__file__))
-# include_dir = [os.path.join(dirname, "include")]
-# library_dir = [os.path.join(dirname, "lib")]
-# libraries = ['amdhip64']
-
-# def compile_module_from_src(src, name):
-#     key = hashlib.md5(src.encode("utf-8")).hexdigest()
-#     cache = get_cache_manager(key)
-#     cache_path = cache.get_file(f"{name}.so")
-#     if cache_path is None:
-#         with tempfile.TemporaryDirectory() as tmpdir:
-#             src_path = os.path.join(tmpdir, "main.c")
-#             with open(src_path, "w") as f:
-#                 f.write(src)
-#             so = _build(name, src_path, tmpdir, library_dir, include_dir, libraries)
-#             with open(so, "rb") as f:
-#                 cache_path = cache.put(f.read(), f"{name}.so", binary=True)
-#     import importlib.util
-#     spec = importlib.util.spec_from_file_location(name, cache_path)
-#     mod = importlib.util.module_from_spec(spec)
-#     spec.loader.exec_module(mod)
-#     return mod
 
 
 # -------------------- Launcher ----------------------------
@@ -231,21 +207,32 @@ def compile_module(launcher_src, kernel_placeholder_name):
         # Let's compile a kernel every time.
         asm_src = compiled_kernel.asm["cpuasm"]
         src = launcher_src.replace(kernel_placeholder_name, compiled_kernel.metadata["name"])
-        with tempfile.TemporaryDirectory() as tmpdir:
-            # tmpdir = '/home/nhat/github/triton/third_party/triton_shared/compile'
-            asm_src_path = os.path.join(tmpdir, "kernel.s")
-            launcher_src_path = os.path.join(tmpdir, "main.cxx")
-            so_path = os.path.join(tmpdir, "kernel.so")
-            Path(asm_src_path).write_bytes(asm_src)
-            Path(launcher_src_path).write_text(src)
-            # Compile it together.
-            subprocess.check_call(["g++", launcher_src_path, asm_src_path, f"-I{py_include_dir}", f"-I{execution_engine_include_dir}", "-shared", "-fPIC", "-o", so_path])
 
-            # Load and launch the compiled kernel.
-            spec = importlib.util.spec_from_file_location("__triton_shared_ref_cpu_kernel_launcher", so_path)
-            mod = importlib.util.module_from_spec(spec)
-            spec.loader.exec_module(mod)
-            return mod.launch(gridX, gridY, gridZ, launch_enter_hook, launch_exit_hook, compiled_kernel, *args)
+        key = hashlib.md5(src.encode("utf-8")).hexdigest()
+        cache = get_cache_manager(key)
+        name = "__triton_shared_ref_cpu_kernel_launcher"
+        filename = f"{name}.so"
+        cache_path = cache.get_file(filename)
+
+        if cache_path is None:
+          with tempfile.TemporaryDirectory() as tmpdir:
+              asm_src_path = os.path.join(tmpdir, "kernel.s")
+              launcher_src_path = os.path.join(tmpdir, "main.cxx")
+              so_path = os.path.join(tmpdir, "kernel.so")
+              Path(asm_src_path).write_bytes(asm_src)
+              Path(launcher_src_path).write_text(src)
+              # Compile it together.
+              subprocess.check_call(["g++", launcher_src_path, asm_src_path, f"-I{py_include_dir}", f"-I{execution_engine_include_dir}", "-shared", "-fPIC", "-o", so_path])
+
+              with open(so_path, "rb") as f:
+                cache_path = cache.put(f.read(), filename, binary=True)
+                print(cache_path)
+
+        # Load and launch the compiled kernel.
+        spec = importlib.util.spec_from_file_location(name, cache_path)
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        return mod.launch(gridX, gridY, gridZ, launch_enter_hook, launch_exit_hook, compiled_kernel, *args)
 
     return launch
 
