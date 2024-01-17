@@ -92,7 +92,6 @@ def _optimize_llir(llir: str):
 
 
 def _llir_to_bin(llir: str, metadata):
-    print(llir)
     pattern = r"define void @(\w+)\(.+"
     matches = re.findall(pattern, llir)
     assert len(matches) == 1
@@ -105,7 +104,6 @@ def _llir_to_bin(llir: str, metadata):
         subprocess.check_call([llc_path, src_path, "-o", dst_path])
         # Actually it's text-format assembly.  Use read_text().
         return Path(dst_path).read_text()
-
 
 
 
@@ -146,9 +144,10 @@ class CPUBackend(BaseBackend):
         args.update({k: opts[k] for k in CPUOptions.__dataclass_fields__.keys() if k in opts})
         return CPUOptions(**args)
 
+    # Our compilation pipeline isn't in python like nvidia or amd, no need to load
+    # dialects. See `triton_shared.cc`
     def load_dialects(self, ctx):
         return
-        triton_shared.load_dialects(ctx)
 
     @staticmethod
     def make_ttir(mod, metadata, opt):
@@ -166,14 +165,6 @@ class CPUBackend(BaseBackend):
         return mod
 
     def add_stages(self, stages, options):
-        filter_in_stages = ["ast", "ttir"]
-        filter_out_stages = []
-        for key, _ in stages.items():
-            if key not in filter_in_stages:
-                filter_out_stages.append(key)
-        for filter_out_key in filter_out_stages:
-            stages.pop(filter_out_key)
-
         stages["ttir"] = lambda src, metadata: self.make_ttir(src, metadata, options)
         stages["ttsharedir"] = lambda src, metadata: _optimize_ttsharedir(_ttir_to_ttsharedir(src))
         stages["llir"] = lambda src, metadata: _optimize_llir(_ttsharedir_to_llir(src))
