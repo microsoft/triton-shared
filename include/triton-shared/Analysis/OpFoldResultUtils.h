@@ -5,8 +5,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef TRITON_ANALYSISSTRUCTURED_OPFOLDRESULT_UTILS_H
-#define TRITON_ANALYSISSTRUCTURED_OPFOLDRESULT_UTILS_H
+#ifndef TRITON_ANALYSIS_OPFOLDRESULT_UTILS_H
+#define TRITON_ANALYSIS_OPFOLDRESULT_UTILS_H
 
 #include "mlir/IR/Location.h"
 #include "mlir/IR/OpDefinition.h"
