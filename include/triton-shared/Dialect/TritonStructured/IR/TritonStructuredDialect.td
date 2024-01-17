@@ -31,9 +31,16 @@ class TTS_Op<string mnemonic, list<Trait> traits = []> :
 }
 
 def TTS_MakeTensorPtrOp
-  : TTS_Op<"make_tptr", [ AttrSizedOperandSegments, Pure]> {
+  : TTS_Op<"make_tptr", [AttrSizedOperandSegments, Pure]> {
   let summary = "create a pointer that points to a tensor in memory";
 
+
+  // base: base pointer used to contruct the tensor of pointers
+  // sizes: size of tensor of pointers
+  // strides: address increment from one element to the next in the
+  //          corresponding dimension
+  // parent_sizes: used to represent wrap-around behavior; constant zero
+  //               indicate no wrap-around in the corresponding dimension
   let arguments = (ins TT_Ptr:$base,
                        DenseI64ArrayAttr:$sizes,
                        Variadic<Index>:$strides,

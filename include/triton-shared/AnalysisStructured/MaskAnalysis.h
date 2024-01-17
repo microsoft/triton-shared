@@ -20,7 +20,7 @@ namespace mlir {
 
 class OpBuilder;
 
-namespace triton {
+namespace tts {
 // Data structure used to decode the pattern in a mask used for load and store.
 // start and end field represent the start and end index of a range (produced
 // by make_range, addi, etc.). While multi-dimensional data is possible, we
@@ -35,14 +35,14 @@ namespace triton {
 // result of splat, expand_dims, etc. During this phase, either (1) both start
 // and end are populated, or (2) scalar is populated. Only one of the dimensions
 // (that contains the range) can have dim > 1.
-// 2. Result from step 1 is compared with a another MaskSState that represents a
+// 2. Result from step 1 is compared with a another MaskState that represents a
 // scalar value. The resulting state only has dims populated.
 // 3. Optionally, result from step 2 can be broadcasted and anded with other
 // results from step 2. The resulting state only has dims populated.
 //
 // Example of creating 2D mask:
 //  mask = (rows[:, None] < M) & (cols[None, :] < N)
-struct MaskSState {
+struct MaskState {
   OpFoldResult start;
   OpFoldResult end;
   SmallVector<OpFoldResult> dims;
@@ -60,19 +60,19 @@ struct MaskSState {
 
 private:
   // -------
-  // Utility functions to operate on MaskSState
+  // Utility functions to operate on MaskState
   // -------
-  LogicalResult addStateScalar(const MaskSState &state,
+  LogicalResult addStateScalar(const MaskState &state,
                                const OpFoldResult scalar, Location loc,
                                OpBuilder &builder);
 
-  LogicalResult addStates(const MaskSState &lhsState, const MaskSState &rhsState,
+  LogicalResult addStates(const MaskState &lhsState, const MaskState &rhsState,
                           Location loc, OpBuilder &builder);
 
-  LogicalResult minStates(const MaskSState &lhsState, const MaskSState &rhsState,
+  LogicalResult minStates(const MaskState &lhsState, const MaskState &rhsState,
                           Location loc, OpBuilder &builder);
   // -------
-  // Helper functions to parse values to populate MaskSState
+  // Helper functions to parse values to populate MaskState
   // -------
 
   // Operand is the result of a constant

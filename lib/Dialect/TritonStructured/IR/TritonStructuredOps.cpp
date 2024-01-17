@@ -30,7 +30,7 @@ void MakeTensorPtrOp::build(OpBuilder &b, OperationState &state, Value base,
   dispatchIndexOpFoldResults(parentSizes, dynamicParentSizes,
                              staticParentSizes);
 
-  auto basePtr = base.getType().cast<triton::PointerType>();
+  auto basePtr = cast<triton::PointerType>(base.getType());
   auto elemType = basePtr.getPointeeType();
   auto resType = RankedTensorType::get(sizes, basePtr);
 
@@ -47,9 +47,8 @@ void LoadOp::build(OpBuilder &b, OperationState &state, Value ptr,
 
   dispatchIndexOpFoldResults(dims, dynamicDims, staticDims);
 
-  auto ptrTensorType = ptr.getType().cast<RankedTensorType>();
-  auto elemType = ptrTensorType.getElementType()
-                      .cast<triton::PointerType>()
+  auto ptrTensorType = cast<RankedTensorType>(ptr.getType());
+  auto elemType = cast<triton::PointerType>(ptrTensorType.getElementType())
                       .getPointeeType();
   auto resType = RankedTensorType::get(ptrTensorType.getShape(), elemType);
 

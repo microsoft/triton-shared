@@ -44,7 +44,7 @@ public:
   void runOnOperation() override {
     auto moduleOp = getOperation();
 
-    PtrAnalysis ptrAnalysis;
+    mlir::tts::PtrAnalysis ptrAnalysis;
     if (ptrAnalysis.rewriteOp(moduleOp).failed()) {
       moduleOp->emitWarning("PtrAnalysis failed");
     }

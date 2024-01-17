@@ -14,9 +14,9 @@
 
 namespace mlir {
 
-namespace triton {
+namespace tts {
 
-LogicalResult MaskSState::parse(Value operand, const Location loc,
+LogicalResult MaskState::parse(Value operand, const Location loc,
                                OpBuilder &builder) {
   if (auto op = operand.getDefiningOp<arith::ConstantOp>()) {
     return this->parseConstant(op, loc, builder);
@@ -41,7 +41,7 @@ LogicalResult MaskSState::parse(Value operand, const Location loc,
   }
 }
 
-LogicalResult MaskSState::addStateScalar(const MaskSState &state,
+LogicalResult MaskState::addStateScalar(const MaskState &state,
                                         const OpFoldResult scalar, Location loc,
                                         OpBuilder &builder) {
   start = addOFRs(state.start, scalar, loc, builder);
@@ -50,8 +50,8 @@ LogicalResult MaskSState::addStateScalar(const MaskSState &state,
   return success();
 }
 
-LogicalResult MaskSState::addStates(const MaskSState &lhsState,
-                                   const MaskSState &rhsState, Location loc,
+LogicalResult MaskState::addStates(const MaskState &lhsState,
+                                   const MaskState &rhsState, Location loc,
                                    OpBuilder &builder) {
   if (lhsState.scalar && rhsState.scalar) {
     InFlightDiagnostic diag =
@@ -72,8 +72,8 @@ LogicalResult MaskSState::addStates(const MaskSState &lhsState,
     return addStateScalar(lhsState, rhsState.scalar, loc, builder);
 }
 
-LogicalResult MaskSState::minStates(const MaskSState &lhsState,
-                                   const MaskSState &rhsState, Location loc,
+LogicalResult MaskState::minStates(const MaskState &lhsState,
+                                   const MaskState &rhsState, Location loc,
                                    OpBuilder &builder) {
   if (lhsState.getRank() != rhsState.getRank()) {
     InFlightDiagnostic diag =
@@ -90,7 +90,7 @@ LogicalResult MaskSState::minStates(const MaskSState &lhsState,
   return success();
 }
 
-LogicalResult MaskSState::parseConstant(arith::ConstantOp constOp,
+LogicalResult MaskState::parseConstant(arith::ConstantOp constOp,
                                        const Location loc, OpBuilder &builder) {
   assert(this->isEmpty());
 
@@ -113,7 +113,7 @@ LogicalResult MaskSState::parseConstant(arith::ConstantOp constOp,
   return success();
 }
 
-LogicalResult MaskSState::parseIntScalar(Value scalar, const Location loc,
+LogicalResult MaskState::parseIntScalar(Value scalar, const Location loc,
                                         OpBuilder &builder) {
   assert(this->isEmpty());
   auto castOp =
@@ -122,31 +122,31 @@ LogicalResult MaskSState::parseIntScalar(Value scalar, const Location loc,
   return success();
 }
 
-LogicalResult MaskSState::parseAdd(arith::AddIOp addOp, const Location loc,
+LogicalResult MaskState::parseAdd(arith::AddIOp addOp, const Location loc,
                                   OpBuilder &builder) {
   assert(this->isEmpty());
 
-  MaskSState lhsState;
+  MaskState lhsState;
   if (failed(lhsState.parse(addOp.getLhs(), loc, builder)))
     return failure();
 
-  MaskSState rhsState;
+  MaskState rhsState;
   if (failed(rhsState.parse(addOp.getRhs(), loc, builder)))
     return failure();
 
   return this->addStates(lhsState, rhsState, loc, builder);
 }
 
-LogicalResult MaskSState::parseAnd(arith::AndIOp andOp, const Location loc,
+LogicalResult MaskState::parseAnd(arith::AndIOp andOp, const Location loc,
                                   OpBuilder &builder) {
   assert(this->isEmpty());
 
-  MaskSState lhsState;
+  MaskState lhsState;
   if (failed(lhsState.parse(andOp.getLhs(), loc, builder)) ||
       !lhsState.isMask())
     return failure();
 
-  MaskSState rhsState;
+  MaskState rhsState;
   if (failed(rhsState.parse(andOp.getRhs(), loc, builder)) ||
       !rhsState.isMask())
     return failure();
@@ -154,7 +154,7 @@ LogicalResult MaskSState::parseAnd(arith::AndIOp andOp, const Location loc,
   return this->minStates(lhsState, rhsState, loc, builder);
 }
 
-LogicalResult MaskSState::parseCmp(arith::CmpIOp cmpOp, const Location loc,
+LogicalResult MaskState::parseCmp(arith::CmpIOp cmpOp, const Location loc,
                                   OpBuilder &builder) {
   assert(this->isEmpty());
 
@@ -163,11 +163,11 @@ LogicalResult MaskSState::parseCmp(arith::CmpIOp cmpOp, const Location loc,
     return failure();
   }
 
-  MaskSState lhsState;
+  MaskState lhsState;
   if (failed(lhsState.parse(cmpOp.getLhs(), loc, builder)))
     return failure();
 
-  MaskSState rhsState;
+  MaskState rhsState;
   if (failed(rhsState.parse(cmpOp.getRhs(), loc, builder)))
     return failure();
 
@@ -202,7 +202,7 @@ LogicalResult MaskSState::parseCmp(arith::CmpIOp cmpOp, const Location loc,
   return success();
 }
 
-LogicalResult MaskSState::parseMakeRange(triton::MakeRangeOp rangeOp,
+LogicalResult MaskState::parseMakeRange(triton::MakeRangeOp rangeOp,
                                         const Location loc,
                                         OpBuilder &builder) {
   assert(this->isEmpty());
@@ -227,7 +227,7 @@ LogicalResult MaskSState::parseMakeRange(triton::MakeRangeOp rangeOp,
   return success();
 }
 
-LogicalResult MaskSState::parseBroadcast(triton::BroadcastOp broadcastOp,
+LogicalResult MaskState::parseBroadcast(triton::BroadcastOp broadcastOp,
                                         const Location loc,
                                         OpBuilder &builder) {
   assert(this->isEmpty());
@@ -257,7 +257,7 @@ LogicalResult MaskSState::parseBroadcast(triton::BroadcastOp broadcastOp,
   return success();
 }
 
-LogicalResult MaskSState::parseSplat(triton::SplatOp splatOp, const Location loc,
+LogicalResult MaskState::parseSplat(triton::SplatOp splatOp, const Location loc,
                                     OpBuilder &builder) {
   assert(this->isEmpty());
 
@@ -281,7 +281,7 @@ LogicalResult MaskSState::parseSplat(triton::SplatOp splatOp, const Location loc
   return success();
 }
 
-LogicalResult MaskSState::parseExpandDims(triton::ExpandDimsOp expandDimsOp,
+LogicalResult MaskState::parseExpandDims(triton::ExpandDimsOp expandDimsOp,
                                          const Location loc,
                                          OpBuilder &builder) {
   assert(this->isEmpty());

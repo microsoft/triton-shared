@@ -21,7 +21,7 @@ namespace mlir {
 
 class OpBuilder;
 
-namespace triton {
+namespace tts {
 
 const extern std::string ptrAnalysisAttr;
 
@@ -29,8 +29,9 @@ const extern std::string ptrAnalysisAttr;
 // strides are in unit of elements in a linearly laid-out memory, which is the
 // same as pointer arithmetic operations in Triton language. scalar is a
 // shortcut used when the entire state describes a single scalar value. source
-// is the base pointer.
-class PtrSState {
+// is the base pointer. modulos describes how address wraps around; a constant 0
+// indicates no modulo for the dimension.
+class PtrState {
 
 public:
   SmallVector<OpFoldResult> offsets;
@@ -49,18 +50,16 @@ public:
 
   bool dimHasModulo(uint32_t dim) const;
 
-  // Process addition of two PtrSStates.
-  LogicalResult addState(const PtrSState &lhsState, const PtrSState &rhsState,
+  // Process addition of two PtrStates.
+  LogicalResult addState(const PtrState &lhsState, const PtrState &rhsState,
                          Operation *op, OpBuilder &builder);
 
-  // Process multiplication of two PtrSStates
-  LogicalResult mulState(const PtrSState &lhsState, const PtrSState &rhsState,
+  // Process multiplication of two PtrStates
+  LogicalResult mulState(const PtrState &lhsState, const PtrState &rhsState,
                          Operation *op, OpBuilder &builder);
 
   tts::MakeTensorPtrOp createTTSMakeTensorPtrOp(OpBuilder &builder,
                                                 Location loc);
-
-  static void swap(PtrSState &&a, PtrSState &&b);
 };
 
 struct PtrAnalysis {
@@ -69,43 +68,43 @@ struct PtrAnalysis {
   IndexMapSet levelToBlockArgIndex;
   int level = 0;
 
-  llvm::SmallDenseMap<Value, PtrSState> knownPtrs;
+  llvm::SmallDenseMap<Value, PtrState> knownPtrs;
 
-  IRMapping map;
+  IRMapping ptrMap;
 
   // Recursively parse a Value; call the corresponding
   // function based on the defining operation and argument type.
-  LogicalResult visitOperand(Value operand, PtrSState &state, const Location loc,
+  LogicalResult visitOperand(Value operand, PtrState &state, const Location loc,
                              OpBuilder &builder);
 
   // Operand is the result of arith.addi. Process both arguments and insert any
   // arith.addi instruction as needed.
   // Main assumptions:
   //  Only one of lhsState and rhsState has source field set
-  //  Current PtrSState should be empty
+  //  Current PtrState should be empty
   // Expected result:
   //  source = lhsState.source ? lhsState.source : rhsState.source
   //  sizes[i] = lhsState.sizes[i] (which should match rhsState.sizes[i])
   //  offsets[i] = lhsState.offsets[i] + rhsState.offsets[i]
   //  strides[i] = lhsState.strides[i] + rhsState.strides[i]
-  LogicalResult visitOperandAdd(arith::AddIOp addOp, PtrSState &state,
+  LogicalResult visitOperandAdd(arith::AddIOp addOp, PtrState &state,
                                 const Location loc, OpBuilder &builder);
 
   // Operand is the result of arith.muli. Process both arguments and insert any
   // arith.muli instruction as needed.
   // Main assumptions:
   //  Neither lhsState nor rhsState has source field set
-  //  Current PtrSState should be empty
+  //  Current PtrState should be empty
   //  Currently only support one of the operand is a scalar index
   // Expected result (scalar and tensorState represent the two operands):
   //  source = null
   //  sizes[i] = tensorState.sizes[i]
   //  offsets[i] = tensorState.offsets[i] * scalar
   //  strides[i] = tensorState.strides[i] * scalar
-  LogicalResult visitOperandMul(arith::MulIOp mulOp, PtrSState &state,
+  LogicalResult visitOperandMul(arith::MulIOp mulOp, PtrState &state,
                                 const Location loc, OpBuilder &builder);
 
-  LogicalResult visitOperandRem(arith::RemSIOp mulOp, PtrSState &state,
+  LogicalResult visitOperandRem(arith::RemSIOp mulOp, PtrState &state,
                                 const Location loc, OpBuilder &builder);
 
   // Operand is the result of make_range.
@@ -119,7 +118,7 @@ struct PtrAnalysis {
   //  offset[0] = start
   //  strides[0] = ceiling( (end - start) / shape[0] )
   LogicalResult visitOperandMakeRange(triton::MakeRangeOp rangeOp,
-                                      PtrSState &state, Location loc,
+                                      PtrState &state, Location loc,
                                       OpBuilder &builder);
 
   // Operand is the result of expand_dims
@@ -129,7 +128,7 @@ struct PtrAnalysis {
   // Expected result:
   //  Insert a dimension of size 1, stride 0, and offset 0
   LogicalResult visitOperandExpandDims(triton::ExpandDimsOp expandDimsOp,
-                                       PtrSState &state, const Location loc,
+                                       PtrState &state, const Location loc,
                                        OpBuilder &builder);
 
   // Operand is the result of broadcast
@@ -138,7 +137,7 @@ struct PtrAnalysis {
   // Expected result:
   //  Update sizes[i] only, no changes to other fields
   LogicalResult visitOperandBroadcast(triton::BroadcastOp broadcastOp,
-                                      PtrSState &state, const Location loc,
+                                      PtrState &state, const Location loc,
                                       OpBuilder &builder);
 
   // Operand is the result of splat
@@ -147,7 +146,7 @@ struct PtrAnalysis {
   // Expected result:
   //  sizes[i] reflect the shape of the result, strides[i] = 0,  offsets[i] = 0
   //  if source is an integer, offset[0] = scalar = source
-  LogicalResult visitOperandSplat(triton::SplatOp splatOp, PtrSState &state,
+  LogicalResult visitOperandSplat(triton::SplatOp splatOp, PtrState &state,
                                   const Location loc, OpBuilder &builder);
 
   // Operand is the result of arith.constant that is a splat
@@ -157,7 +156,7 @@ struct PtrAnalysis {
   // Expected result:
   //  sizes[i] reflect the shape of the result, strides[i] = 0,  offsets[i] =
   //  splat value if i == 0, otherwise 0
-  LogicalResult visitOperandConstSplat(arith::ConstantOp op, PtrSState &state,
+  LogicalResult visitOperandConstSplat(arith::ConstantOp op, PtrState &state,
                                        const Location loc, OpBuilder &builder);
 
   // Operand is the result of addptr.
@@ -166,7 +165,7 @@ struct PtrAnalysis {
   //  ptr and offset fields should result in same rank
   // Expected result:
   //  The resulting state for ptr and offset wil be added
-  LogicalResult visitOperandAddptr(triton::AddPtrOp addptrOp, PtrSState &state,
+  LogicalResult visitOperandAddptr(triton::AddPtrOp addptrOp, PtrState &state,
                                    const Location loc, OpBuilder &builder);
 
   // Operand is the result of make_tptr.
@@ -175,20 +174,20 @@ struct PtrAnalysis {
   // Expected result:
   //  Directly grab all corresponding fields from make_tptr.
   LogicalResult visitOperandMakeTPtr(tts::MakeTensorPtrOp makeTPtrOp,
-                                     PtrSState &state, const Location loc,
+                                     PtrState &state, const Location loc,
                                      OpBuilder &builder);
 
   // Parse the state of AddPtrOp, insert any instruction needed to
-  // calculate strides and offsets, build PtrSState for this operand, and record
-  // PtrSState for knownPtrs.
+  // calculate strides and offsets, build PtrState for this operand, and record
+  // PtrState for knownPtrs.
   LogicalResult rewriteAddptrOp(triton::AddPtrOp op);
 
   // Parse the state of YieldOp, insert any instruction needed to calculate
-  // strides and offsets, build PtrSState for this operand, and record PtrSState
+  // strides and offsets, build PtrState for this operand, and record PtrState
   // in knownPtrs.
   LogicalResult
   rewriteYieldOp(scf::YieldOp op,
-                 llvm::SmallDenseMap<int, PtrSState> &knownPtrsFor);
+                 llvm::SmallDenseMap<int, PtrState> &knownPtrsFor);
 
   // Rewrite eligible tt.addptr in loop init args so loop can update the such
   // pointers over iterations. Insert any instruction needed to calculate
