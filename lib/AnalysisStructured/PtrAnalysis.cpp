@@ -6,7 +6,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "triton-shared/AnalysisStructured/PtrAnalysis.h"
-#include "triton-shared/AnalysisStructured/MaskAnalysis.h"
+#include "triton-shared/Analysis/MaskAnalysis.h"
 #include "triton-shared/Analysis/OpFoldResultUtils.h"
 
 #include "mlir/IR/IRMapping.h"
@@ -1019,7 +1019,7 @@ LogicalResult PtrAnalysis::rewriteLoadOp(triton::LoadOp op) {
   }
 
   ArrayRef<OpFoldResult> dims;
-  MaskState mstate;
+  mlir::triton::MaskState mstate;
   Value scalarOther;
 
   OpBuilder builder(op);
@@ -1074,7 +1074,7 @@ LogicalResult PtrAnalysis::rewriteStoreOp(triton::StoreOp op) {
   }
 
   ArrayRef<OpFoldResult> dims;
-  MaskState mstate;
+  mlir::triton::MaskState mstate;
 
   OpBuilder builder(op);
 
