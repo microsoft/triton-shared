@@ -1,6 +1,6 @@
 //===----------------------------------------------------------------------===//
 //
-// Copyright (c) Microsoft Corporation.
+// Copyright (c) Microsoft Corporation, Meta Platforms.
 // Licensed under the MIT license.
 //
 //===----------------------------------------------------------------------===//
@@ -8,6 +8,7 @@
 #include "triton-shared/Analysis/OpFoldResultUtils.h"
 
 #include "mlir/Dialect/Arith/IR/Arith.h"
+#include "mlir/IR/OpDefinition.h"
 #include "mlir/Transforms/DialectConversion.h"
 
 namespace mlir {
@@ -17,6 +18,32 @@ std::optional<int64_t> getIntAttr(const OpFoldResult ofr) {
     return ofr.get<Attribute>().dyn_cast<IntegerAttr>().getInt();
 
   return std::nullopt;
+}
+
+bool hasConstZero(const OpFoldResult ofr) {
+  auto intAttr = getIntAttr(ofr);
+  if (intAttr.has_value()) {
+    if (intAttr.value() == 0) {
+      return true;
+    }
+    return false;
+  }
+
+  auto val = ofr.dyn_cast<Value>();
+  assert(val);
+  auto constOp = val.getDefiningOp<arith::ConstantOp>();
+  if (!constOp)
+    return false;
+
+  intAttr = getIntAttr(constOp.getValue());
+  if (intAttr.has_value()) {
+    if (intAttr.value() == 0) {
+      return true;
+    }
+    return false;
+  }
+
+  return false;
 }
 
 Value ofrToIndexValue(const OpFoldResult ofr, const Location loc,

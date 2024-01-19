@@ -1,6 +1,6 @@
 //===----------------------------------------------------------------------===//
 //
-// Copyright (c) Microsoft Corporation.
+// Copyright (c) Microsoft Corporation, Meta Platforms.
 // Licensed under the MIT license.
 //
 //===----------------------------------------------------------------------===//
@@ -18,7 +18,7 @@
 
 namespace mlir {
 
-class ConversionPatternRewriter;
+class OpBuilder;
 
 namespace triton {
 // Data structure used to decode the pattern in a mask used for load and store.
@@ -56,23 +56,22 @@ struct MaskState {
 
   // Recursively parse a Value; call the coresponding function based on the
   // defining operation and Value type
-  LogicalResult parse(Value operand, const Location loc,
-                      ConversionPatternRewriter &rewriter);
+  LogicalResult parse(Value operand, const Location loc, OpBuilder &builder);
 
   tensor::ExtractSliceOp
   getExtractSlice(Value source, const Location loc,
-                  ConversionPatternRewriter &rewriter) const;
+                  OpBuilder &builder) const;
 
   memref::SubViewOp getSubview(Value source, const Location loc,
-                               ConversionPatternRewriter &rewriter) const;
+                               OpBuilder &builder) const;
 
   std::pair<memref::SubViewOp, memref::SubViewOp>
   getSideBySideSubviews(Value block1, Value block2, const Location loc,
-                        ConversionPatternRewriter &rewriter) const;
+                        OpBuilder &builder) const;
 
   std::pair<memref::SubViewOp, memref::SubViewOp>
   getStackedSubviews(Value block1, Value block2, const Location loc,
-                     ConversionPatternRewriter &rewriter) const;
+                     OpBuilder &builder) const;
 
 private:
   // -------
@@ -80,13 +79,13 @@ private:
   // -------
   LogicalResult addStateScalar(const MaskState &state,
                                const OpFoldResult scalar, Location loc,
-                               ConversionPatternRewriter &rewriter);
+                               OpBuilder &builder);
 
   LogicalResult addStates(const MaskState &lhsState, const MaskState &rhsState,
-                          Location loc, ConversionPatternRewriter &rewriter);
+                          Location loc, OpBuilder &builder);
 
   LogicalResult minStates(const MaskState &lhsState, const MaskState &rhsState,
-                          Location loc, ConversionPatternRewriter &rewriter);
+                          Location loc, OpBuilder &builder);
   // -------
   // Helper functions to parse values to populate MaskState
   // -------
@@ -94,49 +93,47 @@ private:
   // Operand is the result of a constant
   // Get the value of the constant and assign it to scalar.
   LogicalResult parseConstant(arith::ConstantOp constOp, const Location loc,
-                              ConversionPatternRewriter &rewriter);
+                              OpBuilder &builder);
 
   // Operand is an integer scalar
   LogicalResult parseIntScalar(Value scalar, const Location loc,
-                               ConversionPatternRewriter &rewriter);
+                               OpBuilder &builder);
 
   // Operand is the result of addi
   // One and only one of the operands should be a scalar. Increment both start
   // and end, dims remains unchanged, and scalar is empty.
   LogicalResult parseAdd(arith::AddIOp addOp, const Location loc,
-                         ConversionPatternRewriter &rewriter);
+                         OpBuilder &builder);
   // Operand is the result of andi
   // Each of the result state dims is smaller of the two operands' dims.
   // Insert instruction if needed to get new dims.
   LogicalResult parseAnd(arith::AndIOp andOp, const Location loc,
-                         ConversionPatternRewriter &rewriter);
+                         OpBuilder &builder);
 
   // Operand is the result of cmpi
   // Assume only of the dimensions have size > 1. Only support slt for now.
   // For that dimension, calculate this new dim as: dim = min(end, value) -
   // start
   LogicalResult parseCmp(arith::CmpIOp cmpOp, const Location loc,
-                         ConversionPatternRewriter &rewriter);
+                         OpBuilder &builder);
   // Operand is the result of make_range
   // Set start and end accordingly; step size must be 1.
   LogicalResult parseMakeRange(triton::MakeRangeOp rangeOp, const Location loc,
-                               ConversionPatternRewriter &rewriter);
+                               OpBuilder &builder);
   // Operand is the result of broadcast
   // Change dims only; assume only applies to tensors.
   LogicalResult parseBroadcast(triton::BroadcastOp broadcastOp,
-                               const Location loc,
-                               ConversionPatternRewriter &rewriter);
+                               const Location loc, OpBuilder &builder);
   // Operand is the result of splat
   // Assume only applies to scalar. start and end are left empty; scalar will
   // be assigned, and dims will be updated.
   LogicalResult parseSplat(triton::SplatOp splatOp, const Location loc,
-                           ConversionPatternRewriter &rewriter);
+                           OpBuilder &builder);
   // Operand is the result of expand_dims
   // Insert additional dims; start and end do not change and correspond to the
   // dimension that contains the range.
   LogicalResult parseExpandDims(triton::ExpandDimsOp expandDimsOp,
-                                const Location loc,
-                                ConversionPatternRewriter &rewriter);
+                                const Location loc, OpBuilder &builder);
 };
 
 } // namespace triton
