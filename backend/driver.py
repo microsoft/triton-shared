@@ -228,7 +228,6 @@ def compile_module(launcher_src, kernel_placeholder_name):
 
               with open(so_path, "rb") as f:
                 cache_path = cache.put(f.read(), filename, binary=True)
-                print(cache_path)
 
         # Load and launch the compiled kernel.
         spec = importlib.util.spec_from_file_location(name, cache_path)
