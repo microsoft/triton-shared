@@ -224,7 +224,11 @@ def compile_module(launcher_src, kernel_placeholder_name):
               Path(asm_src_path).write_bytes(asm_src)
               Path(launcher_src_path).write_text(src)
               # Compile it together.
-              subprocess.check_call(["g++", launcher_src_path, asm_src_path, f"-I{py_include_dir}", f"-I{include_dir}", "-shared", "-fPIC", "-o", so_path])
+              subprocess.check_call([
+                "g++", launcher_src_path, asm_src_path,
+                f"-I{py_include_dir}", f"-I{include_dir}",
+                "-shared", "-fPIC", "-o", so_path
+              ])
 
               with open(so_path, "rb") as f:
                 cache_path = cache.put(f.read(), filename, binary=True)
