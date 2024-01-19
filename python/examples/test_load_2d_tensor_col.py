@@ -1,7 +1,10 @@
 import torch
 
 import triton
+from triton.backends.triton_shared.driver import CPUDriver
 import triton.language as tl
+
+triton.runtime.driver.active = CPUDriver()
 
 
 """

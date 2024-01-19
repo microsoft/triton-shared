@@ -1,7 +1,10 @@
 import torch
 
 import triton
+from triton.backends.triton_shared.driver import CPUDriver
 import triton.language as tl
+
+triton.runtime.driver.active = CPUDriver()
 
 
 @triton.jit
@@ -41,16 +44,18 @@ def test():
     torch.testing.assert_close(output, ans, rtol=0.001, atol=1e-5)
     print("Pass!")
 
-    # src = triton.compiler.ASTSource(fn=reduce_kernel_2d, signature="*fp32,*fp32,i32,i32", constants={"BLOCK_SIZE": 32})
-    # ret = triton.compile(
-    #     src,
-    #     target=("cpu", "0")
-    # )
-    # print(ret.asm["ttir"])
-    # print(ret.asm["ttsharedir"])
-    # print(ret.asm["llir"])
-    # print(ret.asm["cpuasm"])
-    # print('Pass')
-
-test()
-test()
+    src = triton.compiler.ASTSource(
+        fn=reduce_kernel_2d,
+        signature="*fp32,*fp32,i32,i32",
+        constants={"BLOCK_SIZE": 32}
+    )
+    ret = triton.compile(
+        src,
+        # First value must be "cpu" while the second can be anything
+        target=("cpu", "0")
+    )
+    print(ret.asm["ttir"])
+    print(ret.asm["ttsharedir"])
+    print(ret.asm["llir"])
+    print(ret.asm["cpuasm"])
+    print('Pass')

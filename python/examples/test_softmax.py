@@ -1,9 +1,11 @@
 import torch
 
 import triton
+from triton.backends.triton_shared.driver import CPUDriver
 import triton.language as tl
 
-import torch
+triton.runtime.driver.active = CPUDriver()
+
 
 @triton.jit
 def softmax_kernel(output_ptr, input_ptr, input_row_stride, output_row_stride, n_cols, BLOCK_SIZE: tl.constexpr):
@@ -63,5 +65,3 @@ def test_softmax():
     y_triton = softmax(x)
     y_torch = torch.softmax(x, axis=1)
     assert torch.allclose(y_triton, y_torch), (y_triton, y_torch)
-
-test_softmax()

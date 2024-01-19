@@ -1,7 +1,10 @@
 import torch
 
 import triton
+from triton.backends.triton_shared.driver import CPUDriver
 import triton.language as tl
+
+triton.runtime.driver.active = CPUDriver()
 
 
 """
@@ -84,6 +87,3 @@ def test():
 
     torch.testing.assert_close(output, expected, rtol=0.001, atol=1e-5)
     print("Pass!")
-
-
-test()

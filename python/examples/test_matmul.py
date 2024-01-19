@@ -1,7 +1,10 @@
 import torch
 
 import triton
+from triton.backends.triton_shared.driver import CPUDriver
 import triton.language as tl
+
+triton.runtime.driver.active = CPUDriver()
 
 
 # `triton.jit`'ed functions can be auto-tuned by using the `triton.autotune` decorator, which consumes:
@@ -160,5 +163,3 @@ def test_matmul():
         print("✅ Triton and Torch match")
     else:
         print("❌ Triton and Torch differ")
-
-test_matmul()
