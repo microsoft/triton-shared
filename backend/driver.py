@@ -295,9 +295,11 @@ class CPUDriver(DriverBase):
         self.launcher_cls = CPULauncher
         self.binary_ext = "cpuasm"
 
+    # CPU driver won't be automatically chosen unless explicitly set through
+    # triton.runtime.driver.active
     @staticmethod
     def is_active():
-        return True
+        return False
 
     def get_device_capability(self):
         return ("cpu", 0)
