@@ -134,9 +134,9 @@ static PyObject* launch(PyObject* self, PyObject* args) {{
   int gridX, gridY, gridZ;
   PyObject *launch_enter_hook = NULL;
   PyObject *launch_exit_hook = NULL;
-  PyObject *compiled_kernel = NULL;
+  PyObject *metadata = NULL;
   {' '.join([f"{_extracted_ty(ty)} _arg{i}; " for i, ty in signature.items()])}
-  if(!PyArg_ParseTuple(args, \"{format}\", &gridX, &gridY, &gridZ, &launch_enter_hook, &launch_exit_hook, &compiled_kernel
+  if(!PyArg_ParseTuple(args, \"{format}\", &gridX, &gridY, &gridZ, &launch_enter_hook, &launch_exit_hook, &metadata
                        {', ' + ', '.join(f"&_arg{i}" for i, ty in signature.items()) if len(signature) > 0 else ''})) {{
     return NULL;
   }}
@@ -201,12 +201,14 @@ def compile_module(launcher_src, kernel_placeholder_name):
 
     def launch(
         gridX, gridY, gridZ, num_warps, num_ctas, clusterDim0, clusterDim1, clusterDim2,
-        shared, stream, cu_function, launch_enter_hook, launch_exit_hook, compiled_kernel,
+        shared, stream, cu_function, launch_enter_hook, launch_exit_hook, metadata,
         *args):
         # Unlike CUDA/HIP, we cannot easily pass function pointer across different pybind libraries.
         # Let's compile a kernel every time.
-        asm_src = compiled_kernel.asm["cpuasm"]
-        src = launcher_src.replace(kernel_placeholder_name, compiled_kernel.metadata["name"])
+        # The cu_function parameter actually contains our assembly source code.
+        # See CPUUtils.load_binary method.
+        asm_src = cu_function
+        src = launcher_src.replace(kernel_placeholder_name, metadata.name)
 
         key = hashlib.md5(src.encode("utf-8")).hexdigest()
         cache = get_cache_manager(key)
@@ -232,7 +234,7 @@ def compile_module(launcher_src, kernel_placeholder_name):
         spec = importlib.util.spec_from_file_location(name, cache_path)
         mod = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(mod)
-        return mod.launch(gridX, gridY, gridZ, launch_enter_hook, launch_exit_hook, compiled_kernel, *args)
+        return mod.launch(gridX, gridY, gridZ, launch_enter_hook, launch_exit_hook, metadata, *args)
 
     return launch
 
@@ -278,14 +280,19 @@ class CPUUtils(object):
           "mem_bus_width": None
         }
 
+    # Important note:
+    # Since we cannot easy pass function pointers around, we pass along the
+    # assembly source code so that compile_module above can recompile the
+    # module every time.
     @staticmethod
-    def load_binary(name, kernel, shared, device):
-        # (module, function, n_regs, n_spills)
-        return (None, None, None, None)
+    def load_binary(name, kernel_asm, shared, device):
+        return (
+          None,       # module
+          kernel_asm, # function
+          None,       # n_regs
+          None        # n_spills
+        )
 
-    def __init__(self):
-        self.load_binary = self.load_binary
-        self.get_device_properties = self.get_device_properties
 
 class CPUDriver(DriverBase):
 
@@ -308,7 +315,7 @@ class CPUDriver(DriverBase):
         return None
 
     def get_current_device(self):
-        # CPU doesn't have a device to return.  Return something.
+        # CPU doesn't have a device to return. Return something.
         return "cpu"
 
     def set_current_device(self, device):
