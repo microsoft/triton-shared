@@ -1,10 +1,7 @@
 import torch
 
 import triton
-from triton.backends.triton_shared.driver import CPUDriver
 import triton.language as tl
-
-triton.runtime.driver.active = CPUDriver()
 
 
 @triton.jit
@@ -59,5 +56,3 @@ def test():
     print(ret.asm["llir"])
     print(ret.asm["cpuasm"])
     print('Pass')
-
-test()

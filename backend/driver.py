@@ -305,29 +305,31 @@ class CPUDriver(DriverBase):
         self.launcher_cls = CPULauncher
         self.binary_ext = "cpuasm"
 
-    # CPU driver won't be automatically chosen unless explicitly set through
-    # triton.runtime.driver.active
     @staticmethod
-    def is_active():
+    def target_name():
+        return "cpu"
+
+    @staticmethod
+    def should_activate():
         return False
 
     def get_device_capability(self):
-        return ("cpu", 0)
+        return (CPUDriver.target_name(), 0)
 
     def get_current_stream(self, device):
         return None
 
     def get_current_device(self):
         # CPU doesn't have a device to return. Return something.
-        return "cpu"
+        return CPUDriver.target_name()
 
     def set_current_device(self, device):
         # CPU doesn't have a device to set
-        assert device == "cpu"
+        assert device == CPUDriver.target_name()
         return
 
     def get_current_target(self):
-        return ("cpu", "0")
+        return (CPUDriver.target_name(), "0")
 
     def assemble_tensormap_to_arg(self, tensormaps_info, args):
         return args
