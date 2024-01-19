@@ -1264,6 +1264,54 @@ public:
   }
 };
 
+class ExternElementwiseBinaryOpConverter
+    : public OpConversionPattern<triton::ExternElementwiseOp> {
+  using OpConversionPattern<triton::ExternElementwiseOp>::OpConversionPattern;
+
+public:
+  LogicalResult
+  matchAndRewrite(triton::ExternElementwiseOp op, OpAdaptor adaptor,
+                  ConversionPatternRewriter &rewriter) const override {
+    auto loc = op.getLoc();
+    if (op.getLibname().compare("libdevice") || !op.getPure() ||
+        op.getArgs().size() != 2)
+      return failure();
+    if (!op.getSymbol().compare("__nv_atan2f") ||
+        !op.getSymbol().compare("__nv_atan2")) {
+      rewriter.replaceOpWithNewOp<math::Atan2Op>(op, op.getArgs()[0],
+                                                 op.getArgs()[1]);
+      return success();
+    }
+    return failure();
+  }
+};
+
+class ExternElementwiseUnaryOpConverter
+    : public OpConversionPattern<triton::ExternElementwiseOp> {
+  using OpConversionPattern<triton::ExternElementwiseOp>::OpConversionPattern;
+
+public:
+  LogicalResult
+  matchAndRewrite(triton::ExternElementwiseOp op, OpAdaptor adaptor,
+                  ConversionPatternRewriter &rewriter) const override {
+    auto loc = op.getLoc();
+    if (op.getLibname().compare("libdevice") || !op.getPure() ||
+        op.getArgs().size() != 1)
+      return failure();
+    if (!op.getSymbol().compare("__nv_sinf") ||
+        !op.getSymbol().compare("__nv_sin")) {
+      rewriter.replaceOpWithNewOp<math::SinOp>(op, op.getArgs()[0]);
+      return success();
+    }
+    return failure();
+  }
+};
+
+static void populateExternElementwiseOpToMLIROps(RewritePatternSet &patterns) {
+  patterns.add<ExternElementwiseBinaryOpConverter,
+               ExternElementwiseUnaryOpConverter>(patterns.getContext());
+}
+
 } // namespace
 
 void mlir::triton::populateTritonArithToLinalgCanonicalizationPatterns(
@@ -1296,6 +1344,8 @@ void mlir::triton::populateTritonArithToLinalgConversionPatterns(
   patterns.add<DenseConstantConverter>(patterns.getContext());
   patterns.add<CumSumConverter>(patterns.getContext());
   patterns.add<ReshapeConverter>(patterns.getContext());
+
+  populateExternElementwiseOpToMLIROps(patterns);
 
   // Reduce converters
   // Triton's reduce op is idential to linalg.reduce op, so we can clone
