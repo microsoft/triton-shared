@@ -29,15 +29,19 @@ const extern std::string ptrAnalysisAttr;
 // strides are in unit of elements in a linearly laid-out memory, which is the
 // same as pointer arithmetic operations in Triton language. scalar is a
 // shortcut used when the entire state describes a single scalar value. source
-// is the base pointer. modulos describes how address wraps around; a constant 0
-// indicates no modulo for the dimension.
+// is the base pointer. If order is present, PtrState describes block pointer;
+// otherwise it describes non-block pointers. When it describes block pointer,
+// shape field means the same field as tt.make_tensor_ptr; when it describes a
+// non-block pointer, shape field indicates how address wraps around (i.e.,
+// modulo); a constant 0 indicates no modulo for the dimension.
 class PtrState {
 
 public:
   SmallVector<OpFoldResult> offsets;
   SmallVector<OpFoldResult> sizes;
   SmallVector<OpFoldResult> strides;
-  SmallVector<OpFoldResult> modulos;
+  SmallVector<OpFoldResult> shape;
+  SmallVector<int32_t> order;
 
   Value source;
   Value scalar;
@@ -168,19 +172,30 @@ struct PtrAnalysis {
   LogicalResult visitOperandAddptr(triton::AddPtrOp addptrOp, PtrState &state,
                                    const Location loc, OpBuilder &builder);
 
-  // Operand is the result of make_tptr.
+  // Operand is the result of tts.make_tptr.
   // Main assumptions:
   //  This function is only called when rewriting a loop
   // Expected result:
-  //  Directly grab all corresponding fields from make_tptr.
+  //  Directly grab all corresponding fields from tts.make_tptr.
   LogicalResult visitOperandMakeTPtr(tts::MakeTensorPtrOp makeTPtrOp,
                                      PtrState &state, const Location loc,
                                      OpBuilder &builder);
+
+  // Operand is the result of tt.make_tensor_ptr.
+  // Expected result:
+  //  Parse source pointer and grab results
+  LogicalResult visitOperandMakeTensorPtr(triton::MakeTensorPtrOp makeTPtrOp,
+                                          PtrState &state, const Location loc,
+                                          OpBuilder &builder);
 
   // Parse the state of AddPtrOp, insert any instruction needed to
   // calculate strides and offsets, build PtrState for this operand, and record
   // PtrState for knownPtrs.
   LogicalResult rewriteAddptrOp(triton::AddPtrOp op);
+
+  LogicalResult rewriteMakeTensorPtrOp(triton::MakeTensorPtrOp op);
+
+  LogicalResult rewriteAdvanceOp(triton::AdvanceOp op);
 
   // Parse the state of YieldOp, insert any instruction needed to calculate
   // strides and offsets, build PtrState for this operand, and record PtrState
@@ -201,7 +216,7 @@ struct PtrAnalysis {
   LogicalResult rewriteOp(Operation *op);
 };
 
-} // namespace triton
+} // namespace tts
 
 } // namespace mlir
 

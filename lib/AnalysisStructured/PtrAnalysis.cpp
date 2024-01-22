@@ -93,7 +93,7 @@ namespace tts {
 
 int32_t PtrState::getRank() const {
   assert(offsets.size() == sizes.size() && offsets.size() == strides.size() &&
-         modulos.size() == offsets.size());
+         shape.size() == offsets.size());
   return offsets.size();
 }
 
@@ -111,9 +111,13 @@ bool PtrState::hasModulo() const {
 }
 
 bool PtrState::dimHasModulo(uint32_t dim) const {
+  assert(
+      order.size() == 0 &&
+      "Analysis should not check modulo if PtrState describes block pointer");
+
   assert(dim < getRank());
 
-  auto intAttr = getIntAttr(modulos[dim]);
+  auto intAttr = getIntAttr(shape[dim]);
   if (!intAttr.has_value()) {
     return true;
   }
@@ -200,12 +204,12 @@ LogicalResult PtrState::addState(const PtrState &lhsState,
 
   for (uint64_t i = 0; i < lhs->getRank(); i++) {
     if (!lhs->dimHasModulo(i)) {
-      modulos.push_back(lhs->modulos[i]);
+      shape.push_back(lhs->shape[i]);
     } else if (hasConstZero(rhs->offsets[i])) {
-      modulos.push_back(lhs->modulos[i]);
+      shape.push_back(lhs->shape[i]);
     } else if (i == 0 && lhs->getRank() == 2 && rhs->scalar) {
-      modulos.push_back(lhs->modulos[1]);
-      modulos.push_back(lhs->modulos[0]);
+      shape.push_back(lhs->shape[1]);
+      shape.push_back(lhs->shape[0]);
       op->emitWarning(
           "PtrAnalysis: allowing adding pointer state with modulo in dim 0 to "
           "another pointer state with offset in dim 0.\nPlease verify the "
@@ -261,11 +265,11 @@ LogicalResult PtrState::mulState(const PtrState &lhsState,
         mulOFRValue(lhs->offsets[i], rhs->scalar, loc, builder);
     OpFoldResult newStride =
         mulOFRValue(lhs->strides[i], rhs->scalar, loc, builder);
-    OpFoldResult newModulo =
-        mulOFRValue(lhs->modulos[i], rhs->scalar, loc, builder);
+    OpFoldResult newShape =
+        mulOFRValue(lhs->shape[i], rhs->scalar, loc, builder);
     offsets.push_back(newOffset);
     strides.push_back(newStride);
-    modulos.push_back(newModulo);
+    shape.push_back(newShape);
     sizes.push_back(lhs->sizes[i]);
   }
 
@@ -289,7 +293,7 @@ tts::MakeTensorPtrOp PtrState::createTTSMakeTensorPtrOp(OpBuilder &builder,
   }
 
   auto op = builder.create<mlir::tts::MakeTensorPtrOp>(
-      loc, source, staticSizes, strides, offsets, modulos);
+      loc, source, staticSizes, strides, offsets, shape, order);
   LLVM_DEBUG({
     llvm::dbgs() << "creating tts::make_tensor_ptr:\n";
     op->dump();
@@ -371,7 +375,7 @@ LogicalResult PtrAnalysis::visitOperandRem(arith::RemSIOp remOp,
     // offs_am = (pid_m * BLOCK_SIZE_M + tl.arange(0, BLOCK_SIZE_M)) % M
     // a_ptrs = a_ptr + (offs_am[:, None] * stride_am + offs_k[None, :] *
     // stride_ak)
-    state.modulos.back() = rhsState.scalar;
+    state.shape.back() = rhsState.scalar;
   } else if (state.getRank() == 2) {
     // torch inductor expands the tensor shape before applying the modulo.
     //
@@ -382,9 +386,9 @@ LogicalResult PtrAnalysis::visitOperandRem(arith::RemSIOp remOp,
     // In both cases, we apply the modulo to the non-singleton dimension.
     auto shape = cast<TensorType>(remOp.getResult().getType()).getShape();
     if (shape[0] == 1) {
-      state.modulos[1] = rhsState.scalar;
+      state.shape[1] = rhsState.scalar;
     } else if (shape[1] == 1) {
-      state.modulos[0] = rhsState.scalar;
+      state.shape[0] = rhsState.scalar;
     } else {
       remOp->emitRemark(
           "PtrAnalysis: taking modulo on a 2D tensor with no singleton "
@@ -414,7 +418,7 @@ LogicalResult PtrAnalysis::visitOperandMakeRange(triton::MakeRangeOp rangeOp,
   state.offsets.push_back(builder.getIndexAttr(start));
   state.sizes.push_back(builder.getIndexAttr(shape[0]));
   state.strides.push_back(builder.getIndexAttr(stride));
-  state.modulos.push_back(builder.getIndexAttr(0));
+  state.shape.push_back(builder.getIndexAttr(0));
   return success();
 }
 
@@ -439,7 +443,7 @@ PtrAnalysis::visitOperandExpandDims(triton::ExpandDimsOp expandDimsOp,
   state.offsets.insert(state.offsets.begin() + axis, builder.getIndexAttr(0));
   state.sizes.insert(state.sizes.begin() + axis, builder.getIndexAttr(1));
   state.strides.insert(state.strides.begin() + axis, builder.getIndexAttr(0));
-  state.modulos.insert(state.modulos.begin() + axis, builder.getIndexAttr(0));
+  state.shape.insert(state.shape.begin() + axis, builder.getIndexAttr(0));
 
   if (state.hasModulo() && state.getRank() > 2) {
     expandDimsOp->emitRemark(
@@ -506,7 +510,7 @@ LogicalResult PtrAnalysis::visitOperandSplat(triton::SplatOp splatOp,
       state.offsets.push_back(builder.getIndexAttr(0));
       state.sizes.push_back(builder.getIndexAttr(s));
       state.strides.push_back(builder.getIndexAttr(0));
-      state.modulos.push_back(builder.getIndexAttr(0));
+      state.shape.push_back(builder.getIndexAttr(0));
     }
   } else {
     splatOp->emitRemark("PtrAnalysis: unsupported splat pattern");
@@ -582,7 +586,7 @@ LogicalResult PtrAnalysis::visitOperandConstSplat(arith::ConstantOp op,
 
     state.sizes.push_back(builder.getIndexAttr(resultType.getShape()[i]));
     state.strides.push_back(builder.getIndexAttr(0));
-    state.modulos.push_back(builder.getIndexAttr(0));
+    state.shape.push_back(builder.getIndexAttr(0));
   }
 
   return success();
@@ -598,7 +602,49 @@ LogicalResult PtrAnalysis::visitOperandMakeTPtr(tts::MakeTensorPtrOp makeTPtrOp,
   state.offsets = makeTPtrOp.getMixedOffsets();
   state.sizes = makeTPtrOp.getMixedSizes();
   state.strides = makeTPtrOp.getMixedStrides();
-  state.modulos = makeTPtrOp.getMixedParentSizes();
+  state.shape = makeTPtrOp.getMixedShape();
+  state.order = SmallVector<int32_t>(makeTPtrOp.getOrder());
+
+  return success();
+}
+
+LogicalResult
+PtrAnalysis::visitOperandMakeTensorPtr(triton::MakeTensorPtrOp makeTPtrOp,
+                                       PtrState &state, const Location loc,
+                                       OpBuilder &builder) {
+  assert(state.isEmpty());
+  state.source = makeTPtrOp.getBase();
+
+  if (makeTPtrOp.getOrder().empty()) {
+    makeTPtrOp->emitRemark(
+        "PtrAnalysis: expect tt.make_tensor_ptr to have order field set");
+    return failure();
+  }
+
+  auto resType = cast<triton::PointerType>(makeTPtrOp.getResult().getType());
+  auto pointeeType = cast<ShapedType>(resType.getPointeeType());
+  auto shape = pointeeType.getShape();
+
+  for (int64_t i = 0; i < pointeeType.getRank(); i++) {
+    state.sizes.push_back(builder.getIndexAttr(shape[i]));
+
+    auto strideCst = builder.create<arith::IndexCastOp>(
+        loc, builder.getIndexType(), makeTPtrOp.getStrides()[i]);
+    state.strides.push_back(strideCst.getResult());
+
+    auto offsetCst = builder.create<arith::IndexCastOp>(
+        loc, builder.getIndexType(), makeTPtrOp.getOffsets()[i]);
+
+    auto scaledOffset = builder.create<arith::MulIOp>(
+        loc, offsetCst.getResult(), strideCst.getResult());
+    state.offsets.push_back(scaledOffset.getResult());
+
+    auto shapeCst = builder.create<arith::IndexCastOp>(
+        loc, builder.getIndexType(), makeTPtrOp.getShape()[i]);
+    state.shape.push_back(shapeCst.getResult());
+  }
+  state.order = SmallVector<int32_t>(makeTPtrOp.getOrder());
+  assert(!state.order.empty() && "block pointer should have order field set");
 
   return success();
 }
@@ -691,6 +737,65 @@ LogicalResult PtrAnalysis::rewriteAddptrOp(triton::AddPtrOp op) {
   return success();
 }
 
+LogicalResult PtrAnalysis::rewriteMakeTensorPtrOp(triton::MakeTensorPtrOp op) {
+  OpBuilder builder(op);
+
+  PtrState state;
+  if (visitOperandMakeTensorPtr(op, state, op.getLoc(), builder).failed()) {
+    return failure();
+  }
+
+  auto maketptrOp = state.createTTSMakeTensorPtrOp(builder, op.getLoc());
+  knownPtrs[op.getResult()] = state;
+  ptrMap.map(op.getResult(), maketptrOp.getResult());
+  return success();
+}
+
+LogicalResult PtrAnalysis::rewriteAdvanceOp(triton::AdvanceOp op) {
+  OpBuilder builder(op);
+  auto loc = op.getLoc();
+
+  PtrState state;
+  if (visitOperand(op->getOperand(0), state, loc, builder).failed()) {
+    op->emitRemark("PtrAnalysis: Failed to analyze ptr of tt.advance");
+    return failure();
+  }
+  assert(!state.order.empty() && "block pointer should have order field set");
+
+  auto incrementOffsets = op.getOffsets();
+
+  SmallVector<Value> newOffsets;
+  for (auto [increment, offset, stride] :
+       llvm::zip(incrementOffsets, state.offsets, state.strides)) {
+    Value offsetValue;
+    if (auto offsetIntAttr = getIntAttr(offset)) {
+      auto constOp = builder.create<arith::ConstantOp>(
+          loc, builder.getIndexAttr(offsetIntAttr.value()));
+      offsetValue = constOp.getResult();
+    } else {
+      offsetValue = offset.get<Value>();
+    }
+    auto castOp = builder.create<arith::IndexCastOp>(
+        loc, builder.getIndexType(), increment);
+    auto mulOp = builder.create<arith::MulIOp>(loc, castOp.getResult(),
+                                               stride.get<Value>());
+    auto addOp =
+        builder.create<arith::AddIOp>(loc, mulOp.getResult(), offsetValue);
+    newOffsets.push_back(addOp.getResult());
+  }
+
+  state.offsets.clear();
+
+  for (auto offset : newOffsets) {
+    state.offsets.push_back(offset);
+  }
+
+  auto newOp = state.createTTSMakeTensorPtrOp(builder, loc);
+  knownPtrs[op.getResult()] = state;
+  ptrMap.map(op.getResult(), newOp.getResult());
+  return success();
+}
+
 LogicalResult PtrAnalysis::rewriteForOp(scf::ForOp op) {
   SmallVector<Value> newInitArgs;
 
@@ -709,6 +814,16 @@ LogicalResult PtrAnalysis::rewriteForOp(scf::ForOp op) {
     if (mappedV) {
       if (auto makeTPtrOp = mappedV.getDefiningOp<tts::MakeTensorPtrOp>()) {
         if (visitOperandMakeTPtr(makeTPtrOp, state, op.getLoc(), builder)
+                .succeeded()) {
+          newInitArgs.push_back(mappedV);
+          // Record the PtrState for later processing
+          initArgIndexState.push_back(std::make_pair(i, state));
+          continue;
+        }
+      } else if (auto makeTensorPtrOp =
+                     mappedV.getDefiningOp<triton::MakeTensorPtrOp>()) {
+        if (visitOperandMakeTensorPtr(makeTensorPtrOp, state, op.getLoc(),
+                                      builder)
                 .succeeded()) {
           newInitArgs.push_back(mappedV);
           // Record the PtrState for later processing
@@ -934,20 +1049,20 @@ PtrAnalysis::rewriteYieldOp(scf::YieldOp op,
     }
     initArgState.push_back(state);
 
-    // Verify that modulo state is not updated during the for loop
+    // Verify that shape is not updated during the for loop
     auto forState = knownPtrsFor[i];
     for (auto i = 0; i < forState.getRank(); ++i) {
-      if (forState.modulos[i] != state.modulos[i]) {
-        // Special case, see comments in addState in dealing with modulos
+      if (forState.shape[i] != state.shape[i]) {
+        // Special case, see comments in addState in dealing with shape/modulo
         if (i == 0 && forState.getRank() == 2) {
-          if (forState.modulos[1] == state.modulos[0] &&
-              forState.modulos[0] == state.modulos[1]) {
+          if (forState.shape[1] == state.shape[0] &&
+              forState.shape[0] == state.shape[1]) {
             break;
           }
         }
         assert(0);
-        op->emitRemark(
-            "PtrAnalysis: operand's modulo state changed within loop body");
+        op->emitRemark("PtrAnalysis: operand's shape/modulo state changed "
+                       "within loop body");
         return failure();
       }
     }
@@ -1013,7 +1128,8 @@ LogicalResult PtrAnalysis::rewriteLoadOp(triton::LoadOp op) {
     return failure();
   }
 
-  if (!ptr.getType().isa<RankedTensorType>()) {
+  auto ptrType = dyn_cast<triton::PointerType>(ptr.getType());
+  if (ptrType && !ptrType.getPointeeType().isa<ShapedType>()) {
     op->emitRemark("PtrAnalysis: scalar loadOp will not be rewritten");
     return failure();
   }
@@ -1068,8 +1184,9 @@ LogicalResult PtrAnalysis::rewriteStoreOp(triton::StoreOp op) {
     return failure();
   }
 
-  if (!ptr.getType().isa<RankedTensorType>()) {
-    op->emitRemark("PtrAnalysis: scalar loadOp will not be rewritten");
+  auto ptrType = dyn_cast<triton::PointerType>(ptr.getType());
+  if (ptrType && !ptrType.getPointeeType().isa<ShapedType>()) {
+    op->emitRemark("PtrAnalysis: scalar storeOp will not be rewritten");
     return failure();
   }
 
@@ -1113,6 +1230,19 @@ LogicalResult PtrAnalysis::rewriteOp(Operation *rootOp) {
         .Case<triton::AddPtrOp>([&](auto addptr) {
           if (rewriteAddptrOp(addptr).failed()) {
             addptr->emitRemark("PtrAnalysis: Failed to rewrite AddPtrOp");
+          }
+          return WalkResult::advance();
+        })
+        .Case<triton::MakeTensorPtrOp>([&](auto maketptr) {
+          if (rewriteMakeTensorPtrOp(maketptr).failed()) {
+            maketptr->emitRemark(
+                "PtrAnalysis: Failed to rewrite MakeTensorPtrOp");
+          }
+          return WalkResult::advance();
+        })
+        .Case<triton::AdvanceOp>([&](auto advance) {
+          if (rewriteAdvanceOp(advance).failed()) {
+            advance->emitRemark("PtrAnalysis: Failed to rewrite AdvanceOp");
           }
           return WalkResult::advance();
         })
