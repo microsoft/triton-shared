@@ -1362,7 +1362,6 @@ void mlir::triton::populateTritonArithToLinalgConversionPatterns(
   patterns.add<ReduceConverter>(patterns.getContext());
 
   // Note: the ordering here matters!
-  // Incorrect ordering or as lower PatternBenefit will result in element-wise
-  // meta ops being converted to linalg.generic ops.
+  // These patterns are added last to they will be tried last.
   linalg::populateElementwiseToLinalgConversionPatterns(patterns);
 }
