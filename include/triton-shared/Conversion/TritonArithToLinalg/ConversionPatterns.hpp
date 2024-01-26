@@ -1744,12 +1744,18 @@ public:
     if (op.getLibname().compare("libdevice") || !op.getPure() ||
         op.getArgs().size() != 2)
       return failure();
-    if (!op.getSymbol().compare("__nv_atan2f") ||
-        !op.getSymbol().compare("__nv_atan2")) {
-      rewriter.replaceOpWithNewOp<math::Atan2Op>(op, op.getArgs()[0],
-                                                 op.getArgs()[1]);
-      return success();
-    }
+#define POPULATE_BINARY_OP(FUNC_NAME, DST_OP)                                  \
+  if (!op.getSymbol().compare(FUNC_NAME)) {                                    \
+    rewriter.replaceOpWithNewOp<DST_OP>(op, op.getArgs()[0], op.getArgs()[1]); \
+    return success();                                                          \
+  }
+
+    POPULATE_BINARY_OP("__nv_atan2f", math::Atan2Op);
+    POPULATE_BINARY_OP("__nv_atan2", math::Atan2Op);
+    POPULATE_BINARY_OP("__nv_powf", math::PowFOp);
+    POPULATE_BINARY_OP("__nv_pow", math::PowFOp);
+
+#undef POPULATE_BINARY_OP
     return failure();
   }
 };
@@ -1766,11 +1772,44 @@ public:
     if (op.getLibname().compare("libdevice") || !op.getPure() ||
         op.getArgs().size() != 1)
       return failure();
-    if (!op.getSymbol().compare("__nv_sinf") ||
-        !op.getSymbol().compare("__nv_sin")) {
-      rewriter.replaceOpWithNewOp<math::SinOp>(op, op.getArgs()[0]);
-      return success();
-    }
+#define POPULATE_UNARY_OP(FUNC_NAME, DST_OP)                                   \
+  if (!op.getSymbol().compare(FUNC_NAME)) {                                    \
+    rewriter.replaceOpWithNewOp<DST_OP>(op, op.getArgs()[0]);                  \
+    return success();                                                          \
+  }
+
+    POPULATE_UNARY_OP("__nv_fabsf", math::AbsFOp);
+    POPULATE_UNARY_OP("__nv_fabs", math::AbsFOp);
+    POPULATE_UNARY_OP("__nv_sinf", math::SinOp);
+    POPULATE_UNARY_OP("__nv_sin", math::SinOp);
+    POPULATE_UNARY_OP("__nv_cosf", math::CosOp);
+    POPULATE_UNARY_OP("__nv_cos", math::CosOp);
+    POPULATE_UNARY_OP("__nv_tanf", math::TanOp);
+    POPULATE_UNARY_OP("__nv_tan", math::TanOp);
+    POPULATE_UNARY_OP("__nv_logf", math::LogOp);
+    POPULATE_UNARY_OP("__nv_log", math::LogOp);
+    POPULATE_UNARY_OP("__nv_log10f", math::Log10Op);
+    POPULATE_UNARY_OP("__nv_log10", math::Log10Op);
+    POPULATE_UNARY_OP("__nv_log1pf", math::Log1pOp);
+    POPULATE_UNARY_OP("__nv_log1p", math::Log1pOp);
+    POPULATE_UNARY_OP("__nv_expf", math::ExpOp);
+    POPULATE_UNARY_OP("__nv_exp", math::ExpOp);
+    POPULATE_UNARY_OP("__nv_exp2f", math::Exp2Op);
+    POPULATE_UNARY_OP("__nv_exp2", math::Exp2Op);
+    POPULATE_UNARY_OP("__nv_erff", math::ErfOp);
+    POPULATE_UNARY_OP("__nv_erf", math::ErfOp);
+    POPULATE_UNARY_OP("__nv_sqrtf", math::SqrtOp);
+    POPULATE_UNARY_OP("__nv_sqrt", math::SqrtOp);
+    POPULATE_UNARY_OP("__nv_rsqrtf", math::RsqrtOp);
+    POPULATE_UNARY_OP("__nv_rsqrt", math::RsqrtOp);
+    POPULATE_UNARY_OP("__nv_ceilf", math::CeilOp);
+    POPULATE_UNARY_OP("__nv_ceil", math::CeilOp);
+    POPULATE_UNARY_OP("__nv_floorf", math::FloorOp);
+    POPULATE_UNARY_OP("__nv_floor", math::FloorOp);
+    POPULATE_UNARY_OP("__nv_truncf", math::TruncOp);
+    POPULATE_UNARY_OP("__nv_trunc", math::TruncOp);
+
+#undef POPULATE_UNARY_OP
     return failure();
   }
 };
