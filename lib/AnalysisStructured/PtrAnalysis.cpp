@@ -125,7 +125,9 @@ bool PtrState::dimHasModulo(uint32_t dim) const {
   return intAttr.value() != 0;
 }
 
-bool PtrState::isBlockPtr() const { return !order.empty(); }
+bool PtrState::isBlockPtr() const {
+  return !order.empty();
+}
 
 LogicalResult PtrState::addState(const PtrState &lhsState,
                                  const PtrState &rhsState, Operation *op,
@@ -788,7 +790,7 @@ LogicalResult PtrAnalysis::rewriteAdvanceOp(triton::AdvanceOp op) {
     newOffsets.push_back(addOp.getResult());
   }
 
-  state.offsets = newOffsets;
+  state.offsets = SmallVector<OpFoldResult>(newOffsets);
 
   auto newOp = state.createTTSMakeTensorPtrOp(builder, loc);
   knownPtrs[op.getResult()] = state;
@@ -994,8 +996,6 @@ LogicalResult PtrAnalysis::rewriteForOp(scf::ForOp op) {
   // Replace only the results that correspond to the original scf.for
   auto resultsToReplaceWith = ResultRange(
       newOp.result_begin(), newOp.result_begin() + op.getNumResults());
-  op->replaceAllUsesWith(resultsToReplaceWith);
-  op->erase();
 
   LLVM_DEBUG({
     llvm::dbgs() << "new for\n";
@@ -1006,6 +1006,9 @@ LogicalResult PtrAnalysis::rewriteForOp(scf::ForOp op) {
     op->print(llvm::dbgs(), OpPrintingFlags().printGenericOpForm());
     llvm::dbgs() << "\n";
   });
+
+  op->replaceAllUsesWith(resultsToReplaceWith);
+  op->erase();
 
   return success();
 }
