@@ -3,7 +3,7 @@
 
 include "mlir/IR/OpBase.td"
 include "triton/Dialect/Triton/IR/TritonTypes.td"
-include "mlir/Interfaces/SideEffectInterfaces.td" // Pure
+include "mlir/Interfaces/SideEffectInterfaces.td"
 
 def Triton_Structured_Dialect : Dialect {
   let name = "tts";
@@ -34,23 +34,30 @@ def TTS_MakeTensorPtrOp
   : TTS_Op<"make_tptr", [AttrSizedOperandSegments, Pure]> {
   let summary = "create a pointer that points to a tensor in memory";
 
+  // base:    Base pointer used to contruct the tensor of pointers or pointer to tensor.
+  // sizes:   Size of the data being loaded or stored.
+  // strides: The strides of the parent tensor, which means how much to increase the pointer
+  //          by when moving by 1 element in a specific axis.
+  // order:   The order of the block, which means how the block is laid out in memory.
+  //          It contains the same info as order in tt.make_tensor_ptr.
+  // shape:   If order is present, this field signifies the shape of the parent tensor in
+  //          memory; if order is not present, it signifies the boundary by which addresses
+  //          wraps around (constant zero indicates no wrap-around in the corresponding dimension).
+  // offsets: Offset of the block along each dimension from base.
+  // result:  If order is present, this op produces a pointer to a tensor; otherwise,
+  //          it produces a tensor of pointers.
 
-  // base: base pointer used to contruct the tensor of pointers
-  // sizes: size of tensor of pointers
-  // strides: address increment from one element to the next in the
-  //          corresponding dimension
-  // parent_sizes: used to represent wrap-around behavior; constant zero
-  //               indicate no wrap-around in the corresponding dimension
   let arguments = (ins TT_Ptr:$base,
                        DenseI64ArrayAttr:$sizes,
                        Variadic<Index>:$strides,
                        Variadic<Index>:$offsets,
-                       Variadic<Index>:$parent_sizes,
+                       Variadic<Index>:$shape,
                        DenseI64ArrayAttr:$static_strides,
                        DenseI64ArrayAttr:$static_offsets,
-                       DenseI64ArrayAttr:$static_parent_sizes);
+                       DenseI64ArrayAttr:$static_shape,
+                       DenseI32ArrayAttr:$order);
 
-  let results = (outs TT_PtrTensor:$result);
+  let results = (outs TT_PtrLike:$result);
 
   let assemblyFormat = [{
     $base `to` `sizes` `` `:` $sizes
@@ -58,8 +65,9 @@ def TTS_MakeTensorPtrOp
     custom<DynamicIndexList>($strides, $static_strides)
     `` `,` `offsets` `` `:`
     custom<DynamicIndexList>($offsets, $static_offsets)
-    `` `,` `parent_sizes` `` `:`
-    custom<DynamicIndexList>($parent_sizes, $static_parent_sizes)
+    `` `,` `shape` `` `:`
+    custom<DynamicIndexList>($shape, $static_shape)
+    `` `,` `order` `` `:` $order
     attr-dict `:` type($base) `to` type($result)
   }];
 
@@ -71,7 +79,8 @@ def TTS_MakeTensorPtrOp
       "ArrayRef<int64_t>":$sizes,
       "ArrayRef<OpFoldResult>":$strides,
       "ArrayRef<OpFoldResult>":$offsets,
-      "ArrayRef<OpFoldResult>":$parent_sizes)>,
+      "ArrayRef<OpFoldResult>":$shape,
+      "ArrayRef<int32_t>":$order)>,
   ];
 
   let extraClassDeclaration = [{
@@ -89,9 +98,9 @@ def TTS_MakeTensorPtrOp
       Builder b(getContext());
       return ::mlir::getMixedValues(getStaticOffsets(), getOffsets(), b);
     }
-    SmallVector<OpFoldResult> getMixedParentSizes() {
+    SmallVector<OpFoldResult> getMixedShape() {
       Builder b(getContext());
-      return ::mlir::getMixedValues(getStaticParentSizes(), getParentSizes(), b);
+      return ::mlir::getMixedValues(getStaticShape(), getShape(), b);
     }
   }];
 
@@ -106,7 +115,7 @@ def TTS_LoadOp : TTS_Op<"load", [
 ]> {
   let summary = "optionally load data from in memory to fill a portion of the tensor";
 
-  let arguments = (ins TT_PtrTensor:$ptr,
+  let arguments = (ins TT_PtrLike:$ptr,
                        Variadic<Index>:$dims,
                        DenseI64ArrayAttr:$static_dims,
                        Optional<AnyTypeOf<[TT_Float, TT_Int, TT_Ptr]>>:$other);
@@ -127,7 +136,7 @@ def TTS_StoreOp : TTS_Op<"store", [
 ]> {
   let summary = "optionally load data from in memory to fill a portion of the tensor";
 
-  let arguments = (ins TT_PtrTensor:$ptr,
+  let arguments = (ins TT_PtrLike:$ptr,
                        TT_Tensor:$value,
                        Variadic<Index>:$dims,
                        DenseI64ArrayAttr:$static_dims);

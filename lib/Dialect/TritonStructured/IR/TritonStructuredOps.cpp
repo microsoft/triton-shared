@@ -21,23 +21,32 @@ void MakeTensorPtrOp::build(OpBuilder &b, OperationState &state, Value base,
                             ArrayRef<int64_t> sizes,
                             ArrayRef<OpFoldResult> strides,
                             ArrayRef<OpFoldResult> offsets,
-                            ArrayRef<OpFoldResult> parentSizes) {
-  SmallVector<int64_t> staticStrides, staticOffsets, staticParentSizes;
-  SmallVector<Value> dynamicStrides, dynamicOffsets, dynamicParentSizes;
+                            ArrayRef<OpFoldResult> shape,
+                            ArrayRef<int32_t> order) {
+  SmallVector<int64_t> staticStrides, staticOffsets, staticShape;
+  SmallVector<Value> dynamicStrides, dynamicOffsets, dynamicShape;
 
   dispatchIndexOpFoldResults(offsets, dynamicOffsets, staticOffsets);
   dispatchIndexOpFoldResults(strides, dynamicStrides, staticStrides);
-  dispatchIndexOpFoldResults(parentSizes, dynamicParentSizes,
-                             staticParentSizes);
+  dispatchIndexOpFoldResults(shape, dynamicShape, staticShape);
 
+  Type resType;
   auto basePtr = cast<triton::PointerType>(base.getType());
   auto elemType = basePtr.getPointeeType();
-  auto resType = RankedTensorType::get(sizes, basePtr);
+  // non-block pointer
+  if (order.empty()) {
+    resType = RankedTensorType::get(sizes, basePtr);
+  }
+  // block pointer
+  else {
+    resType = triton::PointerType::get(RankedTensorType::get(sizes, elemType),
+                                       basePtr.getAddressSpace());
+  }
 
   build(b, state, resType, base, sizes, dynamicStrides, dynamicOffsets,
-        dynamicParentSizes, b.getDenseI64ArrayAttr(staticStrides),
+        dynamicShape, b.getDenseI64ArrayAttr(staticStrides),
         b.getDenseI64ArrayAttr(staticOffsets),
-        b.getDenseI64ArrayAttr(staticParentSizes));
+        b.getDenseI64ArrayAttr(staticShape), order);
 }
 
 void LoadOp::build(OpBuilder &b, OperationState &state, Value ptr,
@@ -47,11 +56,22 @@ void LoadOp::build(OpBuilder &b, OperationState &state, Value ptr,
 
   dispatchIndexOpFoldResults(dims, dynamicDims, staticDims);
 
-  auto ptrTensorType = cast<RankedTensorType>(ptr.getType());
-  auto elemType = cast<triton::PointerType>(ptrTensorType.getElementType())
-                      .getPointeeType();
-  auto resType = RankedTensorType::get(ptrTensorType.getShape(), elemType);
+  // non-block pointer type
+  auto ptrTensorType = dyn_cast<RankedTensorType>(ptr.getType());
+  // block pointer type
+  auto tensorPtrType = dyn_cast<triton::PointerType>(ptr.getType());
 
+  Type resType;
+  if (ptrTensorType) {
+    auto ptrType = cast<triton::PointerType>(ptrTensorType.getElementType());
+    auto elemType = ptrType.getPointeeType();
+    resType = RankedTensorType::get(ptrTensorType.getShape(), elemType);
+
+  } else if (tensorPtrType) {
+    auto tensorType = cast<ShapedType>(tensorPtrType.getPointeeType());
+    resType = RankedTensorType::get(tensorType.getShape(),
+                                    tensorType.getElementType());
+  }
   build(b, state, resType, ptr, dynamicDims, b.getDenseI64ArrayAttr(staticDims),
         other);
 }

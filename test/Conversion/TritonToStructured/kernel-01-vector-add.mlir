@@ -33,7 +33,7 @@ module {
 // CHECK-DAG:       [[VAR_3_:%.+]] = arith.index_cast [[VAR_1_]] : i32 to index
 // CHECK-DAG:       [[VAR_4_:%.+]] = arith.index_cast [[VAR_1_]] : i32 to index
 // CHECK-NOT: separator of consecutive DAGs
-// CHECK-DAG:       [[VAR_5_:%.+]] = tts.make_tptr [[PARAM_0_]] to sizes: [1024], strides: [1], offsets: {{.}}[[VAR_4_]]{{.}}, parent_sizes: [0] : <f32, 1> to tensor<1024x!tt.ptr<f32, 1>>
+// CHECK-DAG:       [[VAR_5_:%.+]] = tts.make_tptr [[PARAM_0_]] to sizes: [1024], strides: [1], offsets: {{.}}[[VAR_4_]]{{.}}, shape: [0], order: [] : <f32, 1> to tensor<1024x!tt.ptr<f32, 1>>
 // CHECK-DAG:       [[VAR_6_:%.+]] = arith.index_cast [[VAR_1_]] : i32 to index
 // CHECK-NOT: separator of consecutive DAGs
 // CHECK-DAG:       [[VAR_7_:%.+]] = arith.addi [[VAR_6_]], [[CST_1024_]] : index
@@ -41,7 +41,7 @@ module {
 // CHECK:           [[VAR_9_:%.+]] = arith.minsi [[VAR_7_]], [[VAR_8_]] : index
 // CHECK:           [[VAR_10_:%.+]] = arith.subi [[VAR_9_]], [[VAR_6_]] : index
 // CHECK-DAG:       [[VAR_11_:%.+]] = "tts.load"([[VAR_5_]], [[VAR_10_]]) <{operandSegmentSizes = array<i32: 1, 1, 0>, static_dims = array<i64: -9223372036854775808>}> : (tensor<1024x!tt.ptr<f32, 1>>, index) -> tensor<1024xf32>
-// CHECK-DAG:       [[VAR_12_:%.+]] = tts.make_tptr [[PARAM_1_]] to sizes: [1024], strides: [1], offsets: {{.}}[[VAR_3_]]{{.}}, parent_sizes: [0] : <f32, 1> to tensor<1024x!tt.ptr<f32, 1>>
+// CHECK-DAG:       [[VAR_12_:%.+]] = tts.make_tptr [[PARAM_1_]] to sizes: [1024], strides: [1], offsets: {{.}}[[VAR_3_]]{{.}}, shape: [0], order: [] : <f32, 1> to tensor<1024x!tt.ptr<f32, 1>>
 // CHECK-DAG:       [[VAR_13_:%.+]] = arith.index_cast [[VAR_1_]] : i32 to index
 // CHECK-NOT: separator of consecutive DAGs
 // CHECK-DAG:       [[VAR_14_:%.+]] = arith.addi [[VAR_13_]], [[CST_1024_]] : index
@@ -50,7 +50,7 @@ module {
 // CHECK:           [[VAR_17_:%.+]] = arith.subi [[VAR_16_]], [[VAR_13_]] : index
 // CHECK:           [[VAR_18_:%.+]] = "tts.load"([[VAR_12_]], [[VAR_17_]]) <{operandSegmentSizes = array<i32: 1, 1, 0>, static_dims = array<i64: -9223372036854775808>}> : (tensor<1024x!tt.ptr<f32, 1>>, index) -> tensor<1024xf32>
 // CHECK-DAG:       [[VAR_19_:%.+]] = arith.addf [[VAR_11_]], [[VAR_18_]] : tensor<1024xf32>
-// CHECK-DAG:       [[VAR_20_:%.+]] = tts.make_tptr [[PARAM_2_]] to sizes: [1024], strides: [1], offsets: {{.}}[[VAR_2_]]{{.}}, parent_sizes: [0] : <f32, 1> to tensor<1024x!tt.ptr<f32, 1>>
+// CHECK-DAG:       [[VAR_20_:%.+]] = tts.make_tptr [[PARAM_2_]] to sizes: [1024], strides: [1], offsets: {{.}}[[VAR_2_]]{{.}}, shape: [0], order: [] : <f32, 1> to tensor<1024x!tt.ptr<f32, 1>>
 // CHECK-DAG:       [[VAR_21_:%.+]] = arith.index_cast [[VAR_1_]] : i32 to index
 // CHECK-NOT: separator of consecutive DAGs
 // CHECK-DAG:       [[VAR_22_:%.+]] = arith.addi [[VAR_21_]], [[CST_1024_]] : index
