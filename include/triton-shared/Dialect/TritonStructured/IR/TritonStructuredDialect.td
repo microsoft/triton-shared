@@ -34,18 +34,18 @@ def TTS_MakeTensorPtrOp
   : TTS_Op<"make_tptr", [AttrSizedOperandSegments, Pure]> {
   let summary = "create a pointer that points to a tensor in memory";
 
-  // base: base pointer used to contruct the tensor of pointers
-  // sizes: size of tensor of pointers
-  // strides: address increment from one element to the next in the
-  //          corresponding dimension
-  // order: contain the same info as order in tt.make_tensor_ptr. It is only
-  //        used when this op implements tt.make_tensor_ptr
-  // parent_sizes: if order is present, this field signifies the size of the
-  //               parent tensor in memory; if order is not present, it signifies
-  //               the boundary by which addresses wraps around (constant zero
-  //               indicates no wrap-around in the corresponding dimension)
-  // result: if order is present, this op produces a pointer to a tensor; otherwise,
-  //         it produces a tensor of pointers
+  // base:    Base pointer used to contruct the tensor of pointers or pointer to tensor.
+  // sizes:   Size of the data being loaded or stored.
+  // strides: The strides of the parent tensor, which means how much to increase the pointer
+  //          by when moving by 1 element in a specific axis.
+  // order:   The order of the block, which means how the block is laid out in memory.
+  //          It contains the same info as order in tt.make_tensor_ptr.
+  // shape:   If order is present, this field signifies the shape of the parent tensor in
+  //          memory; if order is not present, it signifies the boundary by which addresses
+  //          wraps around (constant zero indicates no wrap-around in the corresponding dimension).
+  // offsets: Offset of the block along each dimension from base.
+  // result:  If order is present, this op produces a pointer to a tensor; otherwise,
+  //          it produces a tensor of pointers.
 
   let arguments = (ins TT_Ptr:$base,
                        DenseI64ArrayAttr:$sizes,
