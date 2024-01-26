@@ -54,6 +54,8 @@ public:
 
   bool dimHasModulo(uint32_t dim) const;
 
+  bool isBlockPtr() const;
+
   // Process addition of two PtrStates.
   LogicalResult addState(const PtrState &lhsState, const PtrState &rhsState,
                          Operation *op, OpBuilder &builder);

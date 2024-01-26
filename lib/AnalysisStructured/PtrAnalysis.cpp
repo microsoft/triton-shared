@@ -112,7 +112,7 @@ bool PtrState::hasModulo() const {
 
 bool PtrState::dimHasModulo(uint32_t dim) const {
   assert(
-      order.size() == 0 &&
+      !isBlockPtr() &&
       "Analysis should not check modulo if PtrState describes block pointer");
 
   assert(dim < getRank());
@@ -124,6 +124,8 @@ bool PtrState::dimHasModulo(uint32_t dim) const {
 
   return intAttr.value() != 0;
 }
+
+bool PtrState::isBlockPtr() const { return !order.empty(); }
 
 LogicalResult PtrState::addState(const PtrState &lhsState,
                                  const PtrState &rhsState, Operation *op,
@@ -644,7 +646,8 @@ PtrAnalysis::visitOperandMakeTensorPtr(triton::MakeTensorPtrOp makeTPtrOp,
     state.shape.push_back(shapeCst.getResult());
   }
   state.order = SmallVector<int32_t>(makeTPtrOp.getOrder());
-  assert(!state.order.empty() && "block pointer should have order field set");
+  assert(state.isBlockPtr() &&
+         "tt.make_tensor_ptr pointer state should describe a block pointer");
 
   return success();
 }
@@ -760,11 +763,12 @@ LogicalResult PtrAnalysis::rewriteAdvanceOp(triton::AdvanceOp op) {
     op->emitRemark("PtrAnalysis: Failed to analyze ptr of tt.advance");
     return failure();
   }
-  assert(!state.order.empty() && "block pointer should have order field set");
+  assert(state.isBlockPtr() &&
+         "tt.advance pointer state should describe a block pointer");
 
   auto incrementOffsets = op.getOffsets();
 
-  SmallVector<Value> newOffsets;
+  SmallVector<OpFoldResult> newOffsets;
   for (auto [increment, offset, stride] :
        llvm::zip(incrementOffsets, state.offsets, state.strides)) {
     Value offsetValue;
@@ -784,11 +788,7 @@ LogicalResult PtrAnalysis::rewriteAdvanceOp(triton::AdvanceOp op) {
     newOffsets.push_back(addOp.getResult());
   }
 
-  state.offsets.clear();
-
-  for (auto offset : newOffsets) {
-    state.offsets.push_back(offset);
-  }
+  state.offsets = newOffsets;
 
   auto newOp = state.createTTSMakeTensorPtrOp(builder, loc);
   knownPtrs[op.getResult()] = state;

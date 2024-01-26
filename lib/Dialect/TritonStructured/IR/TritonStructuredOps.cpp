@@ -33,9 +33,12 @@ void MakeTensorPtrOp::build(OpBuilder &b, OperationState &state, Value base,
   Type resType;
   auto basePtr = cast<triton::PointerType>(base.getType());
   auto elemType = basePtr.getPointeeType();
+  // non-block pointer
   if (order.empty()) {
     resType = RankedTensorType::get(sizes, basePtr);
-  } else {
+  }
+  // block pointer
+  else {
     resType = triton::PointerType::get(RankedTensorType::get(sizes, elemType),
                                        basePtr.getAddressSpace());
   }
@@ -53,7 +56,9 @@ void LoadOp::build(OpBuilder &b, OperationState &state, Value ptr,
 
   dispatchIndexOpFoldResults(dims, dynamicDims, staticDims);
 
+  // non-block pointer type
   auto ptrTensorType = dyn_cast<RankedTensorType>(ptr.getType());
+  // block pointer type
   auto tensorPtrType = dyn_cast<triton::PointerType>(ptr.getType());
 
   Type resType;
