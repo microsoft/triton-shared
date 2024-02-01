@@ -53,6 +53,8 @@ jobs:
       # working-directory: triton_shared/triton/python
       run: |
         export TRITON_PLUGIN_DIRS="${GITHUB_WORKSPACE}/triton_shared"
+        echo "debug:"
+        ls ${GITHUB_WORKSPACE}/triton_shared
         cd triton_shared/triton/python
         python3 -m pip install --upgrade pip
         python3 -m pip install cmake==3.24
