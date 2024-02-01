@@ -40,7 +40,7 @@ module {
     %40 = tt.splat %arg1 : (!tt.ptr<bf16>) -> tensor<256x64x!tt.ptr<bf16>>
     %41 = tt.addptr %40, %18 : tensor<256x64x!tt.ptr<bf16>>, tensor<256x64xi32>
     %42 = tt.load %41 {cache = 1 : i32, evict = 1 : i32, isVolatile = false}: tensor<256x64xbf16>
-    %43 = tt.trans %42 : (tensor<256x64xbf16>) -> tensor<64x256xbf16>
+    %43 = tt.trans %42 {order = array<i32: 1, 0>} : (tensor<256x64xbf16>) -> tensor<64x256xbf16>
     %50 = tt.splat %arg2 : (!tt.ptr<bf16>) -> tensor<128x256x!tt.ptr<bf16>>
     %51 = tt.addptr %50, %26 : tensor<128x256x!tt.ptr<bf16>>, tensor<128x256xi32>
     %52 = tt.load %51 {cache = 1 : i32, evict = 1 : i32, isVolatile = false}: tensor<128x256xbf16>
@@ -57,7 +57,7 @@ module {
 // CHECK-DAG:       [[VAR_1_:%.+]] = "tts.load"([[VAR_0_]]) <{operandSegmentSizes = array<i32: 1, 0, 0>, static_dims = array<i64>}> : (tensor<128x64x!tt.ptr<bf16, 1>>) -> tensor<128x64xbf16>
 // CHECK-DAG:       [[VAR_2_:%.+]] = tts.make_tptr [[PARAM_1_]] to sizes: [256, 64], strides: [1, [[CST_256_]]{{.}}, offsets: [0, 0], shape: [0, 0], order: [] : <bf16, 1> to tensor<256x64x!tt.ptr<bf16, 1>>
 // CHECK:           [[VAR_3_:%.+]] = "tts.load"([[VAR_2_]]) <{operandSegmentSizes = array<i32: 1, 0, 0>, static_dims = array<i64>}> : (tensor<256x64x!tt.ptr<bf16, 1>>) -> tensor<256x64xbf16>
-// CHECK-DAG:       [[VAR_4_:%.+]] = tt.trans [[VAR_3_]] : (tensor<256x64xbf16>) -> tensor<64x256xbf16>
+// CHECK-DAG:       [[VAR_4_:%.+]] = tt.trans [[VAR_3_]] {order = array<i32: 1, 0>} : (tensor<256x64xbf16>) -> tensor<64x256xbf16>
 // CHECK-DAG:       [[VAR_5_:%.+]] = tts.make_tptr [[PARAM_2_]] to sizes: [128, 256], strides: {{.}}[[CST_256_]], 1], offsets: [0, 0], shape: [0, 0], order: [] : <bf16, 1> to tensor<128x256x!tt.ptr<bf16, 1>>
 // CHECK:           [[VAR_6_:%.+]] = "tts.load"([[VAR_5_]]) <{operandSegmentSizes = array<i32: 1, 0, 0>, static_dims = array<i64>}> : (tensor<128x256x!tt.ptr<bf16, 1>>) -> tensor<128x256xbf16>
 // CHECK:           [[VAR_7_:%.+]] = tt.dot [[VAR_1_]], [[VAR_4_]], [[VAR_6_]] {allowTF32 = false, maxNumImpreciseAcc = 0 : i32} : tensor<128x64xbf16> * tensor<64x256xbf16> -> tensor<128x256xbf16>
