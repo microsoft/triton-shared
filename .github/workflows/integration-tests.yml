@@ -10,6 +10,4 @@ jobs:
   call-workflow:
     uses: ./.github/workflows/test-plugin.yml
     with:
-        # [BACKEND] Refactor wgmma descriptor creation
-        triton-ref: '56c284cf7e39f249cdf1d8d5dba7892deb0286d6'
         triton-shared-ref: ${{ github.ref }}
