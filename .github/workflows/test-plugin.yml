@@ -46,8 +46,9 @@ jobs:
     - name: Check pre-commit
       working-directory: triton_shared/triton
       run: |
-        echo "debug:"
-        ls ${GITHUB_WORKSPACE}/triton_shared
+        cd triton
+        python3 -m pip install --upgrade pre-commit
+        python3 -m pre_commit run --all-files --verbose
 
     - name: Build/Install Triton
       working-directory: triton_shared/triton/python
