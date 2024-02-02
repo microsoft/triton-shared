@@ -25,9 +25,12 @@
 #include "mlir/Dialect/Utils/StaticValueUtils.h"
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/STLExtras.h"
+#include "llvm/ADT/SmallVector.h"
 #include "llvm/Support/Debug.h"
 
+#include <algorithm>
 #include <cassert>
+#include <cstdint>
 
 #define DEBUG_TYPE "structured-to-memref"
 
@@ -51,17 +54,32 @@ static OpFoldResult accumulateTargetOffset(tts::MakeTensorPtrOp op,
   return targetOffset;
 }
 
-static MemRefType getResultMemrefType(tts::MakeTensorPtrOp op, int64_t offset,
-                                      ArrayRef<int64_t> resultShape,
-                                      bool useDynamicStrides = false) {
-
-  SmallVector<int64_t> staticStrides;
-  if (useDynamicStrides) {
-    staticStrides.append(op.getStrides().size(), ShapedType::kDynamic);
-  } else {
-    staticStrides.append(op.getStaticStrides().begin(),
-                         op.getStaticStrides().end());
+// If there are dimensions with size 1 and stride 0, replace 0 stride with
+// the product of sizes of all lower dimensions. This avoids creating memref
+// with zero stride. Note that we store the unmodified state into knownPtrs,
+// since any following pointer arithmetic operations should use the original
+// 0 stride.
+static llvm::SmallVector<OpFoldResult>
+getMixedStridesForMemref(tts::MakeTensorPtrOp op, OpBuilder &b) {
+  llvm::SmallVector<OpFoldResult> strides;
+  auto accumulate = 1;
+  for (auto [size, stride] :
+       llvm::reverse(llvm::zip(op.getSizes(), op.getMixedStrides()))) {
+    auto strideIntAttr = getIntAttr(stride);
+    if (size == 1 && strideIntAttr && strideIntAttr.value() == 0) {
+      strides.push_back(b.getIndexAttr(accumulate));
+    } else {
+      strides.push_back(stride);
+    }
+    accumulate *= size;
   }
+  std::reverse(strides.begin(), strides.end());
+  return strides;
+}
+
+static MemRefType getResultMemrefType(tts::MakeTensorPtrOp op, int64_t offset,
+                                      ArrayRef<int64_t> staticStrides,
+                                      ArrayRef<int64_t> resultShape) {
 
   auto layout = StridedLayoutAttr::get(op.getContext(), offset, staticStrides);
 
@@ -122,12 +140,19 @@ struct MakeTensorPtrConverter
     // Accumulate final offset
     OpFoldResult targetOffset = accumulateTargetOffset(op, rewriter);
 
-    auto resultType =
-        getResultMemrefType(op, op.getStaticOffsets()[0], resultShape);
+    auto mixedStrides = getMixedStridesForMemref(op, rewriter);
+    SmallVector<int64_t> staticStrides;
+
+    {
+      SmallVector<Value> dynamicStrides;
+      dispatchIndexOpFoldResults(mixedStrides, dynamicStrides, staticStrides);
+    }
+
+    auto resultType = getResultMemrefType(op, op.getStaticOffsets()[0],
+                                          staticStrides, resultShape);
 
     auto castOp = rewriter.create<memref::ReinterpretCastOp>(
-        loc, resultType, ptr, targetOffset, op.getMixedSizes(),
-        op.getMixedStrides());
+        loc, resultType, ptr, targetOffset, op.getMixedSizes(), mixedStrides);
 
     rewriter.replaceOp(op, castOp.getResult());
 
