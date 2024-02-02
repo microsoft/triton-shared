@@ -282,14 +282,13 @@ struct StoreConverter : public OpConversionPattern<tts::StoreOp> {
       storeOp.setWritable(true);
 
     } else {
-      // auto srcSlice =
-      //     getExtractSlice(rank, mixedDims, storeValue, loc, rewriter);
-      // auto dstSubview = getSubview(rank, mixedDims, ptr, loc, rewriter);
+      auto srcSlice =
+          getExtractSlice(rank, mixedDims, storeValue, loc, rewriter);
+      auto dstSubview = getSubview(rank, mixedDims, ptr, loc, rewriter);
 
-      // auto storeOp =
-      // rewriter.create<bufferization::MaterializeInDestinationOp>(
-      //     loc, srcSlice, dstSubview);
-      // storeOp.setWritable(true);
+      auto storeOp = rewriter.create<bufferization::MaterializeInDestinationOp>(
+          loc, srcSlice, dstSubview);
+      storeOp.setWritable(true);
     }
 
     rewriter.eraseOp(op);
