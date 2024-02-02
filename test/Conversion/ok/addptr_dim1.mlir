@@ -7,57 +7,18 @@ module {
   )
   {
     %0 = tt.make_range {end = 256 : i32, start = 0 : i32}:tensor<256xi32>
-    %1 = tt.expand_dims %0 {axis = 0 : i32} : (tensor<256xi32>) -> tensor<1x256xi32>
+    %1 = tt.expand_dims %0 {axis = 1 : i32} : (tensor<256xi32>) -> tensor<256x1xi32>
 
-    %splat_arg0 = tt.splat %arg0 : (!tt.ptr<bf16>) -> tensor<1x256x!tt.ptr<bf16>>
-    %2 = tt.addptr %splat_arg0, %1 : tensor<1x256x!tt.ptr<bf16>>, tensor<1x256xi32>
+    %splat_arg0 = tt.splat %arg0 : (!tt.ptr<bf16>) -> tensor<256x1x!tt.ptr<bf16>>
+    %2 = tt.addptr %splat_arg0, %1 : tensor<256x1x!tt.ptr<bf16>>, tensor<256x1xi32>
 
-    // 1x256 pointer should have meaningful stride in outer dimension
-    %3 = tt.load %2 {cache = 1 : i32, evict = 1 : i32, isVolatile = false}: tensor<1x256xbf16>
+    // 256x1 pointer should have meaningful stride in outer dimension
+    %3 = tt.load %2 {cache = 1 : i32, evict = 1 : i32, isVolatile = false}: tensor<256x1xbf16>
 
-    %4 = tt.splat %arg1 : (i32) -> tensor<1x256xi32>
-    // 1x256 pointer should have meaningful stride in outer dimension
-    %5 = tt.addptr %2, %4 : tensor<1x256x!tt.ptr<bf16>>, tensor<1x256xi32>
-    tt.store %5, %3 {cache = 1 : i32, evict = 1 : i32, isVolatile = false} : tensor<1x256x!tt.ptr<bf16>>, tensor<1x256xbf16>
-
-    %10 = arith.constant 0.0 : bf16
-    %11 = tt.splat %10 : (bf16) -> tensor<4x256xbf16>
-
-    %c0 = arith.constant 0 : index
-    %c12 = arith.constant 12 : index
-    %c3 = arith.constant 3 : index
-    %i_c3 = arith.constant 3 : i32
-    %c256 = arith.constant 256 : i32
-    %sum_out, %_ptr = scf.for %i = %c0 to %c12 step %c3 iter_args(%sum_iter = %11, %ptr = %2) -> (tensor<4x256xbf16>, tensor<1x256x!tt.ptr<bf16>>) {
-        %bptr = tt.broadcast %ptr : (tensor<1x256x!tt.ptr<bf16>>) -> tensor<4x256x!tt.ptr<bf16>>
-
-        %20 = tt.make_range {end = 4 : i32, start = 0 : i32}:tensor<4xi32>
-        %i_i32 = arith.index_cast %i : index to i32
-        %21 = arith.muli %c256, %i_i32 : i32
-        %22 = tt.splat %21 : (i32) -> tensor<4xi32>
-        %23 = arith.muli %20, %22 : tensor<4xi32>
-        %24 = tt.expand_dims %23 {axis = 1 : i32} : (tensor<4xi32>) -> tensor<4x1xi32>
-        %25 = tt.broadcast %24 : (tensor<4x1xi32>) -> tensor<4x256xi32>
-
-        // %bptr should have zero stride and %30 should have correct stride
-        %30 = tt.addptr %bptr, %25 : tensor<4x256x!tt.ptr<bf16>>, tensor<4x256xi32>
-        %31 = tt.load %30 {cache = 1 : i32, evict = 1 : i32, isVolatile = false}: tensor<4x256xbf16>
-        %32 = arith.addf %sum_iter, %31 : tensor<4x256xbf16>
-
-        %40 = tt.splat %c256 : (i32) -> tensor<1x256xi32>
-        %41 = tt.addptr %ptr, %40 : tensor<1x256x!tt.ptr<bf16>>, tensor<1x256xi32>
-
-        scf.yield %32, %41 : tensor<4x256xbf16>, tensor<1x256x!tt.ptr<bf16>>
-    }
-
-    %31 = tt.make_range {end = 4 : i32, start = 0 : i32}:tensor<4xi32>
-    %splat_c256 = tt.splat %c256 : (i32) -> tensor<4xi32>
-    %32 = arith.muli %31, %splat_c256 : tensor<4xi32>
-    %33 = tt.expand_dims %32 {axis = 1 : i32} : (tensor<4xi32>) -> tensor<4x1xi32>
-    %34 = tt.broadcast %33 : (tensor<4x1xi32>) -> tensor<4x256xi32>
-    %35 = tt.broadcast %2 : (tensor<1x256x!tt.ptr<bf16>>) -> tensor<4x256x!tt.ptr<bf16>>
-    %36 = tt.addptr %35, %34 : tensor<4x256x!tt.ptr<bf16>>, tensor<4x256xi32>
-    tt.store %36, %sum_out {cache = 1 : i32, evict = 1 : i32, isVolatile = false} : tensor<4x256x!tt.ptr<bf16>>, tensor<4x256xbf16>
+    %4 = tt.splat %arg1 : (i32) -> tensor<256x1xi32>
+    // 256x1 pointer should have meaningful stride in outer dimension
+    %5 = tt.addptr %2, %4 : tensor<256x1x!tt.ptr<bf16>>, tensor<256x1xi32>
+    tt.store %5, %3 {cache = 1 : i32, evict = 1 : i32, isVolatile = false} : tensor<256x1x!tt.ptr<bf16>>, tensor<256x1xbf16>
     tt.return
   }
 }
@@ -75,12 +36,12 @@ module {
 // CHECK-DAG:       [[VAR_0_:%.+]] = tensor.empty() : tensor<4x256xbf16>
 // CHECK-NOT: separator of consecutive DAGs
 // CHECK-DAG:       [[VAR_1_:%.+]] = linalg.fill ins([[CST_0_dot_000000_]] : bf16) outs([[VAR_0_]] : tensor<4x256xbf16>) -> tensor<4x256xbf16>
-// CHECK-DAG:       [[VAR_reinterpret_cast_:%.+]] = memref.reinterpret_cast [[PARAM_0_]] to offset: [0], sizes: [1, 256], strides: [256, 1] : memref<*xbf16> to memref<1x256xbf16, strided<[256, 1]>>
-// CHECK-DAG:       [[RES_:%.+]] = memref.alloc() : memref<1x256xbf16>
-// CHECK:           memref.copy [[VAR_reinterpret_cast_]], [[RES_]] : memref<1x256xbf16, strided<[256, 1]>> to memref<1x256xbf16>
-// CHECK-DAG:       [[VAR_2_:%.+]] = bufferization.to_tensor [[RES_]] restrict writable : memref<1x256xbf16>
+// CHECK-DAG:       [[VAR_reinterpret_cast_:%.+]] = memref.reinterpret_cast [[PARAM_0_]] to offset: [0], sizes: [1, 256], strides: [256, 1] : memref<*xbf16> to memref<256x1xbf16, strided<[256, 1]>>
+// CHECK-DAG:       [[RES_:%.+]] = memref.alloc() : memref<256x1xbf16>
+// CHECK:           memref.copy [[VAR_reinterpret_cast_]], [[RES_]] : memref<256x1xbf16, strided<[256, 1]>> to memref<256x1xbf16>
+// CHECK-DAG:       [[VAR_2_:%.+]] = bufferization.to_tensor [[RES_]] restrict writable : memref<256x1xbf16>
 // CHECK-DAG:       [[VAR_3_:%.+]] = arith.index_cast [[PARAM_1_]] : i32 to index
-// CHECK:           [[VAR_reinterpret_cast_0_:%.+]] = memref.reinterpret_cast [[PARAM_0_]] to offset: {{.}}[[VAR_3_]]{{.}}, sizes: [1, 256], strides: [256, 1] : memref<*xbf16> to memref<1x256xbf16, strided<[256, 1], offset: ?>>
+// CHECK:           [[VAR_reinterpret_cast_0_:%.+]] = memref.reinterpret_cast [[PARAM_0_]] to offset: {{.}}[[VAR_3_]]{{.}}, sizes: [1, 256], strides: [256, 1] : memref<*xbf16> to memref<256x1xbf16, strided<[256, 1], offset: ?>>
 // CHECK:           bufferization.materialize_in_destination [[VAR_2_]] in writable [[VAR_reinterpret_cast_0_]]
 // CHECK-DAG:       [[VAR_4_:%.+]]:3 = scf.for [[VAR_arg5_:%.+]] = [[CST_0_]] to [[CST_12_]] step [[CST_3_]] iter_args([[VAR_arg6_:%.+]] = [[VAR_1_]], [[VAR_arg7_:%.+]] = [[CST_0_]], [[VAR_arg8_:%.+]] = [[CST_0_]]) -> (tensor<4x256xbf16>, index, index) {
 // CHECK-DAG:         [[VAR_5_:%.+]] = arith.index_cast [[VAR_arg5_]] : index to i32
