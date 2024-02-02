@@ -1,0 +1,405 @@
+addptr_scalar_loopback.mlir:11:11: remark: PtrAnalysis: scalar loadOp will not be rewritten
+    %10 = tt.load %0 {cache = 1 : i32, evict = 1 : i32, isVolatile = false}: bf16
+          ^
+addptr_scalar_loopback.mlir:11:11: note: see current operation: %4 = tt.load %1 {cache = 1 : i32, evict = 1 : i32, isVolatile = false} : bf16
+addptr_scalar_loopback.mlir:11:11: remark: PtrAnalysis: Failed to rewrite LoadOp
+    %10 = tt.load %0 {cache = 1 : i32, evict = 1 : i32, isVolatile = false}: bf16
+          ^
+addptr_scalar_loopback.mlir:11:11: note: see current operation: %4 = tt.load %1 {cache = 1 : i32, evict = 1 : i32, isVolatile = false} : bf16
+addptr_scalar_loopback.mlir:12:5: remark: PtrAnalysis: scalar storeOp will not be rewritten
+    tt.store %1, %10 : bf16
+    ^
+addptr_scalar_loopback.mlir:12:5: note: see current operation: tt.store %3, %4 {cache = 1 : i32, evict = 1 : i32} : bf16
+addptr_scalar_loopback.mlir:12:5: remark: PtrAnalysis: Failed to rewrite StoreOp
+    tt.store %1, %10 : bf16
+    ^
+addptr_scalar_loopback.mlir:12:5: note: see current operation: tt.store %3, %4 {cache = 1 : i32, evict = 1 : i32} : bf16
+convert_1d_elemwise_arith_binary.mlir:25:9: remark: PtrAnalysis: pointer is not replace with tts.make_tptr so storeOp cannot be rewritten
+        tt.store %c, %6 {cache = 1 : i32, evict = 1 : i32} : tensor<1024xf32>
+        ^
+convert_1d_elemwise_arith_binary.mlir:25:9: note: see current operation: tt.store %arg2, %14 {cache = 1 : i32, evict = 1 : i32} : tensor<1024xf32>
+convert_1d_elemwise_arith_binary.mlir:25:9: remark: PtrAnalysis: Failed to rewrite StoreOp
+        tt.store %c, %6 {cache = 1 : i32, evict = 1 : i32} : tensor<1024xf32>
+        ^
+convert_1d_elemwise_arith_binary.mlir:25:9: note: see current operation: tt.store %arg2, %14 {cache = 1 : i32, evict = 1 : i32} : tensor<1024xf32>
+convert_1d_elemwise_arith_ternary.mlir:24:5: remark: PtrAnalysis: pointer is not replace with tts.make_tptr so storeOp cannot be rewritten
+    tt.store %d, %10 {cache = 1 : i32, evict = 1 : i32} : tensor<1024xf32>
+    ^
+convert_1d_elemwise_arith_ternary.mlir:24:5: note: see current operation: tt.store %arg3, %13 {cache = 1 : i32, evict = 1 : i32} : tensor<1024xf32>
+convert_1d_elemwise_arith_ternary.mlir:24:5: remark: PtrAnalysis: Failed to rewrite StoreOp
+    tt.store %d, %10 {cache = 1 : i32, evict = 1 : i32} : tensor<1024xf32>
+    ^
+convert_1d_elemwise_arith_ternary.mlir:24:5: note: see current operation: tt.store %arg3, %13 {cache = 1 : i32, evict = 1 : i32} : tensor<1024xf32>
+convert_1d_elemwise_arith_unary.mlir:32:5: remark: PtrAnalysis: pointer is not replace with tts.make_tptr so storeOp cannot be rewritten
+    tt.store %save0, %5 {cache = 1 : i32, evict = 1 : i32} : tensor<1024xbf16>
+    ^
+convert_1d_elemwise_arith_unary.mlir:32:5: note: see current operation: tt.store %arg3, %13 {cache = 1 : i32, evict = 1 : i32} : tensor<1024xbf16>
+convert_1d_elemwise_arith_unary.mlir:32:5: remark: PtrAnalysis: Failed to rewrite StoreOp
+    tt.store %save0, %5 {cache = 1 : i32, evict = 1 : i32} : tensor<1024xbf16>
+    ^
+convert_1d_elemwise_arith_unary.mlir:32:5: note: see current operation: tt.store %arg3, %13 {cache = 1 : i32, evict = 1 : i32} : tensor<1024xbf16>
+convert_1d_elemwise_arith_unary.mlir:33:5: remark: PtrAnalysis: pointer is not replace with tts.make_tptr so storeOp cannot be rewritten
+    tt.store %save1, %6 {cache = 1 : i32, evict = 1 : i32} : tensor<1024xf32>
+    ^
+convert_1d_elemwise_arith_unary.mlir:33:5: note: see current operation: tt.store %arg4, %14 {cache = 1 : i32, evict = 1 : i32} : tensor<1024xf32>
+convert_1d_elemwise_arith_unary.mlir:33:5: remark: PtrAnalysis: Failed to rewrite StoreOp
+    tt.store %save1, %6 {cache = 1 : i32, evict = 1 : i32} : tensor<1024xf32>
+    ^
+convert_1d_elemwise_arith_unary.mlir:33:5: note: see current operation: tt.store %arg4, %14 {cache = 1 : i32, evict = 1 : i32} : tensor<1024xf32>
+convert_1d_elemwise_arith_unary.mlir:34:5: remark: PtrAnalysis: pointer is not replace with tts.make_tptr so storeOp cannot be rewritten
+    tt.store %save2, %7 {cache = 1 : i32, evict = 1 : i32} : tensor<1024xf32>
+    ^
+convert_1d_elemwise_arith_unary.mlir:34:5: note: see current operation: tt.store %arg5, %15 {cache = 1 : i32, evict = 1 : i32} : tensor<1024xf32>
+convert_1d_elemwise_arith_unary.mlir:34:5: remark: PtrAnalysis: Failed to rewrite StoreOp
+    tt.store %save2, %7 {cache = 1 : i32, evict = 1 : i32} : tensor<1024xf32>
+    ^
+convert_1d_elemwise_arith_unary.mlir:34:5: note: see current operation: tt.store %arg5, %15 {cache = 1 : i32, evict = 1 : i32} : tensor<1024xf32>
+convert_1d_elemwise_arith_unary.mlir:35:5: remark: PtrAnalysis: pointer is not replace with tts.make_tptr so storeOp cannot be rewritten
+    tt.store %save3, %10 {cache = 1 : i32, evict = 1 : i32} : tensor<1024xf32>
+    ^
+convert_1d_elemwise_arith_unary.mlir:35:5: note: see current operation: tt.store %arg6, %16 {cache = 1 : i32, evict = 1 : i32} : tensor<1024xf32>
+convert_1d_elemwise_arith_unary.mlir:35:5: remark: PtrAnalysis: Failed to rewrite StoreOp
+    tt.store %save3, %10 {cache = 1 : i32, evict = 1 : i32} : tensor<1024xf32>
+    ^
+convert_1d_elemwise_arith_unary.mlir:35:5: note: see current operation: tt.store %arg6, %16 {cache = 1 : i32, evict = 1 : i32} : tensor<1024xf32>
+convert_1d_elemwise_arith_unary.mlir:36:5: remark: PtrAnalysis: pointer is not replace with tts.make_tptr so storeOp cannot be rewritten
+    tt.store %save4, %11 {cache = 1 : i32, evict = 1 : i32} : tensor<1024xf32>
+    ^
+convert_1d_elemwise_arith_unary.mlir:36:5: note: see current operation: tt.store %arg7, %17 {cache = 1 : i32, evict = 1 : i32} : tensor<1024xf32>
+convert_1d_elemwise_arith_unary.mlir:36:5: remark: PtrAnalysis: Failed to rewrite StoreOp
+    tt.store %save4, %11 {cache = 1 : i32, evict = 1 : i32} : tensor<1024xf32>
+    ^
+convert_1d_elemwise_arith_unary.mlir:36:5: note: see current operation: tt.store %arg7, %17 {cache = 1 : i32, evict = 1 : i32} : tensor<1024xf32>
+convert_2d_elemwise_arith_binary.mlir:27:9: remark: PtrAnalysis: pointer is not replace with tts.make_tptr so storeOp cannot be rewritten
+        tt.store %c, %res0 {cache = 1 : i32, evict = 1 : i32} : tensor<128x128xf32>
+        ^
+convert_2d_elemwise_arith_binary.mlir:27:9: note: see current operation: tt.store %arg2, %15 {cache = 1 : i32, evict = 1 : i32} : tensor<128x128xf32>
+convert_2d_elemwise_arith_binary.mlir:27:9: remark: PtrAnalysis: Failed to rewrite StoreOp
+        tt.store %c, %res0 {cache = 1 : i32, evict = 1 : i32} : tensor<128x128xf32>
+        ^
+convert_2d_elemwise_arith_binary.mlir:27:9: note: see current operation: tt.store %arg2, %15 {cache = 1 : i32, evict = 1 : i32} : tensor<128x128xf32>
+convert_2d_elemwise_arith_binary.mlir:28:9: remark: PtrAnalysis: pointer is not replace with tts.make_tptr so storeOp cannot be rewritten
+        tt.store %d, %res1 {cache = 1 : i32, evict = 1 : i32} : tensor<128x128xf32>
+        ^
+convert_2d_elemwise_arith_binary.mlir:28:9: note: see current operation: tt.store %arg3, %16 {cache = 1 : i32, evict = 1 : i32} : tensor<128x128xf32>
+convert_2d_elemwise_arith_binary.mlir:28:9: remark: PtrAnalysis: Failed to rewrite StoreOp
+        tt.store %d, %res1 {cache = 1 : i32, evict = 1 : i32} : tensor<128x128xf32>
+        ^
+convert_2d_elemwise_arith_binary.mlir:28:9: note: see current operation: tt.store %arg3, %16 {cache = 1 : i32, evict = 1 : i32} : tensor<128x128xf32>
+convert_2d_elemwise_arith_ternary.mlir:30:9: remark: PtrAnalysis: pointer is not replace with tts.make_tptr so storeOp cannot be rewritten
+        tt.store %d, %100 {cache = 1 : i32, evict = 1 : i32} : tensor<128x128xf32>
+        ^
+convert_2d_elemwise_arith_ternary.mlir:30:9: note: see current operation: tt.store %arg3, %19 {cache = 1 : i32, evict = 1 : i32} : tensor<128x128xf32>
+convert_2d_elemwise_arith_ternary.mlir:30:9: remark: PtrAnalysis: Failed to rewrite StoreOp
+        tt.store %d, %100 {cache = 1 : i32, evict = 1 : i32} : tensor<128x128xf32>
+        ^
+convert_2d_elemwise_arith_ternary.mlir:30:9: note: see current operation: tt.store %arg3, %19 {cache = 1 : i32, evict = 1 : i32} : tensor<128x128xf32>
+convert_2d_elemwise_arith_unary.mlir:38:5: remark: PtrAnalysis: pointer is not replace with tts.make_tptr so storeOp cannot be rewritten
+    tt.store %save0, %5 {cache = 1 : i32, evict = 1 : i32} : tensor<128x128xbf16>
+    ^
+convert_2d_elemwise_arith_unary.mlir:38:5: note: see current operation: tt.store %arg3, %19 {cache = 1 : i32, evict = 1 : i32} : tensor<128x128xbf16>
+convert_2d_elemwise_arith_unary.mlir:38:5: remark: PtrAnalysis: Failed to rewrite StoreOp
+    tt.store %save0, %5 {cache = 1 : i32, evict = 1 : i32} : tensor<128x128xbf16>
+    ^
+convert_2d_elemwise_arith_unary.mlir:38:5: note: see current operation: tt.store %arg3, %19 {cache = 1 : i32, evict = 1 : i32} : tensor<128x128xbf16>
+convert_2d_elemwise_arith_unary.mlir:39:5: remark: PtrAnalysis: pointer is not replace with tts.make_tptr so storeOp cannot be rewritten
+    tt.store %save1, %6 {cache = 1 : i32, evict = 1 : i32} : tensor<128x128xf32>
+    ^
+convert_2d_elemwise_arith_unary.mlir:39:5: note: see current operation: tt.store %arg4, %20 {cache = 1 : i32, evict = 1 : i32} : tensor<128x128xf32>
+convert_2d_elemwise_arith_unary.mlir:39:5: remark: PtrAnalysis: Failed to rewrite StoreOp
+    tt.store %save1, %6 {cache = 1 : i32, evict = 1 : i32} : tensor<128x128xf32>
+    ^
+convert_2d_elemwise_arith_unary.mlir:39:5: note: see current operation: tt.store %arg4, %20 {cache = 1 : i32, evict = 1 : i32} : tensor<128x128xf32>
+convert_2d_elemwise_arith_unary.mlir:40:5: remark: PtrAnalysis: pointer is not replace with tts.make_tptr so storeOp cannot be rewritten
+    tt.store %save2, %7 {cache = 1 : i32, evict = 1 : i32} : tensor<128x128xf32>
+    ^
+convert_2d_elemwise_arith_unary.mlir:40:5: note: see current operation: tt.store %arg5, %21 {cache = 1 : i32, evict = 1 : i32} : tensor<128x128xf32>
+convert_2d_elemwise_arith_unary.mlir:40:5: remark: PtrAnalysis: Failed to rewrite StoreOp
+    tt.store %save2, %7 {cache = 1 : i32, evict = 1 : i32} : tensor<128x128xf32>
+    ^
+convert_2d_elemwise_arith_unary.mlir:40:5: note: see current operation: tt.store %arg5, %21 {cache = 1 : i32, evict = 1 : i32} : tensor<128x128xf32>
+convert_2d_elemwise_arith_unary.mlir:41:5: remark: PtrAnalysis: pointer is not replace with tts.make_tptr so storeOp cannot be rewritten
+    tt.store %save3, %10 {cache = 1 : i32, evict = 1 : i32} : tensor<128x128xf32>
+    ^
+convert_2d_elemwise_arith_unary.mlir:41:5: note: see current operation: tt.store %arg6, %22 {cache = 1 : i32, evict = 1 : i32} : tensor<128x128xf32>
+convert_2d_elemwise_arith_unary.mlir:41:5: remark: PtrAnalysis: Failed to rewrite StoreOp
+    tt.store %save3, %10 {cache = 1 : i32, evict = 1 : i32} : tensor<128x128xf32>
+    ^
+convert_2d_elemwise_arith_unary.mlir:41:5: note: see current operation: tt.store %arg6, %22 {cache = 1 : i32, evict = 1 : i32} : tensor<128x128xf32>
+convert_2d_elemwise_arith_unary.mlir:42:5: remark: PtrAnalysis: pointer is not replace with tts.make_tptr so storeOp cannot be rewritten
+    tt.store %save4, %11 {cache = 1 : i32, evict = 1 : i32} : tensor<128x128xf32>
+    ^
+convert_2d_elemwise_arith_unary.mlir:42:5: note: see current operation: tt.store %arg7, %23 {cache = 1 : i32, evict = 1 : i32} : tensor<128x128xf32>
+convert_2d_elemwise_arith_unary.mlir:42:5: remark: PtrAnalysis: Failed to rewrite StoreOp
+    tt.store %save4, %11 {cache = 1 : i32, evict = 1 : i32} : tensor<128x128xf32>
+    ^
+convert_2d_elemwise_arith_unary.mlir:42:5: note: see current operation: tt.store %arg7, %23 {cache = 1 : i32, evict = 1 : i32} : tensor<128x128xf32>
+convert_addi_reduce.mlir:11:5: remark: PtrAnalysis: pointer is not replace with tts.make_tptr so storeOp cannot be rewritten
+    tt.store %arg0, %63 {cache = 1 : i32, evict = 1 : i32} : i32
+    ^
+convert_addi_reduce.mlir:11:5: note: see current operation: tt.store %arg0, %0 {cache = 1 : i32, evict = 1 : i32} : i32
+convert_addi_reduce.mlir:11:5: remark: PtrAnalysis: Failed to rewrite StoreOp
+    tt.store %arg0, %63 {cache = 1 : i32, evict = 1 : i32} : i32
+    ^
+convert_addi_reduce.mlir:11:5: note: see current operation: tt.store %arg0, %0 {cache = 1 : i32, evict = 1 : i32} : i32
+convert_addi_reduce.mlir:9:7: error: null operand found
+      tt.reduce.return %69 : i32
+      ^
+convert_addi_reduce.mlir:9:7: note: see current operation: "tt.reduce.return"(<<NULL VALUE>>) : (<<NULL TYPE>>) -> ()
+convert_argmin_argmax.mlir:25:5: remark: PtrAnalysis: scalar storeOp will not be rewritten
+    tt.store %9, %8#1 {cache = 1 : i32, evict = 1 : i32} : i32
+    ^
+convert_argmin_argmax.mlir:25:5: note: see current operation: tt.store %12, %11#1 {cache = 1 : i32, evict = 1 : i32} : i32
+convert_argmin_argmax.mlir:25:5: remark: PtrAnalysis: Failed to rewrite StoreOp
+    tt.store %9, %8#1 {cache = 1 : i32, evict = 1 : i32} : i32
+    ^
+convert_argmin_argmax.mlir:25:5: note: see current operation: tt.store %12, %11#1 {cache = 1 : i32, evict = 1 : i32} : i32
+convert_argmin_argmax.mlir:96:5: remark: PtrAnalysis: scalar storeOp will not be rewritten
+    tt.store %9, %8#1 {cache = 1 : i32, evict = 1 : i32} : i32
+    ^
+convert_argmin_argmax.mlir:96:5: note: see current operation: tt.store %12, %11#1 {cache = 1 : i32, evict = 1 : i32} : i32
+convert_argmin_argmax.mlir:96:5: remark: PtrAnalysis: Failed to rewrite StoreOp
+    tt.store %9, %8#1 {cache = 1 : i32, evict = 1 : i32} : i32
+    ^
+convert_argmin_argmax.mlir:96:5: note: see current operation: tt.store %12, %11#1 {cache = 1 : i32, evict = 1 : i32} : i32
+convert_argmin_argmax.mlir:22:7: error: null operand found
+      tt.reduce.return %16, %17 : f32, i32
+      ^
+convert_argmin_argmax.mlir:22:7: note: see current operation: "tt.reduce.return"(<<NULL VALUE>>, <<NULL VALUE>>) : (<<NULL TYPE>>, <<NULL TYPE>>) -> ()
+convert_argmin_argmax.mlir:93:7: error: null operand found
+      tt.reduce.return %16, %17 : f32, i32
+      ^
+convert_argmin_argmax.mlir:93:7: note: see current operation: "tt.reduce.return"(<<NULL VALUE>>, <<NULL VALUE>>) : (<<NULL TYPE>>, <<NULL TYPE>>) -> ()
+convert_argmin_argmax_2d.mlir:45:7: error: null operand found
+      tt.reduce.return %23, %24 : f32, i32
+      ^
+convert_argmin_argmax_2d.mlir:45:7: note: see current operation: "tt.reduce.return"(<<NULL VALUE>>, <<NULL VALUE>>) : (<<NULL TYPE>>, <<NULL TYPE>>) -> ()
+convert_argmin_argmax_2d.mlir:153:7: error: null operand found
+      tt.reduce.return %23, %24 : f32, i32
+      ^
+convert_argmin_argmax_2d.mlir:153:7: note: see current operation: "tt.reduce.return"(<<NULL VALUE>>, <<NULL VALUE>>) : (<<NULL TYPE>>, <<NULL TYPE>>) -> ()
+convert_minmax.mlir:6:5: remark: PtrAnalysis: pointer is not replace with tts.make_tptr so storeOp cannot be rewritten
+    tt.store %arg0, %1 {cache = 1 : i32, evict = 1 : i32} : f32
+    ^
+convert_minmax.mlir:6:5: note: see current operation: tt.store %arg0, %1 {cache = 1 : i32, evict = 1 : i32} : f32
+convert_minmax.mlir:6:5: remark: PtrAnalysis: Failed to rewrite StoreOp
+    tt.store %arg0, %1 {cache = 1 : i32, evict = 1 : i32} : f32
+    ^
+convert_minmax.mlir:6:5: note: see current operation: tt.store %arg0, %1 {cache = 1 : i32, evict = 1 : i32} : f32
+convert_minmax.mlir:19:5: remark: PtrAnalysis: pointer is not replace with tts.make_tptr so storeOp cannot be rewritten
+    tt.store %arg0, %1 {cache = 1 : i32, evict = 1 : i32} : f32
+    ^
+convert_minmax.mlir:19:5: note: see current operation: tt.store %arg0, %1 {cache = 1 : i32, evict = 1 : i32} : f32
+convert_minmax.mlir:19:5: remark: PtrAnalysis: Failed to rewrite StoreOp
+    tt.store %arg0, %1 {cache = 1 : i32, evict = 1 : i32} : f32
+    ^
+convert_minmax.mlir:19:5: note: see current operation: tt.store %arg0, %1 {cache = 1 : i32, evict = 1 : i32} : f32
+convert_minmax.mlir:32:5: remark: PtrAnalysis: pointer is not replace with tts.make_tptr so storeOp cannot be rewritten
+    tt.store %arg0, %1 {cache = 1 : i32, evict = 1 : i32} : f32
+    ^
+convert_minmax.mlir:32:5: note: see current operation: tt.store %arg0, %1 {cache = 1 : i32, evict = 1 : i32} : f32
+convert_minmax.mlir:32:5: remark: PtrAnalysis: Failed to rewrite StoreOp
+    tt.store %arg0, %1 {cache = 1 : i32, evict = 1 : i32} : f32
+    ^
+convert_minmax.mlir:32:5: note: see current operation: tt.store %arg0, %1 {cache = 1 : i32, evict = 1 : i32} : f32
+convert_minmax.mlir:45:5: remark: PtrAnalysis: pointer is not replace with tts.make_tptr so storeOp cannot be rewritten
+    tt.store %arg0, %1 {cache = 1 : i32, evict = 1 : i32} : f32
+    ^
+convert_minmax.mlir:45:5: note: see current operation: tt.store %arg0, %1 {cache = 1 : i32, evict = 1 : i32} : f32
+convert_minmax.mlir:45:5: remark: PtrAnalysis: Failed to rewrite StoreOp
+    tt.store %arg0, %1 {cache = 1 : i32, evict = 1 : i32} : f32
+    ^
+convert_minmax.mlir:45:5: note: see current operation: tt.store %arg0, %1 {cache = 1 : i32, evict = 1 : i32} : f32
+convert_minmax_fp_reduce.mlir:11:5: remark: PtrAnalysis: pointer is not replace with tts.make_tptr so storeOp cannot be rewritten
+    tt.store %arg0, %63 {cache = 1 : i32, evict = 1 : i32} : f32
+    ^
+convert_minmax_fp_reduce.mlir:11:5: note: see current operation: tt.store %arg0, %0 {cache = 1 : i32, evict = 1 : i32} : f32
+convert_minmax_fp_reduce.mlir:11:5: remark: PtrAnalysis: Failed to rewrite StoreOp
+    tt.store %arg0, %63 {cache = 1 : i32, evict = 1 : i32} : f32
+    ^
+convert_minmax_fp_reduce.mlir:11:5: note: see current operation: tt.store %arg0, %0 {cache = 1 : i32, evict = 1 : i32} : f32
+convert_minmax_fp_reduce.mlir:46:5: remark: PtrAnalysis: pointer is not replace with tts.make_tptr so storeOp cannot be rewritten
+    tt.store %arg0, %63 {cache = 1 : i32, evict = 1 : i32} : f32
+    ^
+convert_minmax_fp_reduce.mlir:46:5: note: see current operation: tt.store %arg0, %0 {cache = 1 : i32, evict = 1 : i32} : f32
+convert_minmax_fp_reduce.mlir:46:5: remark: PtrAnalysis: Failed to rewrite StoreOp
+    tt.store %arg0, %63 {cache = 1 : i32, evict = 1 : i32} : f32
+    ^
+convert_minmax_fp_reduce.mlir:46:5: note: see current operation: tt.store %arg0, %0 {cache = 1 : i32, evict = 1 : i32} : f32
+convert_minmax_fp_reduce.mlir:9:7: error: null operand found
+      tt.reduce.return %69 : f32
+      ^
+convert_minmax_fp_reduce.mlir:9:7: note: see current operation: "tt.reduce.return"(<<NULL VALUE>>) : (<<NULL TYPE>>) -> ()
+convert_minmax_fp_reduce.mlir:44:7: error: null operand found
+      tt.reduce.return %69 : f32
+      ^
+convert_minmax_fp_reduce.mlir:44:7: note: see current operation: "tt.reduce.return"(<<NULL VALUE>>) : (<<NULL TYPE>>) -> ()
+convert_minmax_reduce.mlir:11:5: remark: PtrAnalysis: pointer is not replace with tts.make_tptr so storeOp cannot be rewritten
+    tt.store %arg0, %63 {cache = 1 : i32, evict = 1 : i32} : i32
+    ^
+convert_minmax_reduce.mlir:11:5: note: see current operation: tt.store %arg0, %0 {cache = 1 : i32, evict = 1 : i32} : i32
+convert_minmax_reduce.mlir:11:5: remark: PtrAnalysis: Failed to rewrite StoreOp
+    tt.store %arg0, %63 {cache = 1 : i32, evict = 1 : i32} : i32
+    ^
+convert_minmax_reduce.mlir:11:5: note: see current operation: tt.store %arg0, %0 {cache = 1 : i32, evict = 1 : i32} : i32
+convert_minmax_reduce.mlir:43:5: remark: PtrAnalysis: pointer is not replace with tts.make_tptr so storeOp cannot be rewritten
+    tt.store %arg0, %63 {cache = 1 : i32, evict = 1 : i32} : i32
+    ^
+convert_minmax_reduce.mlir:43:5: note: see current operation: tt.store %arg0, %0 {cache = 1 : i32, evict = 1 : i32} : i32
+convert_minmax_reduce.mlir:43:5: remark: PtrAnalysis: Failed to rewrite StoreOp
+    tt.store %arg0, %63 {cache = 1 : i32, evict = 1 : i32} : i32
+    ^
+convert_minmax_reduce.mlir:43:5: note: see current operation: tt.store %arg0, %0 {cache = 1 : i32, evict = 1 : i32} : i32
+convert_minmax_reduce.mlir:75:5: remark: PtrAnalysis: pointer is not replace with tts.make_tptr so storeOp cannot be rewritten
+    tt.store %arg0, %63 {cache = 1 : i32, evict = 1 : i32} : i32
+    ^
+convert_minmax_reduce.mlir:75:5: note: see current operation: tt.store %arg0, %0 {cache = 1 : i32, evict = 1 : i32} : i32
+convert_minmax_reduce.mlir:75:5: remark: PtrAnalysis: Failed to rewrite StoreOp
+    tt.store %arg0, %63 {cache = 1 : i32, evict = 1 : i32} : i32
+    ^
+convert_minmax_reduce.mlir:75:5: note: see current operation: tt.store %arg0, %0 {cache = 1 : i32, evict = 1 : i32} : i32
+convert_minmax_reduce.mlir:107:5: remark: PtrAnalysis: pointer is not replace with tts.make_tptr so storeOp cannot be rewritten
+    tt.store %arg0, %63 {cache = 1 : i32, evict = 1 : i32} : i32
+    ^
+convert_minmax_reduce.mlir:107:5: note: see current operation: tt.store %arg0, %0 {cache = 1 : i32, evict = 1 : i32} : i32
+convert_minmax_reduce.mlir:107:5: remark: PtrAnalysis: Failed to rewrite StoreOp
+    tt.store %arg0, %63 {cache = 1 : i32, evict = 1 : i32} : i32
+    ^
+convert_minmax_reduce.mlir:107:5: note: see current operation: tt.store %arg0, %0 {cache = 1 : i32, evict = 1 : i32} : i32
+convert_minmax_reduce.mlir:9:7: error: null operand found
+      tt.reduce.return %70 : i32
+      ^
+convert_minmax_reduce.mlir:9:7: note: see current operation: "tt.reduce.return"(<<NULL VALUE>>) : (<<NULL TYPE>>) -> ()
+convert_minmax_reduce.mlir:41:7: error: null operand found
+      tt.reduce.return %70 : i32
+      ^
+convert_minmax_reduce.mlir:41:7: note: see current operation: "tt.reduce.return"(<<NULL VALUE>>) : (<<NULL TYPE>>) -> ()
+convert_splat_float.mlir:9:9: remark: PtrAnalysis: pointer is not replace with tts.make_tptr so storeOp cannot be rewritten
+        tt.store %save0, %0 {cache = 1 : i32, evict = 1 : i32} : tensor<1024xf32>
+        ^
+convert_splat_float.mlir:9:9: note: see current operation: tt.store %arg2, %0 {cache = 1 : i32, evict = 1 : i32} : tensor<1024xf32>
+convert_splat_float.mlir:9:9: remark: PtrAnalysis: Failed to rewrite StoreOp
+        tt.store %save0, %0 {cache = 1 : i32, evict = 1 : i32} : tensor<1024xf32>
+        ^
+convert_splat_float.mlir:9:9: note: see current operation: tt.store %arg2, %0 {cache = 1 : i32, evict = 1 : i32} : tensor<1024xf32>
+convert_splat_float.mlir:10:9: remark: PtrAnalysis: pointer is not replace with tts.make_tptr so storeOp cannot be rewritten
+        tt.store %save1, %1 {cache = 1 : i32, evict = 1 : i32} : tensor<128x256xbf16>
+        ^
+convert_splat_float.mlir:10:9: note: see current operation: tt.store %arg3, %1 {cache = 1 : i32, evict = 1 : i32} : tensor<128x256xbf16>
+convert_splat_float.mlir:10:9: remark: PtrAnalysis: Failed to rewrite StoreOp
+        tt.store %save1, %1 {cache = 1 : i32, evict = 1 : i32} : tensor<128x256xbf16>
+        ^
+convert_splat_float.mlir:10:9: note: see current operation: tt.store %arg3, %1 {cache = 1 : i32, evict = 1 : i32} : tensor<128x256xbf16>
+cumsum.mlir:35:7: error: null operand found
+      tt.scan.return %12 : f32
+      ^
+cumsum.mlir:35:7: note: see current operation: "tt.scan.return"(<<NULL VALUE>>) : (<<NULL TYPE>>) -> ()
+kernel-02-fused-softmax.mlir:20:7: error: null operand found
+      tt.reduce.return %22 : f32
+      ^
+kernel-02-fused-softmax.mlir:20:7: note: see current operation: "tt.reduce.return"(<<NULL VALUE>>) : (<<NULL TYPE>>) -> ()
+kernel-05-layer-norm-dwdb.mlir:44:7: error: null operand found
+      tt.reduce.return %24 : f32
+      ^
+kernel-05-layer-norm-dwdb.mlir:44:7: note: see current operation: "tt.reduce.return"(<<NULL VALUE>>) : (<<NULL TYPE>>) -> ()
+kernel-05-layer-norm-fwd.mlir:59:5: remark: PtrAnalysis: scalar storeOp will not be rewritten
+    tt.store %22, %11 {cache = 1 : i32, evict = 1 : i32} : f32
+    ^
+kernel-05-layer-norm-fwd.mlir:59:5: note: see current operation: tt.store %25, %14 {cache = 1 : i32, evict = 1 : i32} : f32
+kernel-05-layer-norm-fwd.mlir:59:5: remark: PtrAnalysis: Failed to rewrite StoreOp
+    tt.store %22, %11 {cache = 1 : i32, evict = 1 : i32} : f32
+    ^
+kernel-05-layer-norm-fwd.mlir:59:5: note: see current operation: tt.store %25, %14 {cache = 1 : i32, evict = 1 : i32} : f32
+kernel-05-layer-norm-fwd.mlir:61:5: remark: PtrAnalysis: scalar storeOp will not be rewritten
+    tt.store %23, %21 {cache = 1 : i32, evict = 1 : i32} : f32
+    ^
+kernel-05-layer-norm-fwd.mlir:61:5: note: see current operation: tt.store %27, %25 {cache = 1 : i32, evict = 1 : i32} : f32
+kernel-05-layer-norm-fwd.mlir:61:5: remark: PtrAnalysis: Failed to rewrite StoreOp
+    tt.store %23, %21 {cache = 1 : i32, evict = 1 : i32} : f32
+    ^
+kernel-05-layer-norm-fwd.mlir:61:5: note: see current operation: tt.store %27, %25 {cache = 1 : i32, evict = 1 : i32} : f32
+kernel-05-layer-norm-fwd.mlir:29:7: error: null operand found
+      tt.reduce.return %32 : f32
+      ^
+kernel-05-layer-norm-fwd.mlir:29:7: note: see current operation: "tt.reduce.return"(<<NULL VALUE>>) : (<<NULL TYPE>>) -> ()
+reducemax_32_256_bf16.mlir:37:5: remark: PtrAnalysis: pointer is not replace with tts.make_tptr so storeOp cannot be rewritten
+    tt.store %res, %6 {cache = 1 : i32, evict = 1 : i32} : tensor<256x16xbf16>
+    ^
+reducemax_32_256_bf16.mlir:37:5: note: see current operation: tt.store %arg1, %24 {cache = 1 : i32, evict = 1 : i32} : tensor<256x16xbf16>
+reducemax_32_256_bf16.mlir:37:5: remark: PtrAnalysis: Failed to rewrite StoreOp
+    tt.store %res, %6 {cache = 1 : i32, evict = 1 : i32} : tensor<256x16xbf16>
+    ^
+reducemax_32_256_bf16.mlir:37:5: note: see current operation: tt.store %arg1, %24 {cache = 1 : i32, evict = 1 : i32} : tensor<256x16xbf16>
+reducemax_32_256_bf16.mlir:35:7: error: null operand found
+      tt.reduce.return %22 : bf16
+      ^
+reducemax_32_256_bf16.mlir:35:7: note: see current operation: "tt.reduce.return"(<<NULL VALUE>>) : (<<NULL TYPE>>) -> ()
+reducesum_512_256_bf16_axis0.mlir:27:7: error: null operand found
+      tt.reduce.return %21 : bf16
+      ^
+reducesum_512_256_bf16_axis0.mlir:27:7: note: see current operation: "tt.reduce.return"(<<NULL VALUE>>) : (<<NULL TYPE>>) -> ()
+reducesum_512_256_bf16_axis1.mlir:27:7: error: null operand found
+      tt.reduce.return %21 : bf16
+      ^
+reducesum_512_256_bf16_axis1.mlir:27:7: note: see current operation: "tt.reduce.return"(<<NULL VALUE>>) : (<<NULL TYPE>>) -> ()
+reducesum_512_256_f32_axis0.mlir:27:7: error: null operand found
+      tt.reduce.return %21 : f32
+      ^
+reducesum_512_256_f32_axis0.mlir:27:7: note: see current operation: "tt.reduce.return"(<<NULL VALUE>>) : (<<NULL TYPE>>) -> ()
+reducesum_512_256_f32_axis1.mlir:27:7: error: null operand found
+      tt.reduce.return %21 : f32
+      ^
+reducesum_512_256_f32_axis1.mlir:27:7: note: see current operation: "tt.reduce.return"(<<NULL VALUE>>) : (<<NULL TYPE>>) -> ()
+reducesum_middle_dim.mlir:37:5: remark: PtrAnalysis: pointer is not replace with tts.make_tptr so storeOp cannot be rewritten
+    tt.store %out, %5 : tensor<32x16xbf16>
+    ^
+reducesum_middle_dim.mlir:37:5: note: see current operation: tt.store %arg2, %24 {cache = 1 : i32, evict = 1 : i32} : tensor<32x16xbf16>
+reducesum_middle_dim.mlir:37:5: remark: PtrAnalysis: Failed to rewrite StoreOp
+    tt.store %out, %5 : tensor<32x16xbf16>
+    ^
+reducesum_middle_dim.mlir:37:5: note: see current operation: tt.store %arg2, %24 {cache = 1 : i32, evict = 1 : i32} : tensor<32x16xbf16>
+reducesum_middle_dim.mlir:35:7: error: null operand found
+      tt.reduce.return %21 : bf16
+      ^
+reducesum_middle_dim.mlir:35:7: note: see current operation: "tt.reduce.return"(<<NULL VALUE>>) : (<<NULL TYPE>>) -> ()
+reducesum_scalar.mlir:14:5: remark: PtrAnalysis: pointer is not replace with tts.make_tptr so storeOp cannot be rewritten
+    tt.store %res, %3 : bf16
+    ^
+reducesum_scalar.mlir:14:5: note: see current operation: tt.store %arg1, %5 {cache = 1 : i32, evict = 1 : i32} : bf16
+reducesum_scalar.mlir:14:5: remark: PtrAnalysis: Failed to rewrite StoreOp
+    tt.store %res, %3 : bf16
+    ^
+reducesum_scalar.mlir:14:5: note: see current operation: tt.store %arg1, %5 {cache = 1 : i32, evict = 1 : i32} : bf16
+reducesum_scalar.mlir:12:7: error: null operand found
+      tt.reduce.return %21 : bf16
+      ^
+reducesum_scalar.mlir:12:7: note: see current operation: "tt.reduce.return"(<<NULL VALUE>>) : (<<NULL TYPE>>) -> ()
+wraparound_stacked.mlir:47:13: warning: PtrAnalysis: allowing adding pointer state with modulo in dim 0 to another pointer state with offset in dim 0.
+Please verify the operand that contains a scalar is meant to increment pointers in dim1. If that is not the case it WILL LEAD TO WRONG COMPILATION RESULTS.
+
+To avoid this warning, use expand_dims (instead of splat) to explicitly specify which dimension contains the scalar.
+      %33 = tt.addptr %arg9, %30 : tensor<4x4x!tt.ptr<f32>>, tensor<4x4xi32>
+            ^
+wraparound_stacked.mlir:47:13: note: see current operation: %63 = "tt.addptr"(%arg9, %52) : (tensor<4x4x!tt.ptr<f32, 1>>, tensor<4x4xi32>) -> tensor<4x4x!tt.ptr<f32, 1>>
+wraparound_unsupported_add_offset.mlir:19:10: remark: PtrAnalysis: do not support this pattern: a + arange(0, K) % M
+    %4 = arith.addi %3, %cst_1 : tensor<4xi32>
+         ^
+wraparound_unsupported_add_offset.mlir:19:10: note: see current operation: %4 = arith.addi %3, %cst_1 : tensor<4xi32>
+wraparound_unsupported_add_offset.mlir:30:11: remark: PtrAnalysis: Failed to rewrite AddPtrOp
+    %15 = tt.addptr %14, %13 : tensor<4x4x!tt.ptr<f32>>, tensor<4x4xi32>
+          ^
+wraparound_unsupported_add_offset.mlir:30:11: note: see current operation: %18 = tt.addptr %14, %13 : tensor<4x4x!tt.ptr<f32, 1>>, tensor<4x4xi32>
+wraparound_unsupported_add_offset.mlir:49:13: remark: PtrAnalysis: pointer is not replace with tts.make_tptr so loadOp cannot be rewritten
+      %34 = tt.load %arg9, %28, %cst {cache = 1 : i32, evict = 1 : i32, isVolatile = false} : tensor<4x4xf32>
+            ^
+wraparound_unsupported_add_offset.mlir:49:13: note: see current operation: %55 = "tt.load"(%arg9, %45, %0) <{cache = 1 : i32, evict = 1 : i32, isVolatile = false, operandSegmentSizes = array<i32: 1, 1, 1>}> : (tensor<4x4x!tt.ptr<f32, 1>>, tensor<4x4xi1>, tensor<4x4xf32>) -> tensor<4x4xf32>
+wraparound_unsupported_add_offset.mlir:49:13: remark: PtrAnalysis: Failed to rewrite LoadOp
+      %34 = tt.load %arg9, %28, %cst {cache = 1 : i32, evict = 1 : i32, isVolatile = false} : tensor<4x4xf32>
+            ^
+wraparound_unsupported_add_offset.mlir:49:13: note: see current operation: %55 = "tt.load"(%arg9, %45, %0) <{cache = 1 : i32, evict = 1 : i32, isVolatile = false, operandSegmentSizes = array<i32: 1, 1, 1>}> : (tensor<4x4x!tt.ptr<f32, 1>>, tensor<4x4xi1>, tensor<4x4xf32>) -> tensor<4x4xf32>
+PtrAnalysis: encountered addptr operand produced by an unsupported operation
+<block argument> of type 'tensor<4x4x!tt.ptr<f32, 1>>' at index: 1
+wraparound_unsupported_add_offset.mlir:51:13: remark: PtrAnalysis: Failed to rewrite AddPtrOp
+      %35 = tt.addptr %arg9, %30 : tensor<4x4x!tt.ptr<f32>>, tensor<4x4xi32>
+            ^
+wraparound_unsupported_add_offset.mlir:51:13: note: see current operation: %56 = "tt.addptr"(%arg9, %47) : (tensor<4x4x!tt.ptr<f32, 1>>, tensor<4x4xi32>) -> tensor<4x4x!tt.ptr<f32, 1>>

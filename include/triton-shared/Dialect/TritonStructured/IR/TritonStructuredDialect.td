@@ -116,7 +116,7 @@ def TTS_LoadOp : TTS_Op<"load", [
   let summary = "optionally load data from in memory to fill a portion of the tensor";
 
   let arguments = (ins TT_PtrLike:$ptr,
-                       Variadic<Index>:$dims,
+                       Variadic<Index>:$dims,           // mask dimension
                        DenseI64ArrayAttr:$static_dims,
                        Optional<AnyTypeOf<[TT_Float, TT_Int, TT_Ptr]>>:$other);
 
@@ -125,6 +125,14 @@ def TTS_LoadOp : TTS_Op<"load", [
   let builders = [
     OpBuilder<(ins "Value":$ptr, "ArrayRef<OpFoldResult>":$dims, "Value":$other)>,
   ];
+
+  let extraClassDeclaration = [{
+    /// Return a vector of all the static or dynamic fields
+    SmallVector<OpFoldResult> getMixedDims() {
+      Builder b(getContext());
+      return ::mlir::getMixedValues(getStaticDims(), getDims(), b);
+    }
+  }];
 
   // TODO
   //let hasCustomAssemblyFormat = 1;
@@ -144,6 +152,14 @@ def TTS_StoreOp : TTS_Op<"store", [
   let builders = [
     OpBuilder<(ins "Value":$ptr, "Value":$value, "ArrayRef<OpFoldResult>":$dims)>,
   ];
+
+  let extraClassDeclaration = [{
+    /// Return a vector of all the static or dynamic fields
+    SmallVector<OpFoldResult> getMixedDims() {
+      Builder b(getContext());
+      return ::mlir::getMixedValues(getStaticDims(), getDims(), b);
+    }
+  }];
 
   // TODO
   //let hasCustomAssemblyFormat = 1;
