@@ -30,9 +30,6 @@
 #include <numeric>
 #include <type_traits>
 
-// TODO: this should be triton-arith-to-linalg after retiring monolithic pass
-#define DEBUG_TYPE "triton-to-linalg"
-
 using namespace mlir;
 using namespace triton;
 
@@ -244,7 +241,6 @@ struct LegacyAddPtrConverter : public OpConversionPattern<triton::AddPtrOp> {
     return success();
   }
 };
-
 
 struct LoadConverter : public OpConversionPattern<triton::LoadOp> {
 private:
@@ -559,7 +555,6 @@ struct YieldConverter : public OpConversionPattern<scf::YieldOp> {
   }
 };
 
-
 // Remove all Meta ops except for AddPtr which is handled by AddPtrConverter.
 // Use benefit == 10 to ensure that this pattern always takes precedence over
 // other patterns.
@@ -601,11 +596,9 @@ struct UnrealizedCastConverter
   }
 };
 
-
 //-----------------------------
 // End of monolithic only
 //-----------------------------
-
 
 struct SplatConverter : public OpConversionPattern<triton::SplatOp> {
   using OpConversionPattern<triton::SplatOp>::OpConversionPattern;
@@ -1834,7 +1827,6 @@ static void populateExternElementwiseOpToMLIROps(RewritePatternSet &patterns) {
   patterns.add<ExternElementwiseBinaryOpConverter,
                ExternElementwiseUnaryOpConverter>(patterns.getContext());
 }
-
 
 } // namespace
 
