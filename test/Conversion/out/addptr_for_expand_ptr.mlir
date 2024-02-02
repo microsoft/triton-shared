@@ -6,13 +6,15 @@ module {
     %c12 = arith.constant 12 : index
     %c3 = arith.constant 3 : index
     %0 = scf.for %arg7 = %c0 to %c12 step %c3 iter_args(%arg8 = %c1024) -> (index) {
-      %reinterpret_cast = memref.reinterpret_cast %arg0 to offset: [%arg8], sizes: [256, 256], strides: [%c2, 1] : memref<*xbf16> to memref<256x256xbf16, strided<[?, 1], offset: ?>>
+      %c256 = arith.constant 256 : index
+      %1 = arith.addi %arg8, %c256 : index
+      %reinterpret_cast = memref.reinterpret_cast %arg0 to offset: [%1], sizes: [256, 256], strides: [%c2, 1] : memref<*xbf16> to memref<256x256xbf16, strided<[?, 1], offset: ?>>
       %alloc = memref.alloc() : memref<256x256xbf16>
       memref.copy %reinterpret_cast, %alloc : memref<256x256xbf16, strided<[?, 1], offset: ?>> to memref<256x256xbf16>
-      %1 = bufferization.to_tensor %alloc restrict writable : memref<256x256xbf16>
-      bufferization.materialize_in_destination %1 in writable %reinterpret_cast : (tensor<256x256xbf16>, memref<256x256xbf16, strided<[?, 1], offset: ?>>) -> ()
-      %2 = arith.addi %arg8, %c3 : index
-      scf.yield %2 : index
+      %2 = bufferization.to_tensor %alloc restrict writable : memref<256x256xbf16>
+      bufferization.materialize_in_destination %2 in writable %reinterpret_cast : (tensor<256x256xbf16>, memref<256x256xbf16, strided<[?, 1], offset: ?>>) -> ()
+      %3 = arith.addi %arg8, %c3 : index
+      scf.yield %3 : index
     }
     return
   }

@@ -45,7 +45,7 @@ static OpFoldResult accumulateTargetOffset(tts::MakeTensorPtrOp op,
                                            OpBuilder &b) {
   Location loc = op->getLoc();
   OpFoldResult targetOffset = b.getIndexAttr(0);
-  for (auto o : op.getOffsets()) {
+  for (auto o : op.getMixedOffsets()) {
     targetOffset = addOFRs(targetOffset, o, loc, b);
   }
   return targetOffset;
