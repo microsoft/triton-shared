@@ -14,13 +14,12 @@ module {
     scf.if %3 {
       linalg.fill ins(%cst : bf16) outs(%alloc : memref<128xbf16>)
     }
-    memref.copy %reinterpret_cast, %alloc : memref<128xbf16, strided<[1]>> to memref<128xbf16>
+    %subview = memref.subview %reinterpret_cast[0] [%1] [1] : memref<128xbf16, strided<[1]>> to memref<?xbf16, strided<[1]>>
+    %subview_2 = memref.subview %alloc[0] [%1] [1] : memref<128xbf16> to memref<?xbf16, strided<[1]>>
+    memref.copy %subview, %subview_2 : memref<?xbf16, strided<[1]>> to memref<?xbf16, strided<[1]>>
     %4 = bufferization.to_tensor %alloc restrict writable : memref<128xbf16>
     %5 = arith.index_cast %arg2 : i32 to index
     %6 = arith.minsi %5, %c128 : index
-    %extracted_slice = tensor.extract_slice %4[0] [%6] [1] : tensor<128xbf16> to tensor<?xbf16>
-    %subview = memref.subview %reinterpret_cast_0[0] [%6] [1] : memref<128xbf16, strided<[1]>> to memref<?xbf16, strided<[1]>>
-    bufferization.materialize_in_destination %extracted_slice in writable %subview : (tensor<?xbf16>, memref<?xbf16, strided<[1]>>) -> ()
     return
   }
 }
