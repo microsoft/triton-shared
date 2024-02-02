@@ -1,11 +1,11 @@
 #map = affine_map<(d0, d1) -> (d0, d1)>
 module {
   func.func @kernel(%arg0: memref<*xbf16>, %arg1: memref<*xbf16>, %arg2: memref<*xbf16>, %arg3: i32, %arg4: i32, %arg5: i32, %arg6: i32, %arg7: i32, %arg8: i32, %arg9: i32, %arg10: i32) {
-    %c3 = arith.constant 3 : index
-    %c5 = arith.constant 5 : index
     %c1 = arith.constant 1 : index
+    %c3 = arith.constant 3 : index
     %c12 = arith.constant 12 : index
     %c0 = arith.constant 0 : index
+    %c5 = arith.constant 5 : index
     %0 = arith.index_cast %arg3 : i32 to index
     %reinterpret_cast = memref.reinterpret_cast %arg0 to offset: [%0], sizes: [4, 256], strides: [1, %c5] : memref<*xbf16> to memref<4x256xbf16, strided<[1, ?], offset: ?>>
     %alloc = memref.alloc() : memref<4x256xbf16>
