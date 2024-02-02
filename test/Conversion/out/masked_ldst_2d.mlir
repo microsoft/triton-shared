@@ -44,6 +44,9 @@ module {
     %20 = arith.subi %19, %c3 : index
     %21 = arith.minsi %17, %c128 : index
     %22 = arith.minsi %20, %c256 : index
+    %extracted_slice = tensor.extract_slice %14[0, 0] [%21, %22] [1, 1] : tensor<128x256xbf16> to tensor<?x?xbf16>
+    %subview_4 = memref.subview %reinterpret_cast_0[0, 0] [%21, %22] [1, 1] : memref<128x256xbf16, strided<[1, ?], offset: ?>> to memref<?x?xbf16, strided<[1, ?], offset: ?>>
+    bufferization.materialize_in_destination %extracted_slice in writable %subview_4 : (tensor<?x?xbf16>, memref<?x?xbf16, strided<[1, ?], offset: ?>>) -> ()
     return
   }
 }
