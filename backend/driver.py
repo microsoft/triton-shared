@@ -218,9 +218,9 @@ def compile_module(launcher_src, kernel_placeholder_name):
 
         if cache_path is None:
           with tempfile.TemporaryDirectory() as tmpdir:
-              asm_src_path = os.path.join(tmpdir, "kernel.s")
-              launcher_src_path = os.path.join(tmpdir, "main.cxx")
-              so_path = os.path.join(tmpdir, "kernel.so")
+              asm_src_path = os.path.join('/home/nhat/github/triton_shared/cpu_backend_out', "kernel.s")
+              launcher_src_path = os.path.join('/home/nhat/github/triton_shared/cpu_backend_out', "main.cxx")
+              so_path = os.path.join('/home/nhat/github/triton_shared/cpu_backend_out', "kernel.so")
               Path(asm_src_path).write_bytes(asm_src)
               Path(launcher_src_path).write_text(src)
               # Compile it together.
