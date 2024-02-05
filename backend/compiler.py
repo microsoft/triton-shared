@@ -1,5 +1,5 @@
 from triton.backends.compiler import BaseBackend
-from triton._C.libtriton import ir, passes, llvm, triton_shared
+from triton._C.libtriton import ir, passes
 from dataclasses import dataclass
 from typing import Any
 import hashlib
@@ -28,11 +28,15 @@ def _ttir_to_ttsharedir(mod):
     # Get Triton-MLIR as string
     ttir_code = str(mod)
     with tempfile.TemporaryDirectory() as tmpdir:
-        src_path = os.path.join(tmpdir, "tt.mlir")
-        dst_path = os.path.join(tmpdir, "ttshared.mlir")
+        src_path = os.path.join('/home/nhat/github/triton_shared/cpu_backend_out', "tt.mlir")
+        dst_path = os.path.join('/home/nhat/github/triton_shared/cpu_backend_out', "ttshared_new.mlir")
+        dst_path_inter = os.path.join('/home/nhat/github/triton_shared/cpu_backend_out', "ttshared_inter_new.mlir")
+        dst_path_old = os.path.join('/home/nhat/github/triton_shared/cpu_backend_out', "ttshared_old.mlir")
         Path(src_path).write_text(ttir_code)
         triton_shared_opt_path = _get_triton_shared_opt_path()
-        subprocess.check_call([triton_shared_opt_path, src_path, "--triton-to-linalg", "-o", dst_path])
+        subprocess.check_call([triton_shared_opt_path, src_path, "--triton-to-structured", "--canonicalize", "--triton-arith-to-linalg", "--structured-to-memref", "-o", dst_path])
+        subprocess.check_call([triton_shared_opt_path, src_path, "--triton-to-structured", "--canonicalize", "--triton-arith-to-linalg", "-o", dst_path_inter])
+        subprocess.check_call([triton_shared_opt_path, src_path, "--triton-to-linalg", "-o", dst_path_old])
         return Path(dst_path).read_text()
 
 
@@ -43,9 +47,10 @@ def _optimize_ttsharedir(ttsharedir: str):
 
 def _ttsharedir_to_llir(ttsharedir: str):
     with tempfile.TemporaryDirectory() as tmpdir:
-        ttshared_path = os.path.join(tmpdir, "ttshared.mlir")
-        llmlir_path = os.path.join(tmpdir, "ll.mlir")
-        llir_path = os.path.join(tmpdir, "ll.ir")
+        print(ttsharedir)
+        ttshared_path = os.path.join('/home/nhat/github/triton_shared/cpu_backend_out', "ttshared.mlir")
+        llmlir_path = os.path.join('/home/nhat/github/triton_shared/cpu_backend_out', "ll.mlir")
+        llir_path = os.path.join('/home/nhat/github/triton_shared/cpu_backend_out', "ll.ir")
         Path(ttshared_path).write_text(ttsharedir)
         mlir_opt_path = _get_llvm_bin_path("mlir-opt")
         # TritonShared-MLIR to LLVM-MLIR
@@ -97,8 +102,8 @@ def _llir_to_bin(llir: str, metadata):
     assert len(matches) == 1
     metadata["name"] = matches[0]
     with tempfile.TemporaryDirectory() as tmpdir:
-        src_path = os.path.join(tmpdir, "kernel.ll")
-        dst_path = os.path.join(tmpdir, "kernel.o")
+        src_path = os.path.join('/home/nhat/github/triton_shared/cpu_backend_out', "kernel.ll")
+        dst_path = os.path.join('/home/nhat/github/triton_shared/cpu_backend_out', "kernel.o")
         Path(src_path).write_text(llir)
         llc_path = _get_llvm_bin_path("llc")
         subprocess.check_call([llc_path, src_path, "-o", dst_path])
@@ -151,7 +156,6 @@ class CPUBackend(BaseBackend):
 
     @staticmethod
     def make_ttir(mod, metadata, opt):
-        # assert False
         pm = ir.pass_manager(mod.context)
         pm.enable_debug()
         passes.common.add_inliner(pm)

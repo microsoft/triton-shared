@@ -1,4 +1,4 @@
-// RUN: triton-shared-opt --triton-to-linalg %s | FileCheck %s
+reducesum_scalar.mlir// RUN: triton-shared-opt --triton-to-linalg %s | FileCheck %s
 
 module {
   tt.func public @num_programs(%arg0: !tt.ptr<i32>) {

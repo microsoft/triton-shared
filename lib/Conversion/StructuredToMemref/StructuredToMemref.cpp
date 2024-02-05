@@ -6,6 +6,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "triton-shared/Conversion/StructuredToMemref/StructuredToMemref.h"
+#include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/IR/Builders.h"
 #include "mlir/IR/BuiltinTypeInterfaces.h"
 #include "mlir/IR/BuiltinTypes.h"
@@ -380,6 +381,15 @@ struct ScalarLoadConverter : public OpConversionPattern<triton::LoadOp> {
 struct ScalarStoreConverter : public OpConversionPattern<triton::StoreOp> {
   using OpConversionPattern<triton::StoreOp>::OpConversionPattern;
 
+  bool isBlockArg(func::FuncOp func, Value v) const {
+    for (auto &arg : func.getArguments()) {
+      if (v == arg) {
+        return true;
+      }
+    }
+    return false;
+  }
+
   LogicalResult
   matchAndRewrite(triton::StoreOp op, OpAdaptor adaptor,
                   ConversionPatternRewriter &rewriter) const override {
@@ -393,7 +403,14 @@ struct ScalarStoreConverter : public OpConversionPattern<triton::StoreOp> {
     auto val = op.getValue();
     auto zeroMap = AffineMap::getConstantMap(0, rewriter.getContext());
 
-    memrefPtr.dump();
+    if (isa<UnrankedMemRefType>(memrefPtr.getType())) {
+      auto func = op->getParentOfType<func::FuncOp>();
+      assert(isBlockArg(func, memrefPtr));
+      memrefPtr = rewriter.create<memref::ReinterpretCastOp>(
+          loc, MemRefType::get({1}, op.getValue().getType()), memrefPtr,
+          0 /*offset*/, SmallVector<int64_t>{1} /*sizes*/,
+          SmallVector<int64_t>{1} /*strides*/);
+    }
 
     rewriter.create<affine::AffineStoreOp>(loc, val, memrefPtr, zeroMap,
                                            std::nullopt);

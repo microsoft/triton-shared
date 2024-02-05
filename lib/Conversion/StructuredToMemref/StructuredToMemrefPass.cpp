@@ -58,6 +58,14 @@ public:
     //   inputs)
     //       .getResult(0);
     // });
+
+    // addTargetMaterialization([&](OpBuilder &builder, Type resultType,
+    //                              ValueRange inputs,
+    //                              Location loc) -> std::optional<Value> {
+    //   return builder.create<UnrealizedConversionCastOp>(loc, resultType,
+    //   inputs)
+    //       .getResult(0);
+    // });
   }
 };
 
