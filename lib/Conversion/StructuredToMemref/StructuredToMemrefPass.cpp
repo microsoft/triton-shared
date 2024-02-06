@@ -97,8 +97,7 @@ public:
         bufferization::BufferizationDialect, ttx::TritonTilingExtDialect,
         memref::MemRefDialect>();
 
-    // target.addLegalDialect<tts::TritonStructuredDialect>();
-    // target.addIllegalDialect<tts::TritonStructuredDialect>();
+    target.addIllegalDialect<tts::TritonStructuredDialect>();
 
     target.addLegalOp<UnrealizedConversionCastOp>();
 
@@ -113,6 +112,13 @@ public:
         patterns, typeConverter);
 
     if (failed(applyPartialConversion(moduleOp, target, std::move(patterns)))) {
+      signalPassFailure();
+    }
+
+    // Erase dead code and fold constants created during lowering
+    PassManager pm(&getContext(), moduleOp.getOperationName());
+    pm.addPass(createCanonicalizerPass());
+    if (failed(runPipeline(pm, getOperation()))) {
       signalPassFailure();
     }
   }
