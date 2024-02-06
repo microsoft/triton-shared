@@ -549,14 +549,9 @@ struct LoadConverter : public OpConversionPattern<tts::LoadOp> {
     return {sv1, sv2};
   }
 
-  LogicalResult rewriteSplitPtr(tts::LoadOp op, OpAdaptor adaptor,
-                                ConversionPatternRewriter &rewriter) const {
-
-    return success();
-  }
-
-  LogicalResult rewriteRegularPtr(tts::LoadOp op, OpAdaptor adaptor,
-                                  ConversionPatternRewriter &rewriter) const {
+  LogicalResult
+  matchAndRewrite(tts::LoadOp op, OpAdaptor adaptor,
+                  ConversionPatternRewriter &rewriter) const override {
     auto loc = op->getLoc();
     auto ptr = adaptor.getPtr();
     auto other = op.getOther();
@@ -667,17 +662,6 @@ struct LoadConverter : public OpConversionPattern<tts::LoadOp> {
     rewriter.replaceOp(op, tensor);
 
     return success();
-  }
-
-  LogicalResult rewriteBlockPtr(tts::LoadOp op, OpAdaptor adaptor,
-                                ConversionPatternRewriter &rewriter) const {
-    return success();
-  }
-
-  LogicalResult
-  matchAndRewrite(tts::LoadOp op, OpAdaptor adaptor,
-                  ConversionPatternRewriter &rewriter) const override {
-    return rewriteRegularPtr(op, adaptor, rewriter);
   }
 };
 
