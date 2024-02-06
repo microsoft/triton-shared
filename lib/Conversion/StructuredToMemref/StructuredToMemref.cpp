@@ -322,8 +322,16 @@ struct MakeTensorPtrConverter
   LogicalResult rewriteSplitPtr(tts::MakeTensorPtrOp op, OpAdaptor adaptor,
                                 ConversionPatternRewriter &rewriter) const {
 
+    auto mixedStrides = getMixedStridesForMemref(op, rewriter);
+    SmallVector<int64_t> staticStrides;
+
+    {
+      SmallVector<Value> dynamicStrides;
+      dispatchIndexOpFoldResults(mixedStrides, dynamicStrides, staticStrides);
+    }
+
     auto layout = StridedLayoutAttr::get(op.getContext(), ShapedType::kDynamic,
-                                         op.getStaticStrides());
+                                         staticStrides);
 
     auto parentShape = op.getStaticShape();
     SmallVector<Value> casts;
