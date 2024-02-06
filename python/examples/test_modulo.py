@@ -273,3 +273,6 @@ def test_torch_inductor_pattern():
     print(out)
     assert torch.equal(expected_out.int(), out.int())
     print('Passed')
+
+
+test_stacked()
