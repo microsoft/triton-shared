@@ -79,3 +79,5 @@ def test():
 
     torch.testing.assert_close(output, x, rtol=0.001, atol=1e-5)
     print("Pass!")
+
+test()

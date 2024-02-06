@@ -83,18 +83,31 @@ getMixedStridesForMemref(tts::MakeTensorPtrOp op, OpBuilder &b) {
   return strides;
 }
 
-static Type getElementType(tts::MakeTensorPtrOp op) {
+static Type getElementTypeRegularPtr(tts::MakeTensorPtrOp op) {
   // tensor<1024x!tt.ptr<f32, 1>>
   auto ptrType = cast<triton::PointerType>(
       cast<RankedTensorType>(op.getType()).getElementType());
   return ptrType.getPointeeType();
 }
 
+static Type getElementTypeBlockPtr(tts::MakeTensorPtrOp op) {
+  // !tt.ptr<tensor<128x64xbf16>, 1>
+  auto shapedType = cast<ShapedType>(
+      cast<triton::PointerType>(op.getType()).getPointeeType());
+  return shapedType.getElementType();
+}
+
 static MemRefType getResultMemrefType(tts::MakeTensorPtrOp op, int64_t offset,
                                       ArrayRef<int64_t> staticStrides,
                                       ArrayRef<int64_t> resultShape) {
   auto layout = StridedLayoutAttr::get(op.getContext(), offset, staticStrides);
-  return MemRefType::get(resultShape, getElementType(op), layout);
+  Type elemType;
+  if (op.getOrder().empty()) {
+    elemType = getElementTypeRegularPtr(op);
+  } else {
+    elemType = getElementTypeBlockPtr(op);
+  }
+  return MemRefType::get(resultShape, elemType, layout);
 }
 
 static tensor::ExtractSliceOp getExtractSlice(int rank,
@@ -360,12 +373,12 @@ struct MakeTensorPtrConverter
     return success();
   }
 
-  LogicalResult rewriteRegularPtr(tts::MakeTensorPtrOp op, OpAdaptor adaptor,
-                                  ConversionPatternRewriter &rewriter) const {
+  LogicalResult rewritePtr(ArrayRef<int64_t> resultShape,
+                           tts::MakeTensorPtrOp op, OpAdaptor adaptor,
+                           ConversionPatternRewriter &rewriter) const {
     auto ptr = adaptor.getBase();
 
     Location loc = op.getLoc();
-    ArrayRef<int64_t> resultShape = cast<ShapedType>(op.getType()).getShape();
 
     // Accumulate final offset
     OpFoldResult targetOffset = accumulateTargetOffset(op, rewriter);
@@ -389,9 +402,22 @@ struct MakeTensorPtrConverter
     return success();
   }
 
+  LogicalResult rewriteRegularPtr(tts::MakeTensorPtrOp op, OpAdaptor adaptor,
+                                  ConversionPatternRewriter &rewriter) const {
+    ArrayRef<int64_t> resultShape = cast<ShapedType>(op.getType()).getShape();
+    return rewritePtr(resultShape, op, adaptor, rewriter);
+  }
+
   LogicalResult rewriteBlockPtr(tts::MakeTensorPtrOp op, OpAdaptor adaptor,
                                 ConversionPatternRewriter &rewriter) const {
-    return success();
+    // Block pointers are basically the same as regular pointers except that
+    // the return types are !tt.ptr<tensor<AxBxCxbf16>> instead of
+    // tensor<AxBxCx!tt.ptr<bf16>>
+    ArrayRef<int64_t> resultShape =
+        cast<ShapedType>(
+            cast<triton::PointerType>(op.getType()).getPointeeType())
+            .getShape();
+    return rewritePtr(resultShape, op, adaptor, rewriter);
   }
 
   LogicalResult
@@ -407,7 +433,6 @@ struct MakeTensorPtrConverter
         llvm::all_of(parentShape, [](auto size) { return size == 0; });
 
     if (isBlockPtr) {
-      assert(0);
       // Block pointers
       return rewriteBlockPtr(op, adaptor, rewriter);
     } else if (isRegularPtr) {
@@ -715,9 +740,12 @@ struct ScalarAddptrConverter : public OpConversionPattern<triton::AddPtrOp> {
     auto offsetIndex = rewriter.create<arith::IndexCastOp>(
         loc, rewriter.getIndexType(), offset);
 
+    auto layout =
+        StridedLayoutAttr::get(op.getContext(), ShapedType::kDynamic, {1});
+
     auto elemType =
         cast<triton::PointerType>(op.getPtr().getType()).getPointeeType();
-    auto memrefType = MemRefType::get({1}, elemType);
+    auto memrefType = MemRefType::get({1}, elemType, layout);
 
     auto castOp = rewriter.create<memref::ReinterpretCastOp>(
         loc, memrefType, ptr, getAsOpFoldResult(offsetIndex) /*offset*/,
