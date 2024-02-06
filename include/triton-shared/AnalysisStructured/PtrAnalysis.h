@@ -34,9 +34,8 @@ const extern std::string ptrAnalysisAttr;
 // shape field means the same field as tt.make_tensor_ptr; when it describes a
 // non-block pointer, shape field indicates how address wraps around (i.e.,
 // modulo); a constant 0 indicates no modulo for the dimension.
-class PtrState {
+struct PtrState {
 
-public:
   SmallVector<OpFoldResult> offsets;
   SmallVector<OpFoldResult> sizes;
   SmallVector<OpFoldResult> strides;
