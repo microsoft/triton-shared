@@ -33,6 +33,21 @@ sudo apt-get install -y ccache clang lld
 TRITON_BUILD_WITH_CLANG_LLD=true TRITON_BUILD_WITH_CCACHE=true python3 -m pip install --no-build-isolation -vvv '.[tests]'
 ```
 
+To build this repo with a virtualenv:
+
+```
+export TRITON_PLUGIN_DIRS=$(pwd)/triton_shared
+
+git clone --recurse-submodules https://github.com/microsoft/triton-shared.git triton_shared
+cd triton_shared/triton
+
+python3 -m venv .venv --prompt triton
+source .venv/bin/activate
+
+pip3 install ninja cmake wheel
+pip3 install -e python
+```
+
 + the resulting binaries of `triton-shared` will be placed under `triton/python/build/{current_cmake_version}/third_party/triton_shared`
 
 ### 1. Stand-Alone
