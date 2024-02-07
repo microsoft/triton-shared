@@ -70,6 +70,24 @@ public:
   }
 };
 
+class LoopTypeConverter : public TypeConverter {
+public:
+  LoopTypeConverter(MLIRContext *context) {
+    // The order of type conversion is important: later ones are tried earlier.
+    addConversion([](Type type) { return type; });
+    addConversion([&](triton::PointerType ptrType) {
+      SmallVector<int64_t> strides{1};
+
+      auto layout =
+          StridedLayoutAttr::get(context, ShapedType::kDynamic, strides);
+
+      auto elemType = ptrType.getPointeeType();
+      auto memrefType = MemRefType::get({1}, elemType, layout);
+      return memrefType;
+    });
+  }
+};
+
 class StructuredToMemrefPass
     : public triton::impl::StructuredToMemrefBase<StructuredToMemrefPass> {
   using StructuredToMemrefBase<StructuredToMemrefPass>::StructuredToMemrefBase;
@@ -119,7 +137,8 @@ public:
       });
     });
 
-    triton::populateStructuredToMemrefConversionPatterns(patterns);
+    LoopTypeConverter loop(patterns.getContext());
+    triton::populateStructuredToMemrefConversionPatterns(patterns, loop);
 
     populateFunctionOpInterfaceTypeConversionPattern<func::FuncOp>(
         patterns, typeConverter);
