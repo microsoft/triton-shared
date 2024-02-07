@@ -106,6 +106,19 @@ public:
       return typeConverter.isSignatureLegal(op.getFunctionType());
     });
 
+    target.addDynamicallyLegalOp<scf::ForOp>([](Operation *op) {
+      return llvm::all_of(op->getResultTypes(), [](Type t) {
+        if (isa<triton::PointerType>(t)) {
+          return false;
+        }
+        if (auto shapedType = dyn_cast<ShapedType>(t)) {
+          return shapedType.getElementType().isIntOrFloat();
+        }
+        assert(t.isIntOrIndexOrFloat());
+        return true;
+      });
+    });
+
     triton::populateStructuredToMemrefConversionPatterns(patterns);
 
     populateFunctionOpInterfaceTypeConversionPattern<func::FuncOp>(

@@ -7,12 +7,15 @@
 
 #include "triton-shared/Conversion/StructuredToMemref/StructuredToMemref.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
+#include "mlir/Dialect/SCF/IR/SCF.h"
 #include "mlir/IR/Builders.h"
 #include "mlir/IR/BuiltinOps.h"
 #include "mlir/IR/BuiltinTypeInterfaces.h"
 #include "mlir/IR/BuiltinTypes.h"
+#include "mlir/IR/MLIRContext.h"
 #include "mlir/IR/OpDefinition.h"
 #include "mlir/IR/TypeUtilities.h"
+#include "mlir/IR/Types.h"
 #include "mlir/Support/LogicalResult.h"
 #include "triton-shared/Analysis/OpFoldResultUtils.h"
 #include "triton-shared/Dialect/TritonStructured/IR/TritonStructuredDialect.h"
@@ -769,6 +772,7 @@ struct ScalarAddptrConverter : public OpConversionPattern<triton::AddPtrOp> {
         ArrayRef<OpFoldResult>{rewriter.getIndexAttr(1)} /*sizes*/,
         ArrayRef<OpFoldResult>{rewriter.getIndexAttr(1)} /*strides*/);
 
+    rewriter.replaceAllUsesWith(op.getResult(), castOp.getResult());
     rewriter.replaceOp(op, castOp.getResult());
 
     return success();
@@ -840,6 +844,125 @@ public:
   }
 };
 
+class LoopTypeConverter : public TypeConverter {
+public:
+  LoopTypeConverter(MLIRContext *context) {
+    // The order of type conversion is important: later ones are tried earlier.
+    addConversion([](Type type) { return type; });
+    addConversion([&](triton::PointerType ptrType) {
+      auto layout = StridedLayoutAttr::get(context, ShapedType::kDynamic, {1});
+
+      auto elemType = ptrType.getPointeeType();
+      auto memrefType = MemRefType::get({1}, elemType, layout);
+      return memrefType;
+    });
+    // addConversion([](TensorType tensorType) -> Type {
+    //   auto elemType = tensorType.getElementType();
+    //   if (auto ptrType = elemType.dyn_cast<triton::PointerType>()) {
+    //     elemType = ptrType.getPointeeType();
+    //   }
+    //   return MemRefType::get(tensorType.getShape(), elemType);
+    // });
+
+    addSourceMaterialization([&](OpBuilder &builder, Type resultType,
+                                 ValueRange inputs,
+                                 Location loc) -> std::optional<Value> {
+      return builder.create<UnrealizedConversionCastOp>(loc, resultType, inputs)
+          .getResult(0);
+    });
+
+    addTargetMaterialization([&](OpBuilder &builder, Type resultType,
+                                 ValueRange inputs,
+                                 Location loc) -> std::optional<Value> {
+      return builder.create<UnrealizedConversionCastOp>(loc, resultType, inputs)
+          .getResult(0);
+    });
+  }
+};
+
+struct LoopConverter : public OpConversionPattern<scf::ForOp> {
+private:
+  using OpConversionPattern<scf::ForOp>::OpConversionPattern;
+
+  bool isBlockArg(func::FuncOp func, Value v) const {
+    for (auto &arg : func.getArguments()) {
+      if (v == arg) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+public:
+  LogicalResult
+  matchAndRewrite(scf::ForOp op, OpAdaptor adaptor,
+                  ConversionPatternRewriter &rewriter) const override {
+    // assert(0);
+    auto converter = LoopTypeConverter(op->getContext());
+
+    // Update the regions. The dialect conversion framework wants new regions to
+    // be created and updated, rather than updating the old op. Thus we use an
+    // OperationState so we can add regions to the new up.
+    llvm::SmallVector<Type, 4> new_results;
+    if (failed(converter.convertTypes(op->getResultTypes(), new_results))) {
+      assert(0);
+      return failure();
+    }
+
+    for (auto t : new_results) {
+      t.dump();
+    }
+
+    OperationState state(op->getLoc(), op->getName().getStringRef(),
+                         op->getOperands(), new_results, op->getAttrs(),
+                         op->getSuccessors());
+    for (Region &region : op->getRegions()) {
+      Region &new_region = *state.addRegion();
+      rewriter.inlineRegionBefore(region, new_region, new_region.begin());
+      if (failed(rewriter.convertRegionTypes(&new_region, converter))) {
+        assert(0);
+        return failure();
+      }
+    }
+    auto repl = rewriter.create(state);
+    repl->dump();
+    rewriter.replaceOp(op, repl);
+    return success();
+    // auto converter = getTypeConverter();
+    // auto newOp = rewriter.replaceOpWithNewOp<triton::FuncOp>(
+    //     op, op.getName(), op.getFunctionType());
+    // addNamedAttrs(newOp, adaptor.getAttributes());
+    // rewriter.inlineRegionBefore(op.getBody(), newOp.getBody(),
+    //                             newOp.getBody().end());
+    // if (failed(rewriter.convertRegionTypes(&newOp.getBody(), *converter)))
+    //   return failure();
+
+    auto newOp = rewriter.clone(*op.getOperation());
+
+    // return success();
+
+    auto &body = cast<scf::ForOp>(newOp).getRegion();
+    // assert(0);
+
+    TypeConverter::SignatureConversion conv(body.getNumArguments());
+    rewriter.applySignatureConversion(&body, conv);
+
+    auto b = rewriter.convertRegionTypes(&body, converter);
+
+    if (failed(b)) {
+      assert(0);
+      return failure();
+    }
+
+    // b.value()->dump();
+
+    // b.value()->dump();
+    newOp->dump();
+    rewriter.replaceOp(op, newOp);
+    return success();
+  }
+};
+
 } // namespace
 
 void mlir::triton::populateStructuredToMemrefConversionPatterns(
@@ -848,4 +971,6 @@ void mlir::triton::populateStructuredToMemrefConversionPatterns(
       .add<MakeTensorPtrConverter, LoadConverter, StoreConverter,
            ScalarAddptrConverter, ScalarLoadConverter, ScalarStoreConverter>(
           patterns.getContext());
+
+  patterns.add<LoopConverter>(patterns.getContext());
 }
