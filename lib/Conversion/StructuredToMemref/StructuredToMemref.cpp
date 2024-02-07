@@ -50,16 +50,6 @@ static const std::string WRAP_STACKED = "wrap_stacked";
 // Op Lowering Patterns
 //===----------------------------------------------------------------------===//
 
-static OpFoldResult accumulateTargetOffset(tts::MakeTensorPtrOp op,
-                                           OpBuilder &b) {
-  Location loc = op->getLoc();
-  OpFoldResult targetOffset = b.getIndexAttr(0);
-  for (auto o : op.getMixedOffsets()) {
-    targetOffset = addOFRs(targetOffset, o, loc, b);
-  }
-  return targetOffset;
-}
-
 // If there are dimensions with size 1 and stride 0, replace 0 stride with
 // the product of sizes of all lower dimensions. This avoids creating memref
 // with zero stride. Note that we store the unmodified state into knownPtrs,
@@ -141,7 +131,18 @@ static memref::SubViewOp getSubview(int rank, ArrayRef<OpFoldResult> dims,
 namespace {
 struct MakeTensorPtrConverter
     : public OpConversionPattern<tts::MakeTensorPtrOp> {
+private:
   using OpConversionPattern<tts::MakeTensorPtrOp>::OpConversionPattern;
+
+  static OpFoldResult accumulateTargetOffset(tts::MakeTensorPtrOp op,
+                                             OpBuilder &b) {
+    Location loc = op->getLoc();
+    OpFoldResult targetOffset = b.getIndexAttr(0);
+    for (auto o : op.getMixedOffsets()) {
+      targetOffset = addOFRs(targetOffset, o, loc, b);
+    }
+    return targetOffset;
+  }
 
   std::pair<memref::ReinterpretCastOp, memref::ReinterpretCastOp>
   createSideBySideCastOps(tts::MakeTensorPtrOp op, OpAdaptor adaptor,
@@ -420,6 +421,7 @@ struct MakeTensorPtrConverter
     return rewritePtr(resultShape, op, adaptor, rewriter);
   }
 
+public:
   LogicalResult
   matchAndRewrite(tts::MakeTensorPtrOp op, OpAdaptor adaptor,
                   ConversionPatternRewriter &rewriter) const override {
@@ -448,6 +450,7 @@ struct MakeTensorPtrConverter
 };
 
 struct LoadConverter : public OpConversionPattern<tts::LoadOp> {
+private:
   using OpConversionPattern<tts::LoadOp>::OpConversionPattern;
 
   void createSideBySideCopies(Value block1, Value block2, Value dst,
@@ -522,61 +525,64 @@ struct LoadConverter : public OpConversionPattern<tts::LoadOp> {
     rewriter.create<memref::CopyOp>(loc, block2, block2Dst);
   }
 
-  memref::SubViewOp createSubview(Value src, Location loc, OpBuilder &b,
-                                  ArrayRef<OpFoldResult> offsets,
+  memref::SubViewOp createSubview(Value src, ArrayRef<OpFoldResult> offsets,
                                   ArrayRef<OpFoldResult> sizes,
-                                  ArrayRef<OpFoldResult> strides) const {
+                                  ArrayRef<OpFoldResult> strides, Location loc,
+                                  ConversionPatternRewriter &rewriter) const {
     auto srcType = cast<MemRefType>(src.getType());
     auto dstType =
         memref::SubViewOp::inferResultType(srcType, offsets, sizes, strides);
-    return b.create<memref::SubViewOp>(loc, cast<MemRefType>(dstType), src,
-                                       offsets, sizes, strides);
+    return rewriter.create<memref::SubViewOp>(loc, cast<MemRefType>(dstType),
+                                              src, offsets, sizes, strides);
   }
 
   std::pair<memref::SubViewOp, memref::SubViewOp>
   getSideBySideSubviews(ArrayRef<OpFoldResult> dims, Value block1, Value block2,
-                        const Location loc, OpBuilder &builder) const {
+                        Location loc,
+                        ConversionPatternRewriter &rewriter) const {
     OpFoldResult subviewRowFull = dims[0];
     OpFoldResult subviewColFull = dims[1];
     OpFoldResult col1 =
-        builder.create<memref::DimOp>(loc, block1, 1).getResult();
-    OpFoldResult subviewCol1 = minOFRs(col1, subviewColFull, loc, builder);
+        rewriter.create<memref::DimOp>(loc, block1, 1).getResult();
+    OpFoldResult subviewCol1 = minOFRs(col1, subviewColFull, loc, rewriter);
     OpFoldResult subviewCol2 =
-        subOFRs(subviewColFull, subviewCol1, loc, builder);
+        subOFRs(subviewColFull, subviewCol1, loc, rewriter);
 
-    SmallVector<OpFoldResult> offsets(dims.size(), builder.getIndexAttr(0));
-    SmallVector<OpFoldResult> strides(dims.size(), builder.getIndexAttr(1));
-    auto sv1 = createSubview(block1, loc, builder, offsets,
-                             {subviewRowFull, subviewCol1}, strides);
-    auto sv2 = createSubview(block2, loc, builder, offsets,
-                             {subviewRowFull, subviewCol2}, strides);
+    SmallVector<OpFoldResult> offsets(dims.size(), rewriter.getIndexAttr(0));
+    SmallVector<OpFoldResult> strides(dims.size(), rewriter.getIndexAttr(1));
+    auto sv1 = createSubview(block1, offsets, {subviewRowFull, subviewCol1},
+                             strides, loc, rewriter);
+    auto sv2 = createSubview(block2, offsets, {subviewRowFull, subviewCol2},
+                             strides, loc, rewriter);
 
     return {sv1, sv2};
   }
 
   std::pair<memref::SubViewOp, memref::SubViewOp>
   getStackedSubviews(ArrayRef<OpFoldResult> dims, Value block1, Value block2,
-                     const Location loc, OpBuilder &builder) const {
+                     const Location loc,
+                     ConversionPatternRewriter &rewriter) const {
     OpFoldResult subviewRowFull = dims[0];
     OpFoldResult subviewColFull = dims[1];
     OpFoldResult row1 =
-        builder.create<memref::DimOp>(loc, block1, 0).getResult();
-    OpFoldResult subviewRow1 = minOFRs(row1, subviewRowFull, loc, builder);
+        rewriter.create<memref::DimOp>(loc, block1, 0).getResult();
+    OpFoldResult subviewRow1 = minOFRs(row1, subviewRowFull, loc, rewriter);
     OpFoldResult subviewRow2 =
-        subOFRs(subviewRowFull, subviewRow1, loc, builder);
+        subOFRs(subviewRowFull, subviewRow1, loc, rewriter);
 
-    SmallVector<OpFoldResult> offsets(dims.size(), builder.getIndexAttr(0));
-    SmallVector<OpFoldResult> strides(dims.size(), builder.getIndexAttr(1));
-    auto sv1 = createSubview(block1, loc, builder, offsets,
-                             {subviewRow1, subviewColFull}, strides);
-    auto sv2 = createSubview(block2, loc, builder, offsets,
-                             {subviewRow2, subviewColFull}, strides);
+    SmallVector<OpFoldResult> offsets(dims.size(), rewriter.getIndexAttr(0));
+    SmallVector<OpFoldResult> strides(dims.size(), rewriter.getIndexAttr(1));
+    auto sv1 = createSubview(block1, offsets, {subviewRow1, subviewColFull},
+                             strides, loc, rewriter);
+    auto sv2 = createSubview(block2, offsets, {subviewRow2, subviewColFull},
+                             strides, loc, rewriter);
     return {sv1, sv2};
   }
 
-  LogicalResult
-  matchAndRewrite(tts::LoadOp op, OpAdaptor adaptor,
-                  ConversionPatternRewriter &rewriter) const override {
+  LogicalResult rewriteRegularLoad(tts::LoadOp op, OpAdaptor adaptor,
+                                   ConversionPatternRewriter &rewriter) const {
+    assert(!op.hasMasks());
+
     auto loc = op->getLoc();
     auto ptr = adaptor.getPtr();
     auto other = op.getOther();
@@ -587,42 +593,49 @@ struct LoadConverter : public OpConversionPattern<tts::LoadOp> {
     auto alloc = rewriter.create<memref::AllocOp>(
         loc, MemRefType::get(tensorType.getShape(), elemType));
 
-    SmallVector<OpFoldResult> mixedDims = op.getMixedDims();
-
     // No mask
-    if (mixedDims.empty()) {
-      assert(!other && "other value used in non-masked load");
+    assert(!other && "other value used in non-masked load");
 
-      if (auto unrealizedCast =
-              ptr.getDefiningOp<UnrealizedConversionCastOp>()) {
+    if (auto unrealizedCast = ptr.getDefiningOp<UnrealizedConversionCastOp>()) {
+      auto memrefs = unrealizedCast.getOperands();
+      auto block1 = memrefs[0];
+      auto block2 = memrefs[1];
 
-        auto memrefs = unrealizedCast.getOperands();
-        auto block1 = memrefs[0];
-        auto block2 = memrefs[1];
-
-        if (unrealizedCast->hasAttr(WRAP_SIDE_BY_SIDE)) {
-          createSideBySideCopies(block1, block2, alloc, loc, rewriter);
-        } else if (unrealizedCast->hasAttr(WRAP_STACKED)) {
-          createStackedCopies(block1, block2, alloc, loc, rewriter);
-        } else {
-          llvm_unreachable("unexpected wraparound type");
-        }
-
+      if (unrealizedCast->hasAttr(WRAP_SIDE_BY_SIDE)) {
+        createSideBySideCopies(block1, block2, alloc, loc, rewriter);
+      } else if (unrealizedCast->hasAttr(WRAP_STACKED)) {
+        createStackedCopies(block1, block2, alloc, loc, rewriter);
       } else {
-        rewriter.create<memref::CopyOp>(loc, ptr, alloc);
+        llvm_unreachable("unexpected wraparound type");
       }
-
-      Value tensor = rewriter.create<bufferization::ToTensorOp>(
-          loc, tensorType, alloc, true /* restrict */, true /* writable */);
-      rewriter.replaceOp(op, tensor);
-
-      return success();
+    } else {
+      rewriter.create<memref::CopyOp>(loc, ptr, alloc);
     }
 
-    // Masked load
+    Value tensor = rewriter.create<bufferization::ToTensorOp>(
+        loc, tensorType, alloc, true /* restrict */, true /* writable */);
+    rewriter.replaceOp(op, tensor);
+
+    return success();
+  }
+
+  LogicalResult rewriteMaskedLoad(tts::LoadOp op, OpAdaptor adaptor,
+                                  ConversionPatternRewriter &rewriter) const {
+    assert(op.hasMasks());
+
+    auto loc = op->getLoc();
+    auto ptr = adaptor.getPtr();
+
+    auto tensorType = cast<RankedTensorType>(op.getType());
+    auto elemType = tensorType.getElementType();
+
+    auto alloc = rewriter.create<memref::AllocOp>(
+        loc, MemRefType::get(tensorType.getShape(), elemType));
+
+    SmallVector<OpFoldResult> mixedDims = op.getMixedMaskDims();
 
     // Fill load destination with other value
-    if (other) {
+    if (op.getOther()) {
       // For each dimension check if dims[i] < shape[i], or-accumulate
       // the result
       auto shape = tensorType.getShape();
@@ -646,12 +659,11 @@ struct LoadConverter : public OpConversionPattern<tts::LoadOp> {
 
       // condition the memset on the or-accumulation
       // initialize with padding prior to CopyOp
-      rewriter.create<scf::IfOp>(
-          loc, accBase, [&](OpBuilder &builder, Location loc) {
-            builder.create<linalg::FillOp>(loc, ValueRange{op.getOther()},
-                                           ValueRange{alloc});
-            builder.create<scf::YieldOp>(loc);
-          });
+      rewriter.create<scf::IfOp>(loc, accBase, [&](OpBuilder &b, Location loc) {
+        b.create<linalg::FillOp>(loc, ValueRange{op.getOther()},
+                                 ValueRange{alloc});
+        b.create<scf::YieldOp>(loc);
+      });
     }
 
     if (auto unrealizedCast = ptr.getDefiningOp<UnrealizedConversionCastOp>()) {
@@ -688,6 +700,17 @@ struct LoadConverter : public OpConversionPattern<tts::LoadOp> {
 
     return success();
   }
+
+public:
+  LogicalResult
+  matchAndRewrite(tts::LoadOp op, OpAdaptor adaptor,
+                  ConversionPatternRewriter &rewriter) const override {
+    if (op.hasMasks()) {
+      return rewriteMaskedLoad(op, adaptor, rewriter);
+    } else {
+      return rewriteRegularLoad(op, adaptor, rewriter);
+    }
+  }
 };
 
 struct StoreConverter : public OpConversionPattern<tts::StoreOp> {
@@ -701,20 +724,19 @@ struct StoreConverter : public OpConversionPattern<tts::StoreOp> {
     auto storeValue = op.getValue();
     auto rank = cast<RankedTensorType>(storeValue.getType()).getRank();
 
-    auto mixedDims = op.getMixedDims();
-    if (mixedDims.empty()) {
-      // store with no masks
-      auto storeOp = rewriter.create<bufferization::MaterializeInDestinationOp>(
-          loc, storeValue, ptr);
-      storeOp.setWritable(true);
+    if (op.hasMasks()) {
+      auto mixedDims = op.getMixedMaskDims();
 
-    } else {
       auto srcSlice =
           getExtractSlice(rank, mixedDims, storeValue, loc, rewriter);
       auto dstSubview = getSubview(rank, mixedDims, ptr, loc, rewriter);
 
       auto storeOp = rewriter.create<bufferization::MaterializeInDestinationOp>(
           loc, srcSlice, dstSubview);
+      storeOp.setWritable(true);
+    } else {
+      auto storeOp = rewriter.create<bufferization::MaterializeInDestinationOp>(
+          loc, storeValue, ptr);
       storeOp.setWritable(true);
     }
 
@@ -783,6 +805,7 @@ struct ScalarLoadConverter : public OpConversionPattern<triton::LoadOp> {
 };
 
 struct ScalarStoreConverter : public OpConversionPattern<triton::StoreOp> {
+private:
   using OpConversionPattern<triton::StoreOp>::OpConversionPattern;
 
   bool isBlockArg(func::FuncOp func, Value v) const {
@@ -794,6 +817,7 @@ struct ScalarStoreConverter : public OpConversionPattern<triton::StoreOp> {
     return false;
   }
 
+public:
   LogicalResult
   matchAndRewrite(triton::StoreOp op, OpAdaptor adaptor,
                   ConversionPatternRewriter &rewriter) const override {
