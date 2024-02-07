@@ -128,9 +128,13 @@ def TTS_LoadOp : TTS_Op<"load", [
 
   let extraClassDeclaration = [{
     /// Return a vector of all the static or dynamic fields
-    SmallVector<OpFoldResult> getMixedDims() {
+    SmallVector<OpFoldResult> getMixedMaskDims() {
       Builder b(getContext());
       return ::mlir::getMixedValues(getStaticDims(), getDims(), b);
+    }
+
+    bool hasMasks() {
+      return !getStaticDims().empty();
     }
   }];
 
@@ -155,9 +159,13 @@ def TTS_StoreOp : TTS_Op<"store", [
 
   let extraClassDeclaration = [{
     /// Return a vector of all the static or dynamic fields
-    SmallVector<OpFoldResult> getMixedDims() {
+    SmallVector<OpFoldResult> getMixedMaskDims() {
       Builder b(getContext());
       return ::mlir::getMixedValues(getStaticDims(), getDims(), b);
+    }
+
+    bool hasMasks() {
+      return !getStaticDims().empty();
     }
   }];
 
