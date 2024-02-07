@@ -46,93 +46,77 @@ using namespace triton;
 static const std::string WRAP_SIDE_BY_SIDE = "wrap_side_by_side";
 static const std::string WRAP_STACKED = "wrap_stacked";
 
-//===----------------------------------------------------------------------===//
-// Op Lowering Patterns
-//===----------------------------------------------------------------------===//
-
-// If there are dimensions with size 1 and stride 0, replace 0 stride with
-// the product of sizes of all lower dimensions. This avoids creating memref
-// with zero stride. Note that we store the unmodified state into knownPtrs,
-// since any following pointer arithmetic operations should use the original
-// 0 stride.
-static llvm::SmallVector<OpFoldResult>
-getMixedStridesForMemref(tts::MakeTensorPtrOp op, OpBuilder &b) {
-  llvm::SmallVector<OpFoldResult> strides;
-  auto accumulate = 1;
-  for (auto [size, stride] :
-       llvm::reverse(llvm::zip(op.getSizes(), op.getMixedStrides()))) {
-    auto strideIntAttr = getIntAttr(stride);
-    if (size == 1 && strideIntAttr && strideIntAttr.value() == 0) {
-      strides.push_back(b.getIndexAttr(accumulate));
-    } else {
-      strides.push_back(stride);
-    }
-    accumulate *= size;
-  }
-  std::reverse(strides.begin(), strides.end());
-  return strides;
-}
-
-static Type getElementTypeRegularPtr(tts::MakeTensorPtrOp op) {
-  // tensor<1024x!tt.ptr<f32, 1>>
-  auto ptrType = cast<triton::PointerType>(
-      cast<RankedTensorType>(op.getType()).getElementType());
-  return ptrType.getPointeeType();
-}
-
-static Type getElementTypeBlockPtr(tts::MakeTensorPtrOp op) {
-  // !tt.ptr<tensor<128x64xbf16>, 1>
-  auto shapedType = cast<ShapedType>(
-      cast<triton::PointerType>(op.getType()).getPointeeType());
-  return shapedType.getElementType();
-}
-
-static MemRefType getResultMemrefType(tts::MakeTensorPtrOp op, int64_t offset,
-                                      ArrayRef<int64_t> staticStrides,
-                                      ArrayRef<int64_t> resultShape) {
-  auto layout = StridedLayoutAttr::get(op.getContext(), offset, staticStrides);
-  Type elemType;
-  if (op.getOrder().empty()) {
-    elemType = getElementTypeRegularPtr(op);
-  } else {
-    elemType = getElementTypeBlockPtr(op);
-  }
-  return MemRefType::get(resultShape, elemType, layout);
-}
-
-static tensor::ExtractSliceOp getExtractSlice(int rank,
-                                              ArrayRef<OpFoldResult> dims,
-                                              Value source, const Location loc,
-                                              OpBuilder &b) {
-  auto sourceType = source.getType().cast<RankedTensorType>();
-  SmallVector<OpFoldResult> offsets(rank, b.getIndexAttr(0));
-  SmallVector<OpFoldResult> strides(rank, b.getIndexAttr(1));
-
-  auto dstType = tensor::ExtractSliceOp::inferResultType(sourceType, offsets,
-                                                         dims, strides);
-
-  return b.create<tensor::ExtractSliceOp>(loc, dstType, source, offsets, dims,
-                                          strides);
-}
-
 static memref::SubViewOp getSubview(int rank, ArrayRef<OpFoldResult> dims,
-                                    Value source, const Location loc,
-                                    OpBuilder &b) {
-  auto sourceType = source.getType().cast<MemRefType>();
+                                    Value source, Location loc, OpBuilder &b) {
+  auto sourceType = cast<MemRefType>(source.getType());
   SmallVector<OpFoldResult> offsets(rank, b.getIndexAttr(0));
   SmallVector<OpFoldResult> strides(rank, b.getIndexAttr(1));
   auto dstType =
       memref::SubViewOp::inferResultType(sourceType, offsets, dims, strides);
 
-  return b.create<memref::SubViewOp>(loc, dstType.cast<MemRefType>(), source,
+  return b.create<memref::SubViewOp>(loc, cast<MemRefType>(dstType), source,
                                      offsets, dims, strides);
 }
 
 namespace {
+
 struct MakeTensorPtrConverter
     : public OpConversionPattern<tts::MakeTensorPtrOp> {
 private:
   using OpConversionPattern<tts::MakeTensorPtrOp>::OpConversionPattern;
+
+  static Type getElementTypeRegularPtr(tts::MakeTensorPtrOp op) {
+    assert(!op.isBlockPtr());
+    // tensor<1024x!tt.ptr<f32, 1>>
+    auto ptrType = cast<triton::PointerType>(
+        cast<RankedTensorType>(op.getType()).getElementType());
+    return ptrType.getPointeeType();
+  }
+
+  static Type getElementTypeBlockPtr(tts::MakeTensorPtrOp op) {
+    assert(op.isBlockPtr());
+    // !tt.ptr<tensor<128x64xbf16>, 1>
+    auto shapedType = cast<ShapedType>(
+        cast<triton::PointerType>(op.getType()).getPointeeType());
+    return shapedType.getElementType();
+  }
+
+  static MemRefType getResultMemrefType(tts::MakeTensorPtrOp op, int64_t offset,
+                                        ArrayRef<int64_t> staticStrides,
+                                        ArrayRef<int64_t> resultShape) {
+    auto layout =
+        StridedLayoutAttr::get(op.getContext(), offset, staticStrides);
+    Type elemType;
+    if (op.isBlockPtr()) {
+      elemType = getElementTypeBlockPtr(op);
+    } else {
+      elemType = getElementTypeRegularPtr(op);
+    }
+    return MemRefType::get(resultShape, elemType, layout);
+  }
+
+  // If there are dimensions with size 1 and stride 0, replace 0 stride with
+  // the product of sizes of all lower dimensions. This avoids creating memref
+  // with zero stride. Note that we store the unmodified state into knownPtrs,
+  // since any following pointer arithmetic operations should use the original
+  // 0 stride.
+  static llvm::SmallVector<OpFoldResult>
+  getMixedStridesForMemref(tts::MakeTensorPtrOp op, OpBuilder &b) {
+    llvm::SmallVector<OpFoldResult> strides;
+    auto accumulate = 1;
+    for (auto [size, stride] :
+         llvm::reverse(llvm::zip(op.getSizes(), op.getMixedStrides()))) {
+      auto strideIntAttr = getIntAttr(stride);
+      if (size == 1 && strideIntAttr && strideIntAttr.value() == 0) {
+        strides.push_back(b.getIndexAttr(accumulate));
+      } else {
+        strides.push_back(stride);
+      }
+      accumulate *= size;
+    }
+    std::reverse(strides.begin(), strides.end());
+    return strides;
+  }
 
   static OpFoldResult accumulateTargetOffset(tts::MakeTensorPtrOp op,
                                              OpBuilder &b) {
@@ -150,11 +134,10 @@ private:
     auto loc = op->getLoc();
     auto resultShape = cast<RankedTensorType>(op.getType()).getShape();
 
-    // Accumulate final offset
-    Value targetOffset =
+    auto targetOffset =
         ofrToIndexValue(accumulateTargetOffset(op, rewriter), loc, rewriter);
 
-    //////////////////////////////////////////////////////////////////////////////
+    ////////////////////////////////////////////////////////////////////////////
     //
     // Handling side-by-side wraparound
     //
@@ -166,7 +149,7 @@ private:
     //
     // Same limitations apply to the stacked wraparound case.
     //
-    //////////////////////////////////////////////////////////////////////////////
+    ////////////////////////////////////////////////////////////////////////////
     //
     //    nextOffset - targetOffset = colSize
     //    d1 + d2 = colSize
@@ -186,9 +169,7 @@ private:
     //    clampedOffset = min(nextOffset, N)
     //    d1 = clampedOffset - x
     //
-    //////////////////////////////////////////////////////////////////////////////
-
-    SmallVector<memref::ReinterpretCastOp> casts;
+    ////////////////////////////////////////////////////////////////////////////
 
     auto resultType = getResultMemrefType(
         op, /* offset */ ShapedType::kDynamic,
@@ -196,12 +177,15 @@ private:
         SmallVector<int64_t>(resultShape.size(), ShapedType::kDynamic),
         /* result shape */
         SmallVector<int64_t>{
-            resultShape[0],      // Row stays the same
-            ShapedType::kDynamic // Column is dynamic, in most cases, this
-                                 // should be the same as the original column.
-                                 // The last chunk may be smaller due to
-                                 // wrapping around.
-        });
+
+            // Row stays the same
+            resultShape[0],
+
+            // Column is dynamic, in most cases, this
+            // should be the same as the original column.
+            // The last chunk may be smaller due to
+            // wrapping around.
+            ShapedType::kDynamic});
 
     Value rowSize = rewriter.create<arith::ConstantOp>(
         loc, rewriter.getIndexAttr(op.getSizes()[0]));
@@ -245,17 +229,17 @@ private:
 
     assert(resultShape.size() == 2);
 
-    Value targetOffset =
+    auto targetOffset =
         ofrToIndexValue(accumulateTargetOffset(op, rewriter), loc, rewriter);
 
-    //////////////////////////////////////////////////////////////////////////////
+    ////////////////////////////////////////////////////////////////////////////
     //
     // Handling stacked wraparound
     //
     // We do not support cases where the target offset has already overflown the
     // number of rows. See side-by-side wraparound for details.
     //
-    //////////////////////////////////////////////////////////////////////////////
+    ////////////////////////////////////////////////////////////////////////////
     //    We're loading a tensor of dim (rowSize, colSize)
     //    d1 + d2 = rowSize
     //    d2 is the number of rows that overflow
@@ -291,11 +275,14 @@ private:
         SmallVector<int64_t>(resultShape.size(), ShapedType::kDynamic),
         /* result shape */
         SmallVector<int64_t>{
-            ShapedType::kDynamic, // Row is dynamic, in most cases, this should
-                                  // be the same as the original row. The last
-                                  // chunk may be smaller due to wrapping
-                                  // around.
-            resultShape[1],       // Col stays the same.
+            // Row is dynamic, in most cases, this should
+            // be the same as the original row. The last
+            // chunk may be smaller due to wrapping
+            // around.
+            ShapedType::kDynamic,
+
+            // Col stays the same.
+            resultShape[1],
         });
 
     Value rowSize = rewriter.create<arith::ConstantOp>(
@@ -336,20 +323,24 @@ private:
   LogicalResult rewriteSplitPtr(tts::MakeTensorPtrOp op, OpAdaptor adaptor,
                                 ConversionPatternRewriter &rewriter) const {
 
-    auto mixedStrides = getMixedStridesForMemref(op, rewriter);
-    SmallVector<int64_t> staticStrides;
-
-    {
-      SmallVector<Value> dynamicStrides;
-      dispatchIndexOpFoldResults(mixedStrides, dynamicStrides, staticStrides);
-    }
-
-    auto layout = StridedLayoutAttr::get(op.getContext(), ShapedType::kDynamic,
-                                         staticStrides);
-
     auto parentShape = op.getStaticShape();
+
     SmallVector<Value> casts;
     StringRef wrapType;
+    // if (parentShape[0] == ShapedType::kDynamic && parentShape[1] == 0) {
+    //   auto [cast1, cast2] = createStackedCastOps(op, adaptor, rewriter);
+    //   casts = {cast1.getResult(), cast2.getResult()};
+    //   wrapType = WRAP_STACKED;
+    // } else if (parentShape[0] == 0 && parentShape[1] == ShapedType::kDynamic)
+    // {
+    //   auto [cast1, cast2] = createSideBySideCastOps(op, adaptor, rewriter);
+    //   casts = {cast1.getResult(), cast2.getResult()};
+    //   wrapType = WRAP_SIDE_BY_SIDE;
+    // } else {
+    //   assert(0);
+    //   return failure();
+    // }
+
     if (parentShape[0] == ShapedType::kDynamic) {
       // Stacked case
       assert(parentShape[1] == 0);
@@ -363,9 +354,8 @@ private:
       wrapType = WRAP_SIDE_BY_SIDE;
     }
 
-    UnrealizedConversionCastOp combinedCast =
-        rewriter.create<UnrealizedConversionCastOp>(op.getLoc(), op.getType(),
-                                                    casts);
+    auto combinedCast = rewriter.create<UnrealizedConversionCastOp>(
+        op.getLoc(), op.getType(), casts);
 
     combinedCast->setAttr(wrapType, rewriter.getUnitAttr());
 
@@ -377,28 +367,24 @@ private:
   LogicalResult rewritePtr(ArrayRef<int64_t> resultShape,
                            tts::MakeTensorPtrOp op, OpAdaptor adaptor,
                            ConversionPatternRewriter &rewriter) const {
-    auto ptr = adaptor.getBase();
-
-    Location loc = op.getLoc();
-
-    // Accumulate final offset
-    OpFoldResult targetOffset = accumulateTargetOffset(op, rewriter);
 
     auto mixedStrides = getMixedStridesForMemref(op, rewriter);
     SmallVector<int64_t> staticStrides;
-
-    {
-      SmallVector<Value> dynamicStrides;
-      dispatchIndexOpFoldResults(mixedStrides, dynamicStrides, staticStrides);
-    }
+    SmallVector<Value> dynamicStrides;
+    dispatchIndexOpFoldResults(mixedStrides, dynamicStrides, staticStrides);
 
     auto resultType = getResultMemrefType(op, op.getStaticOffsets()[0],
                                           staticStrides, resultShape);
 
-    auto castOp = rewriter.create<memref::ReinterpretCastOp>(
-        loc, resultType, ptr, targetOffset, op.getMixedSizes(), mixedStrides);
+    // The base ptr, which is from one of the args, would have already been
+    // converted to memref<*> at this point, so get the base from adaptor
+    auto ptr = adaptor.getBase();
 
-    rewriter.replaceOp(op, castOp.getResult());
+    auto castOp = rewriter.create<memref::ReinterpretCastOp>(
+        op.getLoc(), resultType, ptr, accumulateTargetOffset(op, rewriter),
+        op.getMixedSizes(), mixedStrides);
+
+    rewriter.replaceOp(op, castOp);
 
     return success();
   }
@@ -426,26 +412,19 @@ public:
   matchAndRewrite(tts::MakeTensorPtrOp op, OpAdaptor adaptor,
                   ConversionPatternRewriter &rewriter) const override {
 
-    auto parentShape = op.getShape();
-    auto order = op.getOrder();
-
-    const bool isBlockPtr = !order.empty();
-    const bool isRegularPtr =
-        !isBlockPtr &&
-        llvm::all_of(parentShape, [](auto size) { return size == 0; });
-
-    if (isBlockPtr) {
-      // Block pointers
+    if (op.isBlockPtr()) {
       return rewriteBlockPtr(op, adaptor, rewriter);
-    } else if (isRegularPtr) {
-      // Regular pointers because parent sizes are all 0
+    }
+
+    if (op.isRegularPtr()) {
       return rewriteRegularPtr(op, adaptor, rewriter);
-    } else {
-      // Split pointers
+    }
+
+    if (op.isSplitPtr()) {
       return rewriteSplitPtr(op, adaptor, rewriter);
     }
 
-    return success();
+    return failure();
   }
 };
 
@@ -714,8 +693,24 @@ public:
 };
 
 struct StoreConverter : public OpConversionPattern<tts::StoreOp> {
+private:
   using OpConversionPattern<tts::StoreOp>::OpConversionPattern;
 
+  static tensor::ExtractSliceOp
+  getExtractSlice(int rank, ArrayRef<OpFoldResult> dims, Value source,
+                  const Location loc, OpBuilder &b) {
+    auto sourceType = source.getType().cast<RankedTensorType>();
+    SmallVector<OpFoldResult> offsets(rank, b.getIndexAttr(0));
+    SmallVector<OpFoldResult> strides(rank, b.getIndexAttr(1));
+
+    auto dstType = tensor::ExtractSliceOp::inferResultType(sourceType, offsets,
+                                                           dims, strides);
+
+    return b.create<tensor::ExtractSliceOp>(loc, dstType, source, offsets, dims,
+                                            strides);
+  }
+
+public:
   LogicalResult
   matchAndRewrite(tts::StoreOp op, OpAdaptor adaptor,
                   ConversionPatternRewriter &rewriter) const override {
@@ -792,9 +787,6 @@ struct ScalarLoadConverter : public OpConversionPattern<triton::LoadOp> {
 
     auto loc = op->getLoc();
     auto memrefPtr = adaptor.getPtr();
-
-    memrefPtr.dump();
-
     auto zeroMap = AffineMap::getConstantMap(0, rewriter.getContext());
     auto loadOp = rewriter.create<affine::AffineLoadOp>(loc, memrefPtr, zeroMap,
                                                         std::nullopt);
