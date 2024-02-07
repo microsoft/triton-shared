@@ -7,12 +7,14 @@
 #include "triton/Dialect/Triton/IR/Dialect.h"
 
 namespace mlir {
+class TypeConverter;
 namespace triton {
 
 #define GEN_PASS_DECL
 #include "triton-shared/Conversion/StructuredToMemref/Passes.h.inc"
 
-void populateStructuredToMemrefConversionPatterns(RewritePatternSet &patterns);
+void populateStructuredToMemrefConversionPatterns(RewritePatternSet &patterns,
+                                                  TypeConverter &typeConverter);
 
 } // namespace triton
 } // namespace mlir
