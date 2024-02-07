@@ -48,7 +48,6 @@ source .venv/bin/activate
 
 pip3 install ninja cmake wheel pytest
 pip3 install -e python --no-build-isolation
-
 ```
 
 The resulting `triton-shared` binaries will be placed under `triton/python/build/{current_cmake_version}/third_party/triton_shared`
@@ -140,7 +139,6 @@ func.func @kernel(%arg0: memref<*xbf16>, %arg1: memref<*xbf16>, %arg2: i32, %arg
     return
 
 }
-
 ```
 
 Important details to note:
