@@ -6,8 +6,10 @@
 //===----------------------------------------------------------------------===//
 
 #include "triton-shared/Conversion/StructuredToMemref/StructuredToMemref.h"
+#include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/Dialect/SCF/IR/SCF.h"
+#include "mlir/IR/Block.h"
 #include "mlir/IR/Builders.h"
 #include "mlir/IR/BuiltinOps.h"
 #include "mlir/IR/BuiltinTypeInterfaces.h"
@@ -16,6 +18,8 @@
 #include "mlir/IR/OpDefinition.h"
 #include "mlir/IR/TypeUtilities.h"
 #include "mlir/IR/Types.h"
+#include "mlir/IR/Value.h"
+#include "mlir/IR/ValueRange.h"
 #include "mlir/Support/LogicalResult.h"
 #include "mlir/Transforms/DialectConversion.h"
 #include "triton-shared/Analysis/OpFoldResultUtils.h"
@@ -33,7 +37,9 @@
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SmallVector.h"
+#include "llvm/Support/Casting.h"
 #include "llvm/Support/Debug.h"
+#include "llvm/Support/ErrorHandling.h"
 
 #include <algorithm>
 #include <cassert>
@@ -49,6 +55,15 @@ using namespace triton;
 
 static const std::string WRAP_SIDE_BY_SIDE = "wrap_side_by_side";
 static const std::string WRAP_STACKED = "wrap_stacked";
+
+static bool isFuncArg(func::FuncOp func, Value v) {
+  for (auto &arg : func.getArguments()) {
+    if (v == arg) {
+      return true;
+    }
+  }
+  return false;
+}
 
 static memref::SubViewOp getSubview(int rank, ArrayRef<OpFoldResult> dims,
                                     Value source, Location loc, OpBuilder &b) {
@@ -747,6 +762,47 @@ public:
 struct ScalarAddptrConverter : public OpConversionPattern<triton::AddPtrOp> {
   using OpConversionPattern<triton::AddPtrOp>::OpConversionPattern;
 
+private:
+  // {ptr, offset}
+  std::pair<Value, Value> getPtrAndOffset(OpAdaptor adaptor) {
+    auto definingOp = adaptor.getPtr().getDefiningOp();
+
+    // This must be coming from a function argument
+    if (!definingOp) {
+      return {adaptor.getPtr(), adaptor.getOffset()};
+    }
+
+    // This comes from another scalar addptr that had been converted to a
+    // reinterpret_cast op
+    if (auto reinterpretCastOp =
+            dyn_cast<memref::ReinterpretCastOp>(definingOp)) {
+
+      auto basePtr = reinterpretCastOp.getSource();
+      auto offsets = reinterpretCastOp.getOffsets();
+      assert(offsets.size() == 1);
+      return {basePtr, offsets[0]};
+    }
+
+    llvm_unreachable("Unexpected");
+  }
+
+  bool isBlockArg(Operation *op, Value operand, Block *&foundBlock) const {
+    Block *currentBlock = op->getBlock();
+    while (currentBlock) {
+      // Check the arguments of the current block.
+      for (auto arg : currentBlock->getArguments()) {
+        if (operand == arg) {
+          foundBlock = currentBlock;
+          return true;
+        }
+      }
+      auto parentBlockOp = currentBlock->getParentOp();
+      currentBlock = parentBlockOp->getBlock();
+    }
+    return false;
+  }
+
+public:
   LogicalResult
   matchAndRewrite(triton::AddPtrOp op, OpAdaptor adaptor,
                   ConversionPatternRewriter &rewriter) const override {
@@ -754,31 +810,109 @@ struct ScalarAddptrConverter : public OpConversionPattern<triton::AddPtrOp> {
       return failure();
     }
 
+    auto cast = rewriter.create<UnrealizedConversionCastOp>(
+        op->getLoc(), rewriter.getIndexType(), adaptor.getOperands());
+    // rewriter.replaceOp(op, cast);
+    // rewriter.replaceAllUsesWith(op, cast.getResult(0));
+    rewriter.eraseOp(op);
+    return success();
+
+    // auto base = adaptor.getPtr();
+    // base.dump();
+    // auto offset = op.getOffset();
+
+    // if (!offset.getType().isIndex()) {
+    //   offset = rewriter.create<arith::IndexCastOp>(
+    //       op.getLoc(), rewriter.getIndexType(), offset);
+    // }
+
+    // if (isa<UnrankedMemRefType>(base.getType())) {
+    //   rewriter.replaceAllUsesWith(op.getResult(), offset);
+    // } else {
+    //   auto addOffset =
+    //       rewriter.create<arith::AddIOp>(op->getLoc(), base, offset);
+    //   rewriter.replaceAllUsesWith(op.getResult(), addOffset);
+    // }
+
+    // rewriter.eraseOp(op);
+    // return success();
+
+    // auto funcOp = op->getParentOfType<func::FuncOp>();
+
+    // // Note that we're getting the
     auto ptr = adaptor.getPtr();
     auto offset = op.getOffset();
     auto loc = op->getLoc();
+    // BlockArgument arg;
 
-    auto offsetIndex = rewriter.create<arith::IndexCastOp>(
-        loc, rewriter.getIndexType(), offset);
+    if (!offset.getType().isIndex()) {
+      offset = rewriter.create<arith::IndexCastOp>(
+          op.getLoc(), rewriter.getIndexType(), offset);
+    }
 
-    auto layout =
-        StridedLayoutAttr::get(op.getContext(), ShapedType::kDynamic, {1});
+    if (auto unrealizedCast = ptr.getDefiningOp<UnrealizedConversionCastOp>()) {
+      auto operands = unrealizedCast->getOperands();
+      assert(operands.size() == 2);
+      auto basePtr = operands[0];
+      auto baseOffset = operands[1];
 
-    auto elemType =
-        cast<triton::PointerType>(op.getPtr().getType()).getPointeeType();
-    auto memrefType = MemRefType::get({1}, elemType, layout);
+      auto newOffset = rewriter.create<arith::AddIOp>(loc, baseOffset, offset);
 
-    auto castOp = rewriter.create<memref::ReinterpretCastOp>(
-        loc, memrefType, ptr, getAsOpFoldResult(offsetIndex) /*offset*/,
-        ArrayRef<OpFoldResult>{rewriter.getIndexAttr(1)} /*sizes*/,
-        ArrayRef<OpFoldResult>{rewriter.getIndexAttr(1)} /*strides*/);
+      auto newOp = rewriter.create<UnrealizedConversionCastOp>(
+          loc, rewriter.getIndexType(), ValueRange{basePtr, newOffset});
 
-    rewriter.replaceAllUsesWith(op.getResult(), castOp.getResult());
-    rewriter.replaceOp(op, castOp.getResult());
+      rewriter.replaceAllUsesWith(op.getResult(), newOp.getResult(0));
+      rewriter.eraseOp(op);
+      return success();
+    }
 
-    return success();
+    if (!ptr.getDefiningOp()) {
+      // auto blockArg = operand.cast<BlockArgument>();
+      auto newOp = rewriter.create<UnrealizedConversionCastOp>(
+          loc, rewriter.getIndexType(), ValueRange{ptr, offset});
+      rewriter.replaceAllUsesWith(op.getResult(), newOp.getResult(0));
+      rewriter.eraseOp(op);
+      return success();
+    }
+
+    return failure();
   }
 };
+
+// Given a value, i want to find the func arg that corresponds to it
+Value findFuncArg(Value val) {
+  Value currVal = val;
+  llvm::dbgs() << "findFuncArg\n";
+  while (true) {
+    auto definingOp = currVal.getDefiningOp();
+    if (!definingOp) {
+      currVal.dump();
+      llvm::dbgs() << "parent block\n";
+      currVal.getParentBlock()->dump();
+      auto parentOp = currVal.getParentBlock()->getParentOp();
+      parentOp->dump();
+      if (auto funcOp = dyn_cast<func::FuncOp>(parentOp)) {
+        for (auto arg : funcOp.getArguments()) {
+          if (arg == currVal) {
+            return arg;
+          }
+        }
+        llvm_unreachable("unexpected");
+      } else if (auto forOp = dyn_cast<scf::ForOp>(parentOp)) {
+        auto blockArg = cast<BlockArgument>(currVal);
+        auto argNumber = blockArg.getArgNumber();
+        currVal = forOp.getInitArgs()[argNumber];
+      } else {
+        parentOp->dump();
+        llvm_unreachable("Unhandled");
+      }
+    } else {
+      llvm::dbgs() << "traversing\n";
+      definingOp->dump();
+      currVal = cast<UnrealizedConversionCastOp>(definingOp)->getOperand(0);
+    }
+  }
+}
 
 struct ScalarLoadConverter : public OpConversionPattern<triton::LoadOp> {
   using OpConversionPattern<triton::LoadOp>::OpConversionPattern;
@@ -790,10 +924,31 @@ struct ScalarLoadConverter : public OpConversionPattern<triton::LoadOp> {
       return failure();
     }
 
+    llvm::dbgs() << "triton ptr\n";
+    op.getPtr().dump();
+    llvm::dbgs() << "memref ptr\n";
+    adaptor.getPtr().dump();
+
     auto loc = op->getLoc();
-    auto memrefPtr = adaptor.getPtr();
+    auto tritonPtr = op.getPtr();
+    auto memrefPtr = findFuncArg(tritonPtr);
+    auto offset = cast<UnrealizedConversionCastOp>(tritonPtr.getDefiningOp())
+                      ->getOperand(1);
+
+    auto layout =
+        StridedLayoutAttr::get(op.getContext(), ShapedType::kDynamic, {1});
+
+    auto elemType =
+        cast<UnrankedMemRefType>(memrefPtr.getType()).getElementType();
+    auto memrefType = MemRefType::get({1}, elemType, layout);
+
+    auto castOp = rewriter.create<memref::ReinterpretCastOp>(
+        loc, memrefType, memrefPtr, getAsOpFoldResult(offset) /*offset*/,
+        ArrayRef<OpFoldResult>{rewriter.getIndexAttr(1)} /*sizes*/,
+        ArrayRef<OpFoldResult>{rewriter.getIndexAttr(1)} /*strides*/);
+
     auto zeroMap = AffineMap::getConstantMap(0, rewriter.getContext());
-    auto loadOp = rewriter.create<affine::AffineLoadOp>(loc, memrefPtr, zeroMap,
+    auto loadOp = rewriter.create<affine::AffineLoadOp>(loc, castOp, zeroMap,
                                                         std::nullopt);
     rewriter.replaceOp(op, loadOp.getResult());
 
@@ -805,15 +960,6 @@ struct ScalarStoreConverter : public OpConversionPattern<triton::StoreOp> {
 private:
   using OpConversionPattern<triton::StoreOp>::OpConversionPattern;
 
-  bool isBlockArg(func::FuncOp func, Value v) const {
-    for (auto &arg : func.getArguments()) {
-      if (v == arg) {
-        return true;
-      }
-    }
-    return false;
-  }
-
 public:
   LogicalResult
   matchAndRewrite(triton::StoreOp op, OpAdaptor adaptor,
@@ -823,21 +969,42 @@ public:
       return failure();
     }
 
+    llvm::dbgs() << "triton ptr\n";
+    op.getPtr().dump();
+    // llvm::dbgs() << "memref ptr\n";
+    // memrefPtr.dump();
+
     auto loc = op->getLoc();
-    auto memrefPtr = adaptor.getPtr();
     auto val = op.getValue();
     auto zeroMap = AffineMap::getConstantMap(0, rewriter.getContext());
 
+    auto tritonPtr = op.getPtr();
+    auto memrefPtr = findFuncArg(tritonPtr);
+    auto offset = cast<UnrealizedConversionCastOp>(tritonPtr.getDefiningOp())
+                      ->getOperand(1);
+
+    auto layout =
+        StridedLayoutAttr::get(op.getContext(), ShapedType::kDynamic, {1});
+
+    auto elemType =
+        cast<UnrankedMemRefType>(memrefPtr.getType()).getElementType();
+    auto memrefType = MemRefType::get({1}, elemType, layout);
+
+    auto castOp = rewriter.create<memref::ReinterpretCastOp>(
+        loc, memrefType, memrefPtr, getAsOpFoldResult(offset) /*offset*/,
+        ArrayRef<OpFoldResult>{rewriter.getIndexAttr(1)} /*sizes*/,
+        ArrayRef<OpFoldResult>{rewriter.getIndexAttr(1)} /*strides*/);
+
     if (isa<UnrankedMemRefType>(memrefPtr.getType())) {
       auto func = op->getParentOfType<func::FuncOp>();
-      assert(isBlockArg(func, memrefPtr));
+      assert(isFuncArg(func, memrefPtr));
       memrefPtr = rewriter.create<memref::ReinterpretCastOp>(
           loc, MemRefType::get({1}, op.getValue().getType()), memrefPtr,
           0 /*offset*/, SmallVector<int64_t>{1} /*sizes*/,
           SmallVector<int64_t>{1} /*strides*/);
     }
 
-    rewriter.create<affine::AffineStoreOp>(loc, val, memrefPtr, zeroMap,
+    rewriter.create<affine::AffineStoreOp>(loc, val, castOp, zeroMap,
                                            std::nullopt);
     rewriter.eraseOp(op);
 
@@ -849,7 +1016,7 @@ struct LoopConverter : public OpConversionPattern<scf::ForOp> {
 private:
   using OpConversionPattern<scf::ForOp>::OpConversionPattern;
 
-  bool isBlockArg(func::FuncOp func, Value v) const {
+  bool isFuncArg(func::FuncOp func, Value v) const {
     for (auto &arg : func.getArguments()) {
       if (v == arg) {
         return true;
@@ -867,9 +1034,9 @@ public:
                   ConversionPatternRewriter &rewriter) const override {
     // assert(0);
 
-    // Update the regions. The dialect conversion framework wants new regions to
-    // be created and updated, rather than updating the old op. Thus we use an
-    // OperationState so we can add regions to the new up.
+    // Update the regions. The dialect conversion framework wants new regions
+    // to be created and updated, rather than updating the old op. Thus we use
+    // an OperationState so we can add regions to the new up.
     llvm::SmallVector<Type, 4> new_results;
     if (failed(getTypeConverter()->convertTypes(op->getResultTypes(),
                                                 new_results))) {
@@ -877,9 +1044,9 @@ public:
       return failure();
     }
 
-    for (auto t : new_results) {
-      t.dump();
-    }
+    // for (auto t : new_results) {
+    //   t.dump();
+    // }
 
     OperationState state(op->getLoc(), op->getName().getStringRef(),
                          op->getOperands(), new_results, op->getAttrs(),
@@ -889,13 +1056,30 @@ public:
       rewriter.inlineRegionBefore(region, new_region, new_region.begin());
       if (failed(
               rewriter.convertRegionTypes(&new_region, *getTypeConverter()))) {
-        assert(0);
+        // assert(0);
         return failure();
       }
     }
     auto repl = rewriter.create(state);
-    repl->dump();
+    // repl->dump();
     rewriter.replaceOp(op, repl);
+    return success();
+  }
+};
+
+struct CastConverter : public OpConversionPattern<UnrealizedConversionCastOp> {
+private:
+  using OpConversionPattern<UnrealizedConversionCastOp>::OpConversionPattern;
+
+public:
+  CastConverter(MLIRContext *context, TypeConverter &typeConverter)
+      : OpConversionPattern<UnrealizedConversionCastOp>(typeConverter,
+                                                        context) {}
+
+  LogicalResult
+  matchAndRewrite(UnrealizedConversionCastOp op, OpAdaptor adaptor,
+                  ConversionPatternRewriter &rewriter) const override {
+    rewriter.eraseOp(op);
     return success();
   }
 };
@@ -904,10 +1088,11 @@ public:
 
 void mlir::triton::populateStructuredToMemrefConversionPatterns(
     RewritePatternSet &patterns, TypeConverter &typeConverter) {
-  patterns
-      .add<MakeTensorPtrConverter, LoadConverter, StoreConverter,
-           ScalarAddptrConverter, ScalarLoadConverter, ScalarStoreConverter>(
-          patterns.getContext());
-
   patterns.add<LoopConverter>(patterns.getContext(), typeConverter);
+  patterns.add<ScalarAddptrConverter>(patterns.getContext());
+
+  // patterns
+  //     .add<MakeTensorPtrConverter, LoadConverter, StoreConverter,
+  //          ScalarAddptrConverter, ScalarLoadConverter, ScalarStoreConverter>(
+  //         patterns.getContext());
 }

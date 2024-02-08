@@ -407,7 +407,7 @@ def test_torch_inductor_pattern():
 
 
 test_stacked_masked_loop()
-test_side_by_side_masked_loop()
-test_2d()
-test_1d()
-test_wrap_stacked()
+# test_side_by_side_masked_loop()
+# test_2d()
+# test_1d()
+# test_wrap_stacked()

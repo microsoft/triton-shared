@@ -5,8 +5,10 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/MemRef/IR/MemRef.h"
 #include "mlir/IR/BuiltinOps.h"
+#include "mlir/IR/BuiltinTypes.h"
 #include "triton-shared/Conversion/StructuredToMemref/StructuredToMemref.h"
 #include "triton-shared/Dialect/TritonStructured/IR/TritonStructuredDialect.h"
 #include "triton-shared/Dialect/TritonTilingExt/IR/TritonTilingExtDialect.h"
@@ -21,6 +23,7 @@
 #include "triton/Dialect/Triton/IR/Types.h"
 
 #include "llvm/Support/Debug.h"
+#include <cassert>
 
 #define DEBUG_TYPE "structured-to-memref"
 
@@ -75,16 +78,23 @@ public:
   LoopTypeConverter(MLIRContext *context) {
     // The order of type conversion is important: later ones are tried earlier.
     addConversion([](Type type) { return type; });
-    addConversion([&](triton::PointerType ptrType) {
-      SmallVector<int64_t> strides{1};
+    addConversion(
+        [&](triton::PointerType ptrType) { return IndexType::get(context); });
+    // addSourceMaterialization([&](OpBuilder &builder, Type resultType,
+    //                              ValueRange inputs,
+    //                              Location loc) -> std::optional<Value> {
+    //   return builder.create<UnrealizedConversionCastOp>(loc, resultType,
+    //   inputs)
+    //       .getResult(0);
+    // });
 
-      auto layout =
-          StridedLayoutAttr::get(context, ShapedType::kDynamic, strides);
-
-      auto elemType = ptrType.getPointeeType();
-      auto memrefType = MemRefType::get({1}, elemType, layout);
-      return memrefType;
-    });
+    // addTargetMaterialization([&](OpBuilder &builder, Type resultType,
+    //                              ValueRange inputs,
+    //                              Location loc) -> std::optional<Value> {
+    //   return builder.create<UnrealizedConversionCastOp>(loc, resultType,
+    //   inputs)
+    //       .getResult(0);
+    // });
   }
 };
 
@@ -101,12 +111,25 @@ public:
                     ttx::TritonTilingExtDialect, memref::MemRefDialect>();
   }
 
+  void rewrite() {
+    auto moduleOp = getOperation();
+
+    moduleOp->walk<WalkOrder::PreOrder>(
+        [&](triton::AddPtrOp op) { op->dump(); });
+  }
+
   void runOnOperation() override {
     auto moduleOp = getOperation();
 
     RewritePatternSet patterns(&getContext());
     ConversionTarget target(getContext());
-    TritonTypeConverter typeConverter;
+
+    LoopTypeConverter loop(moduleOp->getContext());
+    triton::populateStructuredToMemrefConversionPatterns(patterns, loop);
+
+    // target.addIllegalOp<triton::AddPtrOp>();
+    target.addLegalOp<UnrealizedConversionCastOp>();
+    target.addLegalDialect<arith::ArithDialect>();
 
     target.addLegalDialect<
         func::FuncDialect, arith::ArithDialect, math::MathDialect,
@@ -114,15 +137,6 @@ public:
         cf::ControlFlowDialect, tensor::TensorDialect,
         bufferization::BufferizationDialect, ttx::TritonTilingExtDialect,
         memref::MemRefDialect>();
-
-    target.addIllegalDialect<tts::TritonStructuredDialect>();
-
-    target.addLegalOp<UnrealizedConversionCastOp>();
-
-    // Update function signature to use memrefs
-    target.addDynamicallyLegalOp<func::FuncOp>([&](func::FuncOp op) {
-      return typeConverter.isSignatureLegal(op.getFunctionType());
-    });
 
     target.addDynamicallyLegalOp<scf::ForOp>([](Operation *op) {
       return llvm::all_of(op->getResultTypes(), [](Type t) {
@@ -137,22 +151,64 @@ public:
       });
     });
 
-    LoopTypeConverter loop(patterns.getContext());
-    triton::populateStructuredToMemrefConversionPatterns(patterns, loop);
-
-    populateFunctionOpInterfaceTypeConversionPattern<func::FuncOp>(
-        patterns, typeConverter);
-
     if (failed(applyPartialConversion(moduleOp, target, std::move(patterns)))) {
       signalPassFailure();
     }
 
-    // Erase dead code and fold constants created during lowering
-    PassManager pm(&getContext(), moduleOp.getOperationName());
-    pm.addPass(createCanonicalizerPass());
-    if (failed(runPipeline(pm, getOperation()))) {
-      signalPassFailure();
-    }
+    rewrite();
+
+    return;
+
+    // RewritePatternSet patterns(&getContext());
+    // ConversionTarget target(getContext());
+    // TritonTypeConverter typeConverter;
+
+    // target.addLegalDialect<
+    //     func::FuncDialect, arith::ArithDialect, math::MathDialect,
+    //     linalg::LinalgDialect, affine::AffineDialect, scf::SCFDialect,
+    //     cf::ControlFlowDialect, tensor::TensorDialect,
+    //     bufferization::BufferizationDialect, ttx::TritonTilingExtDialect,
+    //     memref::MemRefDialect>();
+
+    // target.addIllegalDialect<tts::TritonStructuredDialect>();
+
+    // target.addLegalOp<UnrealizedConversionCastOp>();
+
+    // // Update function signature to use memrefs
+    // target.addDynamicallyLegalOp<func::FuncOp>([&](func::FuncOp op) {
+    //   return typeConverter.isSignatureLegal(op.getFunctionType());
+    // });
+
+    // target.addDynamicallyLegalOp<scf::ForOp>([](Operation *op) {
+    //   return llvm::all_of(op->getResultTypes(), [](Type t) {
+    //     if (isa<triton::PointerType>(t)) {
+    //       return false;
+    //     }
+    //     if (auto shapedType = dyn_cast<ShapedType>(t)) {
+    //       return shapedType.getElementType().isIntOrFloat();
+    //     }
+    //     assert(t.isIntOrIndexOrFloat());
+    //     return true;
+    //   });
+    // });
+
+    // LoopTypeConverter loop(patterns.getContext());
+    // triton::populateStructuredToMemrefConversionPatterns(patterns, loop);
+
+    // populateFunctionOpInterfaceTypeConversionPattern<func::FuncOp>(
+    //     patterns, typeConverter);
+
+    // if (failed(applyPartialConversion(moduleOp, target,
+    // std::move(patterns)))) {
+    //   signalPassFailure();
+    // }
+
+    // // Erase dead code and fold constants created during lowering
+    // PassManager pm(&getContext(), moduleOp.getOperationName());
+    // pm.addPass(createCanonicalizerPass());
+    // if (failed(runPipeline(pm, getOperation()))) {
+    //   signalPassFailure();
+    // }
   }
 };
 } // namespace

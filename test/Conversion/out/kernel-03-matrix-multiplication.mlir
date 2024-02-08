@@ -1,21 +1,21 @@
 #map = affine_map<(d0, d1) -> (d0, d1)>
 module {
   func.func @matmul_kernel_0123456789101112131415(%arg0: memref<*xbf16>, %arg1: memref<*xbf16>, %arg2: memref<*xbf16>, %arg3: i32, %arg4: i32, %arg5: i32, %arg6: i32, %arg7: i32, %arg8: i32, %arg9: i32, %arg10: i32, %arg11: i32, %arg12: i32, %arg13: i32, %arg14: i32, %arg15: i32, %arg16: i32, %arg17: i32) {
+    %c8_i32 = arith.constant 8 : i32
+    %c128_i32 = arith.constant 128 : i32
+    %c256_i32 = arith.constant 256 : i32
+    %c64_i32 = arith.constant 64 : i32
+    %c0_i32 = arith.constant 0 : i32
+    %c1_i32 = arith.constant 1 : i32
+    %c127_i32 = arith.constant 127 : i32
+    %c255_i32 = arith.constant 255 : i32
+    %c63_i32 = arith.constant 63 : i32
+    %c0 = arith.constant 0 : index
+    %c128 = arith.constant 128 : index
+    %c256 = arith.constant 256 : index
     %cst = arith.constant 0.000000e+00 : f32
     %0 = tensor.empty() : tensor<128x256xf32>
     %1 = linalg.fill ins(%cst : f32) outs(%0 : tensor<128x256xf32>) -> tensor<128x256xf32>
-    %c256 = arith.constant 256 : index
-    %c128 = arith.constant 128 : index
-    %c0 = arith.constant 0 : index
-    %c63_i32 = arith.constant 63 : i32
-    %c255_i32 = arith.constant 255 : i32
-    %c127_i32 = arith.constant 127 : i32
-    %c1_i32 = arith.constant 1 : i32
-    %c0_i32 = arith.constant 0 : i32
-    %c64_i32 = arith.constant 64 : i32
-    %c256_i32 = arith.constant 256 : i32
-    %c128_i32 = arith.constant 128 : i32
-    %c8_i32 = arith.constant 8 : i32
     %2 = arith.addi %arg3, %c127_i32 : i32
     %3 = arith.divsi %2, %c128_i32 : i32
     %4 = arith.addi %arg4, %c255_i32 : i32
@@ -50,26 +50,24 @@ module {
     %33:3 = scf.for %arg18 = %c0_i32 to %7 step %c1_i32 iter_args(%arg19 = %1, %arg20 = %24, %arg21 = %c0) -> (tensor<128x256xf32>, index, index)  : i32 {
       %53 = arith.addi %arg21, %28 : index
       %reinterpret_cast_0 = memref.reinterpret_cast %arg1 to offset: [%53], sizes: [64, 256], strides: [%26, %27] : memref<*xbf16> to memref<64x256xbf16, strided<[?, ?], offset: ?>>
-      %54 = arith.addi %arg20, %c0 : index
-      %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%54], sizes: [128, 64], strides: [%23, %25] : memref<*xbf16> to memref<128x64xbf16, strided<[?, ?], offset: ?>>
+      %reinterpret_cast_1 = memref.reinterpret_cast %arg0 to offset: [%arg20], sizes: [128, 64], strides: [%23, %25] : memref<*xbf16> to memref<128x64xbf16, strided<[?, ?], offset: ?>>
       %alloc = memref.alloc() : memref<128x64xbf16>
       memref.copy %reinterpret_cast_1, %alloc : memref<128x64xbf16, strided<[?, ?], offset: ?>> to memref<128x64xbf16>
-      %55 = bufferization.to_tensor %alloc restrict writable : memref<128x64xbf16>
+      %54 = bufferization.to_tensor %alloc restrict writable : memref<128x64xbf16>
       %alloc_2 = memref.alloc() : memref<64x256xbf16>
       memref.copy %reinterpret_cast_0, %alloc_2 : memref<64x256xbf16, strided<[?, ?], offset: ?>> to memref<64x256xbf16>
-      %56 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x256xbf16>
-      %57 = tensor.empty() : tensor<128x256xf32>
-      %cst_3 = arith.constant 0.000000e+00 : f32
-      %58 = linalg.fill ins(%cst_3 : f32) outs(%57 : tensor<128x256xf32>) -> tensor<128x256xf32>
-      %59 = linalg.matmul ins(%55, %56 : tensor<128x64xbf16>, tensor<64x256xbf16>) outs(%58 : tensor<128x256xf32>) -> tensor<128x256xf32>
-      %60 = linalg.generic {indexing_maps = [#map, #map, #map], iterator_types = ["parallel", "parallel"]} ins(%arg19, %59 : tensor<128x256xf32>, tensor<128x256xf32>) outs(%arg19 : tensor<128x256xf32>) {
-      ^bb0(%in: f32, %in_4: f32, %out: f32):
-        %63 = arith.addf %in, %in_4 : f32
-        linalg.yield %63 : f32
+      %55 = bufferization.to_tensor %alloc_2 restrict writable : memref<64x256xbf16>
+      %56 = tensor.empty() : tensor<128x256xf32>
+      %57 = linalg.fill ins(%cst : f32) outs(%56 : tensor<128x256xf32>) -> tensor<128x256xf32>
+      %58 = linalg.matmul ins(%54, %55 : tensor<128x64xbf16>, tensor<64x256xbf16>) outs(%57 : tensor<128x256xf32>) -> tensor<128x256xf32>
+      %59 = linalg.generic {indexing_maps = [#map, #map, #map], iterator_types = ["parallel", "parallel"]} ins(%arg19, %58 : tensor<128x256xf32>, tensor<128x256xf32>) outs(%arg19 : tensor<128x256xf32>) {
+      ^bb0(%in: f32, %in_3: f32, %out: f32):
+        %62 = arith.addf %in, %in_3 : f32
+        linalg.yield %62 : f32
       } -> tensor<128x256xf32>
-      %61 = arith.addi %arg20, %30 : index
-      %62 = arith.addi %arg21, %32 : index
-      scf.yield %60, %61, %62 : tensor<128x256xf32>, index, index
+      %60 = arith.addi %arg20, %30 : index
+      %61 = arith.addi %arg21, %32 : index
+      scf.yield %59, %60, %61 : tensor<128x256xf32>, index, index
     }
     %34 = tensor.empty() : tensor<128x256xbf16>
     %35 = linalg.generic {indexing_maps = [#map, #map], iterator_types = ["parallel", "parallel"]} ins(%33#0 : tensor<128x256xf32>) outs(%34 : tensor<128x256xbf16>) {

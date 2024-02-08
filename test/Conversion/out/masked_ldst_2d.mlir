@@ -8,45 +8,39 @@ module {
     %c130 = arith.constant 130 : index
     %cst = arith.constant 0xFF80 : bf16
     %c1024 = arith.constant 1024 : index
-    %c3072 = arith.constant 3072 : index
-    %0 = arith.addi %c2, %c3072 : index
-    %reinterpret_cast = memref.reinterpret_cast %arg0 to offset: [%0], sizes: [128, 256], strides: [1, %c1024] : memref<*xbf16> to memref<128x256xbf16, strided<[1, ?], offset: ?>>
-    %1 = arith.addi %c2, %c3072 : index
-    %reinterpret_cast_0 = memref.reinterpret_cast %arg1 to offset: [%1], sizes: [128, 256], strides: [1, %c1024] : memref<*xbf16> to memref<128x256xbf16, strided<[1, ?], offset: ?>>
-    %2 = arith.index_cast %arg2 : i32 to index
-    %3 = arith.minsi %2, %c130 : index
-    %4 = arith.subi %3, %c2 : index
-    %5 = arith.index_cast %arg3 : i32 to index
-    %6 = arith.minsi %5, %c259 : index
-    %7 = arith.subi %6, %c3 : index
-    %8 = arith.minsi %4, %c128 : index
-    %9 = arith.minsi %7, %c256 : index
+    %c3074 = arith.constant 3074 : index
+    %reinterpret_cast = memref.reinterpret_cast %arg0 to offset: [%c3074], sizes: [128, 256], strides: [1, %c1024] : memref<*xbf16> to memref<128x256xbf16, strided<[1, ?], offset: ?>>
+    %reinterpret_cast_0 = memref.reinterpret_cast %arg1 to offset: [%c3074], sizes: [128, 256], strides: [1, %c1024] : memref<*xbf16> to memref<128x256xbf16, strided<[1, ?], offset: ?>>
+    %0 = arith.index_cast %arg2 : i32 to index
+    %1 = arith.minsi %0, %c130 : index
+    %2 = arith.subi %1, %c2 : index
+    %3 = arith.index_cast %arg3 : i32 to index
+    %4 = arith.minsi %3, %c259 : index
+    %5 = arith.subi %4, %c3 : index
+    %6 = arith.minsi %2, %c128 : index
+    %7 = arith.minsi %5, %c256 : index
     %alloc = memref.alloc() : memref<128x256xbf16>
-    %false = arith.constant false
-    %c128_1 = arith.constant 128 : index
-    %10 = arith.cmpi slt, %8, %c128_1 : index
-    %11 = arith.ori %false, %10 : i1
-    %c256_2 = arith.constant 256 : index
-    %12 = arith.cmpi slt, %9, %c256_2 : index
-    %13 = arith.ori %11, %12 : i1
-    scf.if %13 {
+    %8 = arith.cmpi slt, %6, %c128 : index
+    %9 = arith.cmpi slt, %7, %c256 : index
+    %10 = arith.ori %8, %9 : i1
+    scf.if %10 {
       linalg.fill ins(%cst : bf16) outs(%alloc : memref<128x256xbf16>)
     }
-    %subview = memref.subview %reinterpret_cast[0, 0] [%8, %9] [1, 1] : memref<128x256xbf16, strided<[1, ?], offset: ?>> to memref<?x?xbf16, strided<[1, ?], offset: ?>>
-    %subview_3 = memref.subview %alloc[0, 0] [%8, %9] [1, 1] : memref<128x256xbf16> to memref<?x?xbf16, strided<[256, 1]>>
-    memref.copy %subview, %subview_3 : memref<?x?xbf16, strided<[1, ?], offset: ?>> to memref<?x?xbf16, strided<[256, 1]>>
-    %14 = bufferization.to_tensor %alloc restrict writable : memref<128x256xbf16>
-    %15 = arith.index_cast %arg2 : i32 to index
-    %16 = arith.minsi %15, %c130 : index
-    %17 = arith.subi %16, %c2 : index
-    %18 = arith.index_cast %arg3 : i32 to index
-    %19 = arith.minsi %18, %c259 : index
-    %20 = arith.subi %19, %c3 : index
-    %21 = arith.minsi %17, %c128 : index
-    %22 = arith.minsi %20, %c256 : index
-    %extracted_slice = tensor.extract_slice %14[0, 0] [%21, %22] [1, 1] : tensor<128x256xbf16> to tensor<?x?xbf16>
-    %subview_4 = memref.subview %reinterpret_cast_0[0, 0] [%21, %22] [1, 1] : memref<128x256xbf16, strided<[1, ?], offset: ?>> to memref<?x?xbf16, strided<[1, ?], offset: ?>>
-    bufferization.materialize_in_destination %extracted_slice in writable %subview_4 : (tensor<?x?xbf16>, memref<?x?xbf16, strided<[1, ?], offset: ?>>) -> ()
+    %subview = memref.subview %reinterpret_cast[0, 0] [%6, %7] [1, 1] : memref<128x256xbf16, strided<[1, ?], offset: ?>> to memref<?x?xbf16, strided<[1, ?], offset: ?>>
+    %subview_1 = memref.subview %alloc[0, 0] [%6, %7] [1, 1] : memref<128x256xbf16> to memref<?x?xbf16, strided<[256, 1]>>
+    memref.copy %subview, %subview_1 : memref<?x?xbf16, strided<[1, ?], offset: ?>> to memref<?x?xbf16, strided<[256, 1]>>
+    %11 = bufferization.to_tensor %alloc restrict writable : memref<128x256xbf16>
+    %12 = arith.index_cast %arg2 : i32 to index
+    %13 = arith.minsi %12, %c130 : index
+    %14 = arith.subi %13, %c2 : index
+    %15 = arith.index_cast %arg3 : i32 to index
+    %16 = arith.minsi %15, %c259 : index
+    %17 = arith.subi %16, %c3 : index
+    %18 = arith.minsi %14, %c128 : index
+    %19 = arith.minsi %17, %c256 : index
+    %extracted_slice = tensor.extract_slice %11[0, 0] [%18, %19] [1, 1] : tensor<128x256xbf16> to tensor<?x?xbf16>
+    %subview_2 = memref.subview %reinterpret_cast_0[0, 0] [%18, %19] [1, 1] : memref<128x256xbf16, strided<[1, ?], offset: ?>> to memref<?x?xbf16, strided<[1, ?], offset: ?>>
+    bufferization.materialize_in_destination %extracted_slice in writable %subview_2 : (tensor<?x?xbf16>, memref<?x?xbf16, strided<[1, ?], offset: ?>>) -> ()
     return
   }
 }
