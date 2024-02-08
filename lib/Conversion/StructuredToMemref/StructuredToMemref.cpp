@@ -6,6 +6,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "triton-shared/Conversion/StructuredToMemref/StructuredToMemref.h"
+#include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/Dialect/SCF/IR/SCF.h"
 #include "mlir/IR/Builders.h"
@@ -768,13 +769,29 @@ struct ScalarAddptrConverter : public OpConversionPattern<triton::AddPtrOp> {
         cast<triton::PointerType>(op.getPtr().getType()).getPointeeType();
     auto memrefType = MemRefType::get({1}, elemType, layout);
 
-    auto castOp = rewriter.create<memref::ReinterpretCastOp>(
-        loc, memrefType, ptr, getAsOpFoldResult(offsetIndex) /*offset*/,
-        ArrayRef<OpFoldResult>{rewriter.getIndexAttr(1)} /*sizes*/,
-        ArrayRef<OpFoldResult>{rewriter.getIndexAttr(1)} /*strides*/);
+    if (isa<UnrankedMemRefType>(ptr.getType())) {
+      auto castOp = rewriter.create<memref::ReinterpretCastOp>(
+          loc, memrefType, ptr, getAsOpFoldResult(offsetIndex) /*offset*/,
+          ArrayRef<OpFoldResult>{rewriter.getIndexAttr(1)} /*sizes*/,
+          ArrayRef<OpFoldResult>{rewriter.getIndexAttr(1)} /*strides*/);
+      rewriter.replaceAllUsesWith(op.getResult(), castOp.getResult());
+      rewriter.replaceOp(op, castOp.getResult());
+    } else {
+      auto extractMetadataOp =
+          rewriter.create<memref::ExtractStridedMetadataOp>(loc, ptr);
+      auto base = extractMetadataOp.getBaseBuffer();
+      auto offset = extractMetadataOp.getOffset();
 
-    rewriter.replaceAllUsesWith(op.getResult(), castOp.getResult());
-    rewriter.replaceOp(op, castOp.getResult());
+      auto newOffset = rewriter.create<arith::AddIOp>(loc, offset, offsetIndex);
+
+      auto castOp = rewriter.create<memref::ReinterpretCastOp>(
+          loc, memrefType, base, getAsOpFoldResult(newOffset) /*offset*/,
+          ArrayRef<OpFoldResult>{rewriter.getIndexAttr(1)} /*sizes*/,
+          ArrayRef<OpFoldResult>{rewriter.getIndexAttr(1)} /*strides*/);
+
+      rewriter.replaceAllUsesWith(op.getResult(), castOp.getResult());
+      rewriter.replaceOp(op, castOp.getResult());
+    }
 
     return success();
   }
@@ -822,13 +839,18 @@ public:
     if (!op.getValue().getType().isIntOrIndexOrFloat()) {
       return failure();
     }
+    // assert(0);
 
     auto loc = op->getLoc();
     auto memrefPtr = adaptor.getPtr();
     auto val = op.getValue();
     auto zeroMap = AffineMap::getConstantMap(0, rewriter.getContext());
 
+    llvm::dbgs() << "inside scalar store\n";
+    memrefPtr.dump();
+
     if (isa<UnrankedMemRefType>(memrefPtr.getType())) {
+      assert(0);
       auto func = op->getParentOfType<func::FuncOp>();
       assert(isBlockArg(func, memrefPtr));
       memrefPtr = rewriter.create<memref::ReinterpretCastOp>(

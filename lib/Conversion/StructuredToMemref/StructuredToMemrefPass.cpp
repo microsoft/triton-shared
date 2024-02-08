@@ -6,6 +6,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "mlir/Dialect/MemRef/IR/MemRef.h"
+#include "mlir/IR/BuiltinAttributes.h"
 #include "mlir/IR/BuiltinOps.h"
 #include "triton-shared/Conversion/StructuredToMemref/StructuredToMemref.h"
 #include "triton-shared/Dialect/TritonStructured/IR/TritonStructuredDialect.h"
@@ -21,6 +22,7 @@
 #include "triton/Dialect/Triton/IR/Types.h"
 
 #include "llvm/Support/Debug.h"
+#include <cassert>
 
 #define DEBUG_TYPE "structured-to-memref"
 
@@ -52,13 +54,12 @@ public:
     //   return MemRefType::get(tensorType.getShape(), elemType);
     // });
 
-    // addSourceMaterialization([&](OpBuilder &builder, Type resultType,
-    //                              ValueRange inputs,
-    //                              Location loc) -> std::optional<Value> {
-    //   return builder.create<UnrealizedConversionCastOp>(loc, resultType,
-    //   inputs)
-    //       .getResult(0);
-    // });
+    addSourceMaterialization([&](OpBuilder &builder, Type resultType,
+                                 ValueRange inputs,
+                                 Location loc) -> std::optional<Value> {
+      return builder.create<UnrealizedConversionCastOp>(loc, resultType, inputs)
+          .getResult(0);
+    });
 
     // addTargetMaterialization([&](OpBuilder &builder, Type resultType,
     //                              ValueRange inputs,
@@ -85,6 +86,26 @@ public:
       auto memrefType = MemRefType::get({1}, elemType, layout);
       return memrefType;
     });
+
+    // addSourceMaterialization([&](OpBuilder &builder, Type resultType,
+    //                              ValueRange inputs,
+    //                              Location loc) -> std::optional<Value> {
+    //   assert(0);
+    //   return builder.create<UnrealizedConversionCastOp>(loc, resultType,
+    //   inputs)
+    //       .getResult(0);
+    // });
+
+    // addTargetMaterialization([&](OpBuilder &builder, Type resultType,
+    //                              ValueRange inputs,
+    //                              Location loc) -> std::optional<Value> {
+    //   // assert(0);
+    //   auto op =
+    //       builder.create<UnrealizedConversionCastOp>(loc, resultType,
+    //       inputs);
+    //   op->setAttr("lol", UnitAttr::get(context));
+    //   return op.getResult(0);
+    // });
   }
 };
 
