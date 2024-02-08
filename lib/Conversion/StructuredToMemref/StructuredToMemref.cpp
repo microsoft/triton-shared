@@ -899,12 +899,49 @@ public:
       return failure();
     }
 
-    for (auto t : new_results) {
+    for (auto t : op->getResultTypes()) {
       t.dump();
     }
 
+    llvm::dbgs() << "~~~~~~~~~~~~~~~~~~~~~\n";
+    llvm::dbgs() << op.getOperands().size() << "\n";
+    llvm::dbgs() << new_results.size() << "\n";
+    // for (auto operand : adaptor.getOperands()) {
+    //   // if (isa<Unr)
+    //   if (auto unrealizedCastOp =
+    //           operand.getDefiningOp<UnrealizedConversionCastOp>()) {
+
+    //     auto from = unrealizedCastOp.getInputs()[0];
+    //     assert(isa<UnrankedMemRefType>(from.getType()));
+
+    //     from.dump();
+
+    //     auto layout =
+    //         StridedLayoutAttr::get(op.getContext(), ShapedType::kDynamic,
+    //         {1});
+
+    //     auto elemType =
+    //         cast<UnrankedMemRefType>(from.getType()).getElementType();
+    //     auto memrefType = MemRefType::get({1}, elemType, layout);
+
+    //     auto castOp = rewriter.create<memref::ReinterpretCastOp>(
+    //         op.getLoc(), memrefType, from, rewriter.getIndexAttr(0)
+    //         /*offset*/, ArrayRef<OpFoldResult>{rewriter.getIndexAttr(1)}
+    //         /*sizes*/, ArrayRef<OpFoldResult>{rewriter.getIndexAttr(1)}
+    //         /*strides*/);
+
+    //     rewriter.replaceAllUsesWith(unrealizedCastOp.getResult(0),
+    //                                 castOp.getResult());
+    //     // rewriter.replaceOp(unrealizedCastOp, castOp.getResult());
+
+    //     rewriter.eraseOp(castOp);
+    //     // rewriter.eraseOp(castOp);
+    //   }
+    // }
+    llvm::dbgs() << "~~~~~~~~~~~~~~~~~~~~~\n";
+
     OperationState state(op->getLoc(), op->getName().getStringRef(),
-                         op->getOperands(), new_results, op->getAttrs(),
+                         adaptor.getOperands(), new_results, op->getAttrs(),
                          op->getSuccessors());
     for (Region &region : op->getRegions()) {
       Region &new_region = *state.addRegion();

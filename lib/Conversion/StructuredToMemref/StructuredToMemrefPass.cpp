@@ -8,6 +8,7 @@
 #include "mlir/Dialect/MemRef/IR/MemRef.h"
 #include "mlir/IR/BuiltinAttributes.h"
 #include "mlir/IR/BuiltinOps.h"
+#include "mlir/IR/BuiltinTypes.h"
 #include "triton-shared/Conversion/StructuredToMemref/StructuredToMemref.h"
 #include "triton-shared/Dialect/TritonStructured/IR/TritonStructuredDialect.h"
 #include "triton-shared/Dialect/TritonTilingExt/IR/TritonTilingExtDialect.h"
@@ -46,28 +47,6 @@ public:
     addConversion([](triton::PointerType ptrType) {
       return UnrankedMemRefType::get(ptrType.getPointeeType(), 0);
     });
-    // addConversion([](TensorType tensorType) -> Type {
-    //   auto elemType = tensorType.getElementType();
-    //   if (auto ptrType = elemType.dyn_cast<triton::PointerType>()) {
-    //     elemType = ptrType.getPointeeType();
-    //   }
-    //   return MemRefType::get(tensorType.getShape(), elemType);
-    // });
-
-    addSourceMaterialization([&](OpBuilder &builder, Type resultType,
-                                 ValueRange inputs,
-                                 Location loc) -> std::optional<Value> {
-      return builder.create<UnrealizedConversionCastOp>(loc, resultType, inputs)
-          .getResult(0);
-    });
-
-    // addTargetMaterialization([&](OpBuilder &builder, Type resultType,
-    //                              ValueRange inputs,
-    //                              Location loc) -> std::optional<Value> {
-    //   return builder.create<UnrealizedConversionCastOp>(loc, resultType,
-    //   inputs)
-    //       .getResult(0);
-    // });
   }
 };
 
@@ -87,25 +66,27 @@ public:
       return memrefType;
     });
 
-    // addSourceMaterialization([&](OpBuilder &builder, Type resultType,
-    //                              ValueRange inputs,
-    //                              Location loc) -> std::optional<Value> {
-    //   assert(0);
-    //   return builder.create<UnrealizedConversionCastOp>(loc, resultType,
-    //   inputs)
-    //       .getResult(0);
-    // });
-
-    // addTargetMaterialization([&](OpBuilder &builder, Type resultType,
-    //                              ValueRange inputs,
-    //                              Location loc) -> std::optional<Value> {
-    //   // assert(0);
-    //   auto op =
-    //       builder.create<UnrealizedConversionCastOp>(loc, resultType,
-    //       inputs);
-    //   op->setAttr("lol", UnitAttr::get(context));
-    //   return op.getResult(0);
-    // });
+    addArgumentMaterialization([&](OpBuilder &builder, Type resultType,
+                                   ValueRange inputs,
+                                   Location loc) -> std::optional<Value> {
+      // return builder.create<UnrealizedConversionCastOp>(loc, resultType,
+      // inputs)
+      //     .getResult(0);
+      if (auto memrefType = dyn_cast<MemRefType>(resultType)) {
+        if (isa<UnrankedMemRefType>(inputs[0].getType())) {
+          auto shape = memrefType.getShape();
+          if (shape.size() == 1 && shape[0] == 1) {
+            auto t = builder.create<memref::ReinterpretCastOp>(
+                loc, memrefType, inputs[0], 0, ArrayRef<int64_t>{1},
+                ArrayRef<int64_t>{1});
+            t->dump();
+            return t;
+          }
+        }
+      }
+      return builder.create<UnrealizedConversionCastOp>(loc, resultType, inputs)
+          .getResult(0);
+    });
   }
 };
 
