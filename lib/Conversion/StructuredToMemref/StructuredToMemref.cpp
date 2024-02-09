@@ -850,7 +850,6 @@ public:
     memrefPtr.dump();
 
     if (isa<UnrankedMemRefType>(memrefPtr.getType())) {
-      assert(0);
       auto func = op->getParentOfType<func::FuncOp>();
       assert(isBlockArg(func, memrefPtr));
       memrefPtr = rewriter.create<memref::ReinterpretCastOp>(

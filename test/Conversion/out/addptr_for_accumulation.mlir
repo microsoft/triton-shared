@@ -13,18 +13,17 @@ module {
     %1 = bufferization.to_tensor %alloc restrict writable : memref<4x256xbf16>
     %2 = arith.index_cast %arg3 : i32 to index
     %3:2 = scf.for %arg11 = %c0 to %c12 step %c3 iter_args(%arg12 = %1, %arg13 = %2) -> (tensor<4x256xbf16>, index) {
-      %5 = arith.addi %arg13, %c0 : index
-      %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%5], sizes: [4, 256], strides: [%c1, %c5] : memref<*xbf16> to memref<4x256xbf16, strided<[?, ?], offset: ?>>
+      %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%arg13], sizes: [4, 256], strides: [%c1, %c5] : memref<*xbf16> to memref<4x256xbf16, strided<[?, ?], offset: ?>>
       %alloc_2 = memref.alloc() : memref<4x256xbf16>
       memref.copy %reinterpret_cast_1, %alloc_2 : memref<4x256xbf16, strided<[?, ?], offset: ?>> to memref<4x256xbf16>
-      %6 = bufferization.to_tensor %alloc_2 restrict writable : memref<4x256xbf16>
-      %7 = linalg.generic {indexing_maps = [#map, #map, #map], iterator_types = ["parallel", "parallel"]} ins(%arg12, %6 : tensor<4x256xbf16>, tensor<4x256xbf16>) outs(%arg12 : tensor<4x256xbf16>) {
+      %5 = bufferization.to_tensor %alloc_2 restrict writable : memref<4x256xbf16>
+      %6 = linalg.generic {indexing_maps = [#map, #map, #map], iterator_types = ["parallel", "parallel"]} ins(%arg12, %5 : tensor<4x256xbf16>, tensor<4x256xbf16>) outs(%arg12 : tensor<4x256xbf16>) {
       ^bb0(%in: bf16, %in_3: bf16, %out: bf16):
-        %9 = arith.addf %in, %in_3 : bf16
-        linalg.yield %9 : bf16
+        %8 = arith.addf %in, %in_3 : bf16
+        linalg.yield %8 : bf16
       } -> tensor<4x256xbf16>
-      %8 = arith.addi %arg13, %c3 : index
-      scf.yield %7, %8 : tensor<4x256xbf16>, index
+      %7 = arith.addi %arg13, %c3 : index
+      scf.yield %6, %7 : tensor<4x256xbf16>, index
     }
     %4 = arith.index_cast %arg3 : i32 to index
     %reinterpret_cast_0 = memref.reinterpret_cast %arg2 to offset: [%4], sizes: [4, 256], strides: [1, %c5] : memref<*xbf16> to memref<4x256xbf16, strided<[1, ?], offset: ?>>

@@ -24,6 +24,7 @@
 
 #include "llvm/Support/Debug.h"
 #include <cassert>
+#include <optional>
 
 #define DEBUG_TYPE "structured-to-memref"
 
@@ -84,8 +85,7 @@ public:
           }
         }
       }
-      return builder.create<UnrealizedConversionCastOp>(loc, resultType, inputs)
-          .getResult(0);
+      return std::nullopt;
     });
   }
 };
