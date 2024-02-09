@@ -1741,8 +1741,7 @@ public:
   matchAndRewrite(triton::ExternElementwiseOp op, OpAdaptor adaptor,
                   ConversionPatternRewriter &rewriter) const override {
     auto loc = op.getLoc();
-    if (op.getLibname().compare("libdevice") || !op.getPure() ||
-        op.getArgs().size() != 2)
+    if (!op.getPure() || op.getArgs().size() != 2)
       return failure();
 #define POPULATE_BINARY_OP(FUNC_NAME, DST_OP)                                  \
   if (!op.getSymbol().compare(FUNC_NAME)) {                                    \
@@ -1769,8 +1768,7 @@ public:
   matchAndRewrite(triton::ExternElementwiseOp op, OpAdaptor adaptor,
                   ConversionPatternRewriter &rewriter) const override {
     auto loc = op.getLoc();
-    if (op.getLibname().compare("libdevice") || !op.getPure() ||
-        op.getArgs().size() != 1)
+    if (!op.getPure() || op.getArgs().size() != 1)
       return failure();
 #define POPULATE_UNARY_OP(FUNC_NAME, DST_OP)                                   \
   if (!op.getSymbol().compare(FUNC_NAME)) {                                    \

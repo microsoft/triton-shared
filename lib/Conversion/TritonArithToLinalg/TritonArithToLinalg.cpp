@@ -1273,8 +1273,7 @@ public:
   matchAndRewrite(triton::ExternElementwiseOp op, OpAdaptor adaptor,
                   ConversionPatternRewriter &rewriter) const override {
     auto loc = op.getLoc();
-    if (op.getLibname().compare("libdevice") || !op.getPure() ||
-        op.getArgs().size() != 2)
+    if (!op.getPure() || op.getArgs().size() != 2)
       return failure();
     if (!op.getSymbol().compare("__nv_atan2f") ||
         !op.getSymbol().compare("__nv_atan2")) {
@@ -1295,8 +1294,7 @@ public:
   matchAndRewrite(triton::ExternElementwiseOp op, OpAdaptor adaptor,
                   ConversionPatternRewriter &rewriter) const override {
     auto loc = op.getLoc();
-    if (op.getLibname().compare("libdevice") || !op.getPure() ||
-        op.getArgs().size() != 1)
+    if (!op.getPure() || op.getArgs().size() != 1)
       return failure();
     if (!op.getSymbol().compare("__nv_sinf") ||
         !op.getSymbol().compare("__nv_sin")) {
