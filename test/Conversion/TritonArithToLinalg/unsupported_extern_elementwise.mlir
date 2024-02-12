@@ -6,7 +6,7 @@ module {
     %1 = tt.splat %arg0 : (!tt.ptr<i32, 1>) -> tensor<8x!tt.ptr<i32, 1>>
     %2 = tt.addptr %1, %0 : tensor<8x!tt.ptr<i32, 1>>, tensor<8xi32>
     %3 = tt.load %2 {cache = 1 : i32, evict = 1 : i32, isVolatile = false} : tensor<8xi32>
-    %4 = tt.extern_elementwise %3, %0 {libname = "libdevice", libpath = "/path/to/something", pure = true, symbol = "some_symbol"} : (tensor<8xi32>, tensor<8xi32>) -> tensor<8xi32>
+    %4 = tt.extern_elementwise %3, %0 {libname = "", libpath = "", pure = true, symbol = "some_symbol"} : (tensor<8xi32>, tensor<8xi32>) -> tensor<8xi32>
     %5 = tt.splat %arg1 : (!tt.ptr<i32, 1>) -> tensor<8x!tt.ptr<i32, 1>>
     %6 = tt.addptr %5, %0 : tensor<8x!tt.ptr<i32, 1>>, tensor<8xi32>
     tt.store %6, %4 {cache = 1 : i32, evict = 1 : i32} : tensor<8xi32>
@@ -32,7 +32,7 @@ module {
 // CHECK:             linalg.yield [[VAR_10_1_]] : !tt.ptr<i32, 1>
 // CHECK:           } -> tensor<8x!tt.ptr<i32, 1>>
 // CHECK:           [[LOAD_VAR_4_MEM_:%.+]] = tt.load [[VAR_4_]] {cache = 1 : i32, evict = 1 : i32, isVolatile = false} : tensor<8xi32>
-// CHECK-DAG:       [[VAR_6_:%.+]] = tt.extern_elementwise [[LOAD_VAR_4_MEM_]], [[VAR_1_]] {libname = "libdevice", libpath = "/path/to/something", pure = true, symbol = "some_symbol"} : (tensor<8xi32>, tensor<8xi32>) -> tensor<8xi32>
+// CHECK-DAG:       [[VAR_6_:%.+]] = tt.extern_elementwise [[LOAD_VAR_4_MEM_]], [[VAR_1_]] {libname = "", libpath = "", pure = true, symbol = "some_symbol"} : (tensor<8xi32>, tensor<8xi32>) -> tensor<8xi32>
 // CHECK-DAG:       [[VAR_7_:%.+]] = tensor.empty() : tensor<8x!tt.ptr<i32, 1>>
 // CHECK:           [[VAR_8_:%.+]] = linalg.fill ins([[PARAM_1_]] : !tt.ptr<i32, 1>) outs([[VAR_7_]] : tensor<8x!tt.ptr<i32, 1>>) -> tensor<8x!tt.ptr<i32, 1>>
 // CHECK:           [[VAR_9_:%.+]] = linalg.generic {indexing_maps = [#map, #map, #map], iterator_types = ["parallel"]} ins([[VAR_8_]], [[VAR_1_]] : tensor<8x!tt.ptr<i32, 1>>, tensor<8xi32>) outs([[VAR_8_]] : tensor<8x!tt.ptr<i32, 1>>) {
