@@ -6,7 +6,7 @@ module {
     %1 = tt.splat %arg0 : (!tt.ptr<i32, 1>) -> tensor<8x!tt.ptr<i32, 1>>
     %2 = tt.addptr %1, %0 : tensor<8x!tt.ptr<i32, 1>>, tensor<8xi32>
     %3 = tt.load %2 {cache = 1 : i32, evict = 1 : i32, isVolatile = false} : tensor<8xi32>
-    %4 = tt.extern_elementwise %3, %0 {libname = "libdevice", libpath = "/path/to/something", pure = true, symbol = "some_symbol"} : (tensor<8xi32>, tensor<8xi32>) -> tensor<8xi32>
+    %4 = tt.extern_elementwise %3, %0 {libname = "", libpath = "", pure = true, symbol = "some_symbol"} : (tensor<8xi32>, tensor<8xi32>) -> tensor<8xi32>
     %5 = tt.splat %arg1 : (!tt.ptr<i32, 1>) -> tensor<8x!tt.ptr<i32, 1>>
     %6 = tt.addptr %5, %0 : tensor<8x!tt.ptr<i32, 1>>, tensor<8xi32>
     tt.store %6, %4 {cache = 1 : i32, evict = 1 : i32} : tensor<8xi32>
@@ -28,7 +28,7 @@ module {
 // CHECK-DAG:       [[RES_:%.+]] = memref.alloc() : memref<8xi32>
 // CHECK:           memref.copy [[VAR_reinterpret_cast_]], [[RES_]] : memref<8xi32, strided<[1]>> to memref<8xi32>
 // CHECK:           [[VAR_2_:%.+]] = bufferization.to_tensor [[RES_]] restrict writable : memref<8xi32>
-// CHECK-DAG:       [[VAR_3_:%.+]] = tt.extern_elementwise [[VAR_2_]], [[VAR_1_]] {libname = "libdevice", libpath = "/path/to/something", pure = true, symbol = "some_symbol"} : (tensor<8xi32>, tensor<8xi32>) -> tensor<8xi32>
+// CHECK-DAG:       [[VAR_3_:%.+]] = tt.extern_elementwise [[VAR_2_]], [[VAR_1_]] {libname = "", libpath = "", pure = true, symbol = "some_symbol"} : (tensor<8xi32>, tensor<8xi32>) -> tensor<8xi32>
 // CHECK-DAG:       [[VAR_reinterpret_cast_0_:%.+]] = memref.reinterpret_cast [[PARAM_1_]] to offset: [0], sizes: [8], strides: [1] : memref<*xi32> to memref<8xi32, strided<[1]>>
 // CHECK:           bufferization.materialize_in_destination [[VAR_3_]] in writable [[VAR_reinterpret_cast_0_]]
 // CHECK:           return
