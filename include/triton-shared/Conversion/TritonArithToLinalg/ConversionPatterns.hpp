@@ -802,7 +802,7 @@ struct AssertConverter : public OpConversionPattern<triton::AssertOp> {
   LogicalResult
   matchAndRewrite(triton::AssertOp op, OpAdaptor adaptor,
                   ConversionPatternRewriter &rewriter) const override {
-    auto condVal = op.getCondition();
+    Value condVal = op.getCondition();
 
     if (condVal.getType().isa<mlir::TensorType>()) {
       auto scalarVal = getScalarValue(op.getCondition(), op.getLoc(), rewriter);
