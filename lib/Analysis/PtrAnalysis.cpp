@@ -6,7 +6,6 @@
 //===----------------------------------------------------------------------===//
 
 #include "triton-shared/Analysis/PtrAnalysis.h"
-#include "mlir/IR/Value.h"
 #include "triton-shared/Analysis/OpFoldResultUtils.h"
 
 #include "mlir/IR/IRMapping.h"
@@ -450,6 +449,11 @@ void PtrAnalysis::visitOperandExpandDims(
     const llvm::SmallDenseMap<Value, PtrState> &knownPtrs) {
   assert(state.isEmpty());
 
+  // `getSrc` now returns a TypedValue of RankedTensorType. We modify these
+  // operands in-place and turn them into memrefs in loops, so we have to bypass
+  // the cast by using getSrcMutable. These are temporary fix only since
+  // we will be moving over to StructuredPtrAnalysis soon which separate out the
+  // memref conversion.
   visitOperand(expandDimsOp.getSrcMutable().get(), state, loc, rewriter,
                knownPtrs);
 
@@ -473,6 +477,11 @@ void PtrAnalysis::visitOperandBroadcast(
     const llvm::SmallDenseMap<Value, PtrState> &knownPtrs) {
   assert(state.isEmpty());
 
+  // `getSrc` now returns a TypedValue of RankedTensorType. We modify these
+  // operands in-place and turn them into memrefs in loops, so we have to bypass
+  // the cast by using getSrcMutable. These are temporary fix only since
+  // we will be moving over to StructuredPtrAnalysis soon which separate out the
+  // memref conversion.
   auto src = broadcastOp.getSrcMutable().get();
   auto dst = broadcastOp.getResult();
   assert(src.getType().isa<ShapedType>() &&
