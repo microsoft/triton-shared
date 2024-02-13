@@ -1,14 +1,14 @@
 module {
   func.func @wrap_stacked_masked_loop_01234567(%arg0: memref<*xf32>, %arg1: memref<*xf32>, %arg2: i32, %arg3: i32, %arg4: i32, %arg5: i32, %arg6: i32, %arg7: i32, %arg8: i32, %arg9: i32, %arg10: i32, %arg11: i32, %arg12: i32, %arg13: i32) {
     %c4 = arith.constant 4 : index
-    %cst = arith.constant -9.900000e+01 : f32
-    %c0 = arith.constant 0 : index
-    %c3 = arith.constant 3 : index
-    %c2 = arith.constant 2 : index
-    %c1_i32 = arith.constant 1 : i32
-    %c0_i32 = arith.constant 0 : i32
-    %c2_i32 = arith.constant 2 : i32
     %c4_i32 = arith.constant 4 : i32
+    %c2_i32 = arith.constant 2 : i32
+    %c0_i32 = arith.constant 0 : i32
+    %c1_i32 = arith.constant 1 : i32
+    %c2 = arith.constant 2 : index
+    %c3 = arith.constant 3 : index
+    %c0 = arith.constant 0 : index
+    %cst = arith.constant -9.900000e+01 : f32
     %0 = arith.index_cast %arg2 : i32 to index
     %1 = arith.index_cast %arg4 : i32 to index
     %2 = arith.muli %1, %c2 : index

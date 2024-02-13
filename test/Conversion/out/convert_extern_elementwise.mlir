@@ -1,8 +1,8 @@
 #map = affine_map<(d0) -> (d0)>
 module {
   func.func @atan2_kernel_0123(%arg0: memref<*xf32>, %arg1: memref<*xf32>, %arg2: memref<*xf32>, %arg3: i32, %arg4: i32, %arg5: i32, %arg6: i32, %arg7: i32, %arg8: i32, %arg9: i32) {
-    %c32 = arith.constant 32 : index
     %c32_i32 = arith.constant 32 : i32
+    %c32 = arith.constant 32 : index
     %0 = arith.muli %arg7, %c32_i32 : i32
     %1 = arith.index_cast %0 : i32 to index
     %2 = arith.index_cast %0 : i32 to index
@@ -45,8 +45,8 @@ module {
 #map = affine_map<(d0) -> (d0)>
 module {
   func.func @pow_kernel_0123(%arg0: memref<*xf32>, %arg1: memref<*xf32>, %arg2: memref<*xf32>, %arg3: i32, %arg4: i32, %arg5: i32, %arg6: i32, %arg7: i32, %arg8: i32, %arg9: i32) {
-    %c32 = arith.constant 32 : index
     %c32_i32 = arith.constant 32 : i32
+    %c32 = arith.constant 32 : index
     %0 = arith.muli %arg7, %c32_i32 : i32
     %1 = arith.index_cast %0 : i32 to index
     %2 = arith.index_cast %0 : i32 to index
@@ -89,8 +89,8 @@ module {
 #map = affine_map<(d0) -> (d0)>
 module {
   func.func @fabs_kernel_012(%arg0: memref<*xf32>, %arg1: memref<*xf32>, %arg2: i32, %arg3: i32, %arg4: i32, %arg5: i32, %arg6: i32, %arg7: i32, %arg8: i32) {
-    %c32 = arith.constant 32 : index
     %c32_i32 = arith.constant 32 : i32
+    %c32 = arith.constant 32 : index
     %0 = arith.muli %arg6, %c32_i32 : i32
     %1 = arith.index_cast %0 : i32 to index
     %2 = arith.index_cast %0 : i32 to index
@@ -121,8 +121,8 @@ module {
 #map = affine_map<(d0) -> (d0)>
 module {
   func.func @sin_kernel_012(%arg0: memref<*xf32>, %arg1: memref<*xf32>, %arg2: i32, %arg3: i32, %arg4: i32, %arg5: i32, %arg6: i32, %arg7: i32, %arg8: i32) {
-    %c32 = arith.constant 32 : index
     %c32_i32 = arith.constant 32 : i32
+    %c32 = arith.constant 32 : index
     %0 = arith.muli %arg6, %c32_i32 : i32
     %1 = arith.index_cast %0 : i32 to index
     %2 = arith.index_cast %0 : i32 to index
@@ -153,8 +153,8 @@ module {
 #map = affine_map<(d0) -> (d0)>
 module {
   func.func @cos_kernel_012(%arg0: memref<*xf32>, %arg1: memref<*xf32>, %arg2: i32, %arg3: i32, %arg4: i32, %arg5: i32, %arg6: i32, %arg7: i32, %arg8: i32) {
-    %c32 = arith.constant 32 : index
     %c32_i32 = arith.constant 32 : i32
+    %c32 = arith.constant 32 : index
     %0 = arith.muli %arg6, %c32_i32 : i32
     %1 = arith.index_cast %0 : i32 to index
     %2 = arith.index_cast %0 : i32 to index
@@ -185,8 +185,8 @@ module {
 #map = affine_map<(d0) -> (d0)>
 module {
   func.func @tan_kernel_012(%arg0: memref<*xf32>, %arg1: memref<*xf32>, %arg2: i32, %arg3: i32, %arg4: i32, %arg5: i32, %arg6: i32, %arg7: i32, %arg8: i32) {
-    %c32 = arith.constant 32 : index
     %c32_i32 = arith.constant 32 : i32
+    %c32 = arith.constant 32 : index
     %0 = arith.muli %arg6, %c32_i32 : i32
     %1 = arith.index_cast %0 : i32 to index
     %2 = arith.index_cast %0 : i32 to index
@@ -217,8 +217,8 @@ module {
 #map = affine_map<(d0) -> (d0)>
 module {
   func.func @asin_kernel_012(%arg0: memref<*xf32>, %arg1: memref<*xf32>, %arg2: i32, %arg3: i32, %arg4: i32, %arg5: i32, %arg6: i32, %arg7: i32, %arg8: i32) {
-    %c32 = arith.constant 32 : index
     %c32_i32 = arith.constant 32 : i32
+    %c32 = arith.constant 32 : index
     %0 = arith.muli %arg6, %c32_i32 : i32
     %1 = arith.index_cast %0 : i32 to index
     %2 = arith.index_cast %0 : i32 to index
@@ -249,8 +249,8 @@ module {
 #map = affine_map<(d0) -> (d0)>
 module {
   func.func @acos_kernel_012(%arg0: memref<*xf32>, %arg1: memref<*xf32>, %arg2: i32, %arg3: i32, %arg4: i32, %arg5: i32, %arg6: i32, %arg7: i32, %arg8: i32) {
-    %c32 = arith.constant 32 : index
     %c32_i32 = arith.constant 32 : i32
+    %c32 = arith.constant 32 : index
     %0 = arith.muli %arg6, %c32_i32 : i32
     %1 = arith.index_cast %0 : i32 to index
     %2 = arith.index_cast %0 : i32 to index
@@ -281,8 +281,8 @@ module {
 #map = affine_map<(d0) -> (d0)>
 module {
   func.func @atan_kernel_012(%arg0: memref<*xf32>, %arg1: memref<*xf32>, %arg2: i32, %arg3: i32, %arg4: i32, %arg5: i32, %arg6: i32, %arg7: i32, %arg8: i32) {
-    %c32 = arith.constant 32 : index
     %c32_i32 = arith.constant 32 : i32
+    %c32 = arith.constant 32 : index
     %0 = arith.muli %arg6, %c32_i32 : i32
     %1 = arith.index_cast %0 : i32 to index
     %2 = arith.index_cast %0 : i32 to index
@@ -313,8 +313,8 @@ module {
 #map = affine_map<(d0) -> (d0)>
 module {
   func.func @sinh_kernel_012(%arg0: memref<*xf32>, %arg1: memref<*xf32>, %arg2: i32, %arg3: i32, %arg4: i32, %arg5: i32, %arg6: i32, %arg7: i32, %arg8: i32) {
-    %c32 = arith.constant 32 : index
     %c32_i32 = arith.constant 32 : i32
+    %c32 = arith.constant 32 : index
     %0 = arith.muli %arg6, %c32_i32 : i32
     %1 = arith.index_cast %0 : i32 to index
     %2 = arith.index_cast %0 : i32 to index
@@ -345,8 +345,8 @@ module {
 #map = affine_map<(d0) -> (d0)>
 module {
   func.func @cosh_kernel_012(%arg0: memref<*xf32>, %arg1: memref<*xf32>, %arg2: i32, %arg3: i32, %arg4: i32, %arg5: i32, %arg6: i32, %arg7: i32, %arg8: i32) {
-    %c32 = arith.constant 32 : index
     %c32_i32 = arith.constant 32 : i32
+    %c32 = arith.constant 32 : index
     %0 = arith.muli %arg6, %c32_i32 : i32
     %1 = arith.index_cast %0 : i32 to index
     %2 = arith.index_cast %0 : i32 to index
@@ -377,8 +377,8 @@ module {
 #map = affine_map<(d0) -> (d0)>
 module {
   func.func @tanh_kernel_012(%arg0: memref<*xf32>, %arg1: memref<*xf32>, %arg2: i32, %arg3: i32, %arg4: i32, %arg5: i32, %arg6: i32, %arg7: i32, %arg8: i32) {
-    %c32 = arith.constant 32 : index
     %c32_i32 = arith.constant 32 : i32
+    %c32 = arith.constant 32 : index
     %0 = arith.muli %arg6, %c32_i32 : i32
     %1 = arith.index_cast %0 : i32 to index
     %2 = arith.index_cast %0 : i32 to index
@@ -409,8 +409,8 @@ module {
 #map = affine_map<(d0) -> (d0)>
 module {
   func.func @asinh_kernel_012(%arg0: memref<*xf32>, %arg1: memref<*xf32>, %arg2: i32, %arg3: i32, %arg4: i32, %arg5: i32, %arg6: i32, %arg7: i32, %arg8: i32) {
-    %c32 = arith.constant 32 : index
     %c32_i32 = arith.constant 32 : i32
+    %c32 = arith.constant 32 : index
     %0 = arith.muli %arg6, %c32_i32 : i32
     %1 = arith.index_cast %0 : i32 to index
     %2 = arith.index_cast %0 : i32 to index
@@ -441,8 +441,8 @@ module {
 #map = affine_map<(d0) -> (d0)>
 module {
   func.func @acosh_kernel_012(%arg0: memref<*xf32>, %arg1: memref<*xf32>, %arg2: i32, %arg3: i32, %arg4: i32, %arg5: i32, %arg6: i32, %arg7: i32, %arg8: i32) {
-    %c32 = arith.constant 32 : index
     %c32_i32 = arith.constant 32 : i32
+    %c32 = arith.constant 32 : index
     %0 = arith.muli %arg6, %c32_i32 : i32
     %1 = arith.index_cast %0 : i32 to index
     %2 = arith.index_cast %0 : i32 to index
@@ -473,8 +473,8 @@ module {
 #map = affine_map<(d0) -> (d0)>
 module {
   func.func @atanh_kernel_012(%arg0: memref<*xf32>, %arg1: memref<*xf32>, %arg2: i32, %arg3: i32, %arg4: i32, %arg5: i32, %arg6: i32, %arg7: i32, %arg8: i32) {
-    %c32 = arith.constant 32 : index
     %c32_i32 = arith.constant 32 : i32
+    %c32 = arith.constant 32 : index
     %0 = arith.muli %arg6, %c32_i32 : i32
     %1 = arith.index_cast %0 : i32 to index
     %2 = arith.index_cast %0 : i32 to index
@@ -505,8 +505,8 @@ module {
 #map = affine_map<(d0) -> (d0)>
 module {
   func.func @log_kernel_012(%arg0: memref<*xf32>, %arg1: memref<*xf32>, %arg2: i32, %arg3: i32, %arg4: i32, %arg5: i32, %arg6: i32, %arg7: i32, %arg8: i32) {
-    %c32 = arith.constant 32 : index
     %c32_i32 = arith.constant 32 : i32
+    %c32 = arith.constant 32 : index
     %0 = arith.muli %arg6, %c32_i32 : i32
     %1 = arith.index_cast %0 : i32 to index
     %2 = arith.index_cast %0 : i32 to index
@@ -537,8 +537,8 @@ module {
 #map = affine_map<(d0) -> (d0)>
 module {
   func.func @log10_kernel_012(%arg0: memref<*xf32>, %arg1: memref<*xf32>, %arg2: i32, %arg3: i32, %arg4: i32, %arg5: i32, %arg6: i32, %arg7: i32, %arg8: i32) {
-    %c32 = arith.constant 32 : index
     %c32_i32 = arith.constant 32 : i32
+    %c32 = arith.constant 32 : index
     %0 = arith.muli %arg6, %c32_i32 : i32
     %1 = arith.index_cast %0 : i32 to index
     %2 = arith.index_cast %0 : i32 to index
@@ -569,8 +569,8 @@ module {
 #map = affine_map<(d0) -> (d0)>
 module {
   func.func @log1p_kernel_012(%arg0: memref<*xf32>, %arg1: memref<*xf32>, %arg2: i32, %arg3: i32, %arg4: i32, %arg5: i32, %arg6: i32, %arg7: i32, %arg8: i32) {
-    %c32 = arith.constant 32 : index
     %c32_i32 = arith.constant 32 : i32
+    %c32 = arith.constant 32 : index
     %0 = arith.muli %arg6, %c32_i32 : i32
     %1 = arith.index_cast %0 : i32 to index
     %2 = arith.index_cast %0 : i32 to index
@@ -601,8 +601,8 @@ module {
 #map = affine_map<(d0) -> (d0)>
 module {
   func.func @exp_kernel_012(%arg0: memref<*xf32>, %arg1: memref<*xf32>, %arg2: i32, %arg3: i32, %arg4: i32, %arg5: i32, %arg6: i32, %arg7: i32, %arg8: i32) {
-    %c32 = arith.constant 32 : index
     %c32_i32 = arith.constant 32 : i32
+    %c32 = arith.constant 32 : index
     %0 = arith.muli %arg6, %c32_i32 : i32
     %1 = arith.index_cast %0 : i32 to index
     %2 = arith.index_cast %0 : i32 to index
@@ -633,8 +633,8 @@ module {
 #map = affine_map<(d0) -> (d0)>
 module {
   func.func @exp2_kernel_012(%arg0: memref<*xf32>, %arg1: memref<*xf32>, %arg2: i32, %arg3: i32, %arg4: i32, %arg5: i32, %arg6: i32, %arg7: i32, %arg8: i32) {
-    %c32 = arith.constant 32 : index
     %c32_i32 = arith.constant 32 : i32
+    %c32 = arith.constant 32 : index
     %0 = arith.muli %arg6, %c32_i32 : i32
     %1 = arith.index_cast %0 : i32 to index
     %2 = arith.index_cast %0 : i32 to index
@@ -665,8 +665,8 @@ module {
 #map = affine_map<(d0) -> (d0)>
 module {
   func.func @erf_kernel_012(%arg0: memref<*xf32>, %arg1: memref<*xf32>, %arg2: i32, %arg3: i32, %arg4: i32, %arg5: i32, %arg6: i32, %arg7: i32, %arg8: i32) {
-    %c32 = arith.constant 32 : index
     %c32_i32 = arith.constant 32 : i32
+    %c32 = arith.constant 32 : index
     %0 = arith.muli %arg6, %c32_i32 : i32
     %1 = arith.index_cast %0 : i32 to index
     %2 = arith.index_cast %0 : i32 to index
@@ -697,8 +697,8 @@ module {
 #map = affine_map<(d0) -> (d0)>
 module {
   func.func @sqrt_kernel_012(%arg0: memref<*xf32>, %arg1: memref<*xf32>, %arg2: i32, %arg3: i32, %arg4: i32, %arg5: i32, %arg6: i32, %arg7: i32, %arg8: i32) {
-    %c32 = arith.constant 32 : index
     %c32_i32 = arith.constant 32 : i32
+    %c32 = arith.constant 32 : index
     %0 = arith.muli %arg6, %c32_i32 : i32
     %1 = arith.index_cast %0 : i32 to index
     %2 = arith.index_cast %0 : i32 to index
@@ -729,8 +729,8 @@ module {
 #map = affine_map<(d0) -> (d0)>
 module {
   func.func @rsqrt_kernel_012(%arg0: memref<*xf32>, %arg1: memref<*xf32>, %arg2: i32, %arg3: i32, %arg4: i32, %arg5: i32, %arg6: i32, %arg7: i32, %arg8: i32) {
-    %c32 = arith.constant 32 : index
     %c32_i32 = arith.constant 32 : i32
+    %c32 = arith.constant 32 : index
     %0 = arith.muli %arg6, %c32_i32 : i32
     %1 = arith.index_cast %0 : i32 to index
     %2 = arith.index_cast %0 : i32 to index
@@ -761,8 +761,8 @@ module {
 #map = affine_map<(d0) -> (d0)>
 module {
   func.func @ceil_kernel_012(%arg0: memref<*xf32>, %arg1: memref<*xf32>, %arg2: i32, %arg3: i32, %arg4: i32, %arg5: i32, %arg6: i32, %arg7: i32, %arg8: i32) {
-    %c32 = arith.constant 32 : index
     %c32_i32 = arith.constant 32 : i32
+    %c32 = arith.constant 32 : index
     %0 = arith.muli %arg6, %c32_i32 : i32
     %1 = arith.index_cast %0 : i32 to index
     %2 = arith.index_cast %0 : i32 to index
@@ -793,8 +793,8 @@ module {
 #map = affine_map<(d0) -> (d0)>
 module {
   func.func @floor_kernel_012(%arg0: memref<*xf32>, %arg1: memref<*xf32>, %arg2: i32, %arg3: i32, %arg4: i32, %arg5: i32, %arg6: i32, %arg7: i32, %arg8: i32) {
-    %c32 = arith.constant 32 : index
     %c32_i32 = arith.constant 32 : i32
+    %c32 = arith.constant 32 : index
     %0 = arith.muli %arg6, %c32_i32 : i32
     %1 = arith.index_cast %0 : i32 to index
     %2 = arith.index_cast %0 : i32 to index
@@ -825,8 +825,8 @@ module {
 #map = affine_map<(d0) -> (d0)>
 module {
   func.func @trunc_kernel_012(%arg0: memref<*xf32>, %arg1: memref<*xf32>, %arg2: i32, %arg3: i32, %arg4: i32, %arg5: i32, %arg6: i32, %arg7: i32, %arg8: i32) {
-    %c32 = arith.constant 32 : index
     %c32_i32 = arith.constant 32 : i32
+    %c32 = arith.constant 32 : index
     %0 = arith.muli %arg6, %c32_i32 : i32
     %1 = arith.index_cast %0 : i32 to index
     %2 = arith.index_cast %0 : i32 to index

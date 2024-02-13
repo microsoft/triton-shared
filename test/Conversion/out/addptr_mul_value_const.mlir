@@ -1,7 +1,7 @@
 module {
   func.func @kernel(%arg0: memref<*xbf16>, %arg1: memref<*xbf16>, %arg2: i32, %arg3: i32, %arg4: i32, %arg5: i32, %arg6: i32, %arg7: i32, %arg8: i32) {
-    %c1 = arith.constant 1 : index
     %c2048 = arith.constant 2048 : index
+    %c1 = arith.constant 1 : index
     %0 = arith.index_cast %arg6 : i32 to index
     %1 = arith.index_cast %arg6 : i32 to index
     %2 = arith.index_cast %arg2 : i32 to index

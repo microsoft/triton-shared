@@ -769,14 +769,7 @@ struct ScalarAddptrConverter : public OpConversionPattern<triton::AddPtrOp> {
         cast<triton::PointerType>(op.getPtr().getType()).getPointeeType();
     auto memrefType = MemRefType::get({1}, elemType, layout);
 
-    if (isa<UnrankedMemRefType>(ptr.getType())) {
-      auto castOp = rewriter.create<memref::ReinterpretCastOp>(
-          loc, memrefType, ptr, getAsOpFoldResult(offsetIndex) /*offset*/,
-          ArrayRef<OpFoldResult>{rewriter.getIndexAttr(1)} /*sizes*/,
-          ArrayRef<OpFoldResult>{rewriter.getIndexAttr(1)} /*strides*/);
-      rewriter.replaceAllUsesWith(op.getResult(), castOp.getResult());
-      rewriter.replaceOp(op, castOp.getResult());
-    } else {
+    {
       auto extractMetadataOp =
           rewriter.create<memref::ExtractStridedMetadataOp>(loc, ptr);
       auto base = extractMetadataOp.getBaseBuffer();
@@ -789,7 +782,7 @@ struct ScalarAddptrConverter : public OpConversionPattern<triton::AddPtrOp> {
           ArrayRef<OpFoldResult>{rewriter.getIndexAttr(1)} /*sizes*/,
           ArrayRef<OpFoldResult>{rewriter.getIndexAttr(1)} /*strides*/);
 
-      rewriter.replaceAllUsesWith(op.getResult(), castOp.getResult());
+      // rewriter.replaceAllUsesWith(op.getResult(), castOp.getResult());
       rewriter.replaceOp(op, castOp.getResult());
     }
 
@@ -822,15 +815,6 @@ struct ScalarStoreConverter : public OpConversionPattern<triton::StoreOp> {
 private:
   using OpConversionPattern<triton::StoreOp>::OpConversionPattern;
 
-  bool isBlockArg(func::FuncOp func, Value v) const {
-    for (auto &arg : func.getArguments()) {
-      if (v == arg) {
-        return true;
-      }
-    }
-    return false;
-  }
-
 public:
   LogicalResult
   matchAndRewrite(triton::StoreOp op, OpAdaptor adaptor,
@@ -849,15 +833,6 @@ public:
     llvm::dbgs() << "inside scalar store\n";
     memrefPtr.dump();
 
-    if (isa<UnrankedMemRefType>(memrefPtr.getType())) {
-      auto func = op->getParentOfType<func::FuncOp>();
-      assert(isBlockArg(func, memrefPtr));
-      memrefPtr = rewriter.create<memref::ReinterpretCastOp>(
-          loc, MemRefType::get({1}, op.getValue().getType()), memrefPtr,
-          0 /*offset*/, SmallVector<int64_t>{1} /*sizes*/,
-          SmallVector<int64_t>{1} /*strides*/);
-    }
-
     rewriter.create<affine::AffineStoreOp>(loc, val, memrefPtr, zeroMap,
                                            std::nullopt);
     rewriter.eraseOp(op);
@@ -866,158 +841,30 @@ public:
   }
 };
 
-struct LoopConverter : public OpConversionPattern<scf::ForOp> {
+struct UnrealizedCastConverter
+    : public OpConversionPattern<UnrealizedConversionCastOp> {
 private:
-  using OpConversionPattern<scf::ForOp>::OpConversionPattern;
-
-  bool isBlockArg(func::FuncOp func, Value v) const {
-    for (auto &arg : func.getArguments()) {
-      if (v == arg) {
-        return true;
-      }
-    }
-    return false;
-  }
+  using OpConversionPattern<UnrealizedConversionCastOp>::OpConversionPattern;
 
 public:
-  LoopConverter(MLIRContext *context, TypeConverter &typeConverter)
-      : OpConversionPattern<scf::ForOp>(typeConverter, context) {}
-
+  UnrealizedCastConverter(MLIRContext *context, TypeConverter &typeConverter)
+      : OpConversionPattern<UnrealizedConversionCastOp>(typeConverter,
+                                                        context) {}
   LogicalResult
-  matchAndRewrite(scf::ForOp op, OpAdaptor adaptor,
+  matchAndRewrite(UnrealizedConversionCastOp op, OpAdaptor adaptor,
                   ConversionPatternRewriter &rewriter) const override {
-    // assert(0);
 
-    // Update the regions. The dialect conversion framework wants new regions to
-    // be created and updated, rather than updating the old op. Thus we use an
-    // OperationState so we can add regions to the new up.
-    llvm::SmallVector<Type, 4> new_results;
-    if (failed(getTypeConverter()->convertTypes(op->getResultTypes(),
-                                                new_results))) {
-      assert(0);
-      return failure();
+    auto resType = op->getResultTypes()[0];
+    if (auto ptrType = dyn_cast<triton::PointerType>(resType)) {
+      auto cast = rewriter.create<memref::ReinterpretCastOp>(
+          op->getLoc(), MemRefType::get({1}, ptrType.getPointeeType()),
+          op.getInputs()[0], 0 /*offset*/, SmallVector<int64_t>{1} /*sizes*/,
+          SmallVector<int64_t>{1} /*strides*/);
+
+      rewriter.replaceOp(op, cast);
+      return success();
     }
-
-    for (auto t : op->getResultTypes()) {
-      t.dump();
-    }
-
-    llvm::dbgs() << "~~~~~~~~~~~~~~~~~~~~~\n";
-    llvm::dbgs() << op.getOperands().size() << "\n";
-    llvm::dbgs() << new_results.size() << "\n";
-    // for (auto operand : adaptor.getOperands()) {
-    //   // if (isa<Unr)
-    //   if (auto unrealizedCastOp =
-    //           operand.getDefiningOp<UnrealizedConversionCastOp>()) {
-
-    //     auto from = unrealizedCastOp.getInputs()[0];
-    //     assert(isa<UnrankedMemRefType>(from.getType()));
-
-    //     from.dump();
-
-    //     auto layout =
-    //         StridedLayoutAttr::get(op.getContext(), ShapedType::kDynamic,
-    //         {1});
-
-    //     auto elemType =
-    //         cast<UnrankedMemRefType>(from.getType()).getElementType();
-    //     auto memrefType = MemRefType::get({1}, elemType, layout);
-
-    //     auto castOp = rewriter.create<memref::ReinterpretCastOp>(
-    //         op.getLoc(), memrefType, from, rewriter.getIndexAttr(0)
-    //         /*offset*/, ArrayRef<OpFoldResult>{rewriter.getIndexAttr(1)}
-    //         /*sizes*/, ArrayRef<OpFoldResult>{rewriter.getIndexAttr(1)}
-    //         /*strides*/);
-
-    //     rewriter.replaceAllUsesWith(unrealizedCastOp.getResult(0),
-    //                                 castOp.getResult());
-    //     // rewriter.replaceOp(unrealizedCastOp, castOp.getResult());
-
-    //     rewriter.eraseOp(castOp);
-    //     // rewriter.eraseOp(castOp);
-    //   }
-    // }
-    llvm::dbgs() << "~~~~~~~~~~~~~~~~~~~~~\n";
-
-    OperationState state(op->getLoc(), op->getName().getStringRef(),
-                         adaptor.getOperands(), new_results, op->getAttrs(),
-                         op->getSuccessors());
-    for (Region &region : op->getRegions()) {
-      Region &new_region = *state.addRegion();
-      rewriter.inlineRegionBefore(region, new_region, new_region.begin());
-      if (failed(
-              rewriter.convertRegionTypes(&new_region, *getTypeConverter()))) {
-        assert(0);
-        return failure();
-      }
-    }
-    auto repl = rewriter.create(state);
-    repl->dump();
-    rewriter.replaceOp(op, repl);
-    return success();
-  }
-};
-
-struct YieldConverter : public OpConversionPattern<scf::YieldOp> {
-private:
-  using OpConversionPattern<scf::YieldOp>::OpConversionPattern;
-
-  static void unpackUnrealizedConversionCast(Value v,
-                                             SmallVectorImpl<Value> &unpacked) {
-    if (auto cast =
-            dyn_cast_or_null<UnrealizedConversionCastOp>(v.getDefiningOp())) {
-      if (cast.getInputs().size() != 1) {
-        // 1 : N type conversion.
-        unpacked.append(cast.getInputs().begin(), cast.getInputs().end());
-        return;
-      }
-    }
-    // 1 : 1 type conversion.
-    unpacked.push_back(v);
-  }
-
-public:
-  YieldConverter(MLIRContext *context, TypeConverter &typeConverter)
-      : OpConversionPattern<scf::YieldOp>(typeConverter, context) {}
-
-  LogicalResult
-  matchAndRewrite(scf::YieldOp op, OpAdaptor adaptor,
-                  ConversionPatternRewriter &rewriter) const override {
-    // assert(0);
-
-    // Update the regions. The dialect conversion framework wants new regions to
-    // be created and updated, rather than updating the old op. Thus we use an
-    // OperationState so we can add regions to the new up.
-    llvm::SmallVector<Type, 4> new_results;
-    if (failed(getTypeConverter()->convertTypes(op->getResultTypes(),
-                                                new_results))) {
-      assert(0);
-      return failure();
-    }
-
-    for (auto t : op->getResultTypes()) {
-      t.dump();
-    }
-
-    llvm::dbgs() << "~~~~~~~~~~~~~~~~~~~~~\n";
-    llvm::dbgs() << op.getOperands().size() << "\n";
-    llvm::dbgs() << new_results.size() << "\n";
-    OperationState state(op->getLoc(), op->getName().getStringRef(),
-                         adaptor.getOperands(), new_results, op->getAttrs(),
-                         op->getSuccessors());
-    for (Region &region : op->getRegions()) {
-      Region &new_region = *state.addRegion();
-      rewriter.inlineRegionBefore(region, new_region, new_region.begin());
-      if (failed(
-              rewriter.convertRegionTypes(&new_region, *getTypeConverter()))) {
-        assert(0);
-        return failure();
-      }
-    }
-    auto repl = rewriter.create(state);
-    repl->dump();
-    rewriter.replaceOp(op, repl);
-    return success();
+    return failure();
   }
 };
 
@@ -1025,10 +872,10 @@ public:
 
 void mlir::triton::populateStructuredToMemrefConversionPatterns(
     RewritePatternSet &patterns, TypeConverter &typeConverter) {
+  patterns.add<UnrealizedCastConverter>(patterns.getContext(), typeConverter);
+
   patterns
       .add<MakeTensorPtrConverter, LoadConverter, StoreConverter,
            ScalarAddptrConverter, ScalarLoadConverter, ScalarStoreConverter>(
           patterns.getContext());
-
-  // patterns.add<LoopConverter>(patterns.getContext(), typeConverter);
 }

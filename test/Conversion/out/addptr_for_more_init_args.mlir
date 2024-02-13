@@ -1,11 +1,11 @@
 module {
   func.func @kernel(%arg0: memref<*xbf16>, %arg1: memref<*xbf16>, %arg2: i32, %arg3: i32, %arg4: i32, %arg5: i32, %arg6: i32, %arg7: i32) {
-    %c1024 = arith.constant 1024 : index
-    %c0 = arith.constant 0 : index
-    %c1 = arith.constant 1 : index
-    %c2 = arith.constant 2 : index
-    %c3 = arith.constant 3 : index
     %c12 = arith.constant 12 : index
+    %c3 = arith.constant 3 : index
+    %c2 = arith.constant 2 : index
+    %c1 = arith.constant 1 : index
+    %c0 = arith.constant 0 : index
+    %c1024 = arith.constant 1024 : index
     %0:5 = scf.for %arg8 = %c0 to %c12 step %c3 iter_args(%arg9 = %c1, %arg10 = %c2, %arg11 = %c3, %arg12 = %c1024, %arg13 = %c1024) -> (index, index, index, index, index) {
       %reinterpret_cast = memref.reinterpret_cast %arg1 to offset: [%arg13], sizes: [256], strides: [%c1] : memref<*xbf16> to memref<256xbf16, strided<[?], offset: ?>>
       %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%arg12], sizes: [256], strides: [%c1] : memref<*xbf16> to memref<256xbf16, strided<[?], offset: ?>>

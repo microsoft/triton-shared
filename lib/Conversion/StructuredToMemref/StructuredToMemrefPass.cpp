@@ -49,6 +49,20 @@ public:
     addConversion([](triton::PointerType ptrType) {
       return UnrankedMemRefType::get(ptrType.getPointeeType(), 0);
     });
+    // addTargetMaterialization([&](OpBuilder &builder, Type resultType,
+    //                              ValueRange inputs,
+    //                              Location loc) -> std::optional<Value> {
+    //   return builder.create<UnrealizedConversionCastOp>(loc, resultType,
+    //   inputs)
+    //       .getResult(0);
+    // });
+
+    addSourceMaterialization([&](OpBuilder &builder, Type resultType,
+                                 ValueRange inputs,
+                                 Location loc) -> std::optional<Value> {
+      return builder.create<UnrealizedConversionCastOp>(loc, resultType, inputs)
+          .getResult(0);
+    });
   }
 };
 
@@ -68,30 +82,30 @@ public:
       return memrefType;
     });
 
-    addArgumentMaterialization([&](OpBuilder &builder, Type resultType,
-                                   ValueRange inputs,
-                                   Location loc) -> std::optional<Value> {
-      // return builder.create<UnrealizedConversionCastOp>(loc, resultType,
-      // inputs)
-      //     .getResult(0);
-      if (auto memrefType = dyn_cast<MemRefType>(resultType)) {
-        if (isa<UnrankedMemRefType>(inputs[0].getType())) {
-          auto shape = memrefType.getShape();
-          if (shape.size() == 1 && shape[0] == 1) {
-            auto t = builder.create<memref::ReinterpretCastOp>(
-                loc, memrefType, inputs[0], 0, ArrayRef<int64_t>{1},
-                ArrayRef<int64_t>{1});
-            t->dump();
-            return t;
-          }
-        }
-      }
-      return std::nullopt;
+    // addArgumentMaterialization([&](OpBuilder &builder, Type resultType,
+    //                                ValueRange inputs,
+    //                                Location loc) -> std::optional<Value> {
+    //   // return builder.create<UnrealizedConversionCastOp>(loc, resultType,
+    //   // inputs)
+    //   //     .getResult(0);
+    //   if (auto memrefType = dyn_cast<MemRefType>(resultType)) {
+    //     if (isa<UnrankedMemRefType>(inputs[0].getType())) {
+    //       auto shape = memrefType.getShape();
+    //       if (shape.size() == 1 && shape[0] == 1) {
+    //         auto t = builder.create<memref::ReinterpretCastOp>(
+    //             loc, memrefType, inputs[0], 0, ArrayRef<int64_t>{1},
+    //             ArrayRef<int64_t>{1});
+    //         t->dump();
+    //         return t;
+    //       }
+    //     }
+    //   }
+    //   return std::nullopt;
 
-      // return builder.create<UnrealizedConversionCastOp>(loc, resultType,
-      // inputs)
-      //     .getResult(0);
-    });
+    //   // return builder.create<UnrealizedConversionCastOp>(loc, resultType,
+    //   // inputs)
+    //   //     .getResult(0);
+    // });
 
     // addTargetMaterialization([&](OpBuilder &builder, Type resultType,
     //                              ValueRange inputs,
@@ -124,7 +138,29 @@ public:
                     ttx::TritonTilingExtDialect, memref::MemRefDialect>();
   }
 
+  void convertMemrefArgs() {
+    auto moduleOp = getOperation();
+
+    RewritePatternSet patterns(&getContext());
+    ConversionTarget target(getContext());
+    TritonTypeConverter typeConverter;
+
+    // Update function signature to use memrefs
+    target.addDynamicallyLegalOp<func::FuncOp>([&](func::FuncOp op) {
+      return typeConverter.isSignatureLegal(op.getFunctionType());
+    });
+
+    populateFunctionOpInterfaceTypeConversionPattern<func::FuncOp>(
+        patterns, typeConverter);
+
+    if (failed(applyPartialConversion(moduleOp, target, std::move(patterns)))) {
+      signalPassFailure();
+    }
+  }
+
   void runOnOperation() override {
+    convertMemrefArgs();
+
     auto moduleOp = getOperation();
 
     RewritePatternSet patterns(&getContext());
@@ -140,11 +176,9 @@ public:
 
     target.addIllegalDialect<tts::TritonStructuredDialect>();
 
-    target.addLegalOp<UnrealizedConversionCastOp>();
-
-    // Update function signature to use memrefs
-    target.addDynamicallyLegalOp<func::FuncOp>([&](func::FuncOp op) {
-      return typeConverter.isSignatureLegal(op.getFunctionType());
+    target.addDynamicallyLegalOp<UnrealizedConversionCastOp>([](Operation *op) {
+      auto resType = op->getResultTypes()[0];
+      return !isa<triton::PointerType>(resType);
     });
 
     target.addDynamicallyLegalOp<scf::ForOp>([](Operation *op) {
@@ -164,9 +198,6 @@ public:
     triton::populateStructuredToMemrefConversionPatterns(patterns, loop);
     mlir::scf::populateSCFStructuralTypeConversionsAndLegality(loop, patterns,
                                                                target);
-
-    populateFunctionOpInterfaceTypeConversionPattern<func::FuncOp>(
-        patterns, typeConverter);
 
     if (failed(applyPartialConversion(moduleOp, target, std::move(patterns)))) {
       signalPassFailure();

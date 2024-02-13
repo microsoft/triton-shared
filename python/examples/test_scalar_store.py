@@ -16,10 +16,9 @@ def reduce_kernel_2d(
     base_ptr = output_ptr + pid0
     # tl.store(base_ptr, 1)
     for i in range(0, BLOCK_SIZE):
-        for j in range(0, 2):
-            output = i * j
-            tl.store(base_ptr, output)
-            base_ptr += 1
+        output = i
+        tl.store(base_ptr, output)
+        base_ptr += 1
 
 
 def test():

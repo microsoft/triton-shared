@@ -1,8 +1,8 @@
 #map = affine_map<(d0) -> (d0)>
 module {
   func.func @add_kernel_01234(%arg0: memref<*xf32>, %arg1: memref<*xf32>, %arg2: memref<*xf32>, %arg3: i32, %arg4: i32, %arg5: i32, %arg6: i32, %arg7: i32, %arg8: i32, %arg9: i32) {
-    %c1024 = arith.constant 1024 : index
     %c1024_i32 = arith.constant 1024 : i32
+    %c1024 = arith.constant 1024 : index
     %0 = arith.muli %arg7, %c1024_i32 : i32
     %1 = arith.index_cast %0 : i32 to index
     %2 = arith.index_cast %0 : i32 to index

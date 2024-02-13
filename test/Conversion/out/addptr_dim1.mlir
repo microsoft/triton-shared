@@ -6,8 +6,8 @@ module {
     %c3 = arith.constant 3 : index
     %c256_i32 = arith.constant 256 : i32
     %c1 = arith.constant 1 : index
-    %c256 = arith.constant 256 : index
     %cst = arith.constant 0.000000e+00 : bf16
+    %c256 = arith.constant 256 : index
     %0 = tensor.empty() : tensor<4x256xbf16>
     %1 = linalg.fill ins(%cst : bf16) outs(%0 : tensor<4x256xbf16>) -> tensor<4x256xbf16>
     %reinterpret_cast = memref.reinterpret_cast %arg0 to offset: [0], sizes: [1, 256], strides: [256, 1] : memref<*xbf16> to memref<1x256xbf16, strided<[256, 1]>>

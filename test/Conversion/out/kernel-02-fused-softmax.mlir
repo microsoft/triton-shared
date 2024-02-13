@@ -2,8 +2,8 @@
 module {
   func.func @softmax_kernel_012345(%arg0: memref<*xf32>, %arg1: memref<*xf32>, %arg2: i32, %arg3: i32, %arg4: i32, %arg5: i32, %arg6: i32, %arg7: i32, %arg8: i32, %arg9: i32, %arg10: i32) {
     %cst = arith.constant 0.000000e+00 : f32
-    %c128 = arith.constant 128 : index
     %cst_0 = arith.constant 0xFF800000 : f32
+    %c128 = arith.constant 128 : index
     %0 = arith.muli %arg8, %arg2 : i32
     %1 = arith.index_cast %0 : i32 to index
     %reinterpret_cast = memref.reinterpret_cast %arg1 to offset: [%1], sizes: [128], strides: [1] : memref<*xf32> to memref<128xf32, strided<[1], offset: ?>>

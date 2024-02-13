@@ -1,13 +1,13 @@
 module {
   func.func @kernel(%arg0: memref<*xbf16>, %arg1: memref<*xbf16>, %arg2: i32, %arg3: i32, %arg4: i32, %arg5: i32, %arg6: i32, %arg7: i32, %arg8: i32, %arg9: i32) {
-    %c256 = arith.constant 256 : index
-    %c128 = arith.constant 128 : index
-    %c3 = arith.constant 3 : index
-    %c259 = arith.constant 259 : index
-    %c2 = arith.constant 2 : index
-    %c130 = arith.constant 130 : index
-    %cst = arith.constant 0xFF80 : bf16
     %c1024 = arith.constant 1024 : index
+    %cst = arith.constant 0xFF80 : bf16
+    %c130 = arith.constant 130 : index
+    %c2 = arith.constant 2 : index
+    %c259 = arith.constant 259 : index
+    %c3 = arith.constant 3 : index
+    %c128 = arith.constant 128 : index
+    %c256 = arith.constant 256 : index
     %c3074 = arith.constant 3074 : index
     %reinterpret_cast = memref.reinterpret_cast %arg0 to offset: [%c3074], sizes: [128, 256], strides: [1, %c1024] : memref<*xbf16> to memref<128x256xbf16, strided<[1, ?], offset: ?>>
     %reinterpret_cast_0 = memref.reinterpret_cast %arg1 to offset: [%c3074], sizes: [128, 256], strides: [1, %c1024] : memref<*xbf16> to memref<128x256xbf16, strided<[1, ?], offset: ?>>
