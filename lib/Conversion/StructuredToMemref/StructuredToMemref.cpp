@@ -1030,5 +1030,5 @@ void mlir::triton::populateStructuredToMemrefConversionPatterns(
            ScalarAddptrConverter, ScalarLoadConverter, ScalarStoreConverter>(
           patterns.getContext());
 
-  patterns.add<LoopConverter>(patterns.getContext(), typeConverter);
+  // patterns.add<LoopConverter>(patterns.getContext(), typeConverter);
 }
