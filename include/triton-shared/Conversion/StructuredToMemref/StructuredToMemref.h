@@ -13,8 +13,7 @@ namespace triton {
 #define GEN_PASS_DECL
 #include "triton-shared/Conversion/StructuredToMemref/Passes.h.inc"
 
-void populateStructuredToMemrefConversionPatterns(RewritePatternSet &patterns,
-                                                  TypeConverter &typeConverter);
+void populateStructuredToMemrefConversionPatterns(RewritePatternSet &patterns);
 
 } // namespace triton
 } // namespace mlir

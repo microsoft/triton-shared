@@ -847,9 +847,6 @@ private:
   using OpConversionPattern<UnrealizedConversionCastOp>::OpConversionPattern;
 
 public:
-  UnrealizedCastConverter(MLIRContext *context, TypeConverter &typeConverter)
-      : OpConversionPattern<UnrealizedConversionCastOp>(typeConverter,
-                                                        context) {}
   LogicalResult
   matchAndRewrite(UnrealizedConversionCastOp op, OpAdaptor adaptor,
                   ConversionPatternRewriter &rewriter) const override {
@@ -871,8 +868,8 @@ public:
 } // namespace
 
 void mlir::triton::populateStructuredToMemrefConversionPatterns(
-    RewritePatternSet &patterns, TypeConverter &typeConverter) {
-  patterns.add<UnrealizedCastConverter>(patterns.getContext(), typeConverter);
+    RewritePatternSet &patterns) {
+  patterns.add<UnrealizedCastConverter>(patterns.getContext());
 
   patterns
       .add<MakeTensorPtrConverter, LoadConverter, StoreConverter,

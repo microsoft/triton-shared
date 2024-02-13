@@ -8,19 +8,19 @@
 extern "C" {
   // Pointer type (=Memref) becomes int64_t + MemRef struct
   // FIXME: understand what this int64_t is used for.
-  void reduce_kernel_2d_0d(int64_t, void*,
+  void triton__0d1d2de(int64_t, void*, int64_t, void*, int32_t,
                        int, int, int, int, int, int);
 }
 
-static void _launch(int gridX, int gridY, int gridZ, void* arg0) {
+static void _launch(int gridX, int gridY, int gridZ, void* arg0, void* arg1, int32_t arg2) {
   if (gridX*gridY*gridZ > 0) {
     // Cast "function" to the real function type.
     for(int x = 0; x < gridX; x++) {
       for(int y = 0; y < gridY; y++) {
         for(int z = 0; z < gridZ; z++) {
           // Use some random type "char" here.
-          StridedMemRefType<char, 0> ptr_arg0 = {static_cast<char *>(arg0), static_cast<char *>(arg0), 0};
-          reduce_kernel_2d_0d(0, &ptr_arg0,
+          StridedMemRefType<char, 0> ptr_arg0 = {static_cast<char *>(arg0), static_cast<char *>(arg0), 0}; StridedMemRefType<char, 0> ptr_arg1 = {static_cast<char *>(arg1), static_cast<char *>(arg1), 0};
+          triton__0d1d2de(0, &ptr_arg0, 0, &ptr_arg1, static_cast<int32_t>(arg2),
                         gridX, gridY, gridZ, x, y, z);
         }
       }
@@ -71,9 +71,9 @@ static PyObject* launch(PyObject* self, PyObject* args) {
   PyObject *launch_enter_hook = NULL;
   PyObject *launch_exit_hook = NULL;
   PyObject *metadata = NULL;
-  PyObject* _arg0; 
-  if(!PyArg_ParseTuple(args, "iiiOOOO", &gridX, &gridY, &gridZ, &launch_enter_hook, &launch_exit_hook, &metadata
-                       , &_arg0)) {
+  PyObject* _arg0;  PyObject* _arg1;  int32_t _arg2; 
+  if(!PyArg_ParseTuple(args, "iiiOOOOOi", &gridX, &gridY, &gridZ, &launch_enter_hook, &launch_exit_hook, &metadata
+                       , &_arg0, &_arg1, &_arg2)) {
     return NULL;
   }
 
@@ -82,8 +82,8 @@ static PyObject* launch(PyObject* self, PyObject* args) {
   }
 
   // raise exception asap
-  DevicePtrInfo ptr_info0 = getPointer(_arg0, 0); if (!ptr_info0.valid) return NULL;;
-  _launch(gridX, gridY, gridZ, ptr_info0.dev_ptr);
+  DevicePtrInfo ptr_info0 = getPointer(_arg0, 0); if (!ptr_info0.valid) return NULL;; DevicePtrInfo ptr_info1 = getPointer(_arg1, 1); if (!ptr_info1.valid) return NULL;; ;
+  _launch(gridX, gridY, gridZ, ptr_info0.dev_ptr, ptr_info1.dev_ptr, _arg2);
 
   if (PyErr_Occurred()) {
     return NULL;

@@ -181,23 +181,10 @@ public:
       return !isa<triton::PointerType>(resType);
     });
 
-    target.addDynamicallyLegalOp<scf::ForOp>([](Operation *op) {
-      return llvm::all_of(op->getResultTypes(), [](Type t) {
-        if (isa<triton::PointerType>(t)) {
-          return false;
-        }
-        if (auto shapedType = dyn_cast<ShapedType>(t)) {
-          return shapedType.getElementType().isIntOrFloat();
-        }
-        assert(t.isIntOrIndexOrFloat());
-        return true;
-      });
-    });
-
     LoopTypeConverter loop(patterns.getContext());
-    triton::populateStructuredToMemrefConversionPatterns(patterns, loop);
     mlir::scf::populateSCFStructuralTypeConversionsAndLegality(loop, patterns,
                                                                target);
+    triton::populateStructuredToMemrefConversionPatterns(patterns);
 
     if (failed(applyPartialConversion(moduleOp, target, std::move(patterns)))) {
       signalPassFailure();
