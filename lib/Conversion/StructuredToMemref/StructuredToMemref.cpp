@@ -958,6 +958,69 @@ public:
   }
 };
 
+struct YieldConverter : public OpConversionPattern<scf::YieldOp> {
+private:
+  using OpConversionPattern<scf::YieldOp>::OpConversionPattern;
+
+  static void unpackUnrealizedConversionCast(Value v,
+                                             SmallVectorImpl<Value> &unpacked) {
+    if (auto cast =
+            dyn_cast_or_null<UnrealizedConversionCastOp>(v.getDefiningOp())) {
+      if (cast.getInputs().size() != 1) {
+        // 1 : N type conversion.
+        unpacked.append(cast.getInputs().begin(), cast.getInputs().end());
+        return;
+      }
+    }
+    // 1 : 1 type conversion.
+    unpacked.push_back(v);
+  }
+
+public:
+  YieldConverter(MLIRContext *context, TypeConverter &typeConverter)
+      : OpConversionPattern<scf::YieldOp>(typeConverter, context) {}
+
+  LogicalResult
+  matchAndRewrite(scf::YieldOp op, OpAdaptor adaptor,
+                  ConversionPatternRewriter &rewriter) const override {
+    // assert(0);
+
+    // Update the regions. The dialect conversion framework wants new regions to
+    // be created and updated, rather than updating the old op. Thus we use an
+    // OperationState so we can add regions to the new up.
+    llvm::SmallVector<Type, 4> new_results;
+    if (failed(getTypeConverter()->convertTypes(op->getResultTypes(),
+                                                new_results))) {
+      assert(0);
+      return failure();
+    }
+
+    for (auto t : op->getResultTypes()) {
+      t.dump();
+    }
+
+    llvm::dbgs() << "~~~~~~~~~~~~~~~~~~~~~\n";
+    llvm::dbgs() << op.getOperands().size() << "\n";
+    llvm::dbgs() << new_results.size() << "\n";
+    OperationState state(op->getLoc(), op->getName().getStringRef(),
+                         adaptor.getOperands(), new_results, op->getAttrs(),
+                         op->getSuccessors());
+    for (Region &region : op->getRegions()) {
+      Region &new_region = *state.addRegion();
+      rewriter.inlineRegionBefore(region, new_region, new_region.begin());
+      if (failed(
+              rewriter.convertRegionTypes(&new_region, *getTypeConverter()))) {
+        assert(0);
+        return failure();
+      }
+    }
+    auto repl = rewriter.create(state);
+    repl->dump();
+    rewriter.replaceOp(op, repl);
+    return success();
+  }
+};
+
 } // namespace
 
 void mlir::triton::populateStructuredToMemrefConversionPatterns(

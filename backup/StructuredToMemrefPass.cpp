@@ -6,9 +6,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "mlir/Dialect/MemRef/IR/MemRef.h"
-#include "mlir/IR/BuiltinAttributes.h"
 #include "mlir/IR/BuiltinOps.h"
-#include "mlir/IR/BuiltinTypes.h"
 #include "triton-shared/Conversion/StructuredToMemref/StructuredToMemref.h"
 #include "triton-shared/Dialect/TritonStructured/IR/TritonStructuredDialect.h"
 #include "triton-shared/Dialect/TritonTilingExt/IR/TritonTilingExtDialect.h"
@@ -17,15 +15,12 @@
 #include "mlir/Dialect/Affine/IR/AffineOps.h"
 #include "mlir/Dialect/Bufferization/IR/Bufferization.h"
 #include "mlir/Dialect/Linalg/IR/Linalg.h"
-#include "mlir/Dialect/SCF/Transforms/Patterns.h"
 #include "mlir/Pass/PassManager.h"
 #include "mlir/Transforms/GreedyPatternRewriteDriver.h"
 #include "mlir/Transforms/Passes.h"
 #include "triton/Dialect/Triton/IR/Types.h"
 
 #include "llvm/Support/Debug.h"
-#include <cassert>
-#include <optional>
 
 #define DEBUG_TYPE "structured-to-memref"
 
@@ -49,51 +44,15 @@ public:
     addConversion([](triton::PointerType ptrType) {
       return UnrankedMemRefType::get(ptrType.getPointeeType(), 0);
     });
-  }
-};
+    // addConversion([](TensorType tensorType) -> Type {
+    //   auto elemType = tensorType.getElementType();
+    //   if (auto ptrType = elemType.dyn_cast<triton::PointerType>()) {
+    //     elemType = ptrType.getPointeeType();
+    //   }
+    //   return MemRefType::get(tensorType.getShape(), elemType);
+    // });
 
-class LoopTypeConverter : public TypeConverter {
-public:
-  LoopTypeConverter(MLIRContext *context) {
-    // The order of type conversion is important: later ones are tried earlier.
-    addConversion([](Type type) { return type; });
-    addConversion([&](triton::PointerType ptrType) {
-      SmallVector<int64_t> strides{1};
-
-      auto layout =
-          StridedLayoutAttr::get(context, ShapedType::kDynamic, strides);
-
-      auto elemType = ptrType.getPointeeType();
-      auto memrefType = MemRefType::get({1}, elemType, layout);
-      return memrefType;
-    });
-
-    addArgumentMaterialization([&](OpBuilder &builder, Type resultType,
-                                   ValueRange inputs,
-                                   Location loc) -> std::optional<Value> {
-      // return builder.create<UnrealizedConversionCastOp>(loc, resultType,
-      // inputs)
-      //     .getResult(0);
-      if (auto memrefType = dyn_cast<MemRefType>(resultType)) {
-        if (isa<UnrankedMemRefType>(inputs[0].getType())) {
-          auto shape = memrefType.getShape();
-          if (shape.size() == 1 && shape[0] == 1) {
-            auto t = builder.create<memref::ReinterpretCastOp>(
-                loc, memrefType, inputs[0], 0, ArrayRef<int64_t>{1},
-                ArrayRef<int64_t>{1});
-            t->dump();
-            return t;
-          }
-        }
-      }
-      return std::nullopt;
-
-      // return builder.create<UnrealizedConversionCastOp>(loc, resultType,
-      // inputs)
-      //     .getResult(0);
-    });
-
-    // addTargetMaterialization([&](OpBuilder &builder, Type resultType,
+    // addSourceMaterialization([&](OpBuilder &builder, Type resultType,
     //                              ValueRange inputs,
     //                              Location loc) -> std::optional<Value> {
     //   return builder.create<UnrealizedConversionCastOp>(loc, resultType,
@@ -101,7 +60,7 @@ public:
     //       .getResult(0);
     // });
 
-    // addSourceMaterialization([&](OpBuilder &builder, Type resultType,
+    // addTargetMaterialization([&](OpBuilder &builder, Type resultType,
     //                              ValueRange inputs,
     //                              Location loc) -> std::optional<Value> {
     //   return builder.create<UnrealizedConversionCastOp>(loc, resultType,
@@ -147,23 +106,7 @@ public:
       return typeConverter.isSignatureLegal(op.getFunctionType());
     });
 
-    target.addDynamicallyLegalOp<scf::ForOp>([](Operation *op) {
-      return llvm::all_of(op->getResultTypes(), [](Type t) {
-        if (isa<triton::PointerType>(t)) {
-          return false;
-        }
-        if (auto shapedType = dyn_cast<ShapedType>(t)) {
-          return shapedType.getElementType().isIntOrFloat();
-        }
-        assert(t.isIntOrIndexOrFloat());
-        return true;
-      });
-    });
-
-    LoopTypeConverter loop(patterns.getContext());
-    triton::populateStructuredToMemrefConversionPatterns(patterns, loop);
-    mlir::scf::populateSCFStructuralTypeConversionsAndLegality(loop, patterns,
-                                                               target);
+    triton::populateStructuredToMemrefConversionPatterns(patterns);
 
     populateFunctionOpInterfaceTypeConversionPattern<func::FuncOp>(
         patterns, typeConverter);

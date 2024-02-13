@@ -12,7 +12,7 @@ module {
     %alloc = memref.alloc() : memref<8xi32>
     memref.copy %reinterpret_cast, %alloc : memref<8xi32, strided<[1]>> to memref<8xi32>
     %2 = bufferization.to_tensor %alloc restrict writable : memref<8xi32>
-    %3 = tt.extern_elementwise %2, %1 {libname = "libdevice", libpath = "/path/to/something", pure = true, symbol = "some_symbol"} : (tensor<8xi32>, tensor<8xi32>) -> tensor<8xi32>
+    %3 = tt.extern_elementwise %2, %1 {libname = "", libpath = "", pure = true, symbol = "some_symbol"} : (tensor<8xi32>, tensor<8xi32>) -> tensor<8xi32>
     %reinterpret_cast_0 = memref.reinterpret_cast %arg1 to offset: [0], sizes: [8], strides: [1] : memref<*xi32> to memref<8xi32, strided<[1]>>
     bufferization.materialize_in_destination %3 in writable %reinterpret_cast_0 : (tensor<8xi32>, memref<8xi32, strided<[1]>>) -> ()
     return

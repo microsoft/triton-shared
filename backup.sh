@@ -1,0 +1,4 @@
+a="include/triton-shared/Conversion/StructuredToMemref/CMakeLists.txt include/triton-shared/Conversion/StructuredToMemref/Passes.h include/triton-shared/Conversion/StructuredToMemref/Passes.td include/triton-shared/Conversion/StructuredToMemref/StructuredToMemref.h lib/Conversion/StructuredToMemref/CMakeLists.txt lib/Conversion/StructuredToMemref/StructuredToMemref.cpp lib/Conversion/StructuredToMemref/StructuredToMemrefPass.cpp new.mlir old.mlir out problems.txt scripts/build-llvm.sh scripts/build-local-python.sh scripts/build-local.sh test.sh wip-matmul.mlir wip/add.mlir wip/add_linalg.mlir wip/add_memref.mlir wip/addptr_dim1.linalg.mlir wip/kernel-01-vector-add.mlir.linalg.mlir wip/matmul.mlir wip/vector_add_cpu.mlir wip/wip-matmul.mlir"
+for file in $a; do
+    mv $file backup
+done
