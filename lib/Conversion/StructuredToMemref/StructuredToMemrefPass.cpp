@@ -19,12 +19,9 @@
 #include "mlir/Dialect/Linalg/IR/Linalg.h"
 #include "mlir/Dialect/SCF/Transforms/Patterns.h"
 #include "mlir/Pass/PassManager.h"
-#include "mlir/Transforms/GreedyPatternRewriteDriver.h"
 #include "mlir/Transforms/Passes.h"
 #include "triton/Dialect/Triton/IR/Types.h"
 
-#include "llvm/Support/Debug.h"
-#include <cassert>
 #include <optional>
 
 #define DEBUG_TYPE "structured-to-memref"
