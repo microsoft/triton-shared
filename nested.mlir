@@ -1,3 +1,18 @@
+@triton.jit
+def reduce_kernel_2d(
+    output_ptr,
+    BLOCK_SIZE: tl.constexpr,
+):
+    pid0 = tl.program_id(axis=0)
+    base_ptr = output_ptr + pid0
+    # tl.store(base_ptr, 1)
+    for i in range(0, BLOCK_SIZE):
+        for j in range(0, BLOCK_SIZE):
+            output = i * j
+            tl.store(base_ptr, output)
+            base_ptr += 1
+
+
 inside scalar store
 <block argument> of type 'memref<1xf32, strided<[1], offset: ?>>' at index: 1
 module {
