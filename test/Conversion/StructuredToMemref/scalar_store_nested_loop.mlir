@@ -28,21 +28,22 @@ module {
 // CHECK-DAG:       [[CST_0_:%.+]] = arith.constant 0 : i32
 // CHECK-DAG:       [[CST_8_:%.+]] = arith.constant 8 : i32
 // CHECK-DAG:       [[CST_2_:%.+]] = arith.constant 2 : i32
-// CHECK-DAG:       [[VAR_reinterpret_cast_:%.+]] = memref.reinterpret_cast [[PARAM_0_]] to offset: [0], sizes: [1], strides: [1] : memref<*xf32> to memref<1xf32>
+// CHECK-DAG:       [[VAR_reinterpret_cast_:%.+]] = memref.reinterpret_cast [[PARAM_0_]] to offset: [0], sizes: [1], strides: [1] : memref<*xf32> to memref<1xf32, strided<[1], offset: ?>>
 // CHECK-DAG:       [[VAR_0_:%.+]] = arith.index_cast [[PARAM_4_]] : i32 to index
-// CHECK:           [[base_buffer_:%.+]], [[offset_:%.+]], [[sizes_:%.+]], [[VAR_strides_:%.+]] = memref.extract_strided_metadata [[VAR_reinterpret_cast_]] : memref<1xf32> -> memref<f32>, index, index, index
-// CHECK:           [[VAR_reinterpret_cast_0_:%.+]] = memref.reinterpret_cast [[base_buffer_]] to offset: {{.}}[[VAR_0_]]{{.}}, sizes: [1], strides: [1] : memref<f32> to memref<1xf32, strided<[1], offset: ?>>
-// CHECK-DAG:       [[VAR_1_:%.+]] = scf.for [[VAR_arg7_:%.+]] = [[CST_0_]] to [[CST_8_]] step [[CST_1_1_]] iter_args([[VAR_arg8_:%.+]] = [[VAR_reinterpret_cast_0_]]) -> (memref<1xf32, strided<[1], offset: ?>>)  : i32 {
-// CHECK-DAG:         [[VAR_2_:%.+]] = scf.for [[VAR_arg9_:%.+]] = [[CST_0_]] to [[CST_2_]] step [[CST_1_1_]] iter_args([[VAR_arg10_:%.+]] = [[VAR_arg8_]]) -> (memref<1xf32, strided<[1], offset: ?>>)  : i32 {
-// CHECK-DAG:           [[VAR_3_:%.+]] = arith.muli [[VAR_arg7_]], [[VAR_arg9_]] : i32
-// CHECK:               [[VAR_4_:%.+]] = arith.sitofp [[VAR_3_]] : i32 to f32
-// CHECK:               affine.store [[VAR_4_]], [[VAR_arg10_]][0] : memref<1xf32, strided<[1], offset: ?>>
+// CHECK:           [[base_buffer_:%.+]], [[offset_:%.+]], [[sizes_:%.+]], [[VAR_strides_:%.+]] = memref.extract_strided_metadata [[VAR_reinterpret_cast_]] : memref<1xf32, strided<[1], offset: ?>> -> memref<f32>, index, index, index
+// CHECK:           [[VAR_1_:%.+]] = arith.addi [[offset_]], [[VAR_0_]] : index
+// CHECK:           [[VAR_reinterpret_cast_0_:%.+]] = memref.reinterpret_cast [[base_buffer_]] to offset: {{.}}[[VAR_1_]]{{.}}, sizes: [1], strides: [1] : memref<f32> to memref<1xf32, strided<[1], offset: ?>>
+// CHECK-DAG:       [[VAR_2_:%.+]] = scf.for [[VAR_arg7_:%.+]] = [[CST_0_]] to [[CST_8_]] step [[CST_1_1_]] iter_args([[VAR_arg8_:%.+]] = [[VAR_reinterpret_cast_0_]]) -> (memref<1xf32, strided<[1], offset: ?>>)  : i32 {
+// CHECK-DAG:         [[VAR_3_:%.+]] = scf.for [[VAR_arg9_:%.+]] = [[CST_0_]] to [[CST_2_]] step [[CST_1_1_]] iter_args([[VAR_arg10_:%.+]] = [[VAR_arg8_]]) -> (memref<1xf32, strided<[1], offset: ?>>)  : i32 {
+// CHECK-DAG:           [[VAR_4_:%.+]] = arith.muli [[VAR_arg7_]], [[VAR_arg9_]] : i32
+// CHECK:               [[VAR_5_:%.+]] = arith.sitofp [[VAR_4_]] : i32 to f32
+// CHECK:               affine.store [[VAR_5_]], [[VAR_arg10_]][0] : memref<1xf32, strided<[1], offset: ?>>
 // CHECK:               [[base_buffer_1_:%.+]], [[offset_2_:%.+]], [[sizes_3_:%.+]], [[VAR_strides_4_:%.+]] = memref.extract_strided_metadata [[VAR_arg10_]] : memref<1xf32, strided<[1], offset: ?>> -> memref<f32>, index, index, index
-// CHECK:               [[VAR_5_:%.+]] = arith.addi [[offset_2_]], [[CST_1_]] : index
-// CHECK:               [[VAR_reinterpret_cast_5_:%.+]] = memref.reinterpret_cast [[base_buffer_1_]] to offset: {{.}}[[VAR_5_]]{{.}}, sizes: [1], strides: [1] : memref<f32> to memref<1xf32, strided<[1], offset: ?>>
+// CHECK:               [[VAR_6_:%.+]] = arith.addi [[offset_2_]], [[CST_1_]] : index
+// CHECK:               [[VAR_reinterpret_cast_5_:%.+]] = memref.reinterpret_cast [[base_buffer_1_]] to offset: {{.}}[[VAR_6_]]{{.}}, sizes: [1], strides: [1] : memref<f32> to memref<1xf32, strided<[1], offset: ?>>
 // CHECK:               scf.yield [[VAR_reinterpret_cast_5_]] : memref<1xf32, strided<[1], offset: ?>>
 // CHECK:             }
-// CHECK:             scf.yield [[VAR_2_]] : memref<1xf32, strided<[1], offset: ?>>
+// CHECK:             scf.yield [[VAR_3_]] : memref<1xf32, strided<[1], offset: ?>>
 // CHECK:           }
 // CHECK:           return
 // CHECK:         }

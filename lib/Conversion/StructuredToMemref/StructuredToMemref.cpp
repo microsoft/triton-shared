@@ -834,15 +834,23 @@ private:
   using OpConversionPattern<UnrealizedConversionCastOp>::OpConversionPattern;
 
 public:
+  UnrealizedCastConverter(TypeConverter &typeConverter, MLIRContext *context)
+      : OpConversionPattern<UnrealizedConversionCastOp>(typeConverter,
+                                                        context) {}
+
   LogicalResult
   matchAndRewrite(UnrealizedConversionCastOp op, OpAdaptor adaptor,
                   ConversionPatternRewriter &rewriter) const override {
 
     auto resType = op->getResultTypes()[0];
     if (auto ptrType = dyn_cast<triton::PointerType>(resType)) {
+
+      auto memrefType =
+          cast<MemRefType>(getTypeConverter()->convertType(ptrType));
+
       auto cast = rewriter.create<memref::ReinterpretCastOp>(
-          op->getLoc(), MemRefType::get({1}, ptrType.getPointeeType()),
-          op.getInputs()[0], 0 /*offset*/, SmallVector<int64_t>{1} /*sizes*/,
+          op->getLoc(), memrefType, op.getInputs()[0], 0 /*offset*/,
+          SmallVector<int64_t>{1} /*sizes*/,
           SmallVector<int64_t>{1} /*strides*/);
 
       rewriter.replaceOp(op, cast);
@@ -855,8 +863,10 @@ public:
 } // namespace
 
 void mlir::triton::populateStructuredToMemrefConversionPatterns(
-    RewritePatternSet &patterns) {
-  patterns.add<MakeTensorPtrConverter, LoadConverter, StoreConverter,
-               ScalarAddptrConverter, ScalarLoadConverter, ScalarStoreConverter,
-               UnrealizedCastConverter>(patterns.getContext());
+    RewritePatternSet &patterns, TypeConverter &typeConverter) {
+  patterns.add<UnrealizedCastConverter>(typeConverter, patterns.getContext());
+  patterns
+      .add<MakeTensorPtrConverter, LoadConverter, StoreConverter,
+           ScalarAddptrConverter, ScalarLoadConverter, ScalarStoreConverter>(
+          patterns.getContext());
 }

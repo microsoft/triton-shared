@@ -70,7 +70,6 @@ public:
     addConversion([](Type type) { return type; });
     addConversion([&](triton::PointerType ptrType) {
       SmallVector<int64_t> strides{1};
-
       auto layout =
           StridedLayoutAttr::get(context, ShapedType::kDynamic, strides);
 
@@ -78,47 +77,6 @@ public:
       auto memrefType = MemRefType::get({1}, elemType, layout);
       return memrefType;
     });
-
-    // addArgumentMaterialization([&](OpBuilder &builder, Type resultType,
-    //                                ValueRange inputs,
-    //                                Location loc) -> std::optional<Value> {
-    //   // return builder.create<UnrealizedConversionCastOp>(loc, resultType,
-    //   // inputs)
-    //   //     .getResult(0);
-    //   if (auto memrefType = dyn_cast<MemRefType>(resultType)) {
-    //     if (isa<UnrankedMemRefType>(inputs[0].getType())) {
-    //       auto shape = memrefType.getShape();
-    //       if (shape.size() == 1 && shape[0] == 1) {
-    //         auto t = builder.create<memref::ReinterpretCastOp>(
-    //             loc, memrefType, inputs[0], 0, ArrayRef<int64_t>{1},
-    //             ArrayRef<int64_t>{1});
-    //         t->dump();
-    //         return t;
-    //       }
-    //     }
-    //   }
-    //   return std::nullopt;
-
-    //   // return builder.create<UnrealizedConversionCastOp>(loc, resultType,
-    //   // inputs)
-    //   //     .getResult(0);
-    // });
-
-    // addTargetMaterialization([&](OpBuilder &builder, Type resultType,
-    //                              ValueRange inputs,
-    //                              Location loc) -> std::optional<Value> {
-    //   return builder.create<UnrealizedConversionCastOp>(loc, resultType,
-    //   inputs)
-    //       .getResult(0);
-    // });
-
-    // addSourceMaterialization([&](OpBuilder &builder, Type resultType,
-    //                              ValueRange inputs,
-    //                              Location loc) -> std::optional<Value> {
-    //   return builder.create<UnrealizedConversionCastOp>(loc, resultType,
-    //   inputs)
-    //       .getResult(0);
-    // });
   }
 };
 
@@ -181,7 +139,7 @@ public:
     LoopTypeConverter loop(patterns.getContext());
     mlir::scf::populateSCFStructuralTypeConversionsAndLegality(loop, patterns,
                                                                target);
-    triton::populateStructuredToMemrefConversionPatterns(patterns);
+    triton::populateStructuredToMemrefConversionPatterns(patterns, loop);
 
     if (failed(applyPartialConversion(moduleOp, target, std::move(patterns)))) {
       signalPassFailure();
