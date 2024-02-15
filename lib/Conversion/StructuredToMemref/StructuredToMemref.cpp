@@ -337,19 +337,6 @@ private:
 
     SmallVector<Value> casts;
     StringRef wrapType;
-    // if (parentShape[0] == ShapedType::kDynamic && parentShape[1] == 0) {
-    //   auto [cast1, cast2] = createStackedCastOps(op, adaptor, rewriter);
-    //   casts = {cast1.getResult(), cast2.getResult()};
-    //   wrapType = WRAP_STACKED;
-    // } else if (parentShape[0] == 0 && parentShape[1] == ShapedType::kDynamic)
-    // {
-    //   auto [cast1, cast2] = createSideBySideCastOps(op, adaptor, rewriter);
-    //   casts = {cast1.getResult(), cast2.getResult()};
-    //   wrapType = WRAP_SIDE_BY_SIDE;
-    // } else {
-    //   assert(0);
-    //   return failure();
-    // }
 
     if (parentShape[0] == ShapedType::kDynamic) {
       // Stacked case
@@ -764,11 +751,10 @@ struct ScalarAddptrConverter : public OpConversionPattern<triton::AddPtrOp> {
     }
 
     auto ptr = adaptor.getPtr();
-    auto offset = op.getOffset();
     auto loc = op->getLoc();
 
     auto offsetIndex = rewriter.create<arith::IndexCastOp>(
-        loc, rewriter.getIndexType(), offset);
+        loc, rewriter.getIndexType(), op.getOffset());
 
     auto layout =
         StridedLayoutAttr::get(op.getContext(), ShapedType::kDynamic, {1});
@@ -777,22 +763,19 @@ struct ScalarAddptrConverter : public OpConversionPattern<triton::AddPtrOp> {
         cast<triton::PointerType>(op.getPtr().getType()).getPointeeType();
     auto memrefType = MemRefType::get({1}, elemType, layout);
 
-    {
-      auto extractMetadataOp =
-          rewriter.create<memref::ExtractStridedMetadataOp>(loc, ptr);
-      auto base = extractMetadataOp.getBaseBuffer();
-      auto offset = extractMetadataOp.getOffset();
+    auto extractMetadataOp =
+        rewriter.create<memref::ExtractStridedMetadataOp>(loc, ptr);
+    auto base = extractMetadataOp.getBaseBuffer();
+    auto offset = extractMetadataOp.getOffset();
 
-      auto newOffset = rewriter.create<arith::AddIOp>(loc, offset, offsetIndex);
+    auto newOffset = rewriter.create<arith::AddIOp>(loc, offset, offsetIndex);
 
-      auto castOp = rewriter.create<memref::ReinterpretCastOp>(
-          loc, memrefType, base, getAsOpFoldResult(newOffset) /*offset*/,
-          ArrayRef<OpFoldResult>{rewriter.getIndexAttr(1)} /*sizes*/,
-          ArrayRef<OpFoldResult>{rewriter.getIndexAttr(1)} /*strides*/);
+    auto castOp = rewriter.create<memref::ReinterpretCastOp>(
+        loc, memrefType, base, getAsOpFoldResult(newOffset) /*offset*/,
+        ArrayRef<OpFoldResult>{rewriter.getIndexAttr(1)} /*sizes*/,
+        ArrayRef<OpFoldResult>{rewriter.getIndexAttr(1)} /*strides*/);
 
-      // rewriter.replaceAllUsesWith(op.getResult(), castOp.getResult());
-      rewriter.replaceOp(op, castOp.getResult());
-    }
+    rewriter.replaceOp(op, castOp.getResult());
 
     return success();
   }
