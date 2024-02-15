@@ -102,6 +102,18 @@ def TTS_MakeTensorPtrOp
       Builder b(getContext());
       return ::mlir::getMixedValues(getStaticShape(), getShape(), b);
     }
+    bool isBlockPtr() {
+      return !getOrder().empty();
+    }
+    bool isRegularPtr() {
+      return !isBlockPtr() &&
+             llvm::all_of(getStaticShape(), [](auto shape) { return shape == 0; });
+    }
+    bool isSplitPtr() {
+      return !isBlockPtr() &&
+             !isRegularPtr() &&
+             llvm::any_of(getStaticShape(), [](auto shape) { return shape != 0; });
+    }
   }];
 
   // TODO
@@ -116,7 +128,7 @@ def TTS_LoadOp : TTS_Op<"load", [
   let summary = "optionally load data from in memory to fill a portion of the tensor";
 
   let arguments = (ins TT_PtrLike:$ptr,
-                       Variadic<Index>:$dims,
+                       Variadic<Index>:$dims,           // mask dimension
                        DenseI64ArrayAttr:$static_dims,
                        Optional<AnyTypeOf<[TT_Float, TT_Int, TT_Ptr]>>:$other);
 
@@ -125,6 +137,18 @@ def TTS_LoadOp : TTS_Op<"load", [
   let builders = [
     OpBuilder<(ins "Value":$ptr, "ArrayRef<OpFoldResult>":$dims, "Value":$other)>,
   ];
+
+  let extraClassDeclaration = [{
+    /// Return a vector of all the static or dynamic fields
+    SmallVector<OpFoldResult> getMixedMaskDims() {
+      Builder b(getContext());
+      return ::mlir::getMixedValues(getStaticDims(), getDims(), b);
+    }
+
+    bool hasMasks() {
+      return !getStaticDims().empty();
+    }
+  }];
 
   // TODO
   //let hasCustomAssemblyFormat = 1;
@@ -144,6 +168,18 @@ def TTS_StoreOp : TTS_Op<"store", [
   let builders = [
     OpBuilder<(ins "Value":$ptr, "Value":$value, "ArrayRef<OpFoldResult>":$dims)>,
   ];
+
+  let extraClassDeclaration = [{
+    /// Return a vector of all the static or dynamic fields
+    SmallVector<OpFoldResult> getMixedMaskDims() {
+      Builder b(getContext());
+      return ::mlir::getMixedValues(getStaticDims(), getDims(), b);
+    }
+
+    bool hasMasks() {
+      return !getStaticDims().empty();
+    }
+  }];
 
   // TODO
   //let hasCustomAssemblyFormat = 1;

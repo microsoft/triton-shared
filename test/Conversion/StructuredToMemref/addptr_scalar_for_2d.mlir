@@ -1,0 +1,105 @@
+// RUN: triton-shared-opt --split-input-file --triton-to-structured --canonicalize --triton-arith-to-linalg --structured-to-memref %s | FileCheck %s
+module {
+  tt.func @kernel (%arg0: !tt.ptr<f32> {tt.divisibility = 16 : i32}, %arg1: !tt.ptr<f32> {tt.divisibility = 16 : i32}, %arg2: i32, %arg3: i32, %arg4: i32) {
+    %0 = tt.get_program_id x : i32
+    %1 = arith.muli %0, %arg2 : i32
+    %2 = tt.addptr %arg1, %1 : !tt.ptr<f32>, i32
+    %cf0 = arith.constant 0.000000e+00 : f32
+    %tensor_cf0 = tt.splat %cf0 : (f32) -> tensor<128x128xf32>
+    %c0 = arith.constant 0 : index
+    %c12 = arith.constant 12 : index
+    %c3 = arith.constant 3 : index
+    %sum_out, %_ptr = scf.for %i = %c0 to %c12 step %c3 iter_args(%sum_iter = %tensor_cf0,  %ptr_iter = %2) ->  (tensor<128x128xf32>, !tt.ptr<f32> ) {
+      %3 = tt.splat %ptr_iter : (!tt.ptr<f32>) -> tensor<128x128x!tt.ptr<f32>>
+      // source = %arg1, offset = [%1, 0], size = [128, 128], strides = [0, 0]
+      %4 = tt.make_range {end = 128 : i32, start = 0 : i32} : tensor<128xi32>
+      %5 = tt.expand_dims %4 {axis = 0 : i32} : (tensor<128xi32>) -> tensor<1x128xi32>
+      %6 = tt.broadcast %5 : (tensor<1x128xi32>) -> tensor<128x128xi32>
+      // offset = [0, 0], size = [128, 128], strides = [0, 1]
+      %7 = tt.make_range {end = 256 : i32, start = 128 : i32} : tensor<128xi32>
+      %8 = tt.expand_dims %7 {axis = 1 : i32} : (tensor<128xi32>) -> tensor<128x1xi32>
+      %9 = tt.broadcast %8 : (tensor<128x1xi32>) -> tensor<128x128xi32>
+      // offset = [128, 0], size = [128, 128], strides = [1, 0]
+      %10 = arith.addi %6, %9 : tensor<128x128xi32>
+      // offset = [128, 0], size = [128, 128], strides = [1, 1]
+      %11 = tt.addptr %3, %10 : tensor<128x128x!tt.ptr<f32>>, tensor<128x128xi32>
+      // source = %arg1, offset = [%1 + 128, 0], size = [128, 128], strides = [1, 1]
+      %12 = tt.load %11 {cache = 1 : i32, evict = 1 : i32, isVolatile = false} : tensor<128x128xf32>
+      %17 = math.exp %12 : tensor<128x128xf32>
+      %sum_next = arith.addf %sum_iter, %17 : tensor<128x128xf32>
+      %cast_i = arith.index_cast %i : index to i32
+      %ptr_next = tt.addptr %ptr_iter, %cast_i : !tt.ptr<f32>, i32
+      // source = %arg1, offset = %1 + %i, size = 1, strides = 0
+      scf.yield %sum_next, %ptr_next : tensor<128x128xf32>, !tt.ptr<f32>
+    }
+    %4 = tt.make_range {end = 128 : i32, start = 0 : i32} : tensor<128xi32>
+    %5 = tt.expand_dims %4 {axis = 0 : i32} : (tensor<128xi32>) -> tensor<1x128xi32>
+    %6 = tt.broadcast %5 : (tensor<1x128xi32>) -> tensor<128x128xi32>
+    // offset = [0, 0], size = [128, 128], strides = [0, 1]
+    %7 = tt.make_range {end = 256 : i32, start = 128 : i32} : tensor<128xi32>
+    %8 = tt.expand_dims %7 {axis = 1 : i32} : (tensor<128xi32>) -> tensor<128x1xi32>
+    %9 = tt.broadcast %8 : (tensor<128x1xi32>) -> tensor<128x128xi32>
+    // offset = [128, 0], size = [128, 128], strides = [1, 0]
+    %10 = arith.addi %6, %9 : tensor<128x128xi32>
+    // offset = [128, 0], size = [128, 128], strides = [1, 1]
+    %18 = arith.muli %0, %arg3 : i32
+    %19 = tt.addptr %arg0, %18 : !tt.ptr<f32>, i32
+    // source = arg0, offset = %18, size = 1, strides = 0
+    %20 = tt.splat %19 : (!tt.ptr<f32>) -> tensor<128x128x!tt.ptr<f32>>
+    // source = arg0, offset = [%18, 0], size = [128, 128], strides = [0, 0]
+    %21 = tt.addptr %20, %10 : tensor<128x128x!tt.ptr<f32>>, tensor<128x128xi32>
+    // source = %arg0, offset = [%18 + 128, 0], size = [128, 128], strides = [1, 1]
+    tt.store %21, %sum_out : tensor<128x128xf32>
+    tt.return
+  }
+}
+
+// CHECK-DAG:   [[MAP_0_:#.+]] = affine_map<(d0, d1) -> (d0, d1)>
+// CHECK-LABEL:  func.func @kernel
+// CHECK-SAME:   ([[PARAM_0_:%.+]]: memref<*xf32> {tt.divisibility = 16 : i32}, [[PARAM_1_:%.+]]: memref<*xf32> {tt.divisibility = 16 : i32}, [[PARAM_2_:%.+]]: i32, [[PARAM_3_:%.+]]: i32, [[PARAM_4_:%.+]]: i32, [[PARAM_5_:%.+]]: i32, [[PARAM_6_:%.+]]: i32, [[PARAM_7_:%.+]]: i32, [[PARAM_8_:%.+]]: i32, [[PARAM_9_:%.+]]: i32, [[PARAM_10_:%.+]]: i32) {
+// CHECK-DAG:       [[CST_0_:%.+]] = arith.constant 0 : index
+// CHECK-DAG:       [[CST_12_:%.+]] = arith.constant 12 : index
+// CHECK-DAG:       [[CST_3_:%.+]] = arith.constant 3 : index
+// CHECK-DAG:       [[CST_128_:%.+]] = arith.constant 128 : index
+// CHECK-DAG:       [[CST_0_dot_000000_:%.+]] = arith.constant 0.000000e+00 : f32
+// CHECK-DAG:       [[VAR_reinterpret_cast_:%.+]] = memref.reinterpret_cast [[PARAM_1_]] to offset: [0], sizes: [1], strides: [1] : memref<*xf32> to memref<1xf32, strided<[1], offset: ?>>
+// CHECK-DAG:       [[VAR_0_:%.+]] = tensor.empty() : tensor<128x128xf32>
+// CHECK-NOT: separator of consecutive DAGs
+// CHECK-DAG:       [[VAR_1_:%.+]] = linalg.fill ins([[CST_0_dot_000000_]] : f32) outs([[VAR_0_]] : tensor<128x128xf32>) -> tensor<128x128xf32>
+// CHECK-DAG:       [[VAR_2_:%.+]] = arith.muli [[PARAM_8_]], [[PARAM_2_]] : i32
+// CHECK-NOT: separator of consecutive DAGs
+// CHECK-DAG:       [[VAR_3_:%.+]] = arith.index_cast [[VAR_2_]] : i32 to index
+// CHECK-DAG:       [[VAR_4_:%.+]] = arith.index_cast [[VAR_2_]] : i32 to index
+// CHECK:           [[base_buffer_:%.+]], [[offset_:%.+]], [[sizes_:%.+]], [[VAR_strides_:%.+]] = memref.extract_strided_metadata [[VAR_reinterpret_cast_]] : memref<1xf32, strided<[1], offset: ?>> -> memref<f32>, index, index, index
+// CHECK:           [[VAR_5_:%.+]] = arith.addi [[offset_]], [[VAR_4_]] : index
+// CHECK:           [[VAR_reinterpret_cast_0_:%.+]] = memref.reinterpret_cast [[base_buffer_]] to offset: {{.}}[[VAR_5_]]{{.}}, sizes: [1], strides: [1] : memref<f32> to memref<1xf32, strided<[1], offset: ?>>
+// CHECK-DAG:       [[VAR_6_:%.+]]:3 = scf.for [[VAR_arg11_:%.+]] = [[CST_0_]] to [[CST_12_]] step [[CST_3_]] iter_args([[VAR_arg12_:%.+]] = [[VAR_1_]], [[VAR_arg13_:%.+]] = [[VAR_reinterpret_cast_0_]], [[VAR_arg14_:%.+]] = [[VAR_3_]]) -> (tensor<128x128xf32>, memref<1xf32, strided<[1], offset: ?>>, index) {
+// CHECK-DAG:         [[VAR_10_:%.+]] = arith.addi [[VAR_arg14_]], [[CST_128_]] : index
+// CHECK-NOT: separator of consecutive DAGs
+// CHECK-DAG:         [[VAR_reinterpret_cast_2_:%.+]] = memref.reinterpret_cast [[PARAM_1_]] to offset: {{.}}[[VAR_10_]]{{.}}, sizes: [128, 128], strides: [1, 1] : memref<*xf32> to memref<128x128xf32, strided<[1, 1], offset: ?>>
+// CHECK-DAG:         [[RES_:%.+]] = memref.alloc() : memref<128x128xf32>
+// CHECK:             memref.copy [[VAR_reinterpret_cast_2_]], [[RES_]] : memref<128x128xf32, strided<[1, 1], offset: ?>> to memref<128x128xf32>
+// CHECK:             [[VAR_11_:%.+]] = bufferization.to_tensor [[RES_]] restrict writable : memref<128x128xf32>
+// CHECK:             [[VAR_12_:%.+]] = linalg.generic {indexing_maps = [#map, #map], iterator_types = ["parallel", "parallel"]} ins([[VAR_11_]] : tensor<128x128xf32>) outs([[VAR_11_]] : tensor<128x128xf32>) {
+// CHECK:             ^bb0([[IN_0_:%.+]]: f32, [[IN_1_:%.+]]: f32):
+// CHECK:               [[VAR_16_:%.+]] = math.exp [[IN_0_]] : f32
+// CHECK:               linalg.yield [[VAR_16_]] : f32
+// CHECK:             } -> tensor<128x128xf32>
+// CHECK:             [[VAR_13_:%.+]] = linalg.generic {indexing_maps = [#map, #map, #map], iterator_types = ["parallel", "parallel"]} ins([[VAR_arg12_]], [[VAR_12_]] : tensor<128x128xf32>, tensor<128x128xf32>) outs([[VAR_arg12_]] : tensor<128x128xf32>) {
+// CHECK:             ^bb0([[IN_2_:%.+]]: f32, [[IN_3_:%.+]]: f32, [[IN_4_:%.+]]: f32):
+// CHECK:               [[VAR_16_1_:%.+]] = arith.addf [[IN_2_]], [[IN_3_]] : f32
+// CHECK:               linalg.yield [[VAR_16_1_]] : f32
+// CHECK:             } -> tensor<128x128xf32>
+// CHECK:             [[base_buffer_3_:%.+]], [[offset_4_:%.+]], [[sizes_5_:%.+]], [[VAR_strides_6_:%.+]] = memref.extract_strided_metadata [[VAR_arg13_]] : memref<1xf32, strided<[1], offset: ?>> -> memref<f32>, index, index, index
+// CHECK:             [[VAR_14_:%.+]] = arith.addi [[offset_4_]], [[VAR_arg11_]] : index
+// CHECK-DAG:         [[VAR_reinterpret_cast_7_:%.+]] = memref.reinterpret_cast [[base_buffer_3_]] to offset: {{.}}[[VAR_14_]]{{.}}, sizes: [1], strides: [1] : memref<f32> to memref<1xf32, strided<[1], offset: ?>>
+// CHECK-DAG:         [[VAR_15_:%.+]] = arith.addi [[VAR_arg14_]], [[VAR_arg11_]] : index
+// CHECK:             scf.yield [[VAR_13_]], [[VAR_reinterpret_cast_7_]], [[VAR_15_]] : tensor<128x128xf32>, memref<1xf32, strided<[1], offset: ?>>, index
+// CHECK:           }
+// CHECK:           [[VAR_7_:%.+]] = arith.muli [[PARAM_8_]], [[PARAM_3_]] : i32
+// CHECK:           [[VAR_8_:%.+]] = arith.index_cast [[VAR_7_]] : i32 to index
+// CHECK:           [[VAR_9_:%.+]] = arith.addi [[VAR_8_]], [[CST_128_]] : index
+// CHECK:           [[VAR_reinterpret_cast_1_:%.+]] = memref.reinterpret_cast [[PARAM_0_]] to offset: {{.}}[[VAR_9_]]{{.}}, sizes: [128, 128], strides: [1, 1] : memref<*xf32> to memref<128x128xf32, strided<[1, 1], offset: ?>>
+// CHECK:           bufferization.materialize_in_destination [[VAR_6_]]#0 in writable [[VAR_reinterpret_cast_1_]] : (tensor<128x128xf32>, memref<128x128xf32, strided<[1, 1], offset: ?>>) -> ()
+// CHECK:           return
+// CHECK:         }
