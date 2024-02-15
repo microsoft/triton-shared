@@ -825,15 +825,11 @@ public:
     if (!op.getValue().getType().isIntOrIndexOrFloat()) {
       return failure();
     }
-    // assert(0);
 
     auto loc = op->getLoc();
     auto memrefPtr = adaptor.getPtr();
     auto val = op.getValue();
     auto zeroMap = AffineMap::getConstantMap(0, rewriter.getContext());
-
-    llvm::dbgs() << "inside scalar store\n";
-    memrefPtr.dump();
 
     rewriter.create<affine::AffineStoreOp>(loc, val, memrefPtr, zeroMap,
                                            std::nullopt);
@@ -871,10 +867,7 @@ public:
 
 void mlir::triton::populateStructuredToMemrefConversionPatterns(
     RewritePatternSet &patterns) {
-  patterns.add<UnrealizedCastConverter>(patterns.getContext());
-
-  patterns
-      .add<MakeTensorPtrConverter, LoadConverter, StoreConverter,
-           ScalarAddptrConverter, ScalarLoadConverter, ScalarStoreConverter>(
-          patterns.getContext());
+  patterns.add<MakeTensorPtrConverter, LoadConverter, StoreConverter,
+               ScalarAddptrConverter, ScalarLoadConverter, ScalarStoreConverter,
+               UnrealizedCastConverter>(patterns.getContext());
 }
