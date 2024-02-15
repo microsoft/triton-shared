@@ -377,8 +377,11 @@ private:
     SmallVector<Value> dynamicStrides;
     dispatchIndexOpFoldResults(mixedStrides, dynamicStrides, staticStrides);
 
-    auto resultType = getResultMemrefType(op, op.getStaticOffsets()[0],
-                                          staticStrides, resultShape);
+    auto targetOffset = accumulateTargetOffset(op, rewriter);
+    auto staticTargetOffset = getIntAttr(targetOffset);
+    auto resultType = getResultMemrefType(
+        op, staticTargetOffset.value_or(ShapedType::kDynamic), staticStrides,
+        resultShape);
 
     // The base ptr, which is from one of the args, would have already been
     // converted to memref<*> at this point, so get the base from adaptor

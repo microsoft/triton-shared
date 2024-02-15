@@ -37,10 +37,10 @@ module {
 // CHECK-DAG:       [[CST_6_:%.+]] = arith.constant 6 : index
 // CHECK-DAG:       [[CST_6656_:%.+]] = arith.constant 6656 : index
 // CHECK-NOT: separator of consecutive DAGs
-// CHECK-DAG:       [[VAR_reinterpret_cast_:%.+]] = memref.reinterpret_cast [[PARAM_1_]] to offset: {{.}}[[CST_6656_]]{{.}}, sizes: [256, 128], strides: [1, [[CST_6_]]{{.}} : memref<*xbf16> to memref<256x128xbf16, strided<[1, ?], offset: 512>>
+// CHECK-DAG:       [[VAR_reinterpret_cast_:%.+]] = memref.reinterpret_cast [[PARAM_1_]] to offset: {{.}}[[CST_6656_]]{{.}}, sizes: [256, 128], strides: [1, [[CST_6_]]{{.}} : memref<*xbf16> to memref<256x128xbf16, strided<[1, ?], offset: ?>>
 // CHECK-DAG:       [[RES_:%.+]] = memref.alloc() : memref<256x128xbf16>
-// CHECK:           memref.copy [[VAR_reinterpret_cast_]], [[RES_]] : memref<256x128xbf16, strided<[1, ?], offset: 512>> to memref<256x128xbf16>
+// CHECK:           memref.copy [[VAR_reinterpret_cast_]], [[RES_]] : memref<256x128xbf16, strided<[1, ?], offset: ?>> to memref<256x128xbf16>
 // CHECK:           [[VAR_0_:%.+]] = bufferization.to_tensor [[RES_]] restrict writable : memref<256x128xbf16>
-// CHECK:           bufferization.materialize_in_destination [[VAR_0_]] in writable [[VAR_reinterpret_cast_]] : (tensor<256x128xbf16>, memref<256x128xbf16, strided<[1, ?], offset: 512>>) -> ()
+// CHECK:           bufferization.materialize_in_destination [[VAR_0_]] in writable [[VAR_reinterpret_cast_]] : (tensor<256x128xbf16>, memref<256x128xbf16, strided<[1, ?], offset: ?>>) -> ()
 // CHECK:           return
 // CHECK:         }

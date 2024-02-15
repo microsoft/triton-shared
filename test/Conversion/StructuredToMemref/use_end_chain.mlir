@@ -82,17 +82,17 @@ module {
 // CHECK:             [[VAR_15_3_:%.+]] = arith.addi [[IN_9_]], [[IN_10_]] : i32
 // CHECK:             linalg.yield [[VAR_15_3_]] : i32
 // CHECK:           } -> tensor<256x128xi32>
-// CHECK-DAG:       [[VAR_reinterpret_cast_:%.+]] = memref.reinterpret_cast [[PARAM_1_]] to offset: {{.}}[[CST_6656_]]{{.}}, sizes: [256, 128], strides: [1, [[CST_6_]]{{.}} : memref<*xbf16> to memref<256x128xbf16, strided<[1, ?], offset: 512>>
+// CHECK-DAG:       [[VAR_reinterpret_cast_:%.+]] = memref.reinterpret_cast [[PARAM_1_]] to offset: {{.}}[[CST_6656_]]{{.}}, sizes: [256, 128], strides: [1, [[CST_6_]]{{.}} : memref<*xbf16> to memref<256x128xbf16, strided<[1, ?], offset: ?>>
 // CHECK-DAG:       [[RES_:%.+]] = memref.alloc() : memref<256x128xbf16>
-// CHECK:           memref.copy [[VAR_reinterpret_cast_]], [[RES_]] : memref<256x128xbf16, strided<[1, ?], offset: 512>> to memref<256x128xbf16>
+// CHECK:           memref.copy [[VAR_reinterpret_cast_]], [[RES_]] : memref<256x128xbf16, strided<[1, ?], offset: ?>> to memref<256x128xbf16>
 // CHECK:           [[VAR_12_:%.+]] = bufferization.to_tensor [[RES_]] restrict writable : memref<256x128xbf16>
-// CHECK:           bufferization.materialize_in_destination [[VAR_12_]] in writable [[VAR_reinterpret_cast_]] : (tensor<256x128xbf16>, memref<256x128xbf16, strided<[1, ?], offset: 512>>) -> ()
+// CHECK:           bufferization.materialize_in_destination [[VAR_12_]] in writable [[VAR_reinterpret_cast_]] : (tensor<256x128xbf16>, memref<256x128xbf16, strided<[1, ?], offset: ?>>) -> ()
 // CHECK:           [[VAR_13_:%.+]] = tensor.empty() : tensor<256x128xbf16>
 // CHECK:           [[VAR_14_:%.+]] = linalg.generic {indexing_maps = [#map2, #map2], iterator_types = ["parallel", "parallel"]} ins([[VAR_11_]] : tensor<256x128xi32>) outs([[VAR_13_]] : tensor<256x128xbf16>) {
 // CHECK:           ^bb0([[IN_12_:%.+]]: i32, [[IN_13_:%.+]]: bf16):
 // CHECK:             [[VAR_15_4_:%.+]] = arith.sitofp [[IN_12_]] : i32 to bf16
 // CHECK:             linalg.yield [[VAR_15_4_]] : bf16
 // CHECK:           } -> tensor<256x128xbf16>
-// CHECK:           bufferization.materialize_in_destination [[VAR_14_]] in writable [[VAR_reinterpret_cast_]] : (tensor<256x128xbf16>, memref<256x128xbf16, strided<[1, ?], offset: 512>>) -> ()
+// CHECK:           bufferization.materialize_in_destination [[VAR_14_]] in writable [[VAR_reinterpret_cast_]] : (tensor<256x128xbf16>, memref<256x128xbf16, strided<[1, ?], offset: ?>>) -> ()
 // CHECK:           return
 // CHECK:         }
