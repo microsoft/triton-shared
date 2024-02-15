@@ -16,10 +16,9 @@ def reduce_kernel_2d(
     base_ptr = output_ptr + pid0
     # tl.store(base_ptr, 1)
     for i in range(0, BLOCK_SIZE):
-        for j in range(0, BLOCK_SIZE):
-            output = i * j
-            tl.store(base_ptr, output)
-            base_ptr += 1
+        output = i
+        tl.store(base_ptr, output)
+        base_ptr += 1
 
 
 def test():
@@ -29,10 +28,10 @@ def test():
     grid = lambda meta: (1,)
 
     reduce_kernel_2d[grid](output, BLOCK_SIZE=BLOCK_SIZE)
-    # ans = torch.sum(x, dim=1)
-    # print('Expected: ', ans)
+    ans = torch.arange(BLOCK_SIZE, device="cpu", dtype=torch.float32)
+    print('Expected: ', ans)
     print('Actual: ', output)
-    # torch.testing.assert_close(output, ans, rtol=0.001, atol=1e-5)
+    torch.testing.assert_close(output, ans, rtol=0.001, atol=1e-5)
     print("Pass!")
 
 
