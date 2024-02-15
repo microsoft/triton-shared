@@ -268,6 +268,12 @@ private:
     //
     //    wrappedAroundOff = targetOffset % cols
     //    clampedOff = (rows * strideRows) + wrappedAroundOff
+    //                  ~~~~~~~~~~~~~~~~~
+    //                         ^
+    //                         |
+    //          We have already computed
+    //          rows * strideRows = modRow = shape[1]
+    //          in TritonToStructured
     //
     //          clampedOff - targetOffset
     //    d1 = --------------------
