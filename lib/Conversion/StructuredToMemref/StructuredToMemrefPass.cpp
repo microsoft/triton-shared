@@ -9,6 +9,7 @@
 #include "mlir/IR/BuiltinAttributes.h"
 #include "mlir/IR/BuiltinOps.h"
 #include "mlir/IR/BuiltinTypes.h"
+#include "mlir/Support/LogicalResult.h"
 #include "triton-shared/Conversion/StructuredToMemref/StructuredToMemref.h"
 #include "triton-shared/Dialect/TritonStructured/IR/TritonStructuredDialect.h"
 #include "triton-shared/Dialect/TritonTilingExt/IR/TritonTilingExtDialect.h"
@@ -38,22 +39,16 @@ namespace triton {
 
 namespace {
 
-class TritonTypeConverter : public TypeConverter {
+class TritonFunctionSignatureConverter : public TypeConverter {
 public:
-  TritonTypeConverter() {
+  TritonFunctionSignatureConverter() {
     // The order of type conversion is important: later ones are tried earlier.
     addConversion([](Type type) { return type; });
     addConversion([](triton::PointerType ptrType) {
       return UnrankedMemRefType::get(ptrType.getPointeeType(), 0);
     });
-    // addTargetMaterialization([&](OpBuilder &builder, Type resultType,
-    //                              ValueRange inputs,
-    //                              Location loc) -> std::optional<Value> {
-    //   return builder.create<UnrealizedConversionCastOp>(loc, resultType,
-    //   inputs)
-    //       .getResult(0);
-    // });
-
+    // Used for converting memref<*> back to tt.ptr type, these ops will then be
+    // handled when we convert addptr op later.
     addSourceMaterialization([&](OpBuilder &builder, Type resultType,
                                  ValueRange inputs,
                                  Location loc) -> std::optional<Value> {
@@ -93,12 +88,12 @@ public:
                     ttx::TritonTilingExtDialect, memref::MemRefDialect>();
   }
 
-  void convertMemrefArgs() {
+  LogicalResult convertArgsToMemrefType() {
     auto moduleOp = getOperation();
 
     RewritePatternSet patterns(&getContext());
     ConversionTarget target(getContext());
-    TritonTypeConverter typeConverter;
+    TritonFunctionSignatureConverter typeConverter;
 
     // Update function signature to use memrefs
     target.addDynamicallyLegalOp<func::FuncOp>([&](func::FuncOp op) {
@@ -108,19 +103,19 @@ public:
     populateFunctionOpInterfaceTypeConversionPattern<func::FuncOp>(
         patterns, typeConverter);
 
-    if (failed(applyPartialConversion(moduleOp, target, std::move(patterns)))) {
-      signalPassFailure();
-    }
+    return applyPartialConversion(moduleOp, target, std::move(patterns));
   }
 
   void runOnOperation() override {
-    convertMemrefArgs();
+
+    if (failed(convertArgsToMemrefType())) {
+      signalPassFailure();
+    }
 
     auto moduleOp = getOperation();
 
     RewritePatternSet patterns(&getContext());
     ConversionTarget target(getContext());
-    TritonTypeConverter typeConverter;
 
     target.addLegalDialect<
         func::FuncDialect, arith::ArithDialect, math::MathDialect,
@@ -136,10 +131,11 @@ public:
       return !isa<triton::PointerType>(resType);
     });
 
-    LoopTypeConverter loop(patterns.getContext());
-    mlir::scf::populateSCFStructuralTypeConversionsAndLegality(loop, patterns,
-                                                               target);
-    triton::populateStructuredToMemrefConversionPatterns(patterns, loop);
+    LoopTypeConverter loopTypeConverter(patterns.getContext());
+    mlir::scf::populateSCFStructuralTypeConversionsAndLegality(
+        loopTypeConverter, patterns, target);
+    triton::populateStructuredToMemrefConversionPatterns(patterns,
+                                                         loopTypeConverter);
 
     if (failed(applyPartialConversion(moduleOp, target, std::move(patterns)))) {
       signalPassFailure();

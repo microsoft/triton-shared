@@ -404,10 +404,3 @@ def test_torch_inductor_pattern():
     print(out)
     assert torch.equal(expected_out.int(), out.int())
     print('Passed')
-
-
-test_stacked_masked_loop()
-test_side_by_side_masked_loop()
-test_2d()
-test_1d()
-test_wrap_stacked()

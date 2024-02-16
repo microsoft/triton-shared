@@ -14,7 +14,6 @@ def reduce_kernel_2d(
 ):
     pid0 = tl.program_id(axis=0)
     base_ptr = output_ptr + pid0
-    # tl.store(base_ptr, 1)
     for i in range(0, BLOCK_SIZE):
         output = i
         tl.store(base_ptr, output)
@@ -33,6 +32,3 @@ def test():
     print('Actual: ', output)
     torch.testing.assert_close(output, ans, rtol=0.001, atol=1e-5)
     print("Pass!")
-
-
-test()

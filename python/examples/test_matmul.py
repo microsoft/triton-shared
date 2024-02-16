@@ -163,6 +163,3 @@ def test_matmul():
         print("✅ Triton and Torch match")
     else:
         print("❌ Triton and Torch differ")
-
-
-test_matmul()

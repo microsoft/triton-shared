@@ -812,14 +812,11 @@ LogicalResult PtrAnalysis::rewriteForOp(scf::ForOp op) {
     auto mappedV = ptrMap.lookupOrNull(arg);
     PtrState state;
 
-    arg.dump();
-
     if (mappedV) {
       llvm::dbgs() << "using mapped value\n";
       if (auto makeTPtrOp = mappedV.getDefiningOp<tts::MakeTensorPtrOp>()) {
         if (visitOperandMakeTPtr(makeTPtrOp, state, op.getLoc(), builder)
                 .succeeded()) {
-          // assert(0);
           newInitArgs.push_back(mappedV);
           // Record the PtrState for later processing
           initArgIndexState.push_back(std::make_pair(i, state));
@@ -846,15 +843,9 @@ LogicalResult PtrAnalysis::rewriteForOp(scf::ForOp op) {
           // Record the PtrState for later processing
           initArgIndexState.push_back(std::make_pair(i, state));
           continue;
-        } else {
-          assert(0);
         }
-      } else {
-        assert(0);
       }
     }
-
-    llvm::dbgs() << "using original value\n";
     // If any of the analysis failed, or init arg is not pointer related or
     // prior rewrite has failed. Pass as is
     newInitArgs.push_back(arg);

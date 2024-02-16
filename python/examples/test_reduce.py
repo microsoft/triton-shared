@@ -59,5 +59,3 @@ def test():
     print(ret.asm["llir"])
     print(ret.asm["cpuasm"])
     print('Pass')
-
-test()
