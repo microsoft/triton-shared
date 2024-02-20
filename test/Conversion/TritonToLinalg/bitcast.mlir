@@ -37,7 +37,7 @@ module {
 // CHECK:     [[VAR_5_:%.+]] = arith.bitcast %in : i32 to f32
 // CHECK:     linalg.yield [[VAR_5_]] : f32
 // CHECK:   } -> tensor<1024xf32>
-// CHECK:   memref.tensor_store [[VAR_2_]], [[RC_0_]] : memref<1024xf32, strided<[1]>>
+// CHECK:   bufferization.materialize_in_destination [[VAR_2_]] in writable [[RC_0_]]
 // CHECK:     return
 // CHECK:   }
 // CHECK: }

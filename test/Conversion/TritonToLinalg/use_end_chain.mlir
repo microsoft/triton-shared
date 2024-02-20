@@ -79,13 +79,13 @@ module {
 // CHECK:           %[[VAL_46:.*]] = memref.alloc() : memref<256x128xbf16>
 // CHECK:           memref.copy %[[VAL_45]], %[[VAL_46]] : memref<256x128xbf16, strided<[1, ?], offset: 6656>> to memref<256x128xbf16>
 // CHECK:           %[[VAL_47:.*]] = bufferization.to_tensor %[[VAL_46]] restrict writable : memref<256x128xbf16>
-// CHECK:           memref.tensor_store %[[VAL_47]], %[[VAL_45]] : memref<256x128xbf16, strided<[1, ?], offset: 6656>>
+// CHECK:           bufferization.materialize_in_destination %[[VAL_47]] in writable %[[VAL_45]]
 // CHECK:           %[[VAL_48:.*]] = tensor.empty() : tensor<256x128xbf16>
 // CHECK:           %[[VAL_49:.*]] = linalg.generic {indexing_maps = [#map2, #map2], iterator_types = ["parallel", "parallel"]} ins(%[[VAL_50:.*]] : tensor<256x128xi32>) outs(%[[VAL_48]] : tensor<256x128xbf16>) {
 // CHECK:           ^bb0(%[[VAL_51:.*]]: i32, %[[VAL_52:.*]]: bf16):
 // CHECK:             %[[VAL_53:.*]] = arith.sitofp %[[VAL_51]] : i32 to bf16
 // CHECK:             linalg.yield %[[VAL_53]] : bf16
 // CHECK:           } -> tensor<256x128xbf16>
-// CHECK:           memref.tensor_store %[[VAL_54:.*]], %[[VAL_45]] : memref<256x128xbf16, strided<[1, ?], offset: 6656>>
+// CHECK:           bufferization.materialize_in_destination %[[VAL_54:.*]] in writable %[[VAL_45]]
 // CHECK:           return
 // CHECK:         }

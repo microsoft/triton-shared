@@ -24,9 +24,14 @@ namespace triton {
 
 struct ModuloState {
   Value size;
-  OpFoldResult offset;
-  ModuloState() {}
-  ModuloState(Value size, OpFoldResult offset) : size{size}, offset{offset} {}
+
+  // offset is used to determine the wraparound point for patterns like:
+  //   offset + (tl.arange(0, 256) % 12)
+  // The current code assumes that the modulo operator always runs last, e.g:
+  //   (offset + tl.arange(0, 256)) % 12
+  // This is not used at the moment as there haven't been enough use cases and
+  // the implementation is quite complex.
+  // OpFoldResult offset;
 
   static constexpr char const *WraparoundAttr = "ptr.wraparound_type";
   static constexpr char const *WraparoundStacked = "stacked";
@@ -61,7 +66,8 @@ public:
   bool hasModulo() const;
 
   MemRefType getResultMemrefType(MLIRContext *context, int64_t offset,
-                                 ArrayRef<int64_t> resultShape) const;
+                                 ArrayRef<int64_t> resultShape,
+                                 bool useDynamicStrides = false) const;
 
   // Process addition of two PtrStates.
   void addState(const PtrState &lhsState, const PtrState &rhsState,

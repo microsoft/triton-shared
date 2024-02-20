@@ -8,12 +8,49 @@ The basic intended architecture looks like this:
 
 [Triton IR] -> [Middle Layer] -> [HW specific IR]
 
-The middle-layer uses MLIR's Linalg and Tenor Dialects for operations on Triton block values. Operations on Triton pointers use the Memref Dialect.
+The middle-layer uses MLIR's Linalg and Tensor Dialects for operations on Triton block values. Operations on Triton pointers use the Memref Dialect.
+
+## Motivation
+[This talk at the 2023 Triton Developer Conferene](https://www.youtube.com/watch?v=y2V3ucS1pfQ) gives some backgorund on the project and its goals.
 
 ## Usage
-This repo doesn't build by itself and must instead by built from within a [Triton repo](https://github.com/openai/triton) where it is included as a submodule.
-To add the shared middle-layer in your Triton build do `export TRITON_CODEGEN_TRITON_SHARED=1` before invoking your build. 
-Once it is part of the Triton build it can be leveraged in two ways:
+
+This repo now includes `triton` as a submodule and builds as an out-of-tree backend. 
+The submodule currently points to [this](https://github.com/openai/triton/pull/3007) branch which hasn't been merged yet, but we will change the commit to point to `main` once everything finalizes.
+
+To build this repo clone `triton-shared` to a folder called `triton_shared` (notice the **underscore**).
+`Triton` will use this folder name to create a module under `triton.runtime` for the reference CPU backend.
+
+You need to set the `TRITON_PLUGINS_DIRS` environment variable to the location of your `triton-shared` directory for `triton` to find it.
+
+```
+export TRITON_PLUGIN_DIRS=$(pwd)/triton_shared
+
+git clone --recurse-submodules https://github.com/microsoft/triton-shared.git triton_shared
+cd triton_shared/triton
+```
+
+To build with Clang:
+
+```sh
+python3 -m pip install --upgrade pip
+python3 -m pip install cmake==3.24 ninja pytest-xdist
+sudo apt-get update -y
+sudo apt-get install -y ccache clang lld
+TRITON_BUILD_WITH_CLANG_LLD=true TRITON_BUILD_WITH_CCACHE=true python3 -m pip install --no-build-isolation -vvv '.[tests]'
+```
+
+To build with a virtualenv:
+
+```
+python3 -m venv .venv --prompt triton
+source .venv/bin/activate
+
+pip3 install ninja cmake wheel pytest
+pip3 install -e python --no-build-isolation
+```
+
+The resulting `triton-shared` binaries will be placed under `triton/python/build/{current_cmake_version}/third_party/triton_shared`
 
 ### 1. Stand-Alone
 The middle layer can be used as a stand-alone component to convert Triton dialect to the middle layer dialects. This is intended for testing and validation purposes, but could potentially be used before sending the IR to another MLIR complier.
@@ -25,6 +62,19 @@ triton-shared-opt --triton-to-linalg %file
 
 ### 2. Backend Component
 The intended use of the Triton middle layer is to be used as a component in a Triton back-end. This can be accomplished by adding the cmake targets it produces and its headers files to that back-end. An example back-end will be published at a later date.
+
+### 3. Reference CPU backend
+We also include an experimental reference CPU backend that leverages all existing `mlir` passes. After building, the CPU backend can be used by setting `triton`'s active driver:
+
+```python
+
+import triton
+from triton.backends.triton_shared.driver import CPUDriver
+
+triton.runtime.driver.set_active(CPUDriver())
+```
+
+For more examples, please refer to `python/examples`.
 
 ## Implementation details
 
@@ -89,7 +139,6 @@ func.func @kernel(%arg0: memref<*xbf16>, %arg1: memref<*xbf16>, %arg2: i32, %arg
     return
 
 }
-
 ```
 
 Important details to note:
@@ -102,7 +151,7 @@ Important details to note:
 %reinterpret_cast = memref.reinterpret_cast %arg2 to offset: [...] memref<*xf32> to memref<1024xf32>
 %extracted_slice = tensor.extract_slice %15[0] [%21] [1] : tensor<1024xf32> to tensor<?xf32>
 %subview = memref.subview %reinterpret_cast[0] [%21] [1] : memref<1024xf32> to memref<?xf32>
-memref.tensor_store %extracted_slice, %subview : memref<?xf32>
+bufferization.materialize_in_destination %extracted_slice in writable %subview
 ```
 
 + element-wise `arith` and `math` operators are converted to their corresponding `linalg.generic` version.
@@ -113,12 +162,19 @@ memref.tensor_store %extracted_slice, %subview : memref<?xf32>
 
 The prototype was tested on the following triton kernel examples:
 
-1. vector addition
-2. fused softmax
-3. matrix multiplication
+1. [vector addition](./python/examples/test_vec_add.py)
+2. [fused softmax](./python/examples/test_softmax.py)
+3. [matrix multiplication](./python/examples/test_matmul.py)
 4. layer normalization
 5. fused attention
 
+The Python tests are setup to run with Pytest and you will need to set the following environment variables to run them:
+```
+export LLVM_BINARY_DIR=<path-to-your-llvm-binaries>
+export TRITON_SHARED_OPT_PATH=$TRITON_PLUGINS_DIR/triton/python/build/<your-cmake-directory>/third_party/triton_shared_opt/triton_shared-opt
+
+pytest <path-to-triton-shared>/python/examples
+```
 In addition to testing on the tutorial kernels, there are many lit tests covering various scenarios.
 
 ## Contributing
@@ -137,8 +193,8 @@ contact [opencode@microsoft.com](mailto:opencode@microsoft.com) with any additio
 
 ## Trademarks
 
-This project may contain trademarks or logos for projects, products, or services. Authorized use of Microsoft 
-trademarks or logos is subject to and must follow 
+This project may contain trademarks or logos for projects, products, or services. Authorized use of Microsoft
+trademarks or logos is subject to and must follow
 [Microsoft's Trademark & Brand Guidelines](https://www.microsoft.com/en-us/legal/intellectualproperty/trademarks/usage/general).
 Use of Microsoft trademarks or logos in modified versions of this project must not cause confusion or imply Microsoft sponsorship.
 Any use of third-party trademarks or logos are subject to those third-party's policies.
