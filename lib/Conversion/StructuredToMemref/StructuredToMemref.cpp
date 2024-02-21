@@ -101,9 +101,7 @@ private:
 
   // If there are dimensions with size 1 and stride 0, replace 0 stride with
   // the product of sizes of all lower dimensions. This avoids creating memref
-  // with zero stride. Note that we store the unmodified state into knownPtrs,
-  // since any following pointer arithmetic operations should use the original
-  // 0 stride.
+  // with zero stride.
   static llvm::SmallVector<OpFoldResult>
   getMixedStridesForMemref(tts::MakeTensorPtrOp op, OpBuilder &b) {
     llvm::SmallVector<OpFoldResult> strides;

@@ -813,7 +813,6 @@ LogicalResult PtrAnalysis::rewriteForOp(scf::ForOp op) {
     PtrState state;
 
     if (mappedV) {
-      llvm::dbgs() << "using mapped value\n";
       if (auto makeTPtrOp = mappedV.getDefiningOp<tts::MakeTensorPtrOp>()) {
         if (visitOperandMakeTPtr(makeTPtrOp, state, op.getLoc(), builder)
                 .succeeded()) {
