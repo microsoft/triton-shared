@@ -71,6 +71,7 @@ jobs:
         sudo apt-get update -y
         sudo apt-get install -y ccache clang lld
         export TRITON_PLUGIN_DIRS="${GITHUB_WORKSPACE}/triton_shared"
+        export TRITON_CODEGEN_BACKENDS=""
         TRITON_BUILD_WITH_CLANG_LLD=true TRITON_BUILD_WITH_CCACHE=true python3 -m pip install --no-build-isolation -vvv '.[tests]'
 
     - name: Run shared middle-layer lit tests
