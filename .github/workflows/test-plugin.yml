@@ -123,7 +123,6 @@ jobs:
     - name: Edit setup for arm64
       working-directory: triton_shared/triton
       run: |
-        sed -i 's/arch = {"x86_64": "64", "arm64": "aarch64"}/arch = {"x86_64": "64", "arm64": "aarch64", "aarch64":"aarch64"}/' "python/setup.py"
         sed -i 's|https://tritonlang.blob.core.windows.net/llvm-builds/|https://storage.googleapis.com/compiled-blob/|g' "python/setup.py"
     - name: Build/Install Triton
       working-directory: triton_shared/triton/python
