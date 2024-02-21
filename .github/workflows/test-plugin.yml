@@ -42,11 +42,13 @@ jobs:
         # Also checkout triton submodule
         submodules: recursive
 
-    - name: Checkout triton at commit
+    - name: Checkout triton at commit ${{ inputs.triton-ref }}
       if: ${{ inputs.triton-ref }}
       working-directory: triton_shared/triton
       run: |
+        git fetch
         git checkout ${{ inputs.triton-ref }}
+        git log
 
     - name: Clear Triton Cache
       run: |
