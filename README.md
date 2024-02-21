@@ -26,7 +26,7 @@ You need to set the `TRITON_PLUGINS_DIRS` environment variable to the location o
 export TRITON_PLUGIN_DIRS=$(pwd)/triton_shared
 
 git clone --recurse-submodules https://github.com/microsoft/triton-shared.git triton_shared
-cd triton_shared/triton
+cd triton_shared/triton/python
 ```
 
 To build with Clang:
