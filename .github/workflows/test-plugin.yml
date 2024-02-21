@@ -46,8 +46,8 @@ jobs:
       if: ${{ inputs.triton-ref }}
       working-directory: triton_shared/triton
       run: |
-        git fetch
-        git checkout ${{ inputs.triton-ref }}
+        git submodule update --recursive --remote
+        # git checkout ${{ inputs.triton-ref }}
         git log
 
     - name: Clear Triton Cache
