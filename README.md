@@ -15,8 +15,7 @@ The middle-layer uses MLIR's Linalg and Tensor Dialects for operations on Triton
 
 ## Usage
 
-This repo now includes `triton` as a submodule and builds as an out-of-tree backend. 
-The submodule currently points to [this](https://github.com/openai/triton/pull/3007) branch which hasn't been merged yet, but we will change the commit to point to `main` once everything finalizes.
+This repo now includes `triton` as a submodule and builds as an out-of-tree backend.
 
 To build this repo clone `triton-shared` to a folder called `triton_shared` (notice the **underscore**).
 `Triton` will use this folder name to create a module under `triton.runtime` for the reference CPU backend.
