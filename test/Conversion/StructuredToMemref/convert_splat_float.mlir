@@ -4,8 +4,8 @@ module {
                     %bin : bf16,
                     %save0 : tensor<1024x!tt.ptr<f32>>,
                     %save1 : tensor<128x256x!tt.ptr<bf16>>) -> () {
-        %0 = tt.splat %fin : (f32) -> (tensor<1024xf32>)
-        %1 = tt.splat %bin : (bf16) -> (tensor<128x256xbf16>)
+        %0 = tt.splat %fin : f32 -> tensor<1024xf32>
+        %1 = tt.splat %bin : bf16 -> tensor<128x256xbf16>
         tt.store %save0, %0 {cache = 1 : i32, evict = 1 : i32} : tensor<1024xf32>
         tt.store %save1, %1 {cache = 1 : i32, evict = 1 : i32} : tensor<128x256xbf16>
         tt.return

@@ -12,7 +12,7 @@ module {
     %3 = arith.extsi %arg7 : i32 to i64
     %4 = tt.make_tensor_ptr %arg0, [%0, %1], [%2, %3], [%arg12, %c0_i32] {order = array<i32: 1, 0>} : <tensor<128x64xbf16>>
     %5 = tt.advance %4, [%c0_i32, %c64_i32] : <tensor<128x64xbf16>>
-    %6 = tt.splat %cst : (bf16) -> tensor<128x64xbf16>
+    %6 = tt.splat %cst : bf16 -> tensor<128x64xbf16>
     %7:3 = scf.for %arg14 = %c0_i32 to %arg5 step %c64_i32 iter_args(%arg15 = %6, %arg16 = %5, %arg17 = %4) -> (tensor<128x64xbf16>, !tt.ptr<tensor<128x64xbf16>>, !tt.ptr<tensor<128x64xbf16>>)  : i32 {
       %13 = tt.load %arg16 {boundaryCheck = array<i32: 0, 1>, cache = 1 : i32, evict = 1 : i32, isVolatile = false} : !tt.ptr<tensor<128x64xbf16>> -> tensor<128x64xbf16>
       %14 = tt.load %arg17 {boundaryCheck = array<i32: 0, 1>, cache = 1 : i32, evict = 1 : i32, isVolatile = false} : !tt.ptr<tensor<128x64xbf16>> -> tensor<128x64xbf16>

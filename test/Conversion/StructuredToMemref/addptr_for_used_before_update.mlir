@@ -8,7 +8,7 @@ module {
     %c12 = arith.constant 12 : index
     %c3 = arith.constant 3 : index
     %i_c3 = arith.constant 3 : i32
-    %0 = tt.splat %arg0 : (!tt.ptr<bf16>) -> tensor<256x!tt.ptr<bf16>>
+    %0 = tt.splat %arg0 : !tt.ptr<bf16> -> tensor<256x!tt.ptr<bf16>>
     %1 = tt.make_range {end = 1280 : i32, start = 1024 : i32}:tensor<256xi32>
     // source: null, sizes: 256, offsets: 1024, strides: 1
     %2 = tt.addptr %0, %1 : tensor<256x!tt.ptr<bf16>>, tensor<256xi32>
@@ -19,7 +19,7 @@ module {
         %3 = tt.load %ptr {cache = 1 : i32, evict = 1 : i32, isVolatile = false}: tensor<256xbf16>
         tt.store %ptr, %3 : tensor<256xbf16>
         // pointer updates
-        %4 = tt.splat %i_c3 : (i32) -> tensor<256xi32>
+        %4 = tt.splat %i_c3 : i32 -> tensor<256xi32>
         %ptr_iter = tt.addptr %ptr, %4 : tensor<256x!tt.ptr<bf16>>, tensor<256xi32>
         scf.yield %ptr_iter : tensor<256x!tt.ptr<bf16>>
     }

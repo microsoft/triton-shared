@@ -6,19 +6,19 @@ module {
     // offset calculations
     %0 = tt.make_range {end = 512 : i32, start = 0 : i32} : tensor<512xi32>
     %c256 = arith.constant 256 : i32
-    %ct256 = tt.splat %c256 : (i32) -> tensor<512xi32>
+    %ct256 = tt.splat %c256 : i32 -> tensor<512xi32>
     %ws = arith.muli %ct256, %0 : tensor<512xi32>
-    %1 = tt.expand_dims %ws {axis = 1 : i32} : (tensor<512xi32>) -> tensor<512x1xi32>
-    %moff = tt.broadcast %1 : (tensor<512x1xi32>) -> tensor<512x256xi32>
+    %1 = tt.expand_dims %ws {axis = 1 : i32} : tensor<512xi32> -> tensor<512x1xi32>
+    %moff = tt.broadcast %1 : tensor<512x1xi32> -> tensor<512x256xi32>
     %3 = tt.make_range {end = 256 : i32, start = 0 : i32} : tensor<256xi32>
-    %4 = tt.expand_dims %3 {axis = 0 : i32} : (tensor<256xi32>) -> tensor<1x256xi32>
-    %koff = tt.broadcast %4 : (tensor<1x256xi32>) -> tensor<512x256xi32>
+    %4 = tt.expand_dims %3 {axis = 0 : i32} : tensor<256xi32> -> tensor<1x256xi32>
+    %koff = tt.broadcast %4 : tensor<1x256xi32> -> tensor<512x256xi32>
     %mkoff = arith.addi %moff, %koff : tensor<512x256xi32>
     // afloat pointer
-    %8 = tt.splat %afloat : (!tt.ptr<bf16>) -> tensor<512x256x!tt.ptr<bf16>>
+    %8 = tt.splat %afloat : !tt.ptr<bf16> -> tensor<512x256x!tt.ptr<bf16>>
     %9 = tt.addptr %8, %mkoff : tensor<512x256x!tt.ptr<bf16>>, tensor<512x256xi32>
     // res pointer
-    %18 = tt.splat %res : (!tt.ptr<bf16>) -> tensor<256x!tt.ptr<bf16>>
+    %18 = tt.splat %res : !tt.ptr<bf16> -> tensor<256x!tt.ptr<bf16>>
     %19 = tt.addptr %18, %3 : tensor<256x!tt.ptr<bf16>>, tensor<256xi32>
     %afm = tt.load %9 {cache = 1 : i32, evict = 1 : i32, isVolatile = false} : tensor<512x256xbf16>
     %5 = "tt.reduce"(%afm) ({

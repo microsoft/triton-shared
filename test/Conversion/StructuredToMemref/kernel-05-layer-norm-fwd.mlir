@@ -10,12 +10,12 @@ module {
     %1 = arith.muli %0, %arg6 : i32
     %2 = tt.addptr %arg1, %1 : !tt.ptr<f32>, i32
     %3 = tt.addptr %arg0, %1 : !tt.ptr<f32>, i32
-    %4 = tt.splat %cst_0 : (f32) -> tensor<256xf32>
+    %4 = tt.splat %cst_0 : f32 -> tensor<256xf32>
     %5 = tt.make_range {end = 256 : i32, start = 0 : i32} : tensor<256xi32>
-    %6 = tt.splat %arg7 : (i32) -> tensor<256xi32>
-    %7 = tt.splat %3 : (!tt.ptr<f32>) -> tensor<256x!tt.ptr<f32>>
+    %6 = tt.splat %arg7 : i32 -> tensor<256xi32>
+    %7 = tt.splat %3 : !tt.ptr<f32> -> tensor<256x!tt.ptr<f32>>
     %8 = scf.for %arg9 = %c0_i32 to %arg7 step %c256_i32 iter_args(%arg10 = %4) -> (tensor<256xf32>)  : i32 {
-      %32 = tt.splat %arg9 : (i32) -> tensor<256xi32>
+      %32 = tt.splat %arg9 : i32 -> tensor<256xi32>
       %33 = arith.addi %32, %5 : tensor<256xi32>
       %34 = arith.cmpi slt, %33, %6 : tensor<256xi32>
       %35 = tt.addptr %7, %33 : tensor<256x!tt.ptr<f32>>, tensor<256xi32>
@@ -31,11 +31,11 @@ module {
     %10 = arith.sitofp %arg7 : i32 to f32
     %11 = arith.divf %9, %10 : f32
     %12 = tt.make_range {end = 256 : i32, start = 0 : i32} : tensor<256xi32>
-    %13 = tt.splat %arg7 : (i32) -> tensor<256xi32>
-    %14 = tt.splat %3 : (!tt.ptr<f32>) -> tensor<256x!tt.ptr<f32>>
-    %15 = tt.splat %11 : (f32) -> tensor<256xf32>
+    %13 = tt.splat %arg7 : i32 -> tensor<256xi32>
+    %14 = tt.splat %3 : !tt.ptr<f32> -> tensor<256x!tt.ptr<f32>>
+    %15 = tt.splat %11 : f32 -> tensor<256xf32>
     %16 = scf.for %arg9 = %c0_i32 to %arg7 step %c256_i32 iter_args(%arg10 = %4) -> (tensor<256xf32>)  : i32 {
-      %32 = tt.splat %arg9 : (i32) -> tensor<256xi32>
+      %32 = tt.splat %arg9 : i32 -> tensor<256xi32>
       %33 = arith.addi %32, %12 : tensor<256xi32>
       %34 = arith.cmpi slt, %33, %13 : tensor<256xi32>
       %35 = tt.addptr %14, %33 : tensor<256x!tt.ptr<f32>>, tensor<256xi32>
@@ -60,15 +60,15 @@ module {
     %23 = tt.addptr %arg5, %0 : !tt.ptr<f32>, i32
     tt.store %23, %21 {cache = 1 : i32, evict = 1 : i32} : f32
     %24 = tt.make_range {end = 256 : i32, start = 0 : i32} : tensor<256xi32>
-    %25 = tt.splat %arg7 : (i32) -> tensor<256xi32>
-    %26 = tt.splat %arg2 : (!tt.ptr<f32>) -> tensor<256x!tt.ptr<f32>>
-    %27 = tt.splat %arg3 : (!tt.ptr<f32>) -> tensor<256x!tt.ptr<f32>>
-    %28 = tt.splat %3 : (!tt.ptr<f32>) -> tensor<256x!tt.ptr<f32>>
-    %29 = tt.splat %11 : (f32) -> tensor<256xf32>
-    %30 = tt.splat %21 : (f32) -> tensor<256xf32>
-    %31 = tt.splat %2 : (!tt.ptr<f32>) -> tensor<256x!tt.ptr<f32>>
+    %25 = tt.splat %arg7 : i32 -> tensor<256xi32>
+    %26 = tt.splat %arg2 : !tt.ptr<f32> -> tensor<256x!tt.ptr<f32>>
+    %27 = tt.splat %arg3 : !tt.ptr<f32> -> tensor<256x!tt.ptr<f32>>
+    %28 = tt.splat %3 : !tt.ptr<f32> -> tensor<256x!tt.ptr<f32>>
+    %29 = tt.splat %11 : f32 -> tensor<256xf32>
+    %30 = tt.splat %21 : f32 -> tensor<256xf32>
+    %31 = tt.splat %2 : !tt.ptr<f32> -> tensor<256x!tt.ptr<f32>>
     scf.for %arg9 = %c0_i32 to %arg7 step %c256_i32  : i32 {
-      %32 = tt.splat %arg9 : (i32) -> tensor<256xi32>
+      %32 = tt.splat %arg9 : i32 -> tensor<256xi32>
       %33 = arith.addi %32, %24 : tensor<256xi32>
       %34 = arith.cmpi slt, %33, %25 : tensor<256xi32>
       %35 = tt.addptr %26, %33 : tensor<256x!tt.ptr<f32>>, tensor<256xi32>

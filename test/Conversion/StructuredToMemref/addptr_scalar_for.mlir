@@ -6,14 +6,14 @@ module {
     %2 = tt.addptr %arg1, %1 : !tt.ptr<f32>, i32
     // source = %arg1, offset = %1, size = 1, strides = 0
     %cf0 = arith.constant 0.000000e+00 : f32
-    %tensor_cf0 = tt.splat %cf0 : (f32) -> tensor<1024xf32>
+    %tensor_cf0 = tt.splat %cf0 : f32 -> tensor<1024xf32>
     %c0 = arith.constant 0 : index
     %c12 = arith.constant 12 : index
     %c3 = arith.constant 3 : index
     %_ptr, %sum_out = scf.for %i = %c0 to %c12 step %c3 iter_args(%ptr_iter = %2, %sum_iter = %tensor_cf0) ->  (!tt.ptr<f32>, tensor<1024xf32>) {
       %3 = tt.make_range {end = 1024 : i32, start = 0 : i32} : tensor<1024xi32>
       // offset = 0, size = 1024, strides = 1
-      %4 = tt.splat %ptr_iter : (!tt.ptr<f32>) -> tensor<1024x!tt.ptr<f32>>
+      %4 = tt.splat %ptr_iter : !tt.ptr<f32> -> tensor<1024x!tt.ptr<f32>>
       // source = %arg1, offset = %1, size = 1024, strides = 0
       %5 = tt.addptr %4, %3 : tensor<1024x!tt.ptr<f32>>, tensor<1024xi32>
       // source = %arg1, offset = %1, size = 1024, strides = 1
@@ -28,7 +28,7 @@ module {
     %10 = tt.make_range {end = 1024 : i32, start = 0 : i32} : tensor<1024xi32>
     %18 = arith.muli %0, %arg3 : i32
     %19 = tt.addptr %arg0, %18 : !tt.ptr<f32>, i32
-    %20 = tt.splat %19 : (!tt.ptr<f32>) -> tensor<1024x!tt.ptr<f32>>
+    %20 = tt.splat %19 : !tt.ptr<f32> -> tensor<1024x!tt.ptr<f32>>
     %21 = tt.addptr %20, %10 : tensor<1024x!tt.ptr<f32>>, tensor<1024xi32>
     tt.store %21, %sum_out : tensor<1024xf32>
     tt.return
