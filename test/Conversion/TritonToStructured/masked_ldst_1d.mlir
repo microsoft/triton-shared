@@ -7,13 +7,13 @@ module {
   %arg2 : i32
   )
   {
-    %0 = tt.splat %arg0 : (!tt.ptr<bf16>) -> tensor<128x!tt.ptr<bf16>>
-    %1 = tt.splat %arg1 : (!tt.ptr<bf16>) -> tensor<128x!tt.ptr<bf16>>
+    %0 = tt.splat %arg0 : !tt.ptr<bf16> -> tensor<128x!tt.ptr<bf16>>
+    %1 = tt.splat %arg1 : !tt.ptr<bf16> -> tensor<128x!tt.ptr<bf16>>
     %2 = tt.make_range {end = 128 : i32, start = 0 : i32} : tensor<128xi32>
     %ldptr = tt.addptr %0, %2 : tensor<128x!tt.ptr<bf16>>, tensor<128xi32>
     %stptr = tt.addptr %1, %2 : tensor<128x!tt.ptr<bf16>>, tensor<128xi32>
     %nans = arith.constant dense<0xFF80> : tensor<128xbf16>
-    %5 = tt.splat %arg2 : (i32) -> tensor<128xi32>
+    %5 = tt.splat %arg2 : i32 -> tensor<128xi32>
     %mask = arith.cmpi slt, %2, %5 : tensor<128xi32>
     %buff = tt.load %ldptr, %mask, %nans {cache = 1 : i32, evict = 1 : i32, isVolatile = false} : tensor<128xbf16>
     tt.store %stptr, %buff, %mask : tensor<128xbf16>
