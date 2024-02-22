@@ -13,13 +13,13 @@ module {
     // offset calculations
     %0 = tt.make_range {end = 1024 : i32, start = 0 : i32} : tensor<1024xi32>
     // f32ptr pointer
-    %8 = tt.splat %f32ptr : (!tt.ptr<f32>) -> tensor<1024x!tt.ptr<f32>>
+    %8 = tt.splat %f32ptr : !tt.ptr<f32> -> tensor<1024x!tt.ptr<f32>>
     %9 = tt.addptr %8, %0 : tensor<1024x!tt.ptr<f32>>, tensor<1024xi32>
     // intptr pointer
-    %18 = tt.splat %intptr : (!tt.ptr<i32>) -> tensor<1024x!tt.ptr<i32>>
+    %18 = tt.splat %intptr : !tt.ptr<i32> -> tensor<1024x!tt.ptr<i32>>
     %19 = tt.addptr %18, %0 : tensor<1024x!tt.ptr<i32>>, tensor<1024xi32>
     // f32ptr pointer
-    %28 = tt.splat %f16ptr : (!tt.ptr<f16>) -> tensor<1024x!tt.ptr<f16>>
+    %28 = tt.splat %f16ptr : !tt.ptr<f16> -> tensor<1024x!tt.ptr<f16>>
     %29 = tt.addptr %28, %0 : tensor<1024x!tt.ptr<f16>>, tensor<1024xi32>
     %afm = tt.load %9 {cache = 1 : i32, evict = 1 : i32, isVolatile = false} : tensor<1024xf32>
     %aim = tt.load %19 {cache = 1 : i32, evict = 1 : i32, isVolatile = false} : tensor<1024xi32>
