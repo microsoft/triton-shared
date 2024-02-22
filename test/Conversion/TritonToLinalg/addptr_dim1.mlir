@@ -1,5 +1,6 @@
 // RUN: triton-shared-opt --triton-to-linalg %s | FileCheck %s
-// XFAIL: This test crashes because tt.broadcast's folder tries to cast
+// XFAIL: *
+// This test crashes because tt.broadcast's folder tries to cast
 // the src operand to a RankedTensorType value, but the TritonToLinalg
 // pass has already replaced the src with a value of a different type.
 // We're going to retire the monolith triton-to-linalg pass which prevents
