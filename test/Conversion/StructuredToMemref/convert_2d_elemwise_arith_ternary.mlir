@@ -8,20 +8,20 @@ module {
   ) -> () {
         // offset calculations
         %0 = tt.make_range {end = 128 : i32, start = 0 : i32} : tensor<128xi32>
-        %1 = tt.expand_dims %0 {axis = 1 : i32} : (tensor<128xi32>) -> tensor<128x1xi32>
-        %moff = tt.broadcast %1 : (tensor<128x1xi32>) -> tensor<128x128xi32>
+        %1 = tt.expand_dims %0 {axis = 1 : i32} : tensor<128xi32> -> tensor<128x1xi32>
+        %moff = tt.broadcast %1 : tensor<128x1xi32> -> tensor<128x128xi32>
         %3 = tt.make_range {end = 128 : i32, start = 0 : i32} : tensor<128xi32>
-        %4 = tt.expand_dims %3 {axis = 0 : i32} : (tensor<128xi32>) -> tensor<1x128xi32>
-        %koff = tt.broadcast %4 : (tensor<1x128xi32>) -> tensor<128x128xi32>
+        %4 = tt.expand_dims %3 {axis = 0 : i32} : tensor<128xi32> -> tensor<1x128xi32>
+        %koff = tt.broadcast %4 : tensor<1x128xi32> -> tensor<128x128xi32>
         %mkoff = arith.addi %moff, %koff : tensor<128x128xi32>
         // a pointer
-        %8 = tt.splat %a : (!tt.ptr<i1>) -> tensor<128x128x!tt.ptr<i1>>
+        %8 = tt.splat %a : !tt.ptr<i1> -> tensor<128x128x!tt.ptr<i1>>
         %9 = tt.addptr %8, %mkoff : tensor<128x128x!tt.ptr<i1>>, tensor<128x128xi32>
         // b pointer
-        %18 = tt.splat %b : (!tt.ptr<f32>) -> tensor<128x128x!tt.ptr<f32>>
+        %18 = tt.splat %b : !tt.ptr<f32> -> tensor<128x128x!tt.ptr<f32>>
         %19 = tt.addptr %18, %mkoff : tensor<128x128x!tt.ptr<f32>>, tensor<128x128xi32>
         // c pointer
-        %28 = tt.splat %c : (!tt.ptr<f32>) -> tensor<128x128x!tt.ptr<f32>>
+        %28 = tt.splat %c : !tt.ptr<f32> -> tensor<128x128x!tt.ptr<f32>>
         %29 = tt.addptr %28, %mkoff : tensor<128x128x!tt.ptr<f32>>, tensor<128x128xi32>
         %am = tt.load %9 {cache = 1 : i32, evict = 1 : i32, isVolatile = false} : tensor<128x128xi1>
         %bm = tt.load %19 {cache = 1 : i32, evict = 1 : i32, isVolatile = false} : tensor<128x128xf32>
