@@ -15,37 +15,37 @@ module {
     %c4_i32 = arith.constant 4 : i32
     %0 = tt.make_range {end = 4 : i32, start = 0 : i32} : tensor<4xi32>
     %1 = arith.addi %0, %cst_2 : tensor<4xi32>
-    %2 = tt.splat %arg3 : (i32) -> tensor<4xi32>
+    %2 = tt.splat %arg3 : i32 -> tensor<4xi32>
     %3 = arith.remsi %0, %2 : tensor<4xi32>
     %4 = arith.addi %3, %cst_1 : tensor<4xi32>
-    %5 = tt.expand_dims %1 {axis = 1 : i32} : (tensor<4xi32>) -> tensor<4x1xi32>
-    %6 = tt.splat %arg4 : (i32) -> tensor<4x1xi32>
+    %5 = tt.expand_dims %1 {axis = 1 : i32} : tensor<4xi32> -> tensor<4x1xi32>
+    %6 = tt.splat %arg4 : i32 -> tensor<4x1xi32>
     %7 = arith.muli %5, %6 : tensor<4x1xi32>
-    %8 = tt.expand_dims %4 {axis = 0 : i32} : (tensor<4xi32>) -> tensor<1x4xi32>
-    %9 = tt.splat %arg5 : (i32) -> tensor<1x4xi32>
+    %8 = tt.expand_dims %4 {axis = 0 : i32} : tensor<4xi32> -> tensor<1x4xi32>
+    %9 = tt.splat %arg5 : i32 -> tensor<1x4xi32>
     %10 = arith.muli %8, %9 : tensor<1x4xi32>
-    %11 = tt.broadcast %7 : (tensor<4x1xi32>) -> tensor<4x4xi32>
-    %12 = tt.broadcast %10 : (tensor<1x4xi32>) -> tensor<4x4xi32>
+    %11 = tt.broadcast %7 : tensor<4x1xi32> -> tensor<4x4xi32>
+    %12 = tt.broadcast %10 : tensor<1x4xi32> -> tensor<4x4xi32>
     %13 = arith.addi %11, %12 : tensor<4x4xi32>
-    %14 = tt.splat %arg0 : (!tt.ptr<f32>) -> tensor<4x4x!tt.ptr<f32>>
+    %14 = tt.splat %arg0 : !tt.ptr<f32> -> tensor<4x4x!tt.ptr<f32>>
     %15 = tt.addptr %14, %13 : tensor<4x4x!tt.ptr<f32>>, tensor<4x4xi32>
-    %16 = tt.expand_dims %0 {axis = 1 : i32} : (tensor<4xi32>) -> tensor<4x1xi32>
-    %17 = tt.splat %arg6 : (i32) -> tensor<4x1xi32>
+    %16 = tt.expand_dims %0 {axis = 1 : i32} : tensor<4xi32> -> tensor<4x1xi32>
+    %17 = tt.splat %arg6 : i32 -> tensor<4x1xi32>
     %18 = arith.muli %17, %16 : tensor<4x1xi32>
-    %19 = tt.splat %arg1 : (!tt.ptr<f32>) -> tensor<4x1x!tt.ptr<f32>>
+    %19 = tt.splat %arg1 : !tt.ptr<f32> -> tensor<4x1x!tt.ptr<f32>>
     %20 = tt.addptr %19, %18 : tensor<4x1x!tt.ptr<f32>>, tensor<4x1xi32>
-    %21 = tt.expand_dims %0 {axis = 0 : i32} : (tensor<4xi32>) -> tensor<1x4xi32>
-    %22 = tt.splat %arg7 : (i32) -> tensor<1x4xi32>
+    %21 = tt.expand_dims %0 {axis = 0 : i32} : tensor<4xi32> -> tensor<1x4xi32>
+    %22 = tt.splat %arg7 : i32 -> tensor<1x4xi32>
     %23 = arith.muli %22, %21 : tensor<1x4xi32>
-    %24 = tt.broadcast %20 : (tensor<4x1x!tt.ptr<f32>>) -> tensor<4x4x!tt.ptr<f32>>
-    %25 = tt.broadcast %23 : (tensor<1x4xi32>) -> tensor<4x4xi32>
+    %24 = tt.broadcast %20 : tensor<4x1x!tt.ptr<f32>> -> tensor<4x4x!tt.ptr<f32>>
+    %25 = tt.broadcast %23 : tensor<1x4xi32> -> tensor<4x4xi32>
     %26 = tt.addptr %24, %25 : tensor<4x4x!tt.ptr<f32>>, tensor<4x4xi32>
     %27 = arith.cmpi slt, %16, %cst_0 : tensor<4x1xi32>
-    %28 = tt.broadcast %27 : (tensor<4x1xi1>) -> tensor<4x4xi1>
+    %28 = tt.broadcast %27 : tensor<4x1xi1> -> tensor<4x4xi1>
     %29 = arith.muli %arg4, %c4_i32 : i32
-    %30 = tt.splat %29 : (i32) -> tensor<4x4xi32>
+    %30 = tt.splat %29 : i32 -> tensor<4x4xi32>
     %31 = arith.muli %arg5, %c4_i32 : i32
-    %32 = tt.splat %31 : (i32) -> tensor<4x4xi32>
+    %32 = tt.splat %31 : i32 -> tensor<4x4xi32>
     %33:2 = scf.for %arg8 = %c0_i32 to %c2_i32 step %c1_i32 iter_args(%arg9 = %15, %arg10 = %26) -> (tensor<4x4x!tt.ptr<f32>>, tensor<4x4x!tt.ptr<f32>>)  : i32 {
       %34 = tt.load %arg9, %28, %cst {cache = 1 : i32, evict = 1 : i32, isVolatile = false} : tensor<4x4xf32>
       tt.store %arg10, %34 {cache = 1 : i32, evict = 1 : i32} : tensor<4x4xf32>
@@ -70,31 +70,31 @@ module {
 // CHECK-DAG:       [[VAR_0_:%.+]] = tt.make_range {end = 4 : i32, start = 0 : i32} : tensor<4xi32>
 // CHECK-NOT: separator of consecutive DAGs
 // CHECK-DAG:       [[VAR_1_:%.+]] = arith.addi [[VAR_0_]], [[VAR_cst_2_]] : tensor<4xi32>
-// CHECK-DAG:       [[VAR_2_:%.+]] = tt.splat [[PARAM_3_]] : (i32) -> tensor<4xi32>
+// CHECK-DAG:       [[VAR_2_:%.+]] = tt.splat [[PARAM_3_]] : i32 -> tensor<4xi32>
 // CHECK:           [[VAR_3_:%.+]] = arith.remsi [[VAR_0_]], [[VAR_2_]] : tensor<4xi32>
 // CHECK-DAG:       [[VAR_4_:%.+]] = arith.addi [[VAR_3_]], [[VAR_cst_1_]] : tensor<4xi32>
-// CHECK-DAG:       [[VAR_5_:%.+]] = tt.expand_dims [[VAR_1_]] {axis = 1 : i32} : (tensor<4xi32>) -> tensor<4x1xi32>
-// CHECK-DAG:       [[VAR_6_:%.+]] = tt.splat [[PARAM_4_]] : (i32) -> tensor<4x1xi32>
+// CHECK-DAG:       [[VAR_5_:%.+]] = tt.expand_dims [[VAR_1_]] {axis = 1 : i32} : tensor<4xi32> -> tensor<4x1xi32>
+// CHECK-DAG:       [[VAR_6_:%.+]] = tt.splat [[PARAM_4_]] : i32 -> tensor<4x1xi32>
 // CHECK-NOT: separator of consecutive DAGs
 // CHECK-DAG:       [[VAR_7_:%.+]] = arith.muli [[VAR_5_]], [[VAR_6_]] : tensor<4x1xi32>
-// CHECK-DAG:       [[VAR_8_:%.+]] = tt.expand_dims [[VAR_4_]] {axis = 0 : i32} : (tensor<4xi32>) -> tensor<1x4xi32>
-// CHECK-DAG:       [[VAR_9_:%.+]] = tt.splat [[PARAM_5_]] : (i32) -> tensor<1x4xi32>
+// CHECK-DAG:       [[VAR_8_:%.+]] = tt.expand_dims [[VAR_4_]] {axis = 0 : i32} : tensor<4xi32> -> tensor<1x4xi32>
+// CHECK-DAG:       [[VAR_9_:%.+]] = tt.splat [[PARAM_5_]] : i32 -> tensor<1x4xi32>
 // CHECK-NOT: separator of consecutive DAGs
 // CHECK-DAG:       [[VAR_10_:%.+]] = arith.muli [[VAR_8_]], [[VAR_9_]] : tensor<1x4xi32>
-// CHECK-DAG:       [[VAR_11_:%.+]] = tt.broadcast [[VAR_7_]] : (tensor<4x1xi32>) -> tensor<4x4xi32>
-// CHECK:           [[VAR_12_:%.+]] = tt.broadcast [[VAR_10_]] : (tensor<1x4xi32>) -> tensor<4x4xi32>
+// CHECK-DAG:       [[VAR_11_:%.+]] = tt.broadcast [[VAR_7_]] : tensor<4x1xi32> -> tensor<4x4xi32>
+// CHECK:           [[VAR_12_:%.+]] = tt.broadcast [[VAR_10_]] : tensor<1x4xi32> -> tensor<4x4xi32>
 // CHECK-DAG:       [[VAR_13_:%.+]] = arith.addi [[VAR_11_]], [[VAR_12_]] : tensor<4x4xi32>
-// CHECK-DAG:       [[VAR_14_:%.+]] = tt.splat [[PARAM_0_]] : (!tt.ptr<f32, 1>) -> tensor<4x4x!tt.ptr<f32, 1>>
+// CHECK-DAG:       [[VAR_14_:%.+]] = tt.splat [[PARAM_0_]] : !tt.ptr<f32, 1> -> tensor<4x4x!tt.ptr<f32, 1>>
 // CHECK-NOT: separator of consecutive DAGs
 // CHECK-DAG:       [[VAR_15_:%.+]] = tt.addptr [[VAR_14_]], [[VAR_13_]] : tensor<4x4x!tt.ptr<f32, 1>>, tensor<4x4xi32>
-// CHECK-DAG:       [[VAR_16_:%.+]] = tt.expand_dims [[VAR_0_]] {axis = 1 : i32} : (tensor<4xi32>) -> tensor<4x1xi32>
+// CHECK-DAG:       [[VAR_16_:%.+]] = tt.expand_dims [[VAR_0_]] {axis = 1 : i32} : tensor<4xi32> -> tensor<4x1xi32>
 // CHECK-DAG:       [[VAR_17_:%.+]] = arith.index_cast [[PARAM_6_]] : i32 to index
 // CHECK-DAG:       [[VAR_18_:%.+]] = arith.index_cast [[PARAM_7_]] : i32 to index
 // CHECK:           [[VAR_19_:%.+]] = arith.cmpi slt, [[VAR_16_]], [[VAR_cst_0_]] : tensor<4x1xi32>
-// CHECK-DAG:       [[VAR_20_:%.+]] = tt.broadcast [[VAR_19_]] : (tensor<4x1xi1>) -> tensor<4x4xi1>
+// CHECK-DAG:       [[VAR_20_:%.+]] = tt.broadcast [[VAR_19_]] : tensor<4x1xi1> -> tensor<4x4xi1>
 // CHECK-DAG:       [[VAR_21_:%.+]] = arith.muli [[PARAM_4_]], [[CST_4_]] : i32
 // CHECK-NOT: separator of consecutive DAGs
-// CHECK-DAG:       [[VAR_22_:%.+]] = tt.splat [[VAR_21_]] : (i32) -> tensor<4x4xi32>
+// CHECK-DAG:       [[VAR_22_:%.+]] = tt.splat [[VAR_21_]] : i32 -> tensor<4x4xi32>
 // CHECK-DAG:       [[VAR_23_:%.+]] = arith.muli [[PARAM_5_]], [[CST_4_]] : i32
 // CHECK-NOT: separator of consecutive DAGs
 // CHECK-DAG:       [[VAR_24_:%.+]] = arith.index_cast [[VAR_23_]] : i32 to index

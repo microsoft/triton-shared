@@ -3,7 +3,7 @@ module {
   tt.func @kernel(%afloat : !tt.ptr<bf16>, %res : !tt.ptr<bf16>)
   {
     %0 = tt.make_range {end = 128 : i32, start = 0 : i32} : tensor<128xi32>
-    %1 = tt.splat %afloat : (!tt.ptr<bf16>) -> tensor<128x!tt.ptr<bf16>>
+    %1 = tt.splat %afloat : !tt.ptr<bf16> -> tensor<128x!tt.ptr<bf16>>
     %2 = tt.addptr %1, %0 : tensor<128x!tt.ptr<bf16>>, tensor<128xi32>
     %afm = tt.load %2 {cache = 1 : i32, evict = 1 : i32, isVolatile = false} : tensor<128xbf16>
     %3 = "tt.reduce"(%afm) ({

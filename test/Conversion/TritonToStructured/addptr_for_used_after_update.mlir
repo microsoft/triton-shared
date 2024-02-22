@@ -9,7 +9,7 @@ module {
     %c12 = arith.constant 12 : index
     %c3 = arith.constant 3 : index
     %i_c3 = arith.constant 3 : i32
-    %0 = tt.splat %arg0 : (!tt.ptr<bf16>) -> tensor<256x!tt.ptr<bf16>>
+    %0 = tt.splat %arg0 : !tt.ptr<bf16> -> tensor<256x!tt.ptr<bf16>>
     %1 = tt.make_range {end = 1280 : i32, start = 1024 : i32}:tensor<256xi32>
     // source: null, sizes: 256, offsets: 1024, strides: 1
     %2 = tt.addptr %0, %1 : tensor<256x!tt.ptr<bf16>>, tensor<256xi32>
@@ -17,7 +17,7 @@ module {
     // gep operand is another gep' output, which is passed into the loop as varible, used after update
     %_ptr = scf.for %i = %c0 to %c12 step %c3 iter_args(%ptr = %2) -> (tensor<256x!tt.ptr<bf16>>) {
         // pointer updates
-        %4 = tt.splat %i_c3 : (i32) -> tensor<256xi32>
+        %4 = tt.splat %i_c3 : i32 -> tensor<256xi32>
         // sizes: 256, offsets: 3, strides: 0
         %ptr_iter = tt.addptr %ptr, %4 : tensor<256x!tt.ptr<bf16>>, tensor<256xi32>
         // source: arg0, sizes: 256, offsets: 1024 + i, strides: 1
@@ -38,7 +38,7 @@ module {
     // Example 3, gep operand is a vector of i32, which is passed into the loop as variable, pointer updated using step, used after update
     //%_ptr3 = scf.for %i = %c0 to %c12 step %c3 iter_args(%ptr = %1) -> (tensor<256xi32>) {
     //    // offset update
-    //    %3 = tt.splat %c3 : (i32) -> tensor<256xi32>
+    //    %3 = tt.splat %c3 : i32 -> tensor<256xi32>
     //    %ptr_iter = arith.addi %3, %ptr : tensor<256xi32>
     //    // generate pointer
     //    %gep_ptr = tt.addptr %0, %ptr_iter : tensor<256x!tt.ptr<bf16>>
@@ -64,7 +64,7 @@ module {
     //    %4 = tt.load %gep_ptr {cache = 1 : i32, evict = 1 : i32, isVolatile = false}: tensor<256xbf16>
     //    tt.store %gep_ptr, %4 : tensor<256xbf16>
     //    // offset update
-    //    %3 = tt.splat %c3 : (i32) -> tensor<256xi32>
+    //    %3 = tt.splat %c3 : i32 -> tensor<256xi32>
     //    %ptr_iter = arith.addi %3, %ptr : tensor<256xi32>
     //    scf.yield %ptr_iter : tensor<256xi32>
     //}

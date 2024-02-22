@@ -17,42 +17,42 @@ module {
     //  size[0] = 256
     //  stride[0] = 1024
     //  stride[1] = 1
-    %0 = tt.splat %arg0 : (!tt.ptr<bf16>) -> tensor<128x256x!tt.ptr<bf16>>
-    %1 = tt.splat %arg1 : (!tt.ptr<bf16>) -> tensor<128x256x!tt.ptr<bf16>>
+    %0 = tt.splat %arg0 : !tt.ptr<bf16> -> tensor<128x256x!tt.ptr<bf16>>
+    %1 = tt.splat %arg1 : !tt.ptr<bf16> -> tensor<128x256x!tt.ptr<bf16>>
     // horizontal index
     %2 = tt.make_range {end = 128 : i32, start = 0 : i32} : tensor<128xi32>
     %c2 = arith.constant 2 : i32
-    %c2tensor = tt.splat %c2 : (i32) -> tensor<128xi32>
+    %c2tensor = tt.splat %c2 : i32 -> tensor<128xi32>
     %offset2 = arith.addi %2, %c2tensor : tensor<128xi32>
-    %3 = tt.expand_dims %offset2 {axis = 1 : i32} : (tensor<128xi32>) -> tensor<128x1xi32>
-    %4 = tt.broadcast %3 : (tensor<128x1xi32>) -> tensor<128x256xi32>
+    %3 = tt.expand_dims %offset2 {axis = 1 : i32} : tensor<128xi32> -> tensor<128x1xi32>
+    %4 = tt.broadcast %3 : tensor<128x1xi32> -> tensor<128x256xi32>
     // vertical index
     %5 = tt.make_range {end = 256 : i32, start = 0 : i32} : tensor<256xi32>
     %c3 = arith.constant 3 : i32
-    %c3tensor = tt.splat %c3 : (i32) -> tensor<256xi32>
+    %c3tensor = tt.splat %c3 : i32 -> tensor<256xi32>
     %offset5 = arith.addi %5, %c3tensor : tensor<256xi32>
     %c1024 = arith.constant 1024 : i32
-    %c1024tensor = tt.splat %c1024 : (i32) -> tensor<256xi32>
+    %c1024tensor = tt.splat %c1024 : i32 -> tensor<256xi32>
     %scale5 = arith.muli %offset5, %c1024tensor : tensor<256xi32>
-    %6 = tt.expand_dims %scale5 {axis = 0 : i32} : (tensor<256xi32>) -> tensor<1x256xi32>
-    %7 = tt.broadcast %6 : (tensor<1x256xi32>) -> tensor<128x256xi32>
+    %6 = tt.expand_dims %scale5 {axis = 0 : i32} : tensor<256xi32> -> tensor<1x256xi32>
+    %7 = tt.broadcast %6 : tensor<1x256xi32> -> tensor<128x256xi32>
     // combined index
     %index = arith.addi %4, %7 : tensor<128x256xi32>
     %ldptr = tt.addptr %0, %index : tensor<128x256x!tt.ptr<bf16>>, tensor<128x256xi32>
     %stptr = tt.addptr %1, %index : tensor<128x256x!tt.ptr<bf16>>, tensor<128x256xi32>
     // other value for masked load
     %cnan = arith.constant 0xFF80 : bf16
-    %nans = tt.splat %cnan : (bf16) -> tensor<128x256xbf16>
+    %nans = tt.splat %cnan : bf16 -> tensor<128x256xbf16>
     // horizontal mask
-    %8 = tt.splat %arg2 : (i32) -> tensor<128xi32>
+    %8 = tt.splat %arg2 : i32 -> tensor<128xi32>
     %9 = arith.cmpi slt, %offset2, %8 : tensor<128xi32>
-    %10 = tt.expand_dims %9 {axis = 1 : i32} : (tensor<128xi1>) -> tensor<128x1xi1>
-    %11 = tt.broadcast %10 : (tensor<128x1xi1>) -> tensor<128x256xi1>
+    %10 = tt.expand_dims %9 {axis = 1 : i32} : tensor<128xi1> -> tensor<128x1xi1>
+    %11 = tt.broadcast %10 : tensor<128x1xi1> -> tensor<128x256xi1>
     // vertical mask
-    %12 = tt.splat %arg3 : (i32) -> tensor<256xi32>
+    %12 = tt.splat %arg3 : i32 -> tensor<256xi32>
     %13 = arith.cmpi slt, %offset5, %12 : tensor<256xi32>
-    %14 = tt.expand_dims %13 {axis = 0 : i32} : (tensor<256xi1>) -> tensor<1x256xi1>
-    %15 = tt.broadcast %14 : (tensor<1x256xi1>) -> tensor<128x256xi1>
+    %14 = tt.expand_dims %13 {axis = 0 : i32} : tensor<256xi1> -> tensor<1x256xi1>
+    %15 = tt.broadcast %14 : tensor<1x256xi1> -> tensor<128x256xi1>
     // combined mask
     %mask = arith.andi %11, %15 : tensor<128x256xi1>
     // dim0 = min(%arg2, 128), dim1 = min(%arg3, 256)
