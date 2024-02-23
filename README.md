@@ -15,15 +15,21 @@ The middle-layer uses MLIR's Linalg and Tensor Dialects for operations on Triton
 
 ## Usage
 
-This repo now includes `triton` as a submodule. `triton` now requires out-of-tree backends to include `triton` as a submodule. The submodule currently points to [this](https://github.com/openai/triton/pull/3007) branch which hasn't been merged yet, but we will change the commit to point to `main` once everything finalizes.
+This repo now includes `triton` as a submodule and builds as an out-of-tree backend.
 
-To build this repo, follow these steps:
+To build this repo clone `triton-shared` to a folder called `triton_shared` (notice the **underscore**).
+`Triton` will use this folder name to create a module under `triton.runtime` for the reference CPU backend.
 
-+ clone `triton-shared` to a folder called `triton_shared` (notice the **underscore**): `git clone git@github.com:microsoft/triton-shared.git triton_shared`.
-  + This is important because `triton` will use this folder name to create a module under `triton.runtime` which contains our reference CPU backend.
-+ initialize the `triton` submodule: `git submodule sync --recursive`
-+ let `triton` know that we want to build with an external plugin: `export TRITON_PLUGIN_DIRS="your_path/triton_shared"`
-+ build the `triton` submodule with `triton-shared`:
+You need to set the `TRITON_PLUGINS_DIRS` environment variable to the location of your `triton-shared` directory for `triton` to find it.
+
+```
+export TRITON_PLUGIN_DIRS=$(pwd)/triton_shared
+
+git clone --recurse-submodules https://github.com/microsoft/triton-shared.git triton_shared
+cd triton_shared/triton/python
+```
+
+To build with Clang:
 
 ```sh
 python3 -m pip install --upgrade pip
@@ -33,22 +39,17 @@ sudo apt-get install -y ccache clang lld
 TRITON_BUILD_WITH_CLANG_LLD=true TRITON_BUILD_WITH_CCACHE=true python3 -m pip install --no-build-isolation -vvv '.[tests]'
 ```
 
-To build this repo with a virtualenv:
+To build with a virtualenv:
 
 ```
-export TRITON_PLUGIN_DIRS=$(pwd)/triton_shared
-
-git clone --recurse-submodules https://github.com/microsoft/triton-shared.git triton_shared
-cd triton_shared/triton
-
 python3 -m venv .venv --prompt triton
 source .venv/bin/activate
 
-pip3 install ninja cmake wheel
-pip3 install -e python
+pip3 install ninja cmake wheel pytest
+pip3 install -e python --no-build-isolation
 ```
 
-+ the resulting binaries of `triton-shared` will be placed under `triton/python/build/{current_cmake_version}/third_party/triton_shared`
+The resulting `triton-shared` binaries will be placed under `triton/python/build/{current_cmake_version}/third_party/triton_shared`
 
 ### 1. Stand-Alone
 The middle layer can be used as a stand-alone component to convert Triton dialect to the middle layer dialects. This is intended for testing and validation purposes, but could potentially be used before sending the IR to another MLIR complier.
@@ -137,7 +138,6 @@ func.func @kernel(%arg0: memref<*xbf16>, %arg1: memref<*xbf16>, %arg2: i32, %arg
     return
 
 }
-
 ```
 
 Important details to note:
@@ -161,12 +161,19 @@ bufferization.materialize_in_destination %extracted_slice in writable %subview
 
 The prototype was tested on the following triton kernel examples:
 
-1. vector addition
-2. fused softmax
-3. matrix multiplication
+1. [vector addition](./python/examples/test_vec_add.py)
+2. [fused softmax](./python/examples/test_softmax.py)
+3. [matrix multiplication](./python/examples/test_matmul.py)
 4. layer normalization
 5. fused attention
 
+The Python tests are setup to run with Pytest and you will need to set the following environment variables to run them:
+```
+export LLVM_BINARY_DIR=<path-to-your-llvm-binaries>
+export TRITON_SHARED_OPT_PATH=$TRITON_PLUGINS_DIR/triton/python/build/<your-cmake-directory>/third_party/triton_shared_opt/triton_shared-opt
+
+pytest <path-to-triton-shared>/python/examples
+```
 In addition to testing on the tutorial kernels, there are many lit tests covering various scenarios.
 
 ## Contributing

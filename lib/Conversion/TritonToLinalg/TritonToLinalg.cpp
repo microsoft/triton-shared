@@ -12,16 +12,15 @@
 #include "llvm/Support/MathExtras.h"
 
 #include "triton-shared/Conversion/TritonToLinalg/TritonToLinalg.h"
-#include "triton-shared/Conversion/TritonArithToLinalg/ConversionPatterns.hpp"
 
 #define DEBUG_TYPE "triton-to-linalg"
+#include "triton-shared/Conversion/TritonArithToLinalg/ConversionPatterns.hpp"
 
 using namespace mlir;
 using namespace triton;
 
 #define GEN_PASS_CLASSES
 #include "triton-shared/Conversion/TritonToLinalg/Passes.h.inc"
-
 
 void mlir::triton::populateTritonToLinalgCanonicalizationPatterns(
     RewritePatternSet &patterns) {
