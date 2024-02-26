@@ -120,10 +120,7 @@ jobs:
       run: |
         python3 -m pip install --upgrade pre-commit
         python3 -m pre_commit run --all-files --verbose
-    - name: Edit setup for arm64
-      working-directory: triton_shared/triton
-      run: |
-        sed -i 's|https://tritonlang.blob.core.windows.net/llvm-builds/|https://storage.googleapis.com/compiled-blob/|g' "python/setup.py"
+      
     - name: Build/Install Triton
       working-directory: triton_shared/triton/python
       run: |
