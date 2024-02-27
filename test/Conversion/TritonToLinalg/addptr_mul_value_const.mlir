@@ -8,22 +8,22 @@ module {
   {
     %0 = tt.get_program_id x : i32
     %1 = tt.make_range {end = 1024 : i32, start = 0 : i32}:tensor<1024xi32>
-    %2 = tt.splat %0 : (i32) -> tensor<1024xi32>
+    %2 = tt.splat %0 : i32 -> tensor<1024xi32>
     %3 = arith.addi %2, %1 : tensor<1024xi32>
     //%3: splat(%0) + range(0, 1024)
     //%3: offset = %0, size = 1024, stride = 1
     // vector is constant, scalar is value
     %4 = tt.make_range {end = 3072 : i32, start = 2048 : i32}:tensor<1024xi32>
-    %5 = tt.splat %arg2 : (i32) -> tensor<1024xi32>
+    %5 = tt.splat %arg2 : i32 -> tensor<1024xi32>
     %6 = arith.muli %5, %4 : tensor<1024xi32>
     //%6: splat(%arg2)*range(2048, 3072);
     //%6: offset = %arg2*2048, size = 1024, stride = %arg2*1
     %7 = arith.addi %3, %6 : tensor<1024xi32>
     //%7: offset = %arg2*2048 + %0, size = 1024, stride = %arg2*1+1
-    %8 = tt.splat %arg0 : (!tt.ptr<bf16>) -> tensor<1024x!tt.ptr<bf16>>
+    %8 = tt.splat %arg0 : !tt.ptr<bf16> -> tensor<1024x!tt.ptr<bf16>>
     %9 = tt.addptr %8, %7 : tensor<1024x!tt.ptr<bf16>>, tensor<1024xi32>
     //source=%arg0: offset = %arg2*2048 + pid0, size = 1024, stride = %arg2*1+1
-    %10 = tt.splat %arg1 : (!tt.ptr<bf16>) -> tensor<1024x!tt.ptr<bf16>>
+    %10 = tt.splat %arg1 : !tt.ptr<bf16> -> tensor<1024x!tt.ptr<bf16>>
     %11 = tt.addptr %10, %3 : tensor<1024x!tt.ptr<bf16>>, tensor<1024xi32>
     //source=%arg1: offset = pid0, size = 1024, stride = 1
     %16 = tt.load %9 {cache = 1 : i32, evict = 1 : i32, isVolatile = false} : tensor<1024xbf16>

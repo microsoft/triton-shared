@@ -17,6 +17,7 @@ jobs:
     uses: ./.github/workflows/test-plugin.yml
     with:
         triton-shared-ref: 'main'
+        triton-ref: 'main'
         # The `inputs` variable is not available when the workflow is automatically triggered by a schedule.
         # In such case, `inputs.force-failure` is an empty string which breaks the workflow. As a workaround,
         # check the user provided input if it contains `true` instead of using the value directly.

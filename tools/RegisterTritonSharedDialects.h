@@ -12,7 +12,6 @@
 #include "triton/Dialect/Triton/Transforms/Passes.h"
 #include "triton/Dialect/TritonGPU/Transforms/Passes.h"
 
-#include "triton/Conversion/TritonGPUToLLVM/Passes.h"
 #include "triton/Conversion/TritonToTritonGPU/Passes.h"
 
 #include "triton-shared/Conversion/StructuredToMemref/Passes.h"
@@ -46,7 +45,6 @@ inline void registerTritonSharedDialects(mlir::DialectRegistry &registry) {
   mlir::triton::registerTritonToStructuredPass();
   mlir::triton::registerTritonArithToLinalgPasses();
   mlir::triton::registerConvertTritonToTritonGPUPass();
-  mlir::triton::registerConvertTritonGPUToLLVMPass();
   mlir::triton::registerStructuredToMemrefPasses();
 
   // TODO: register Triton & TritonGPU passes

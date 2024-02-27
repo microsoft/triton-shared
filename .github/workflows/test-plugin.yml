@@ -3,6 +3,9 @@ name: Triton-Shared Plugin Testing
 on:
   workflow_call:
     inputs:
+      triton-ref:
+        required: false
+        type: string
       triton-shared-ref:
         required: true
         type: string
@@ -11,6 +14,9 @@ on:
         type: boolean
   workflow_dispatch:
     inputs:
+      triton-ref:
+        required: false
+        type: string
       triton-shared-ref:
         required: true
         type: string
@@ -33,7 +39,15 @@ jobs:
       with:
         ref: ${{ inputs.triton-shared-ref }}
         path: triton_shared
+        # Also checkout triton submodule
         submodules: recursive
+
+    - name: Checkout triton at ${{ inputs.triton-ref }}
+      if: ${{ inputs.triton-ref }}
+      working-directory: triton_shared/triton
+      run: |
+        git checkout ${{ inputs.triton-ref }}
+        git log -1
 
     - name: Clear Triton Cache
       run: |
