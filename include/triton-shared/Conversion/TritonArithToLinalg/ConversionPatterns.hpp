@@ -1734,11 +1734,11 @@ public:
   matchAndRewrite(triton::ExternElementwiseOp op, OpAdaptor adaptor,
                   ConversionPatternRewriter &rewriter) const override {
     auto loc = op.getLoc();
-    if (!op.getPure() || op.getArgs().size() != 2)
+    if (!op.getPure() || op.getSrcs().size() != 2)
       return failure();
 #define POPULATE_BINARY_OP(FUNC_NAME, DST_OP)                                  \
   if (!op.getSymbol().compare(FUNC_NAME)) {                                    \
-    rewriter.replaceOpWithNewOp<DST_OP>(op, op.getArgs()[0], op.getArgs()[1]); \
+    rewriter.replaceOpWithNewOp<DST_OP>(op, op.getSrcs()[0], op.getSrcs()[1]); \
     return success();                                                          \
   }
 
@@ -1761,11 +1761,11 @@ public:
   matchAndRewrite(triton::ExternElementwiseOp op, OpAdaptor adaptor,
                   ConversionPatternRewriter &rewriter) const override {
     auto loc = op.getLoc();
-    if (!op.getPure() || op.getArgs().size() != 1)
+    if (!op.getPure() || op.getSrcs().size() != 1)
       return failure();
 #define POPULATE_UNARY_OP(FUNC_NAME, DST_OP)                                   \
   if (!op.getSymbol().compare(FUNC_NAME)) {                                    \
-    rewriter.replaceOpWithNewOp<DST_OP>(op, op.getArgs()[0]);                  \
+    rewriter.replaceOpWithNewOp<DST_OP>(op, op.getSrcs()[0]);                  \
     return success();                                                          \
   }
 

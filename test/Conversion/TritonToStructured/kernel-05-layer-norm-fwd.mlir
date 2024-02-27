@@ -10,12 +10,12 @@ module {
     %1 = arith.muli %0, %arg6 : i32
     %2 = tt.addptr %arg1, %1 : !tt.ptr<f32>, i32
     %3 = tt.addptr %arg0, %1 : !tt.ptr<f32>, i32
-    %4 = tt.splat %cst_0 : (f32) -> tensor<256xf32>
+    %4 = tt.splat %cst_0 : f32 -> tensor<256xf32>
     %5 = tt.make_range {end = 256 : i32, start = 0 : i32} : tensor<256xi32>
-    %6 = tt.splat %arg7 : (i32) -> tensor<256xi32>
-    %7 = tt.splat %3 : (!tt.ptr<f32>) -> tensor<256x!tt.ptr<f32>>
+    %6 = tt.splat %arg7 : i32 -> tensor<256xi32>
+    %7 = tt.splat %3 : !tt.ptr<f32> -> tensor<256x!tt.ptr<f32>>
     %8 = scf.for %arg9 = %c0_i32 to %arg7 step %c256_i32 iter_args(%arg10 = %4) -> (tensor<256xf32>)  : i32 {
-      %32 = tt.splat %arg9 : (i32) -> tensor<256xi32>
+      %32 = tt.splat %arg9 : i32 -> tensor<256xi32>
       %33 = arith.addi %32, %5 : tensor<256xi32>
       %34 = arith.cmpi slt, %33, %6 : tensor<256xi32>
       %35 = tt.addptr %7, %33 : tensor<256x!tt.ptr<f32>>, tensor<256xi32>
@@ -31,11 +31,11 @@ module {
     %10 = arith.sitofp %arg7 : i32 to f32
     %11 = arith.divf %9, %10 : f32
     %12 = tt.make_range {end = 256 : i32, start = 0 : i32} : tensor<256xi32>
-    %13 = tt.splat %arg7 : (i32) -> tensor<256xi32>
-    %14 = tt.splat %3 : (!tt.ptr<f32>) -> tensor<256x!tt.ptr<f32>>
-    %15 = tt.splat %11 : (f32) -> tensor<256xf32>
+    %13 = tt.splat %arg7 : i32 -> tensor<256xi32>
+    %14 = tt.splat %3 : !tt.ptr<f32> -> tensor<256x!tt.ptr<f32>>
+    %15 = tt.splat %11 : f32 -> tensor<256xf32>
     %16 = scf.for %arg9 = %c0_i32 to %arg7 step %c256_i32 iter_args(%arg10 = %4) -> (tensor<256xf32>)  : i32 {
-      %32 = tt.splat %arg9 : (i32) -> tensor<256xi32>
+      %32 = tt.splat %arg9 : i32 -> tensor<256xi32>
       %33 = arith.addi %32, %12 : tensor<256xi32>
       %34 = arith.cmpi slt, %33, %13 : tensor<256xi32>
       %35 = tt.addptr %14, %33 : tensor<256x!tt.ptr<f32>>, tensor<256xi32>
@@ -60,15 +60,15 @@ module {
     %23 = tt.addptr %arg5, %0 : !tt.ptr<f32>, i32
     tt.store %23, %21 {cache = 1 : i32, evict = 1 : i32} : f32
     %24 = tt.make_range {end = 256 : i32, start = 0 : i32} : tensor<256xi32>
-    %25 = tt.splat %arg7 : (i32) -> tensor<256xi32>
-    %26 = tt.splat %arg2 : (!tt.ptr<f32>) -> tensor<256x!tt.ptr<f32>>
-    %27 = tt.splat %arg3 : (!tt.ptr<f32>) -> tensor<256x!tt.ptr<f32>>
-    %28 = tt.splat %3 : (!tt.ptr<f32>) -> tensor<256x!tt.ptr<f32>>
-    %29 = tt.splat %11 : (f32) -> tensor<256xf32>
-    %30 = tt.splat %21 : (f32) -> tensor<256xf32>
-    %31 = tt.splat %2 : (!tt.ptr<f32>) -> tensor<256x!tt.ptr<f32>>
+    %25 = tt.splat %arg7 : i32 -> tensor<256xi32>
+    %26 = tt.splat %arg2 : !tt.ptr<f32> -> tensor<256x!tt.ptr<f32>>
+    %27 = tt.splat %arg3 : !tt.ptr<f32> -> tensor<256x!tt.ptr<f32>>
+    %28 = tt.splat %3 : !tt.ptr<f32> -> tensor<256x!tt.ptr<f32>>
+    %29 = tt.splat %11 : f32 -> tensor<256xf32>
+    %30 = tt.splat %21 : f32 -> tensor<256xf32>
+    %31 = tt.splat %2 : !tt.ptr<f32> -> tensor<256x!tt.ptr<f32>>
     scf.for %arg9 = %c0_i32 to %arg7 step %c256_i32  : i32 {
-      %32 = tt.splat %arg9 : (i32) -> tensor<256xi32>
+      %32 = tt.splat %arg9 : i32 -> tensor<256xi32>
       %33 = arith.addi %32, %24 : tensor<256xi32>
       %34 = arith.cmpi slt, %33, %25 : tensor<256xi32>
       %35 = tt.addptr %26, %33 : tensor<256x!tt.ptr<f32>>, tensor<256xi32>
@@ -121,11 +121,11 @@ module {
 // CHECK:           [[VAR_6_:%.+]] = arith.sitofp [[PARAM_7_]] : i32 to f32
 // CHECK-DAG:       [[VAR_7_:%.+]] = arith.divf [[VAR_5_]], [[VAR_6_]] : f32
 // CHECK-DAG:       [[VAR_8_:%.+]] = tt.make_range {end = 256 : i32, start = 0 : i32} : tensor<256xi32>
-// CHECK-DAG:       [[VAR_9_:%.+]] = tt.splat [[PARAM_7_]] : (i32) -> tensor<256xi32>
+// CHECK-DAG:       [[VAR_9_:%.+]] = tt.splat [[PARAM_7_]] : i32 -> tensor<256xi32>
 // CHECK-NOT: separator of consecutive DAGs
-// CHECK-DAG:       [[VAR_10_:%.+]] = tt.splat [[VAR_7_]] : (f32) -> tensor<256xf32>
+// CHECK-DAG:       [[VAR_10_:%.+]] = tt.splat [[VAR_7_]] : f32 -> tensor<256xf32>
 // CHECK-DAG:       [[VAR_11_:%.+]] = scf.for [[VAR_arg9_1_:%.+]] = [[CST_0_]] to [[PARAM_7_]] step [[CST_256_1_]] iter_args([[VAR_arg10_1_:%.+]] = [[VAR_cst_]]) -> (tensor<256xf32>)  : i32 {
-// CHECK-DAG:         [[VAR_21_2_:%.+]] = tt.splat [[VAR_arg9_1_]] : (i32) -> tensor<256xi32>
+// CHECK-DAG:         [[VAR_21_2_:%.+]] = tt.splat [[VAR_arg9_1_]] : i32 -> tensor<256xi32>
 // CHECK:             [[VAR_22_1_:%.+]] = arith.addi [[VAR_21_2_]], [[VAR_8_]] : tensor<256xi32>
 // CHECK-DAG:         [[VAR_23_1_:%.+]] = arith.cmpi slt, [[VAR_22_1_]], [[VAR_9_]] : tensor<256xi32>
 // CHECK-DAG:         [[VAR_24_1_:%.+]] = arith.index_cast [[VAR_arg9_1_]] : i32 to index
@@ -157,8 +157,8 @@ module {
 // CHECK:           tt.store [[VAR_17_]], [[VAR_7_]] {cache = 1 : i32, evict = 1 : i32} : f32
 // CHECK:           [[VAR_18_:%.+]] = tt.addptr [[PARAM_5_]], [[VAR_0_]] : !tt.ptr<f32, 1>, i32
 // CHECK:           tt.store [[VAR_18_]], [[VAR_16_]] {cache = 1 : i32, evict = 1 : i32} : f32
-// CHECK-DAG:       [[VAR_19_:%.+]] = tt.splat [[VAR_7_]] : (f32) -> tensor<256xf32>
-// CHECK-DAG:       [[VAR_20_:%.+]] = tt.splat [[VAR_16_]] : (f32) -> tensor<256xf32>
+// CHECK-DAG:       [[VAR_19_:%.+]] = tt.splat [[VAR_7_]] : f32 -> tensor<256xf32>
+// CHECK-DAG:       [[VAR_20_:%.+]] = tt.splat [[VAR_16_]] : f32 -> tensor<256xf32>
 // CHECK:           scf.for [[VAR_arg9_1_:%.+]] = [[CST_0_]] to [[PARAM_7_]] step [[CST_256_1_]]  : i32 {
 // CHECK:             [[VAR_21_4_:%.+]] = arith.index_cast [[VAR_arg9_1_]] : i32 to index
 // CHECK-DAG:         [[VAR_22_2_:%.+]] = tts.make_tptr [[PARAM_2_]] to sizes: [256], strides: [1], offsets: {{.}}[[VAR_21_4_]]{{.}}, shape: [0], order: [] : <f32, 1> to tensor<256x!tt.ptr<f32, 1>>

@@ -5,9 +5,9 @@ module {
     %0 = tt.get_program_id x : i32
     %1 = arith.muli %0, %arg2 : i32
     %2 = tt.make_range {end = 4096 : i32, start = 0 : i32} : tensor<4096xi32>
-    %3 = tt.splat %1 : (i32) -> tensor<4096xi32>
+    %3 = tt.splat %1 : i32 -> tensor<4096xi32>
     %4 = arith.addi %3, %2 : tensor<4096xi32>
-    %5 = tt.splat %arg0 : (!tt.ptr<f32>) -> tensor<4096x!tt.ptr<f32>>
+    %5 = tt.splat %arg0 : !tt.ptr<f32> -> tensor<4096x!tt.ptr<f32>>
     %6 = tt.addptr %5, %4 : tensor<4096x!tt.ptr<f32>>, tensor<4096xi32>
     %7 = tt.load %6 {cache = 1 : i32, evict = 1 : i32, isVolatile = false} : tensor<4096xf32>
     %8:2 = "tt.reduce"(%7, %2) <{axis = 0 : i32}> ({
@@ -35,9 +35,9 @@ module {
     %0 = tt.get_program_id x : i32
     %1 = arith.muli %0, %arg2 : i32
     %2 = tt.make_range {end = 4096 : i32, start = 0 : i32} : tensor<4096xi32>
-    %3 = tt.splat %1 : (i32) -> tensor<4096xi32>
+    %3 = tt.splat %1 : i32 -> tensor<4096xi32>
     %4 = arith.addi %3, %2 : tensor<4096xi32>
-    %5 = tt.splat %arg0 : (!tt.ptr<f32>) -> tensor<4096x!tt.ptr<f32>>
+    %5 = tt.splat %arg0 : !tt.ptr<f32> -> tensor<4096x!tt.ptr<f32>>
     %6 = tt.addptr %5, %4 : tensor<4096x!tt.ptr<f32>>, tensor<4096xi32>
     %7 = tt.load %6 {cache = 1 : i32, evict = 1 : i32, isVolatile = false} : tensor<4096xf32>
     %8:2 = "tt.reduce"(%7, %2) <{axis = 0 : i32}> ({
