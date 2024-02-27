@@ -42,7 +42,6 @@
 #define DEBUG_TYPE "structured-to-memref"
 
 using namespace mlir;
-using namespace triton;
 
 #define GEN_PASS_CLASSES
 #include "triton-shared/Conversion/TritonArithToLinalg/Passes.h.inc"
@@ -69,7 +68,7 @@ struct MakeTensorPtrConverter
 private:
   using OpConversionPattern<tts::MakeTensorPtrOp>::OpConversionPattern;
 
-  static Type getElementTypeRegularPtr(tts::MakeTensorPtrOp op) {
+  static Type getElementTypeStructuredPtr(tts::MakeTensorPtrOp op) {
     assert(!op.isBlockPtr());
     // tensor<1024x!tt.ptr<f32, 1>>
     auto ptrType = cast<triton::PointerType>(
@@ -94,7 +93,7 @@ private:
     if (op.isBlockPtr()) {
       elemType = getElementTypeBlockPtr(op);
     } else {
-      elemType = getElementTypeRegularPtr(op);
+      elemType = getElementTypeStructuredPtr(op);
     }
     return MemRefType::get(resultShape, elemType, layout);
   }
@@ -387,15 +386,16 @@ private:
     return success();
   }
 
-  LogicalResult rewriteRegularPtr(tts::MakeTensorPtrOp op, OpAdaptor adaptor,
-                                  ConversionPatternRewriter &rewriter) const {
+  LogicalResult
+  rewriteStructuredPtr(tts::MakeTensorPtrOp op, OpAdaptor adaptor,
+                       ConversionPatternRewriter &rewriter) const {
     ArrayRef<int64_t> resultShape = cast<ShapedType>(op.getType()).getShape();
     return rewritePtr(resultShape, op, adaptor, rewriter);
   }
 
   LogicalResult rewriteBlockPtr(tts::MakeTensorPtrOp op, OpAdaptor adaptor,
                                 ConversionPatternRewriter &rewriter) const {
-    // Block pointers are basically the same as regular pointers except that
+    // Block pointers are basically the same as structured pointers except that
     // the return types are !tt.ptr<tensor<AxBxCxbf16>> instead of
     // tensor<AxBxCx!tt.ptr<bf16>>
     ArrayRef<int64_t> resultShape =
@@ -414,8 +414,8 @@ public:
       return rewriteBlockPtr(op, adaptor, rewriter);
     }
 
-    if (op.isRegularPtr()) {
-      return rewriteRegularPtr(op, adaptor, rewriter);
+    if (op.isStructuredPtr()) {
+      return rewriteStructuredPtr(op, adaptor, rewriter);
     }
 
     if (op.isSplitPtr()) {
@@ -556,9 +556,10 @@ private:
     return {sv1, sv2};
   }
 
-  LogicalResult rewriteRegularLoad(tts::LoadOp op, OpAdaptor adaptor,
-                                   ConversionPatternRewriter &rewriter) const {
-    assert(!op.hasMasks());
+  LogicalResult
+  rewriteStructuredLoad(tts::LoadOp op, OpAdaptor adaptor,
+                        ConversionPatternRewriter &rewriter) const {
+    assert(!op.hasMask());
 
     auto loc = op->getLoc();
     auto ptr = adaptor.getPtr();
@@ -598,7 +599,7 @@ private:
 
   LogicalResult rewriteMaskedLoad(tts::LoadOp op, OpAdaptor adaptor,
                                   ConversionPatternRewriter &rewriter) const {
-    assert(op.hasMasks());
+    assert(op.hasMask());
 
     auto loc = op->getLoc();
     auto ptr = adaptor.getPtr();
@@ -626,7 +627,7 @@ private:
         Value dimi = mixedDims[i].dyn_cast<Value>();
         if (!dimi) {
           dimi = rewriter.create<arith::ConstantOp>(
-              loc, rewriter.getIndexAttr(op.getStaticDims()[i]));
+              loc, rewriter.getIndexAttr(op.getStaticMaskDims()[i]));
         }
 
         Value cmp = rewriter.create<arith::CmpIOp>(
@@ -682,10 +683,10 @@ public:
   LogicalResult
   matchAndRewrite(tts::LoadOp op, OpAdaptor adaptor,
                   ConversionPatternRewriter &rewriter) const override {
-    if (op.hasMasks()) {
+    if (op.hasMask()) {
       return rewriteMaskedLoad(op, adaptor, rewriter);
     } else {
-      return rewriteRegularLoad(op, adaptor, rewriter);
+      return rewriteStructuredLoad(op, adaptor, rewriter);
     }
   }
 };
@@ -717,7 +718,7 @@ public:
     auto storeValue = op.getValue();
     auto rank = cast<RankedTensorType>(storeValue.getType()).getRank();
 
-    if (op.hasMasks()) {
+    if (op.hasMask()) {
       auto mixedDims = op.getMixedMaskDims();
 
       auto srcSlice =

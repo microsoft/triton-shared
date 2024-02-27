@@ -105,14 +105,13 @@ def TTS_MakeTensorPtrOp
     bool isBlockPtr() {
       return !getOrder().empty();
     }
-    bool isRegularPtr() {
+    bool isStructuredPtr() {
       return !isBlockPtr() &&
              llvm::all_of(getStaticShape(), [](auto shape) { return shape == 0; });
     }
     bool isSplitPtr() {
       return !isBlockPtr() &&
-             !isRegularPtr() &&
-             llvm::any_of(getStaticShape(), [](auto shape) { return shape != 0; });
+             !isStructuredPtr();
     }
   }];
 
@@ -128,25 +127,25 @@ def TTS_LoadOp : TTS_Op<"load", [
   let summary = "optionally load data from in memory to fill a portion of the tensor";
 
   let arguments = (ins TT_PtrLike:$ptr,
-                       Variadic<Index>:$dims,           // mask dimension
-                       DenseI64ArrayAttr:$static_dims,
+                       Variadic<Index>:$mask_dims,
+                       DenseI64ArrayAttr:$static_mask_dims,
                        Optional<AnyTypeOf<[TT_Float, TT_Int, TT_Ptr]>>:$other);
 
   let results = (outs TT_Tensor:$result);
 
   let builders = [
-    OpBuilder<(ins "Value":$ptr, "ArrayRef<OpFoldResult>":$dims, "Value":$other)>,
+    OpBuilder<(ins "Value":$ptr, "ArrayRef<OpFoldResult>":$mask_dims, "Value":$other)>,
   ];
 
   let extraClassDeclaration = [{
     /// Return a vector of all the static or dynamic fields
     SmallVector<OpFoldResult> getMixedMaskDims() {
       Builder b(getContext());
-      return ::mlir::getMixedValues(getStaticDims(), getDims(), b);
+      return ::mlir::getMixedValues(getStaticMaskDims(), getMaskDims(), b);
     }
 
-    bool hasMasks() {
-      return !getStaticDims().empty();
+    bool hasMask() {
+      return !getStaticMaskDims().empty();
     }
   }];
 
@@ -162,8 +161,8 @@ def TTS_StoreOp : TTS_Op<"store", [
 
   let arguments = (ins TT_PtrLike:$ptr,
                        TT_Tensor:$value,
-                       Variadic<Index>:$dims,
-                       DenseI64ArrayAttr:$static_dims);
+                       Variadic<Index>:$mask_dims,
+                       DenseI64ArrayAttr:$static_mask_dims);
 
   let builders = [
     OpBuilder<(ins "Value":$ptr, "Value":$value, "ArrayRef<OpFoldResult>":$dims)>,
@@ -173,11 +172,11 @@ def TTS_StoreOp : TTS_Op<"store", [
     /// Return a vector of all the static or dynamic fields
     SmallVector<OpFoldResult> getMixedMaskDims() {
       Builder b(getContext());
-      return ::mlir::getMixedValues(getStaticDims(), getDims(), b);
+      return ::mlir::getMixedValues(getStaticMaskDims(), getMaskDims(), b);
     }
 
-    bool hasMasks() {
-      return !getStaticDims().empty();
+    bool hasMask() {
+      return !getStaticMaskDims().empty();
     }
   }];
 
