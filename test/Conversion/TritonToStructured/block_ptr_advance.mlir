@@ -14,7 +14,7 @@ module {
     // base: arg0, shape: [arg3, arg5], strides: [%arg6, %arg7], offsets: [%arg12, 0], order: [1, 0]
     %5 = tt.advance %4, [%c0_i32, %c64_i32] : <tensor<128x64xbf16>>
     // base: arg0, shape: [arg3, arg5], strides: [%arg6, %arg7], offsets: [%arg12, 64], order: [1, 0]
-    %6 = tt.splat %cst : (bf16) -> tensor<128x64xbf16>
+    %6 = tt.splat %cst : bf16 -> tensor<128x64xbf16>
     %7:3 = scf.for %arg14 = %c0_i32 to %arg5 step %c64_i32 iter_args(%arg15 = %6, %arg16 = %5, %arg17 = %4) -> (tensor<128x64xbf16>, !tt.ptr<tensor<128x64xbf16>>, !tt.ptr<tensor<128x64xbf16>>)  : i32 {
       %13 = tt.load %arg16 {boundaryCheck = array<i32: 0, 1>, cache = 1 : i32, evict = 1 : i32, isVolatile = false} : !tt.ptr<tensor<128x64xbf16>> -> tensor<128x64xbf16>
       %14 = tt.load %arg17 {boundaryCheck = array<i32: 0, 1>, cache = 1 : i32, evict = 1 : i32, isVolatile = false} : !tt.ptr<tensor<128x64xbf16>> -> tensor<128x64xbf16>

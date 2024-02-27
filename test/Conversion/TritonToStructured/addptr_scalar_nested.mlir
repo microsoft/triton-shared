@@ -14,7 +14,7 @@ module {
     // source = arg1, offset = %1+%3+%5, size = 1, strides = 0
     %7 = tt.make_range {end = 1024 : i32, start = 0 : i32} : tensor<1024xi32>
     // offset = 0, size = 1024, strides = 1
-    %8 = tt.splat %6 : (!tt.ptr<f32>) -> tensor<1024x!tt.ptr<f32>>
+    %8 = tt.splat %6 : !tt.ptr<f32> -> tensor<1024x!tt.ptr<f32>>
     // source = arg1, offset = %1, size = 1024, strides = 0
     %9 = tt.addptr %8, %7 : tensor<1024x!tt.ptr<f32>>, tensor<1024xi32>
     // source = arg1, offset = %1+%3+%5, size = 1024, strides = 1
@@ -23,7 +23,7 @@ module {
     %18 = arith.muli %0, %arg3 : i32
     %19 = tt.addptr %arg0, %18 : !tt.ptr<f32>, i32
     // source = arg0, offset = %18, size = 1, strides = 0
-    %20 = tt.splat %19 : (!tt.ptr<f32>) -> tensor<1024x!tt.ptr<f32>>
+    %20 = tt.splat %19 : !tt.ptr<f32> -> tensor<1024x!tt.ptr<f32>>
     // source = arg0, offset = %18, size = 1024, strides = 0
     %21 = tt.addptr %20, %7 : tensor<1024x!tt.ptr<f32>>, tensor<1024xi32>
     // source = arg0, offset = %18, size = 1024, strides = 1

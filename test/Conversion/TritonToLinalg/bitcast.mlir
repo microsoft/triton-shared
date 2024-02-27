@@ -6,11 +6,11 @@ module {
     %0 = tt.make_range {end = 1024 : i32, start = 0 : i32} : tensor<1024xi32>
 
     // a pointer
-    %8 = tt.splat %a : (!tt.ptr<i32>) -> tensor<1024x!tt.ptr<i32>>
+    %8 = tt.splat %a : !tt.ptr<i32> -> tensor<1024x!tt.ptr<i32>>
     %9 = tt.addptr %8, %0 : tensor<1024x!tt.ptr<i32>>, tensor<1024xi32>
 
     // b pointer
-    %18 = tt.splat %b : (!tt.ptr<f32>) -> tensor<1024x!tt.ptr<f32>>
+    %18 = tt.splat %b : !tt.ptr<f32> -> tensor<1024x!tt.ptr<f32>>
     %19 = tt.addptr %18, %0 : tensor<1024x!tt.ptr<f32>>, tensor<1024xi32>
 
     %am = tt.load %9 {cache = 1 : i32, evict = 1 : i32, isVolatile = false} : tensor<1024xi32>
