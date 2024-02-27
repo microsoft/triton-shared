@@ -121,7 +121,7 @@ jobs:
     - name: Clear Triton Cache
       run: |
         rm -rf ~/.triton
-        
+
     - name: Modify Instance
       run: |
         sudo apt-get update
@@ -134,7 +134,7 @@ jobs:
       run: |
         python3 -m pip install --upgrade pre-commit
         python3 -m pre_commit run --all-files --verbose
-      
+
     - name: Build/Install Triton
       working-directory: triton_shared/triton/python
       run: |
@@ -165,4 +165,3 @@ jobs:
     - name: Run CPU backend examples
       working-directory: triton_shared/python/examples
       run: pytest .
-
