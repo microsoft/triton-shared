@@ -16,6 +16,7 @@
 
 #include "llvm/ADT/TypeSwitch.h"
 #include "llvm/Support/Debug.h"
+#include <cassert>
 
 #define DEBUG_TYPE "triton-ptr-analysis"
 
@@ -125,9 +126,7 @@ bool PtrState::dimHasModulo(uint32_t dim) const {
   return intAttr.value() != 0;
 }
 
-bool PtrState::isBlockPtr() const {
-  return !order.empty();
-}
+bool PtrState::isBlockPtr() const { return !order.empty(); }
 
 LogicalResult PtrState::addState(const PtrState &lhsState,
                                  const PtrState &rhsState, Operation *op,
