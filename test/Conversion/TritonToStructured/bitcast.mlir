@@ -27,8 +27,8 @@ module {
 // CHECK:         tt.func @kernel([[PARAM_0_:%.+]]: !tt.ptr<i32, 1>, [[PARAM_1_:%.+]]: !tt.ptr<f32, 1>) {
 // CHECK-DAG:       [[VAR_0_:%.+]] = tts.make_tptr [[PARAM_0_]] to sizes: [1024], strides: [1], offsets: [0], shape: [0], order: [] : <i32, 1> to tensor<1024x!tt.ptr<i32, 1>>
 // CHECK-DAG:       [[VAR_1_:%.+]] = tts.make_tptr [[PARAM_1_]] to sizes: [1024], strides: [1], offsets: [0], shape: [0], order: [] : <f32, 1> to tensor<1024x!tt.ptr<f32, 1>>
-// CHECK:           [[VAR_2_:%.+]] = "tts.load"([[VAR_0_]]) <{operandSegmentSizes = array<i32: 1, 0, 0>, static_dims = array<i64>}> : (tensor<1024x!tt.ptr<i32, 1>>) -> tensor<1024xi32>
+// CHECK:           [[VAR_2_:%.+]] = "tts.load"([[VAR_0_]]) <{operandSegmentSizes = array<i32: 1, 0, 0>, static_mask_dims = array<i64>}> : (tensor<1024x!tt.ptr<i32, 1>>) -> tensor<1024xi32>
 // CHECK:           [[VAR_3_:%.+]] = tt.bitcast [[VAR_2_]] : tensor<1024xi32> -> tensor<1024xf32>
-// CHECK:           "tts.store"([[VAR_1_]], [[VAR_3_]]) <{static_dims = array<i64>}> : (tensor<1024x!tt.ptr<f32, 1>>, tensor<1024xf32>) -> ()
+// CHECK:           "tts.store"([[VAR_1_]], [[VAR_3_]]) <{static_mask_dims = array<i64>}> : (tensor<1024x!tt.ptr<f32, 1>>, tensor<1024xf32>) -> ()
 // CHECK:           tt.return
 // CHECK:         }

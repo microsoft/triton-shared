@@ -1,5 +1,5 @@
 from triton.backends.compiler import BaseBackend
-from triton._C.libtriton import ir, passes, llvm, triton_shared
+from triton._C.libtriton import ir, passes
 from dataclasses import dataclass
 from typing import Any
 import hashlib
@@ -32,7 +32,7 @@ def _ttir_to_ttsharedir(mod):
         dst_path = os.path.join(tmpdir, "ttshared.mlir")
         Path(src_path).write_text(ttir_code)
         triton_shared_opt_path = _get_triton_shared_opt_path()
-        subprocess.check_call([triton_shared_opt_path, src_path, "--triton-to-linalg", "-o", dst_path])
+        subprocess.check_call([triton_shared_opt_path, src_path, "--triton-to-structured", "--canonicalize", "--triton-arith-to-linalg", "--cse", "--structured-to-memref", "-o", dst_path])
         return Path(dst_path).read_text()
 
 
@@ -151,7 +151,6 @@ class CPUBackend(BaseBackend):
 
     @staticmethod
     def make_ttir(mod, metadata, opt):
-        # assert False
         pm = ir.pass_manager(mod.context)
         pm.enable_debug()
         passes.common.add_inliner(pm)

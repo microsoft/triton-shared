@@ -55,8 +55,8 @@ module {
 // CHECK-DAG:         [[VAR_18_:%.+]] = tts.make_tptr [[PARAM_0_]] to sizes: [128, 64], strides: {{.}}[[VAR_0_]], [[VAR_4_]]{{.}}, offsets: {{.}}[[VAR_arg17_]], [[CST_0_]]{{.}}, shape: {{.}}[[VAR_3_]], [[VAR_5_]]{{.}}, order: [1, 0] : <bf16, 1> to !tt.ptr<tensor<128x64xbf16>, 1>
 // CHECK-DAG:         [[VAR_19_:%.+]] = tts.make_tptr [[PARAM_0_]] to sizes: [128, 64], strides: {{.}}[[VAR_0_]], [[VAR_4_]]{{.}}, offsets: {{.}}[[VAR_2_]], [[VAR_arg16_]]{{.}}, shape: {{.}}[[VAR_3_]], [[VAR_5_]]{{.}}, order: [1, 0] : <bf16, 1> to !tt.ptr<tensor<128x64xbf16>, 1>
 // CHECK-NOT: separator of consecutive DAGs
-// CHECK-DAG:         [[VAR_20_:%.+]] = "tts.load"([[VAR_19_]]) <{operandSegmentSizes = array<i32: 1, 0, 0>, static_dims = array<i64>}> : (!tt.ptr<tensor<128x64xbf16>, 1>) -> tensor<128x64xbf16>
-// CHECK-DAG:         [[VAR_21_:%.+]] = "tts.load"([[VAR_18_]]) <{operandSegmentSizes = array<i32: 1, 0, 0>, static_dims = array<i64>}> : (!tt.ptr<tensor<128x64xbf16>, 1>) -> tensor<128x64xbf16>
+// CHECK-DAG:         [[VAR_20_:%.+]] = "tts.load"([[VAR_19_]]) <{operandSegmentSizes = array<i32: 1, 0, 0>, static_mask_dims = array<i64>}> : (!tt.ptr<tensor<128x64xbf16>, 1>) -> tensor<128x64xbf16>
+// CHECK-DAG:         [[VAR_21_:%.+]] = "tts.load"([[VAR_18_]]) <{operandSegmentSizes = array<i32: 1, 0, 0>, static_mask_dims = array<i64>}> : (!tt.ptr<tensor<128x64xbf16>, 1>) -> tensor<128x64xbf16>
 // CHECK:             [[VAR_22_:%.+]] = arith.addf [[VAR_20_]], [[VAR_21_]] : tensor<128x64xbf16>
 // CHECK-DAG:         [[VAR_23_:%.+]] = arith.addf [[VAR_arg15_]], [[VAR_22_]] : tensor<128x64xbf16>
 // CHECK-DAG:         [[VAR_24_:%.+]] = arith.muli [[VAR_4_]], [[CST_64_]] : index
@@ -78,6 +78,6 @@ module {
 // CHECK-DAG:       [[VAR_15_:%.+]] = arith.muli [[VAR_14_]], [[VAR_13_]] : index
 // CHECK-DAG:       [[VAR_16_:%.+]] = arith.index_cast [[PARAM_4_]] : i32 to index
 // CHECK:           [[VAR_17_:%.+]] = tts.make_tptr [[PARAM_2_]] to sizes: [128, 64], strides: {{.}}[[VAR_9_]], [[VAR_13_]]{{.}}, offsets: {{.}}[[VAR_11_]], [[VAR_15_]]{{.}}, shape: {{.}}[[VAR_12_]], [[VAR_16_]]{{.}}, order: [1, 0] : <bf16, 1> to !tt.ptr<tensor<128x64xbf16>, 1>
-// CHECK:           "tts.store"([[VAR_17_]], [[VAR_7_]]#0) <{static_dims = array<i64>}> : (!tt.ptr<tensor<128x64xbf16>, 1>, tensor<128x64xbf16>) -> ()
+// CHECK:           "tts.store"([[VAR_17_]], [[VAR_7_]]#0) <{static_mask_dims = array<i64>}> : (!tt.ptr<tensor<128x64xbf16>, 1>, tensor<128x64xbf16>) -> ()
 // CHECK:           tt.return
 // CHECK:         }
