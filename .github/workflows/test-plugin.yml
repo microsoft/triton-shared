@@ -129,6 +129,7 @@ jobs:
     - name: Update PATH
       run: |
         echo "PATH=${HOME}/.local/bin:${PATH}" >> "${GITHUB_ENV}"
+        
     - name: Check pre-commit
       working-directory: triton_shared/triton
       run: |
@@ -144,6 +145,7 @@ jobs:
         sudo apt-get install -y ccache clang lld
         export TRITON_PLUGIN_DIRS="${GITHUB_WORKSPACE}/triton_shared"
         TRITON_BUILD_WITH_CLANG_LLD=true TRITON_BUILD_WITH_CCACHE=true python3 -m pip install --no-build-isolation -vvv '.[tests]'
+        
     - name: Run shared middle-layer lit tests
       working-directory: triton_shared/triton/python
       run: |
@@ -153,15 +155,18 @@ jobs:
           echo "Coult not find '${LIT_TEST_DIR}'" ; exit -1
         fi
         lit -v "${LIT_TEST_DIR}"
+        
     - name: Install CPU backend example dependencies
       run: |
         python3 -m pip install torch --index-url https://download.pytorch.org/whl/cpu
         python3 -m pip install pytest
+        
     - name: Prepare CPU backend environment
       working-directory: triton_shared/triton/python
       run: |
         echo "TRITON_SHARED_OPT_PATH=$(pwd)/build/$(ls $(pwd)/build | grep -i cmake)/third_party/triton_shared/tools/triton-shared-opt/triton-shared-opt" >> "${GITHUB_ENV}"
         echo "LLVM_BINARY_DIR=${HOME}/.triton/llvm/$(ls ${HOME}/.triton/llvm/ | grep -i llvm)/bin" >> "${GITHUB_ENV}"
+        
     - name: Run CPU backend examples
       working-directory: triton_shared/python/examples
       run: pytest .
