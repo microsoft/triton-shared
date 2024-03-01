@@ -97,3 +97,76 @@ jobs:
     - name: Run CPU backend examples
       working-directory: triton_shared/python/examples
       run: pytest .
+
+
+  build_and_test_triton_shared_arm:
+    runs-on: ["self-hosted", "1ES.Pool=triton-shared-github-arm"]
+
+    steps:
+    - name: Check Architecture
+      run: uname -a
+
+    - name: Force Failure
+      if: ${{ inputs.force-failure }}
+      run: exit 1
+
+
+    - name: Checkout Triton-Shared
+      uses: actions/checkout@v4
+      with:
+        ref: ${{ inputs.triton-shared-ref }}
+        path: triton_shared
+        submodules: recursive
+
+    - name: Clear Triton Cache
+      run: |
+        rm -rf ~/.triton
+
+    - name: Modify Instance
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y build-essential ninja-build python3-pip libc6
+    - name: Update PATH
+      run: |
+        echo "PATH=${HOME}/.local/bin:${PATH}" >> "${GITHUB_ENV}"
+        
+    - name: Check pre-commit
+      working-directory: triton_shared/triton
+      run: |
+        python3 -m pip install --upgrade pre-commit
+        python3 -m pre_commit run --all-files --verbose
+
+    - name: Build/Install Triton
+      working-directory: triton_shared/triton/python
+      run: |
+        python3 -m pip install --upgrade pip
+        python3 -m pip install cmake==3.24 ninja pytest-xdist
+        sudo apt-get update -y
+        sudo apt-get install -y ccache clang lld
+        export TRITON_PLUGIN_DIRS="${GITHUB_WORKSPACE}/triton_shared"
+        TRITON_BUILD_WITH_CLANG_LLD=true TRITON_BUILD_WITH_CCACHE=true python3 -m pip install --no-build-isolation -vvv '.[tests]'
+        
+    - name: Run shared middle-layer lit tests
+      working-directory: triton_shared/triton/python
+      run: |
+        python3 -m pip install lit
+        LIT_TEST_DIR="build/$(ls build | grep -i cmake)/third_party/triton_shared/test"
+        if [ ! -d "${LIT_TEST_DIR}" ]; then
+          echo "Coult not find '${LIT_TEST_DIR}'" ; exit -1
+        fi
+        lit -v "${LIT_TEST_DIR}"
+        
+    - name: Install CPU backend example dependencies
+      run: |
+        python3 -m pip install torch --index-url https://download.pytorch.org/whl/cpu
+        python3 -m pip install pytest
+        
+    - name: Prepare CPU backend environment
+      working-directory: triton_shared/triton/python
+      run: |
+        echo "TRITON_SHARED_OPT_PATH=$(pwd)/build/$(ls $(pwd)/build | grep -i cmake)/third_party/triton_shared/tools/triton-shared-opt/triton-shared-opt" >> "${GITHUB_ENV}"
+        echo "LLVM_BINARY_DIR=${HOME}/.triton/llvm/$(ls ${HOME}/.triton/llvm/ | grep -i llvm)/bin" >> "${GITHUB_ENV}"
+        
+    - name: Run CPU backend examples
+      working-directory: triton_shared/python/examples
+      run: pytest .
