@@ -1,5 +1,5 @@
 from triton.backends.compiler import BaseBackend
-from triton._C.libtriton import ir, passes
+from triton._C.libtriton import ir, passes, llvm, triton_shared
 from dataclasses import dataclass
 from typing import Any
 import hashlib
@@ -10,11 +10,23 @@ import subprocess
 import functools
 from pathlib import Path
 
+def printc(obj, color="cyan"): #makes things easier to see, will remove later
+    color_code = {
+        "black": "30", "red": "31", "green": "32", "yellow": "33",
+        "blue": "34", "magenta": "35", "cyan": "36", "white": "37"
+    }
+    colored_text = f"\033[{color_code[color]}m{obj}\033[0m" if color in color_code else obj
+    print(colored_text)
+
 def _get_triton_shared_opt_path() -> str:
     path = os.getenv("TRITON_SHARED_OPT_PATH", "")
     if path == "":
         raise Exception("TRITON_SHARED_OPT_PATH is not set.")
     return path
+
+
+def _get_triton_SME_path() -> str:
+    return os.getenv("TRITON_SME_PATH", "")
 
 
 def _get_llvm_bin_path(bin_name: str) -> str:
@@ -32,16 +44,25 @@ def _ttir_to_ttsharedir(mod):
         dst_path = os.path.join(tmpdir, "ttshared.mlir")
         Path(src_path).write_text(ttir_code)
         triton_shared_opt_path = _get_triton_shared_opt_path()
-        subprocess.check_call([triton_shared_opt_path, src_path, "--triton-to-structured", "--canonicalize", "--triton-arith-to-linalg", "--cse", "--structured-to-memref", "-o", dst_path])
+        subprocess.check_call([triton_shared_opt_path, src_path, "--triton-to-linalg", "-o", dst_path])
         return Path(dst_path).read_text()
 
 
 def _optimize_ttsharedir(ttsharedir: str):
-    # We don't apply any optimizations now, but we can add passes if needed.
-    return ttsharedir
+    if  _get_triton_SME_path() == "":
+        return ttsharedir
+    with tempfile.TemporaryDirectory() as tmpdir:
+        src_path = os.path.join(tmpdir, "ttshared.mlir")
+        dst_path = os.path.join(tmpdir, "ttsme.mlir")
+        Path(src_path).write_text(ttsharedir)
+        triton_shared_opt_path = _get_triton_SME_path()
+        subprocess.check_call([triton_shared_opt_path, src_path, "-sme-converison", "-o", dst_path])
+        output= Path(dst_path).read_text()
+        printc(output)
+        return output
 
 
-def _ttsharedir_to_llir(ttsharedir: str):
+def _ttsharedir_to_llir(ttsharedir: str): #going to need to add some flags to this, recent changes to SME feature flags 
     with tempfile.TemporaryDirectory() as tmpdir:
         ttshared_path = os.path.join(tmpdir, "ttshared.mlir")
         llmlir_path = os.path.join(tmpdir, "ll.mlir")
@@ -151,6 +172,7 @@ class CPUBackend(BaseBackend):
 
     @staticmethod
     def make_ttir(mod, metadata, opt):
+        # assert False
         pm = ir.pass_manager(mod.context)
         pm.enable_debug()
         passes.common.add_inliner(pm)
