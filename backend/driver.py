@@ -40,8 +40,8 @@ def _extracted_ty(ty):
         'i64': 'int64_t',
         'u32': 'uint32_t',
         'u64': 'uint64_t',
-        'fp16': 'float16_t',
-        'bf16': 'bfloat16_t',
+        'fp16': 'float',
+        'bf16': 'float',
         'fp32': 'float',
         'f32': 'float',
         'fp64': 'double',
@@ -226,7 +226,7 @@ def compile_module(launcher_src, kernel_placeholder_name):
               # Compile it together.
               subprocess.check_call([
                 "g++", launcher_src_path, asm_src_path,
-                f"-I{py_include_dir}", f"-I{include_dir}" "-mfp16-format=ieee",
+                f"-I{py_include_dir}", f"-I{include_dir}",
                 "-shared", "-fPIC", "-o", so_path
               ])
 
