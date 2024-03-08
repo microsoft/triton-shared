@@ -51,55 +51,56 @@ struct OuterProductVectorizationPass : public PassWrapper<OuterProductVectorizat
   }
 };
 
-  struct MatmulTileConversion: public OpRewritePattern <linalg::MatmulOp> {
-    using OpRewritePattern <linalg::MatmulOp> ::OpRewritePattern;
+    struct MatmulTileConversion : public OpRewritePattern<linalg::MatmulOp> {
+      using OpRewritePattern<linalg::MatmulOp>::OpRewritePattern;
 
-    LogicalResult matchAndRewrite(linalg::MatmulOp op, PatternRewriter & rewriter) const override {
-      
+      LogicalResult matchAndRewrite(linalg::MatmulOp op,
+                                    PatternRewriter &rewriter) const override {
+        linalg::LinalgTilingOptions tilingOptions;
 
-    linalg::LinalgTilingOptions tilingOptions;
+        tilingOptions.setTileSizeComputationFunction([&](OpBuilder &b,
+                                                        Operation *) {
+          SmallVector<mlir::Value, 4> sizes;
+          sizes.reserve(3);
 
-    tilingOptions.setTileSizeComputationFunction([&](OpBuilder& b, Operation*) {
-      SmallVector<mlir::Value, 4> sizes;
-      sizes.reserve(3);
-      Location loc = op.getLoc();
+          Location loc = op.getLoc();
+          Value vscale = b.create<vector::VectorScaleOp>(loc, b.getIndexType());
+          Value tileM = b.create<arith::ConstantIndexOp>(loc, 4);
+          Value tileMScaled = b.create<arith::MulIOp>(loc, tileM, vscale);
+          sizes.push_back(tileMScaled);
+          Value tileN = b.create<arith::ConstantIndexOp>(loc, 4);
+          Value tileNScaled = b.create<arith::MulIOp>(loc, tileN, vscale);
+          sizes.push_back(tileNScaled);
+          Value tileK = b.create<arith::ConstantIndexOp>(loc, 1);
+          sizes.push_back(tileK);
 
-      Value vscale = b.create<vector::VectorScaleOp>(loc, b.getIndexType());
+          return sizes;
+        });
 
-      Value tileM = b.create<arith::ConstantIndexOp>(loc, 4);
-      Value tileMScaled = b.create<arith::MulIOp>(loc, tileM, vscale);
-      sizes.push_back(tileMScaled);
+        auto tiledOpResult = tileLinalgOp(rewriter, op, tilingOptions);
+        if (failed(tiledOpResult)) {
+          std::cout << "TILING FAILED" << std::endl;
+          return failure();
+        }
 
-      Value tileN = b.create<arith::ConstantIndexOp>(loc, 4);
-      Value tileNScaled = b.create<arith::MulIOp>(loc, tileN, vscale);
-      sizes.push_back(tileNScaled);
+        // Specify vector sizes and scalable dimensions for each dimension
+        SmallVector<int64_t, 4> inputVectorSizes = {4, 4, 1};
+        SmallVector<bool, 4> inputScalableVecDims = {true, true, false};
 
-      Value tileK = b.create<arith::ConstantIndexOp>(loc, 1);
-      sizes.push_back(tileK);
+        if (failed(linalg::vectorize(rewriter,
+                                    cast<linalg::LinalgOp>(
+                                        tiledOpResult->op.getOperation()),
+                                    inputVectorSizes, inputScalableVecDims))) {
+          std::cout << "Vectorization FAILED" << std::endl;
+          return failure();
+        }
 
-      return sizes;
-    });
+        MLIRContext *context = getContext();
+        rewriter.replaceOp(op, tiledOpResult->tensorResults);
 
-
-      auto tiledOpResult = tileLinalgOp(rewriter, op, tilingOptions);
-      if (failed(tiledOpResult)) {
-        std::cout << "TILING FAILED" << std::endl;
-        return failure();
+        return success();
       }
-
-      if (failed(linalg::vectorize(rewriter, cast<linalg::LinalgOp> (tiledOpResult->op.getOperation())))) {
-        std::cout << "Vectorization FAILED" << std::endl;
-        return failure();
-      }
-      MLIRContext *context = getContext();
-
-
-      rewriter.replaceOp(op, tiledOpResult->tensorResults);
-      return success();
-
-    }
-  };
-
+    };
   class MatmulTileConversionPass
     : public PassWrapper <MatmulTileConversionPass, OperationPass <func::FuncOp>> {
       public: void getDependentDialects(DialectRegistry & registry) const override {

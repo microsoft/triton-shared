@@ -17,7 +17,6 @@ from triton.backends.driver import DriverBase
 def has_hf():
   resp = os.popen("lscpu").read()
   if platform.machine() == "x86_64" and "f16c" in resp:
-    
     return True
   elif platform.machine() == "aarch64" and "fphp" in resp:
     return True
@@ -26,9 +25,9 @@ def has_hf():
 def has_bf():
   resp = os.popen("lscpu").read()
   if platform.machine() == "x86_64" and "avx512_bf16" in resp:
-    print("axv512_bf16")
     return True
-  #TODO add aarch64 support for bf16
+  elif platform.machine() == "aarch64" and "bf16" in resp:
+    return True
   return False
 
 
