@@ -2,7 +2,7 @@ import hashlib
 import tempfile
 import sysconfig
 
-import os, subprocess, tempfile
+import os, subprocess, tempfile, platform
 import importlib.util
 import sysconfig
 
@@ -13,9 +13,31 @@ from triton.backends.driver import DriverBase
 
 
 # -------------------- Launcher ----------------------------
+
+def has_hf():
+  resp = os.popen("lscpu").read()
+  if platform.machine() == "x86_64" and "f16c" in resp:
+    
+    return True
+  elif platform.machine() == "aarch64" and "fphp" in resp:
+    return True
+  return False
+
+def has_bf():
+  resp = os.popen("lscpu").read()
+  if platform.machine() == "x86_64" and "avx512_bf16" in resp:
+    print("axv512_bf16")
+    return True
+  #TODO add aarch64 support for bf16
+  return False
+
+
+
+# -------------------- Launcher ----------------------------
 def _ty_to_cpp(ty):
     if ty[0] == '*':
         return "void*"
+      
     return {
         "i1": "int32_t",
         "i8": "int8_t",
@@ -24,12 +46,14 @@ def _ty_to_cpp(ty):
         "i64": "int64_t",
         "u32": "uint32_t",
         "u64": "uint64_t",
-        "fp16": "float",
-        "bf16": "float",
+        "fp16": "float16_t" if has_hf() else "float",
+        "bf16": "bfloat16_t" if has_bf() else "float16_t" if has_hf() else "float",
         "fp32": "float",
         "f32": "float",
         "fp64": "double",
     }[ty]
+    
+    
 
 def _extracted_ty(ty):
     if ty[0] == '*':
@@ -40,15 +64,15 @@ def _extracted_ty(ty):
         'i64': 'int64_t',
         'u32': 'uint32_t',
         'u64': 'uint64_t',
-        'fp16': 'float',
-        'bf16': 'float',
+        "fp16": "float16_t" if has_hf() else "float",
+        "bf16": "bfloat16_t" if has_bf() else "float16_t" if has_hf() else "float",
         'fp32': 'float',
         'f32': 'float',
         'fp64': 'double',
     }[ty]
 
 def _format_of(ty):
-    return {
+    format_dict = {
         "PyObject*": "O",
         "float": "f",
         "double": "d",
@@ -57,7 +81,12 @@ def _format_of(ty):
         "int32_t": "i",
         "uint64_t": "K",
         "int64_t": "L",
-    }[ty]
+    }
+    if has_bf():
+        format_dict["bfloat16"] = "e"
+    if has_hf():
+        format_dict["float16"] = "h"
+    return format_dict[ty]
 
 def _generate_launcher(constants, signature, kernel_name):
     arg_decls = ', '.join(f"{_ty_to_cpp(ty)} arg{i}" for i, ty in signature.items())
@@ -68,6 +97,7 @@ def _generate_launcher(constants, signature, kernel_name):
 #include <Python.h>
 #include "ExecutionEngine/CRunnerUtils.h"
 #include "ExecutionEngine/CRunnerUtils.cpp"
+#include <stdfloat>
 
 extern "C" {{
   // Pointer type (=Memref) becomes int64_t + MemRef struct
