@@ -20,7 +20,9 @@ using namespace mlir;
 
 
 namespace {
-struct OuterProductVectorizationPass : public PassWrapper<OuterProductVectorizationPass, OperationPass<func::FuncOp>> {
+struct OuterProductVectorizationPass
+    : public PassWrapper<OuterProductVectorizationPass,
+                         OperationPass<func::FuncOp>> {
   void getDependentDialects(DialectRegistry &registry) const override {
     registry.insert<vector::VectorDialect, func::FuncDialect>();
   }
@@ -29,26 +31,38 @@ struct OuterProductVectorizationPass : public PassWrapper<OuterProductVectorizat
     func::FuncOp funcOp = getOperation();
     MLIRContext *context = funcOp.getContext();
     RewritePatternSet patterns(context);
+    ConversionTarget target(*context);
 
-    // Step 4: Lower vector.multi_reduction to vector.contract (+ some helpful patterns)
-    vector::VectorTransformsOptions vectorTransformsOptions;
-    vectorTransformsOptions.setVectorTransformsOptions(vector::VectorContractLowering::OuterProduct);
-    vector::populateVectorTransferDropUnitDimsPatterns(patterns);
-    vector::populateVectorReductionToContractPatterns(patterns);
+      // Apply patterns for lowering masked transfers
+    transform::ApplyLowerMaskedTransfersPatternsOp lowerMaskedTransfersPatterns;
+    lowerMaskedTransfersPatterns.populatePatterns(patterns);
+
+    // Apply patterns for transfer permutation
+    transform::ApplyTransferPermutationPatternsOp transferPermutationPatterns;
+    transferPermutationPatterns.populatePatterns(patterns);
+
+    // Apply patterns for reduction to contract
+    transform::ApplyVectorReductionToContractPatternsOp reductionToContractPatterns;
+    reductionToContractPatterns.populatePatterns(patterns);
+
+    // Apply patterns for lowering contraction using outer product
+    transform::ApplyLowerOuterProductPatternsOp lowerOuterProductPatterns;
+    lowerOuterProductPatterns.populatePatterns(patterns);
+
+    // Apply patterns for lowering masks
+    transform::ApplyLowerMasksPatternsOp lowerMasksPatterns;
+    lowerMasksPatterns.populatePatterns(patterns);
+
+    // Apply patterns for rank-reducing subview
+    transform::ApplyRankReducingSubviewPatternsOp rankReducingSubviewPatterns;
+    rankReducingSubviewPatterns.populatePatterns(patterns);
 
     if (failed(applyPatternsAndFoldGreedily(funcOp, std::move(patterns)))) {
       return signalPassFailure();
     }
 
-    // Step 5: Lower vector.contract to vector.outerproduct. Also drop unit dims.
-    patterns.clear();
-    vectorTransformsOptions.setVectorTransformsOptions(vector::VectorContractLowering::OuterProduct);
-    vector::populateVectorTransferDropUnitDimsPatterns(patterns);
-
-    if (failed(applyPatternsAndFoldGreedily(funcOp, std::move(patterns)))) {
-      return signalPassFailure();
-    }
   }
+  
 };
 
     struct MatmulTileConversion : public OpRewritePattern<linalg::MatmulOp> {
