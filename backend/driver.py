@@ -327,7 +327,7 @@ class CPUDriver(DriverBase):
         return
 
     def get_current_target(self):
-        return ("cpu", "0")
+        return "cpu"
 
     def assemble_tensormap_to_arg(self, tensormaps_info, args):
         return args
