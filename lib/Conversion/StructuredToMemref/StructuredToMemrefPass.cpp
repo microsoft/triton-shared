@@ -150,3 +150,8 @@ public:
   }
 };
 } // namespace
+
+std::unique_ptr<OperationPass<ModuleOp>>
+triton::createStructuredToMemrefPass() {
+  return std::make_unique<StructuredToMemrefPass>();
+}

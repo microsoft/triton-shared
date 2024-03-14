@@ -20,6 +20,8 @@ void populateTritonArithToLinalgConversionPatterns(bool pidsToFuncArgs,
                                                    bool assertToCf,
                                                    RewritePatternSet &patterns);
 
+std::unique_ptr<OperationPass<ModuleOp>> createTritonArithToLinalgPass();
+
 } // namespace triton
 } // namespace mlir
 
