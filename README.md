@@ -56,7 +56,7 @@ The middle layer can be used as a stand-alone component to convert Triton dialec
 
 Stand-alone example:
 ```
-triton-shared-opt --triton-to-linalg %file
+triton-shared-opt --triton-to-linalg-legacy %file
 ```
 
 ### 2. Backend Component

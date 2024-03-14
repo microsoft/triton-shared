@@ -43,7 +43,7 @@ module {
     tt.return
   }
 }
-// mlir2FileCheck.py
+
 // CHECK-DAG:   [[MAP_0_:#.+]] = affine_map<(d0, d1) -> (d0, d1)>
 // CHECK-LABEL:  func.func @kernel
 // CHECK-SAME:   ([[PARAM_0_:%.+]]: memref<*xf32>, [[PARAM_1_:%.+]]: memref<*xi32>, [[PARAM_2_:%.+]]: memref<*xf16>, [[PARAM_3_:%.+]]: tensor<128x128x!tt.ptr<bf16, 1>>, [[PARAM_4_:%.+]]: tensor<128x128x!tt.ptr<f32, 1>>, [[PARAM_5_:%.+]]: tensor<128x128x!tt.ptr<f32, 1>>, [[PARAM_6_:%.+]]: tensor<128x128x!tt.ptr<f32, 1>>, [[PARAM_7_:%.+]]: tensor<128x128x!tt.ptr<f32, 1>>, [[PARAM_8_:%.+]]: i32, [[PARAM_9_:%.+]]: i32, [[PARAM_10_:%.+]]: i32, [[PARAM_11_:%.+]]: i32, [[PARAM_12_:%.+]]: i32, [[PARAM_13_:%.+]]: i32) {
