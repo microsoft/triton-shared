@@ -130,17 +130,17 @@ class CPUOptions:
 
 
 class CPUBackend(BaseBackend):
+    binary_ext = 'cpuasm'
+
     @staticmethod
-    def supports_target(target: tuple):
-        return target[0] == 'cpu'
+    def supports_target(target: str):
+        return target == 'cpu'
 
     def __init__(self, target: tuple) -> None:
         super().__init__(target)
-        assert isinstance(target, tuple) and len(target) == 2
-        assert isinstance(target[1], str)
 
     def parse_options(self, opts) -> Any:
-        args = {'arch': self.target[1]}
+        args = {'arch': self.target}
         args.update({k: opts[k] for k in CPUOptions.__dataclass_fields__.keys() if k in opts})
         return CPUOptions(**args)
 
@@ -172,4 +172,4 @@ class CPUBackend(BaseBackend):
 
     @functools.lru_cache()
     def hash(self):
-        return f'{1}-{self.target}'
+        return self.target
