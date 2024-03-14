@@ -9,6 +9,7 @@
 #include "triton-shared/Conversion/TritonArithToLinalg/TritonArithToLinalg.h"
 #include "triton-shared/Conversion/TritonToLinalgExperimental/TritonToLinalgExperimental.h"
 #include "triton-shared/Conversion/TritonToStructured/TritonToStructured.h"
+#include "triton-shared/Dialect/TritonStructured/IR/TritonStructuredDialect.h"
 #include "triton-shared/Dialect/TritonTilingExt/IR/TritonTilingExtDialect.h"
 
 #include "mlir/Dialect/Affine/IR/AffineOps.h"
@@ -36,7 +37,8 @@ public:
         .insert<func::FuncDialect, arith::ArithDialect, math::MathDialect,
                 linalg::LinalgDialect, affine::AffineDialect, scf::SCFDialect,
                 tensor::TensorDialect, bufferization::BufferizationDialect,
-                memref::MemRefDialect, ttx::TritonTilingExtDialect>();
+                memref::MemRefDialect, ttx::TritonTilingExtDialect,
+                tts::TritonStructuredDialect>();
   }
 
   void runOnOperation() override {
