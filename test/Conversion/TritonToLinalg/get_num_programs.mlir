@@ -2,9 +2,9 @@
 
 module {
   tt.func public @num_programs(%arg0: !tt.ptr<i32>) {
-    %0 = tt.get_num_programs {axis = 0 : i32} : i32
-    %1 = tt.get_num_programs {axis = 1 : i32} : i32
-    %2 = tt.get_num_programs {axis = 2 : i32} : i32
+    %0 = tt.get_num_programs x : i32
+    %1 = tt.get_num_programs y : i32
+    %2 = tt.get_num_programs z : i32
     %3 = tt.make_range {end = 1 : i32, start = 0 : i32} : tensor<1xi32>
     %4 = tt.make_range {end = 2 : i32, start = 1 : i32} : tensor<1xi32>
     %5 = tt.make_range {end = 3 : i32, start = 2 : i32} : tensor<1xi32>
