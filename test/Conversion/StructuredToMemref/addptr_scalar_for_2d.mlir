@@ -1,4 +1,4 @@
-// RUN: triton-shared-opt --split-input-file --triton-to-structured --canonicalize --triton-arith-to-linalg --structured-to-memref %s | FileCheck %s
+// RUN: triton-shared-opt --split-input-file --triton-to-linalg-experimental %s | FileCheck %s
 module {
   tt.func @kernel (%arg0: !tt.ptr<f32> {tt.divisibility = 16 : i32}, %arg1: !tt.ptr<f32> {tt.divisibility = 16 : i32}, %arg2: i32, %arg3: i32, %arg4: i32) {
     %0 = tt.get_program_id x : i32

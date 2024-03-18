@@ -15,8 +15,6 @@
 #include "mlir/Dialect/Linalg/IR/Linalg.h"
 #include "mlir/Pass/PassManager.h"
 #include "mlir/Transforms/GreedyPatternRewriteDriver.h"
-#include "mlir/Transforms/Passes.h"
-#include "triton/Dialect/Triton/IR/Types.h"
 
 #include "llvm/Support/Debug.h"
 
@@ -194,4 +192,10 @@ public:
     }
   }
 };
+
 } // namespace
+
+std::unique_ptr<OperationPass<ModuleOp>>
+triton::createTritonArithToLinalgPass() {
+  return std::make_unique<TritonArithToLinalgPass>();
+}

@@ -1,4 +1,4 @@
-// RUN: triton-shared-opt --split-input-file --triton-to-structured --canonicalize --triton-arith-to-linalg --structured-to-memref  %s | FileCheck %s
+// RUN: triton-shared-opt --split-input-file --triton-to-linalg-experimental  %s | FileCheck %s
 module {
   tt.func public @minmax_sgt(%arg0: !tt.ptr<i32>) {
     %cst_0 = arith.constant dense<0> : tensor<4096xi32>
