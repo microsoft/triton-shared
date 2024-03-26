@@ -1,14 +1,12 @@
-add_mlir_conversion_library(StructuredToMemref
+add_triton_library(StructuredToMemref
   StructuredToMemref.cpp
   StructuredToMemrefPass.cpp
 
   DEPENDS
   StructuredToMemrefConversionPassIncGen
 
-  LINK_COMPONENTS
-  Core
-
   LINK_LIBS PUBLIC
+  MLIRSCFTransforms
   MLIRArithDialect
   MLIRDialectUtils
   MLIRIR

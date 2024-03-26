@@ -1,4 +1,4 @@
-add_mlir_dialect_library(TritonStructuredIR
+add_triton_library(TritonStructuredIR
   TritonStructuredOps.cpp
   TritonStructuredDialect.cpp
 

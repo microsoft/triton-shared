@@ -1,14 +1,12 @@
-add_mlir_conversion_library(TritonArithToLinalg
+add_triton_library(TritonArithToLinalg
   TritonArithToLinalg.cpp
   TritonArithToLinalgPass.cpp
 
   DEPENDS
   TritonArithToLinalgConversionPassIncGen
 
-  LINK_COMPONENTS
-  Core
-
   LINK_LIBS PUBLIC
+  MLIRLinalgTransforms
   MLIRArithDialect
   MLIRDialectUtils
   MLIRIR
