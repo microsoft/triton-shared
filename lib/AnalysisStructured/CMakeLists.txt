@@ -1,4 +1,4 @@
-add_mlir_library(TritonSharedAnalysisStructured
+add_triton_library(TritonSharedAnalysisStructured
   PtrAnalysis.cpp
 
   DEPENDS

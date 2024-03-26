@@ -4,15 +4,12 @@
 #
 #===------------------------------------------------------------------------===#
 
-add_mlir_conversion_library(TritonToLinalg
+add_triton_library(TritonToLinalg
   TritonToLinalg.cpp
   TritonToLinalgPass.cpp
 
   DEPENDS
   TritonToLinalgConversionPassIncGen
-
-  LINK_COMPONENTS
-  Core
 
   LINK_LIBS PUBLIC
   TritonTilingExtIR
