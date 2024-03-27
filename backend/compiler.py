@@ -56,7 +56,7 @@ def _optimize_ttsharedir(ttsharedir: str):
         dst_path = os.path.join(tmpdir, "ttsme.mlir")
         Path(src_path).write_text(ttsharedir)
         triton_shared_opt_path = _get_triton_SME_path()
-        subprocess.check_call([triton_shared_opt_path, src_path, "-sme-converison", "-o", dst_path])
+        subprocess.check_call([triton_shared_opt_path, src_path,  "--triton-to-structured", "--canonicalize", "--triton-arith-to-linalg", "--cse", "--structured-to-memref", "-o", dst_path])
         output= Path(dst_path).read_text()
         printc(output)
         return output
@@ -74,7 +74,7 @@ def _ttsharedir_to_llir(ttsharedir: str): #going to need to add some flags to th
             "--convert-linalg-to-affine-loops",
             "--eliminate-empty-tensors",
             "--empty-tensor-to-alloc-tensor",
-            "--one-shot-bufferize=allow-return-allocs-from-loops=true",
+            "--one-shot-bufferize=allow-return-allocs-from-loops=true", 
             "--lower-affine",
             "--convert-linalg-to-loops",
             "--convert-scf-to-cf",
