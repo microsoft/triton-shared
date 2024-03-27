@@ -1,4 +1,4 @@
-// RUN: triton-shared-opt --split-input-file --triton-to-structured --canonicalize --triton-arith-to-linalg --structured-to-memref  %s | FileCheck %s
+// RUN: triton-shared-opt --split-input-file --triton-to-linalg-experimental  %s | FileCheck %s
 module {
   tt.func public @minmax_olt(%arg0: !tt.ptr<f32>, %arg1: f32, %arg2: f32) {
     %0 = arith.cmpf olt, %arg1, %arg2 : f32

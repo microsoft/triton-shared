@@ -16,6 +16,8 @@ namespace triton {
 void populateStructuredToMemrefConversionPatterns(RewritePatternSet &patterns,
                                                   TypeConverter &typeConverter);
 
+std::unique_ptr<OperationPass<ModuleOp>> createStructuredToMemrefPass();
+
 } // namespace triton
 } // namespace mlir
 

@@ -1,4 +1,4 @@
-// RUN: triton-shared-opt --split-input-file --triton-to-structured --canonicalize --triton-arith-to-linalg --structured-to-memref %s | FileCheck %s
+// RUN: triton-shared-opt --split-input-file --triton-to-linalg-experimental %s | FileCheck %s
 tt.func public @assert_lol(%arg0: i32) {
   %c0_i32 = arith.constant 0 : i32
   %0 = arith.cmpi sgt, %arg0, %c0_i32 : i32

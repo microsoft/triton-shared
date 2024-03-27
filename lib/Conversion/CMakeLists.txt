@@ -1,4 +1,5 @@
 add_subdirectory(TritonToLinalg)
+add_subdirectory(TritonToLinalgExperimental)
 add_subdirectory(TritonToStructured)
 add_subdirectory(TritonArithToLinalg)
 add_subdirectory(StructuredToMemref)
