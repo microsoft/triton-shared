@@ -63,7 +63,7 @@ public:
   LoopTypeConverter(MLIRContext *context) {
     // The order of type conversion is important: later ones are tried earlier.
     addConversion([](Type type) { return type; });
-    addConversion([&](triton::PointerType ptrType) {
+    addConversion([context](triton::PointerType ptrType) {
       SmallVector<int64_t> strides{1};
       auto layout =
           StridedLayoutAttr::get(context, ShapedType::kDynamic, strides);
@@ -110,6 +110,7 @@ public:
 
     if (failed(convertArgsToMemrefType())) {
       signalPassFailure();
+      return;
     }
 
     auto moduleOp = getOperation();

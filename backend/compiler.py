@@ -144,6 +144,10 @@ class CPUBackend(BaseBackend):
         args.update({k: opts[k] for k in CPUOptions.__dataclass_fields__.keys() if k in opts})
         return CPUOptions(**args)
 
+    def get_codegen_implementation(self):
+        codegen_fns = dict()
+        return codegen_fns
+
     # Our compilation pipeline isn't in python like nvidia or amd, no need to load
     # dialects. See `triton_shared.cc`
     def load_dialects(self, ctx):
