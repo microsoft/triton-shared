@@ -1,4 +1,4 @@
-// RUN: triton-shared-opt --split-input-file --triton-to-structured --canonicalize --triton-arith-to-linalg --structured-to-memref %s | FileCheck %s
+// RUN: triton-shared-opt --split-input-file --triton-to-linalg-experimental %s | FileCheck %s
 // TODO: expand this example to 3D
 module {
   tt.func @kernel(
