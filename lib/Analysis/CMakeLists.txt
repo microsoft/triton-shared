@@ -1,4 +1,4 @@
-add_mlir_library(TritonSharedAnalysis
+add_triton_library(TritonSharedAnalysis
   MaskAnalysis.cpp
   OpFoldResultUtils.cpp
   PtrAnalysis.cpp
