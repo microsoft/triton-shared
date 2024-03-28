@@ -27,6 +27,36 @@
 using namespace mlir;
 
 namespace matmul_conversion {
+struct OneShotBufferizationPass : public PassWrapper<OneShotBufferizationPass, OperationPass<ModuleOp>> {
+  MLIR_DEFINE_EXPLICIT_INTERNAL_INLINE_TYPE_ID(OneShotBufferizationPass)
+
+  void getDependentDialects(DialectRegistry &registry) const override {
+    registry.insert<bufferization::BufferizationDialect>();
+  }
+
+  void runOnOperation() override {
+    ModuleOp moduleOp = getOperation();
+    MLIRContext *context = &getContext();
+
+    // Set up OneShotBufferizationOptions.
+    bufferization::OneShotBufferizationOptions options;
+    options.allowReturnAllocsFromLoops = true;
+    options.allowUnknownOps = true;
+    options.bufferizeFunctionBoundaries = true;
+    options.unknownTypeConverterFn =
+        [](mlir::Value value, mlir::Attribute memorySpace,
+           const mlir::bufferization::BufferizationOptions &options) {
+          return mlir::bufferization::getMemRefTypeWithStaticIdentityLayout(
+              value.getType().cast<mlir::TensorType>(), memorySpace);
+        };
+    options.setFunctionBoundaryTypeConversion(
+        mlir::bufferization::LayoutMapOption::IdentityLayoutMap);
+    // Run One-Shot Bufferize.
+    if (failed(bufferization::runOneShotBufferize(moduleOp, options))) {
+      return signalPassFailure();
+    }
+  }
+};
 
 struct MatmulTileConversion : public OpRewritePattern<linalg::MatmulOp> {
   explicit MatmulTileConversion(MLIRContext *context, bool enableSME)
@@ -152,13 +182,16 @@ struct OuterProductVectorizationPass
   }
 };
 
-std::unique_ptr<Pass> createOuterProductVectorizationPass() {
-  return std::make_unique<OuterProductVectorizationPass>();
-}
+  std::unique_ptr<Pass> createOuterProductVectorizationPass() {
+    return std::make_unique<OuterProductVectorizationPass>();
+  }
 
-std::unique_ptr<Pass> createMatmulTileConversionPass(bool enableSME) {
-  return std::make_unique<MatmulTileConversionPass>(enableSME);
-}
+  std::unique_ptr<Pass> createMatmulTileConversionPass(bool enableSME) {
+    return std::make_unique<MatmulTileConversionPass>(enableSME);
+  }
+  std::unique_ptr<Pass> createOneShotBufferizationPass() {
+    return std::make_unique<OneShotBufferizationPass>();
+  }
 
 } // namespace matmul_conversion
 
@@ -184,9 +217,7 @@ int main(int argc, char **argv) {
       "Converts linalg.matmul to a more optimized form using SME",
       [](OpPassManager &pm) {
         pm.addPass(matmul_conversion::createMatmulTileConversionPass(true));
-        pm.addPass(mlir::tensor::createTensorBufferizePass());
-        pm.addPass(createLinalgBufferizePass());
-        //adddiontal bufferization lowering may be necessary
+        pm.addPass(matmul_conversion::createOneShotBufferizationPass());
         pm.addPass(matmul_conversion::createOuterProductVectorizationPass());
       });
 
