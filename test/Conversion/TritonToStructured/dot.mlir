@@ -44,7 +44,7 @@ module {
     %50 = tt.splat %arg2 : !tt.ptr<bf16> -> tensor<128x256x!tt.ptr<bf16>>
     %51 = tt.addptr %50, %26 : tensor<128x256x!tt.ptr<bf16>>, tensor<128x256xi32>
     %52 = tt.load %51 {cache = 1 : i32, evict = 1 : i32, isVolatile = false}: tensor<128x256xbf16>
-    %60 = tt.dot %32, %43, %52 {allowTF32 = false, maxNumImpreciseAcc = 0 : i32} : tensor<128x64xbf16> * tensor<64x256xbf16> -> tensor<128x256xbf16>
+    %60 = tt.dot %32, %43, %52 {inputPrecision = 2 : i32, maxNumImpreciseAcc = 0 : i32} : tensor<128x64xbf16> * tensor<64x256xbf16> -> tensor<128x256xbf16>
     tt.store %51, %60 : tensor<128x256xbf16>
     tt.return
   }
@@ -60,7 +60,7 @@ module {
 // CHECK-DAG:       [[VAR_4_:%.+]] = tt.trans [[VAR_3_]] {order = array<i32: 1, 0>} : tensor<256x64xbf16> -> tensor<64x256xbf16>
 // CHECK-DAG:       [[VAR_5_:%.+]] = tts.make_tptr [[PARAM_2_]] to sizes: [128, 256], strides: {{.}}[[CST_256_]], 1], offsets: [0, 0], shape: [0, 0], order: [] : <bf16, 1> to tensor<128x256x!tt.ptr<bf16, 1>>
 // CHECK:           [[VAR_6_:%.+]] = "tts.load"([[VAR_5_]]) <{operandSegmentSizes = array<i32: 1, 0, 0>, static_mask_dims = array<i64>}> : (tensor<128x256x!tt.ptr<bf16, 1>>) -> tensor<128x256xbf16>
-// CHECK:           [[VAR_7_:%.+]] = tt.dot [[VAR_1_]], [[VAR_4_]], [[VAR_6_]] {allowTF32 = false, maxNumImpreciseAcc = 0 : i32} : tensor<128x64xbf16> * tensor<64x256xbf16> -> tensor<128x256xbf16>
+// CHECK:           [[VAR_7_:%.+]] = tt.dot [[VAR_1_]], [[VAR_4_]], [[VAR_6_]] {inputPrecision = 2 : i32, maxNumImpreciseAcc = 0 : i32} : tensor<128x64xbf16> * tensor<64x256xbf16> -> tensor<128x256xbf16>
 // CHECK:           "tts.store"([[VAR_5_]], [[VAR_7_]]) <{static_mask_dims = array<i64>}> : (tensor<128x256x!tt.ptr<bf16, 1>>, tensor<128x256xbf16>) -> ()
 // CHECK:           tt.return
 // CHECK:         }

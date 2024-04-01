@@ -43,7 +43,7 @@ module {
     %51 = tt.addptr %50, %26 : tensor<128x256x!tt.ptr<bf16>>, tensor<128x256xi32>
     %cf0 = arith.constant 0.0 : bf16
     %71 = tt.splat %cf0 : bf16 -> tensor<128x256xbf16>
-    %60 = tt.dot %32, %42, %71 {allowTF32 = false, maxNumImpreciseAcc = 0 : i32} : tensor<128x64xbf16> * tensor<64x256xbf16> -> tensor<128x256xbf16>
+    %60 = tt.dot %32, %42, %71 {inputPrecision = 2 : i32, maxNumImpreciseAcc = 0 : i32} : tensor<128x64xbf16> * tensor<64x256xbf16> -> tensor<128x256xbf16>
     tt.store %51, %60 : tensor<128x256xbf16>
     tt.store %51, %71 : tensor<128x256xbf16>
     tt.return
