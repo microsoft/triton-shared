@@ -749,7 +749,6 @@ struct ScalarAddptrConverter : public OpConversionPattern<triton::AddPtrOp> {
       return failure();
     }
 
-    auto ptr = adaptor.getPtr();
     auto loc = op->getLoc();
 
     auto offsetIndex = rewriter.create<arith::IndexCastOp>(
@@ -762,19 +761,43 @@ struct ScalarAddptrConverter : public OpConversionPattern<triton::AddPtrOp> {
         cast<triton::PointerType>(op.getPtr().getType()).getPointeeType();
     auto memrefType = MemRefType::get({1}, elemType, layout);
 
-    auto extractMetadataOp =
-        rewriter.create<memref::ExtractStridedMetadataOp>(loc, ptr);
-    auto base = extractMetadataOp.getBaseBuffer();
-    auto offset = extractMetadataOp.getOffset();
+    auto ptr = adaptor.getPtr();
+    auto definingOp = ptr.getDefiningOp();
 
-    auto newOffset = rewriter.create<arith::AddIOp>(loc, offset, offsetIndex);
+    if (definingOp) {
+      auto reinterpretCast = cast<memref::ReinterpretCastOp>(definingOp);
+      auto base = reinterpretCast.getSource();
+      auto offsets = reinterpretCast.getMixedOffsets();
+      assert(offsets.size() == 1);
+      Value offset = ofrToIndexValue(offsets[0], loc, rewriter);
 
-    auto castOp = rewriter.create<memref::ReinterpretCastOp>(
-        loc, memrefType, base, getAsOpFoldResult(newOffset) /*offset*/,
-        ArrayRef<OpFoldResult>{rewriter.getIndexAttr(1)} /*sizes*/,
-        ArrayRef<OpFoldResult>{rewriter.getIndexAttr(1)} /*strides*/);
+      auto newOffset = rewriter.create<arith::AddIOp>(loc, offset, offsetIndex);
 
-    rewriter.replaceOp(op, castOp.getResult());
+      auto castOp = rewriter.create<memref::ReinterpretCastOp>(
+          loc, memrefType, base, getAsOpFoldResult(newOffset) /*offset*/,
+          ArrayRef<OpFoldResult>{rewriter.getIndexAttr(1)} /*sizes*/,
+          ArrayRef<OpFoldResult>{rewriter.getIndexAttr(1)} /*strides*/);
+
+      rewriter.replaceOp(op, castOp.getResult());
+
+    } else {
+      // This addptr is being used as an iter-arg in a loop. We use
+      // memref.extract_strided_metadata to avoid having to carry on the offset
+      // in each loop iteration.
+      auto extractMetadataOp =
+          rewriter.create<memref::ExtractStridedMetadataOp>(loc, ptr);
+      auto base = extractMetadataOp.getBaseBuffer();
+      auto offset = extractMetadataOp.getOffset();
+
+      auto newOffset = rewriter.create<arith::AddIOp>(loc, offset, offsetIndex);
+
+      auto castOp = rewriter.create<memref::ReinterpretCastOp>(
+          loc, memrefType, base, getAsOpFoldResult(newOffset) /*offset*/,
+          ArrayRef<OpFoldResult>{rewriter.getIndexAttr(1)} /*sizes*/,
+          ArrayRef<OpFoldResult>{rewriter.getIndexAttr(1)} /*strides*/);
+
+      rewriter.replaceOp(op, castOp.getResult());
+    }
 
     return success();
   }
