@@ -1,7 +1,7 @@
 from triton.backends.compiler import BaseBackend
 from triton._C.libtriton import ir, passes
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Tuple
 import hashlib
 import tempfile
 import os
@@ -120,6 +120,7 @@ class CPUOptions:
     cluster_dims: tuple = (1, 1, 1)
     shared: bool = False
     allow_fp8e4nv: bool = False
+    allowed_dot_input_precisions: Tuple[str] = ("ieee", )
 
     def __post_init__(self):
         pass
