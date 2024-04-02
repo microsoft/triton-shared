@@ -749,7 +749,6 @@ struct ScalarAddptrConverter : public OpConversionPattern<triton::AddPtrOp> {
       return failure();
     }
 
-    auto ptr = adaptor.getPtr();
     auto loc = op->getLoc();
 
     auto offsetIndex = rewriter.create<arith::IndexCastOp>(
@@ -762,19 +761,61 @@ struct ScalarAddptrConverter : public OpConversionPattern<triton::AddPtrOp> {
         cast<triton::PointerType>(op.getPtr().getType()).getPointeeType();
     auto memrefType = MemRefType::get({1}, elemType, layout);
 
-    auto extractMetadataOp =
-        rewriter.create<memref::ExtractStridedMetadataOp>(loc, ptr);
-    auto base = extractMetadataOp.getBaseBuffer();
-    auto offset = extractMetadataOp.getOffset();
+    auto ptr = adaptor.getPtr();
+    auto definingOp = ptr.getDefiningOp();
 
-    auto newOffset = rewriter.create<arith::AddIOp>(loc, offset, offsetIndex);
+    // The defining op of `ptr`, if it exists, must always be a reinterpret_cast
+    // because:
+    //  - `ptr` can only come from either a) the result of another tt.addptr,
+    //     b) directly from the function argument, or c) from a block iter arg.
+    //
+    // - for case a), the conversion always replaces tt.addptr with a
+    //   reinterpret_cast. So the defining op of adaptor.getPtr() must be
+    //   a reinterpret_cast.
+    //
+    // - for case b), before applying the conversion, we have already converted
+    //   the function signature to use arguments of memref type using
+    //   unrealized_cast. And these unrealized_cast are converted to
+    //   reinterpret_cast of offset 0 and size 1 in UnrealizedCastConverter.
+    //   So the defining op of adaptor.getPtr() again must be a
+    //   reinterpret_cast.
+    //
+    // - for case c), if the defining op doesn't exist, the tt.addptr op must be
+    //   in a loop.
+    if (definingOp) {
+      auto reinterpretCast = cast<memref::ReinterpretCastOp>(definingOp);
+      auto base = reinterpretCast.getSource();
+      auto offsets = reinterpretCast.getMixedOffsets();
+      // Size must always be 1 because we're dealing with scalars.
+      assert(offsets.size() == 1);
+      Value offset = ofrToIndexValue(offsets[0], loc, rewriter);
 
-    auto castOp = rewriter.create<memref::ReinterpretCastOp>(
-        loc, memrefType, base, getAsOpFoldResult(newOffset) /*offset*/,
-        ArrayRef<OpFoldResult>{rewriter.getIndexAttr(1)} /*sizes*/,
-        ArrayRef<OpFoldResult>{rewriter.getIndexAttr(1)} /*strides*/);
+      auto newOffset = rewriter.create<arith::AddIOp>(loc, offset, offsetIndex);
 
-    rewriter.replaceOp(op, castOp.getResult());
+      auto castOp = rewriter.create<memref::ReinterpretCastOp>(
+          loc, memrefType, base, getAsOpFoldResult(newOffset) /*offset*/,
+          ArrayRef<OpFoldResult>{rewriter.getIndexAttr(1)} /*sizes*/,
+          ArrayRef<OpFoldResult>{rewriter.getIndexAttr(1)} /*strides*/);
+
+      rewriter.replaceOp(op, castOp.getResult());
+    } else {
+      // This addptr is being used as an iter-arg in a loop. We use
+      // memref.extract_strided_metadata to avoid having to carry on the offset
+      // in each loop iteration.
+      auto extractMetadataOp =
+          rewriter.create<memref::ExtractStridedMetadataOp>(loc, ptr);
+      auto base = extractMetadataOp.getBaseBuffer();
+      auto offset = extractMetadataOp.getOffset();
+
+      auto newOffset = rewriter.create<arith::AddIOp>(loc, offset, offsetIndex);
+
+      auto castOp = rewriter.create<memref::ReinterpretCastOp>(
+          loc, memrefType, base, getAsOpFoldResult(newOffset) /*offset*/,
+          ArrayRef<OpFoldResult>{rewriter.getIndexAttr(1)} /*sizes*/,
+          ArrayRef<OpFoldResult>{rewriter.getIndexAttr(1)} /*strides*/);
+
+      rewriter.replaceOp(op, castOp.getResult());
+    }
 
     return success();
   }
