@@ -141,6 +141,10 @@ static PyObject* launch(PyObject* self, PyObject* args) {{
     return NULL;
   }}
 
+  // [CPULauncher-specific]: We don't need the metadata below but just put them
+  // here anyway to be consistent with others.
+  // This will make updating the driver easier in the future.
+
   // extract kernel metadata
   int num_warps     = PyLong_AsLong(PyObject_GetAttrString(kernel_metadata, "num_warps"));
   int num_ctas      = PyLong_AsLong(PyObject_GetAttrString(kernel_metadata, "num_ctas"));
