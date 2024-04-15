@@ -37,7 +37,7 @@ module {
     tt.return
   }
 }
-// mlir2FileCheck.py
+
 // CHECK-DAG:   [[MAP_0_:#.+]] = affine_map<(d0) -> (d0)>
 // CHECK-LABEL:  func.func @kernel
 // CHECK-SAME:   ([[PARAM_0_:%.+]]: memref<*xf32>, [[PARAM_1_:%.+]]: memref<*xi32>, [[PARAM_2_:%.+]]: memref<*xf16>, [[PARAM_3_:%.+]]: tensor<1024x!tt.ptr<bf16, 1>>, [[PARAM_4_:%.+]]: tensor<1024x!tt.ptr<f32, 1>>, [[PARAM_5_:%.+]]: tensor<1024x!tt.ptr<f32, 1>>, [[PARAM_6_:%.+]]: tensor<1024x!tt.ptr<f32, 1>>, [[PARAM_7_:%.+]]: tensor<1024x!tt.ptr<f32, 1>>, [[PARAM_8_:%.+]]: i32, [[PARAM_9_:%.+]]: i32, [[PARAM_10_:%.+]]: i32, [[PARAM_11_:%.+]]: i32, [[PARAM_12_:%.+]]: i32, [[PARAM_13_:%.+]]: i32) {
@@ -56,35 +56,34 @@ module {
 // CHECK-DAG:       [[VAR_3_:%.+]] = tensor.empty() : tensor<1024xbf16>
 // CHECK:           [[VAR_4_:%.+]] = linalg.generic {indexing_maps = [#map, #map], iterator_types = ["parallel"]} ins([[VAR_0_]] : tensor<1024xf32>) outs([[VAR_3_]] : tensor<1024xbf16>) {
 // CHECK:           ^bb0([[IN_0_:%.+]]: f32, [[IN_1_:%.+]]: bf16):
-// CHECK:             [[VAR_11_:%.+]] = arith.truncf [[IN_0_]] : f32 to bf16
-// CHECK:             linalg.yield [[VAR_11_]] : bf16
+// CHECK:             [[VAR_10_:%.+]] = arith.truncf [[IN_0_]] : f32 to bf16
+// CHECK:             linalg.yield [[VAR_10_]] : bf16
 // CHECK:           } -> tensor<1024xbf16>
 // CHECK:           [[VAR_5_:%.+]] = linalg.generic {indexing_maps = [#map, #map], iterator_types = ["parallel"]} ins([[VAR_0_]] : tensor<1024xf32>) outs([[VAR_0_]] : tensor<1024xf32>) {
 // CHECK:           ^bb0([[IN_2_:%.+]]: f32, [[IN_3_:%.+]]: f32):
-// CHECK:             [[VAR_11_1_:%.+]] = math.exp [[IN_2_]] : f32
-// CHECK:             linalg.yield [[VAR_11_1_]] : f32
+// CHECK:             [[VAR_10_1_:%.+]] = math.exp [[IN_2_]] : f32
+// CHECK:             linalg.yield [[VAR_10_1_]] : f32
 // CHECK:           } -> tensor<1024xf32>
 // CHECK:           [[VAR_6_:%.+]] = tensor.empty() : tensor<1024xf32>
 // CHECK:           [[VAR_7_:%.+]] = linalg.generic {indexing_maps = [#map, #map], iterator_types = ["parallel"]} ins([[VAR_1_]] : tensor<1024xi32>) outs([[VAR_6_]] : tensor<1024xf32>) {
 // CHECK:           ^bb0([[IN_4_:%.+]]: i32, [[IN_5_:%.+]]: f32):
-// CHECK:             [[VAR_11_2_:%.+]] = arith.sitofp [[IN_4_]] : i32 to f32
-// CHECK:             linalg.yield [[VAR_11_2_]] : f32
+// CHECK:             [[VAR_10_2_:%.+]] = arith.sitofp [[IN_4_]] : i32 to f32
+// CHECK:             linalg.yield [[VAR_10_2_]] : f32
 // CHECK:           } -> tensor<1024xf32>
-// CHECK:           [[VAR_8_:%.+]] = tensor.empty() : tensor<1024xf32>
-// CHECK:           [[VAR_9_:%.+]] = linalg.generic {indexing_maps = [#map, #map], iterator_types = ["parallel"]} ins([[VAR_2_]] : tensor<1024xf16>) outs([[VAR_8_]] : tensor<1024xf32>) {
+// CHECK:           [[VAR_8_:%.+]] = linalg.generic {indexing_maps = [#map, #map], iterator_types = ["parallel"]} ins([[VAR_2_]] : tensor<1024xf16>) outs([[VAR_6_]] : tensor<1024xf32>) {
 // CHECK:           ^bb0([[IN_6_:%.+]]: f16, [[IN_7_:%.+]]: f32):
-// CHECK:             [[VAR_11_3_:%.+]] = arith.extf [[IN_6_]] : f16 to f32
-// CHECK:             linalg.yield [[VAR_11_3_]] : f32
+// CHECK:             [[VAR_10_3_:%.+]] = arith.extf [[IN_6_]] : f16 to f32
+// CHECK:             linalg.yield [[VAR_10_3_]] : f32
 // CHECK:           } -> tensor<1024xf32>
-// CHECK:           [[VAR_10_:%.+]] = linalg.generic {indexing_maps = [#map, #map], iterator_types = ["parallel"]} ins([[VAR_0_]] : tensor<1024xf32>) outs([[VAR_0_]] : tensor<1024xf32>) {
+// CHECK:           [[VAR_9_:%.+]] = linalg.generic {indexing_maps = [#map, #map], iterator_types = ["parallel"]} ins([[VAR_0_]] : tensor<1024xf32>) outs([[VAR_0_]] : tensor<1024xf32>) {
 // CHECK:           ^bb0([[IN_8_:%.+]]: f32, [[IN_9_:%.+]]: f32):
-// CHECK:             [[VAR_11_4_:%.+]] = math.sqrt [[IN_8_]] : f32
-// CHECK:             linalg.yield [[VAR_11_4_]] : f32
+// CHECK:             [[VAR_10_4_:%.+]] = math.sqrt [[IN_8_]] : f32
+// CHECK:             linalg.yield [[VAR_10_4_]] : f32
 // CHECK:           } -> tensor<1024xf32>
 // CHECK:           tt.store [[PARAM_3_]], [[VAR_4_]] {cache = 1 : i32, evict = 1 : i32} : tensor<1024xbf16>
 // CHECK:           tt.store [[PARAM_4_]], [[VAR_5_]] {cache = 1 : i32, evict = 1 : i32} : tensor<1024xf32>
 // CHECK:           tt.store [[PARAM_5_]], [[VAR_7_]] {cache = 1 : i32, evict = 1 : i32} : tensor<1024xf32>
-// CHECK:           tt.store [[PARAM_6_]], [[VAR_9_]] {cache = 1 : i32, evict = 1 : i32} : tensor<1024xf32>
-// CHECK:           tt.store [[PARAM_7_]], [[VAR_10_]] {cache = 1 : i32, evict = 1 : i32} : tensor<1024xf32>
+// CHECK:           tt.store [[PARAM_6_]], [[VAR_8_]] {cache = 1 : i32, evict = 1 : i32} : tensor<1024xf32>
+// CHECK:           tt.store [[PARAM_7_]], [[VAR_9_]] {cache = 1 : i32, evict = 1 : i32} : tensor<1024xf32>
 // CHECK:           return
 // CHECK:         }

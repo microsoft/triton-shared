@@ -21,7 +21,7 @@ module {
     tt.return
   }
 }
-// mlir2FileCheck.py
+
 // CHECK-LABEL:  func.func @kernel
 // CHECK-SAME:   ([[PARAM_0_:%.+]]: memref<*xbf16>, [[PARAM_1_:%.+]]: memref<*xbf16>, [[PARAM_2_:%.+]]: i32, [[PARAM_3_:%.+]]: i32, [[PARAM_4_:%.+]]: i32, [[PARAM_5_:%.+]]: i32, [[PARAM_6_:%.+]]: i32, [[PARAM_7_:%.+]]: i32, [[PARAM_8_:%.+]]: i32) {
 // CHECK-DAG:       [[CST_128_:%.+]] = arith.constant 128 : index
@@ -39,11 +39,9 @@ module {
 // CHECK-DAG:       [[VAR_subview_:%.+]] = memref.subview [[VAR_reinterpret_cast_]][0] {{.}}[[VAR_1_]]{{.}} [1] : memref<128xbf16, strided<[1]>> to memref<?xbf16, strided<[1]>>
 // CHECK-DAG:       [[VAR_subview_1_:%.+]] = memref.subview [[RES_]][0] {{.}}[[VAR_1_]]{{.}} [1] : memref<128xbf16> to memref<?xbf16, strided<[1]>>
 // CHECK:           memref.copy [[VAR_subview_]], [[VAR_subview_1_]] : memref<?xbf16, strided<[1]>> to memref<?xbf16, strided<[1]>>
-// CHECK-DAG:       [[VAR_3_:%.+]] = bufferization.to_tensor [[RES_]] restrict writable : memref<128xbf16>
-// CHECK-DAG:       [[VAR_4_:%.+]] = arith.index_cast [[PARAM_2_]] : i32 to index
-// CHECK:           [[VAR_5_:%.+]] = arith.minsi [[VAR_4_]], [[CST_128_]] : index
-// CHECK-DAG:       [[VAR_extracted_slice_:%.+]] = tensor.extract_slice [[VAR_3_]][0] {{.}}[[VAR_5_]]{{.}} [1] : tensor<128xbf16> to tensor<?xbf16>
-// CHECK-DAG:       [[VAR_subview_2_:%.+]] = memref.subview [[VAR_reinterpret_cast_0_]][0] {{.}}[[VAR_5_]]{{.}} [1] : memref<128xbf16, strided<[1]>> to memref<?xbf16, strided<[1]>>
+// CHECK:           [[VAR_3_:%.+]] = bufferization.to_tensor [[RES_]] restrict writable : memref<128xbf16>
+// CHECK-DAG:       [[VAR_extracted_slice_:%.+]] = tensor.extract_slice [[VAR_3_]][0] {{.}}[[VAR_1_]]{{.}} [1] : tensor<128xbf16> to tensor<?xbf16>
+// CHECK-DAG:       [[VAR_subview_2_:%.+]] = memref.subview [[VAR_reinterpret_cast_0_]][0] {{.}}[[VAR_1_]]{{.}} [1] : memref<128xbf16, strided<[1]>> to memref<?xbf16, strided<[1]>>
 // CHECK:           bufferization.materialize_in_destination [[VAR_extracted_slice_]] in writable [[VAR_subview_2_]] : (tensor<?xbf16>, memref<?xbf16, strided<[1]>>) -> ()
 // CHECK:           return
 // CHECK:         }

@@ -30,7 +30,7 @@ module {
     tt.return
   }
 }
-// mlir2FileCheck.py
+
 // CHECK-DAG:   [[MAP_0_:#.+]] = affine_map<(d0) -> (d0)>
 // CHECK-LABEL:  func.func @kernel
 // CHECK-SAME:   ([[PARAM_0_:%.+]]: memref<*xf32> {tt.divisibility = 16 : i32}, [[PARAM_1_:%.+]]: memref<*xf32> {tt.divisibility = 16 : i32}, [[PARAM_2_:%.+]]: i32, [[PARAM_3_:%.+]]: i32, [[PARAM_4_:%.+]]: i32, [[PARAM_5_:%.+]]: i32, [[PARAM_6_:%.+]]: i32, [[PARAM_7_:%.+]]: i32, [[PARAM_8_:%.+]]: i32, [[PARAM_9_:%.+]]: i32, [[PARAM_10_:%.+]]: i32) {
@@ -48,12 +48,10 @@ module {
 // CHECK:           [[VAR_8_:%.+]] = bufferization.to_tensor [[RES_]] restrict writable : memref<1024xf32>
 // CHECK:           [[VAR_9_:%.+]] = linalg.generic {indexing_maps = [#map, #map], iterator_types = ["parallel"]} ins([[VAR_8_]] : tensor<1024xf32>) outs([[VAR_8_]] : tensor<1024xf32>) {
 // CHECK:           ^bb0([[IN_0_:%.+]]: f32, [[IN_1_:%.+]]: f32):
-// CHECK:             [[VAR_12_:%.+]] = math.exp [[IN_0_]] : f32
-// CHECK:             linalg.yield [[VAR_12_]] : f32
+// CHECK:             [[VAR_10_:%.+]] = math.exp [[IN_0_]] : f32
+// CHECK:             linalg.yield [[VAR_10_]] : f32
 // CHECK:           } -> tensor<1024xf32>
-// CHECK:           [[VAR_10_:%.+]] = arith.muli [[PARAM_8_]], [[PARAM_3_]] : i32
-// CHECK:           [[VAR_11_:%.+]] = arith.index_cast [[VAR_10_]] : i32 to index
-// CHECK:           [[VAR_reinterpret_cast_0_:%.+]] = memref.reinterpret_cast [[PARAM_0_]] to offset: {{.}}[[VAR_11_]]{{.}}, sizes: [1024], strides: [1] : memref<*xf32> to memref<1024xf32, strided<[1], offset: ?>>
+// CHECK:           [[VAR_reinterpret_cast_0_:%.+]] = memref.reinterpret_cast [[PARAM_0_]] to offset: {{.}}[[VAR_3_]]{{.}}, sizes: [1024], strides: [1] : memref<*xf32> to memref<1024xf32, strided<[1], offset: ?>>
 // CHECK:           bufferization.materialize_in_destination [[VAR_9_]] in writable [[VAR_reinterpret_cast_0_]] : (tensor<1024xf32>, memref<1024xf32, strided<[1], offset: ?>>) -> ()
 // CHECK:           return
 // CHECK:         }

@@ -31,23 +31,22 @@ module {
     tt.return
   }
 }
-// mlir2FileCheck.py
+
 // CHECK-LABEL:  func.func @kernel
 // CHECK-SAME:   ([[PARAM_0_:%.+]]: memref<*xbf16>, [[PARAM_1_:%.+]]: memref<*xbf16>, [[PARAM_2_:%.+]]: i32, [[PARAM_3_:%.+]]: i32, [[PARAM_4_:%.+]]: i32, [[PARAM_5_:%.+]]: i32, [[PARAM_6_:%.+]]: i32, [[PARAM_7_:%.+]]: i32, [[PARAM_8_:%.+]]: i32) {
 // CHECK-DAG:       [[CST_2048_:%.+]] = arith.constant 2048 : index
 // CHECK-DAG:       [[CST_1_:%.+]] = arith.constant 1 : index
 // CHECK-DAG:       [[VAR_0_:%.+]] = arith.index_cast [[PARAM_6_]] : i32 to index
-// CHECK-DAG:       [[VAR_1_:%.+]] = arith.index_cast [[PARAM_6_]] : i32 to index
-// CHECK-DAG:       [[VAR_2_:%.+]] = arith.index_cast [[PARAM_2_]] : i32 to index
-// CHECK:           [[VAR_3_:%.+]] = arith.muli [[VAR_2_]], [[CST_2048_]] : index
-// CHECK-DAG:       [[VAR_4_:%.+]] = arith.addi [[VAR_1_]], [[VAR_3_]] : index
-// CHECK-DAG:       [[VAR_5_:%.+]] = arith.addi [[VAR_2_]], [[CST_1_]] : index
+// CHECK-DAG:       [[VAR_1_:%.+]] = arith.index_cast [[PARAM_2_]] : i32 to index
+// CHECK:           [[VAR_2_:%.+]] = arith.muli [[VAR_1_]], [[CST_2048_]] : index
+// CHECK-DAG:       [[VAR_3_:%.+]] = arith.addi [[VAR_0_]], [[VAR_2_]] : index
+// CHECK-DAG:       [[VAR_4_:%.+]] = arith.addi [[VAR_1_]], [[CST_1_]] : index
 // CHECK-NOT: separator of consecutive DAGs
-// CHECK-DAG:       [[VAR_reinterpret_cast_:%.+]] = memref.reinterpret_cast [[PARAM_0_]] to offset: {{.}}[[VAR_4_]]{{.}}, sizes: [1024], strides: {{.}}[[VAR_5_]]{{.}} : memref<*xbf16> to memref<1024xbf16, strided<[?], offset: ?>>
+// CHECK-DAG:       [[VAR_reinterpret_cast_:%.+]] = memref.reinterpret_cast [[PARAM_0_]] to offset: {{.}}[[VAR_3_]]{{.}}, sizes: [1024], strides: {{.}}[[VAR_4_]]{{.}} : memref<*xbf16> to memref<1024xbf16, strided<[?], offset: ?>>
 // CHECK-DAG:       [[VAR_reinterpret_cast_0_:%.+]] = memref.reinterpret_cast [[PARAM_1_]] to offset: {{.}}[[VAR_0_]]{{.}}, sizes: [1024], strides: [1] : memref<*xbf16> to memref<1024xbf16, strided<[1], offset: ?>>
 // CHECK-DAG:       [[RES_:%.+]] = memref.alloc() : memref<1024xbf16>
 // CHECK:           memref.copy [[VAR_reinterpret_cast_]], [[RES_]] : memref<1024xbf16, strided<[?], offset: ?>> to memref<1024xbf16>
-// CHECK:           [[VAR_6_:%.+]] = bufferization.to_tensor [[RES_]] restrict writable : memref<1024xbf16>
-// CHECK:           bufferization.materialize_in_destination [[VAR_6_]] in writable [[VAR_reinterpret_cast_0_]] : (tensor<1024xbf16>, memref<1024xbf16, strided<[1], offset: ?>>) -> ()
+// CHECK:           [[VAR_5_:%.+]] = bufferization.to_tensor [[RES_]] restrict writable : memref<1024xbf16>
+// CHECK:           bufferization.materialize_in_destination [[VAR_5_]] in writable [[VAR_reinterpret_cast_0_]] : (tensor<1024xbf16>, memref<1024xbf16, strided<[1], offset: ?>>) -> ()
 // CHECK:           return
 // CHECK:         }
