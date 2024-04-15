@@ -42,28 +42,25 @@ module {
   }
 }
 
-// mlir2FileCheck.py
 // CHECK-DAG:   [[MAP_0_:#.+]] = affine_map<(d0) -> (d0)>
 // CHECK-LABEL:  func.func @test_cumsum_op_012
 // CHECK-SAME:   ([[PARAM_0_:%.+]]: memref<*xf32>, [[PARAM_1_:%.+]]: memref<*xi32>, [[PARAM_2_:%.+]]: i32, [[PARAM_3_:%.+]]: i32, [[PARAM_4_:%.+]]: i32, [[PARAM_5_:%.+]]: i32, [[PARAM_6_:%.+]]: i32, [[PARAM_7_:%.+]]: i32, [[PARAM_8_:%.+]]: i32) {
 // CHECK:           [[VAR_0_:%.+]] = arith.muli [[PARAM_6_]], [[PARAM_2_]] : i32
-// CHECK-DAG:       [[VAR_1_:%.+]] = arith.index_cast [[VAR_0_]] : i32 to index
-// CHECK-DAG:       [[VAR_2_:%.+]] = arith.index_cast [[VAR_0_]] : i32 to index
-// CHECK-NOT: separator of consecutive DAGs
-// CHECK-DAG:       [[VAR_reinterpret_cast_:%.+]] = memref.reinterpret_cast [[PARAM_0_]] to offset: {{.}}[[VAR_2_]]{{.}}, sizes: [4096], strides: [1] : memref<*xf32> to memref<4096xf32, strided<[1], offset: ?>>
+// CHECK:           [[VAR_1_:%.+]] = arith.index_cast [[VAR_0_]] : i32 to index
+// CHECK-DAG:       [[VAR_reinterpret_cast_:%.+]] = memref.reinterpret_cast [[PARAM_0_]] to offset: {{.}}[[VAR_1_]]{{.}}, sizes: [4096], strides: [1] : memref<*xf32> to memref<4096xf32, strided<[1], offset: ?>>
 // CHECK-DAG:       [[RES_:%.+]] = memref.alloc() : memref<4096xf32>
 // CHECK:           memref.copy [[VAR_reinterpret_cast_]], [[RES_]] : memref<4096xf32, strided<[1], offset: ?>> to memref<4096xf32>
-// CHECK-DAG:       [[VAR_3_:%.+]] = bufferization.to_tensor [[RES_]] restrict writable : memref<4096xf32>
-// CHECK-DAG:       [[VAR_4_:%.+]] = tensor.empty() : tensor<4096xf32>
+// CHECK-DAG:       [[VAR_2_:%.+]] = bufferization.to_tensor [[RES_]] restrict writable : memref<4096xf32>
+// CHECK-DAG:       [[VAR_3_:%.+]] = tensor.empty() : tensor<4096xf32>
 // CHECK-NOT: separator of consecutive DAGs
-// CHECK-DAG:       [[VAR_5_:%.+]] = ttx.cumsum {axis = 0 : ui32, operandSegmentSizes = array<i32: 1, 1>} ins([[VAR_3_]] : tensor<4096xf32>) outs([[VAR_4_]] : tensor<4096xf32>) -> tensor<4096xf32>
+// CHECK-DAG:       [[VAR_4_:%.+]] = ttx.cumsum {axis = 0 : ui32, operandSegmentSizes = array<i32: 1, 1>} ins([[VAR_2_]] : tensor<4096xf32>) outs([[VAR_3_]] : tensor<4096xf32>) -> tensor<4096xf32>
 // CHECK-DAG:       [[VAR_reinterpret_cast_0_:%.+]] = memref.reinterpret_cast [[PARAM_1_]] to offset: {{.}}[[VAR_1_]]{{.}}, sizes: [4096], strides: [1] : memref<*xi32> to memref<4096xi32, strided<[1], offset: ?>>
-// CHECK-DAG:       [[VAR_6_:%.+]] = tensor.empty() : tensor<4096xi32>
-// CHECK:           [[VAR_7_:%.+]] = linalg.generic {indexing_maps = [#map, #map], iterator_types = ["parallel"]} ins([[VAR_5_]] : tensor<4096xf32>) outs([[VAR_6_]] : tensor<4096xi32>) {
+// CHECK-DAG:       [[VAR_5_:%.+]] = tensor.empty() : tensor<4096xi32>
+// CHECK:           [[VAR_6_:%.+]] = linalg.generic {indexing_maps = [#map, #map], iterator_types = ["parallel"]} ins([[VAR_4_]] : tensor<4096xf32>) outs([[VAR_5_]] : tensor<4096xi32>) {
 // CHECK:           ^bb0([[IN_0_:%.+]]: f32, [[IN_1_:%.+]]: i32):
-// CHECK:             [[VAR_8_:%.+]] = arith.fptosi [[IN_0_]] : f32 to i32
-// CHECK:             linalg.yield [[VAR_8_]] : i32
+// CHECK:             [[VAR_7_:%.+]] = arith.fptosi [[IN_0_]] : f32 to i32
+// CHECK:             linalg.yield [[VAR_7_]] : i32
 // CHECK:           } -> tensor<4096xi32>
-// CHECK:           bufferization.materialize_in_destination [[VAR_7_]] in writable [[VAR_reinterpret_cast_0_]] : (tensor<4096xi32>, memref<4096xi32, strided<[1], offset: ?>>) -> ()
+// CHECK:           bufferization.materialize_in_destination [[VAR_6_]] in writable [[VAR_reinterpret_cast_0_]] : (tensor<4096xi32>, memref<4096xi32, strided<[1], offset: ?>>) -> ()
 // CHECK:           return
 // CHECK:         }

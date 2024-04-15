@@ -24,4 +24,8 @@ add_triton_library(TritonToLinalgExperimental
   TritonIR
   TritonTransforms
   TritonSharedAnalysis
+
+  TritonArithToLinalg
+  StructuredToMemref
+  TritonToStructured
 )
