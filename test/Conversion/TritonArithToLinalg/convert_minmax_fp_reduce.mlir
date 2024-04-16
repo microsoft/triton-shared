@@ -8,7 +8,7 @@ module {
       %69 = arith.maxnumf %arg14, %arg15 : f32
       tt.reduce.return %69 : f32
     }) {axis = 0 : i32} : (tensor<4096xf32>) -> f32
-    tt.store %arg0, %63 {cache = 1 : i32, evict = 1 : i32} : f32
+    tt.store %arg0, %63 : f32
     tt.return
   }
 }
@@ -25,13 +25,13 @@ module {
       %69 = arith.minnumf %arg14, %arg15 : f32
       tt.reduce.return %69 : f32
     }) {axis = 0 : i32} : (tensor<4096xf32>) -> f32
-    tt.store %arg0, %63 {cache = 1 : i32, evict = 1 : i32} : f32
+    tt.store %arg0, %63 : f32
     tt.return
   }
 }
 
 // CHECK-LABEL:  func.func @maxnumf
-// CHECK-SAME:   ([[PARAM_0_:%.+]]: !tt.ptr<f32, 1>, [[PARAM_1_:%.+]]: i32, [[PARAM_2_:%.+]]: i32, [[PARAM_3_:%.+]]: i32, [[PARAM_4_:%.+]]: i32, [[PARAM_5_:%.+]]: i32, [[PARAM_6_:%.+]]: i32) {
+// CHECK-SAME:   ([[PARAM_0_:%.+]]: !tt.ptr<f32>, [[PARAM_1_:%.+]]: i32, [[PARAM_2_:%.+]]: i32, [[PARAM_3_:%.+]]: i32, [[PARAM_4_:%.+]]: i32, [[PARAM_5_:%.+]]: i32, [[PARAM_6_:%.+]]: i32) {
 // CHECK-DAG:       [[CST_0_dot_000000_:%.+]] = arith.constant 0.000000e+00 : f32
 // CHECK-DAG:       [[VAR_0_:%.+]] = tensor.empty() : tensor<4096xf32>
 // CHECK-NOT: separator of consecutive DAGs
@@ -45,11 +45,11 @@ module {
 // CHECK:               linalg.yield [[VAR_3_]] : f32
 // CHECK:             }
 // CHECK:           [[VAR_extracted_:%.+]] = tensor.extract [[VAR_reduced_]][] : tensor<f32>
-// CHECK:           tt.store [[PARAM_0_]], [[VAR_extracted_]] {cache = 1 : i32, evict = 1 : i32} : f32
+// CHECK:           tt.store [[PARAM_0_]], [[VAR_extracted_]] : f32
 // CHECK:           return
 // CHECK:         }
 // CHECK-LABEL:  func.func @minnumf
-// CHECK-SAME:   ([[PARAM_0_:%.+]]: !tt.ptr<f32, 1>, [[PARAM_1_:%.+]]: i32, [[PARAM_2_:%.+]]: i32, [[PARAM_3_:%.+]]: i32, [[PARAM_4_:%.+]]: i32, [[PARAM_5_:%.+]]: i32, [[PARAM_6_:%.+]]: i32) {
+// CHECK-SAME:   ([[PARAM_0_:%.+]]: !tt.ptr<f32>, [[PARAM_1_:%.+]]: i32, [[PARAM_2_:%.+]]: i32, [[PARAM_3_:%.+]]: i32, [[PARAM_4_:%.+]]: i32, [[PARAM_5_:%.+]]: i32, [[PARAM_6_:%.+]]: i32) {
 // CHECK-DAG:       [[CST_0_dot_000000_:%.+]] = arith.constant 0.000000e+00 : f32
 // CHECK-DAG:       [[VAR_0_:%.+]] = tensor.empty() : tensor<4096xf32>
 // CHECK-NOT: separator of consecutive DAGs
@@ -63,6 +63,6 @@ module {
 // CHECK:               linalg.yield [[VAR_3_]] : f32
 // CHECK:             }
 // CHECK:           [[VAR_extracted_:%.+]] = tensor.extract [[VAR_reduced_]][] : tensor<f32>
-// CHECK:           tt.store [[PARAM_0_]], [[VAR_extracted_]] {cache = 1 : i32, evict = 1 : i32} : f32
+// CHECK:           tt.store [[PARAM_0_]], [[VAR_extracted_]] : f32
 // CHECK:           return
 // CHECK:         }

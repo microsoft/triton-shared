@@ -27,7 +27,7 @@ module {
     // offset = [0, 0], size = [1024, 1024], strides = [1, 1]
     %13 = tt.addptr %5, %12 : tensor<1024x1024x!tt.ptr<f32>>, tensor<1024x1024xi32>
     // source = arg1, offset = [pid * %arg2, 0], size = [1024, 1024], strides = [1, 1]
-    %14 = tt.load %13 {cache = 1 : i32, evict = 1 : i32, isVolatile = false} : tensor<1024x1024x!tt.ptr<f32>>
+    %14 = tt.load %13 : tensor<1024x1024x!tt.ptr<f32>>
     %17 = math.exp %14 : tensor<1024x1024xf32>
     %18 = arith.muli %0, %arg3 : i32
     %19 = tt.addptr %arg0, %18 : !tt.ptr<f32>, i32

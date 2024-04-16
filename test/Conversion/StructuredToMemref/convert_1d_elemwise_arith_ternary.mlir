@@ -17,18 +17,18 @@ module {
     // c pointer
     %28 = tt.splat %c : !tt.ptr<f32> -> tensor<1024x!tt.ptr<f32>>
     %29 = tt.addptr %28, %0 : tensor<1024x!tt.ptr<f32>>, tensor<1024xi32>
-    %am = tt.load %9 {cache = 1 : i32, evict = 1 : i32, isVolatile = false} : tensor<1024x!tt.ptr<i1>>
-    %bm = tt.load %19 {cache = 1 : i32, evict = 1 : i32, isVolatile = false} : tensor<1024x!tt.ptr<f32>>
-    %cm = tt.load %29 {cache = 1 : i32, evict = 1 : i32, isVolatile = false} : tensor<1024x!tt.ptr<f32>>
+    %am = tt.load %9 : tensor<1024x!tt.ptr<i1>>
+    %bm = tt.load %19 : tensor<1024x!tt.ptr<f32>>
+    %cm = tt.load %29 : tensor<1024x!tt.ptr<f32>>
     %10 = arith.select %am, %bm, %cm : tensor<1024xi1>, tensor<1024xf32>
-    tt.store %d, %10 {cache = 1 : i32, evict = 1 : i32} : tensor<1024x!tt.ptr<f32>>
+    tt.store %d, %10 : tensor<1024x!tt.ptr<f32>>
     tt.return
   }
 }
 // mlir2FileCheck.py
 // CHECK-DAG:   [[MAP_0_:#.+]] = affine_map<(d0) -> (d0)>
 // CHECK-LABEL:  func.func @kernel
-// CHECK-SAME:   ([[PARAM_0_:%.+]]: memref<*xi1>, [[PARAM_1_:%.+]]: memref<*xf32>, [[PARAM_2_:%.+]]: memref<*xf32>, [[PARAM_3_:%.+]]: tensor<1024x!tt.ptr<f32, 1>>, [[PARAM_4_:%.+]]: i32, [[PARAM_5_:%.+]]: i32, [[PARAM_6_:%.+]]: i32, [[PARAM_7_:%.+]]: i32, [[PARAM_8_:%.+]]: i32, [[PARAM_9_:%.+]]: i32) {
+// CHECK-SAME:   ([[PARAM_0_:%.+]]: memref<*xi1>, [[PARAM_1_:%.+]]: memref<*xf32>, [[PARAM_2_:%.+]]: memref<*xf32>, [[PARAM_3_:%.+]]: tensor<1024x!tt.ptr<f32>>, [[PARAM_4_:%.+]]: i32, [[PARAM_5_:%.+]]: i32, [[PARAM_6_:%.+]]: i32, [[PARAM_7_:%.+]]: i32, [[PARAM_8_:%.+]]: i32, [[PARAM_9_:%.+]]: i32) {
 // CHECK-DAG:       [[VAR_reinterpret_cast_:%.+]] = memref.reinterpret_cast [[PARAM_0_]] to offset: [0], sizes: [1024], strides: [1] : memref<*xi1> to memref<1024xi1, strided<[1]>>
 // CHECK-DAG:       [[VAR_reinterpret_cast_0_:%.+]] = memref.reinterpret_cast [[PARAM_1_]] to offset: [0], sizes: [1024], strides: [1] : memref<*xf32> to memref<1024xf32, strided<[1]>>
 // CHECK-DAG:       [[VAR_reinterpret_cast_1_:%.+]] = memref.reinterpret_cast [[PARAM_2_]] to offset: [0], sizes: [1024], strides: [1] : memref<*xf32> to memref<1024xf32, strided<[1]>>
@@ -46,6 +46,6 @@ module {
 // CHECK:             [[VAR_4_:%.+]] = arith.select [[IN_0_]], [[IN_1_]], [[IN_2_]] : f32
 // CHECK:             linalg.yield [[VAR_4_]] : f32
 // CHECK:           } -> tensor<1024xf32>
-// CHECK:           tt.store [[PARAM_3_]], [[VAR_3_]] {cache = 1 : i32, evict = 1 : i32} : tensor<1024x!tt.ptr<f32>>
+// CHECK:           tt.store [[PARAM_3_]], [[VAR_3_]] : tensor<1024x!tt.ptr<f32>>
 // CHECK:           return
 // CHECK:         }

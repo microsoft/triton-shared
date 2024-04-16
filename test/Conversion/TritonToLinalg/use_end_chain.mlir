@@ -26,7 +26,7 @@ module {
   // mixed use
   %17 = tt.splat %arg1 : !tt.ptr<bf16> -> tensor<256x128x!tt.ptr<bf16>>
   %18 = tt.addptr %17, %14 : tensor<256x128x!tt.ptr<bf16>>, tensor<256x128xi32>
-  %19 = tt.load %18 {cache = 1 : i32, evict = 1 : i32, isVolatile = false} : tensor<256x128x!tt.ptr<bf16>>
+  %19 = tt.load %18 : tensor<256x128x!tt.ptr<bf16>>
   tt.store %18, %19 : tensor<256x128x!tt.ptr<bf16>>
   %20 = arith.sitofp %14 : tensor<256x128xi32> to tensor<256x128xbf16>
   tt.store %18, %20 : tensor<256x128x!tt.ptr<bf16>>

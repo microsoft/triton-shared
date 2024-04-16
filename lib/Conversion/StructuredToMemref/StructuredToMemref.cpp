@@ -70,7 +70,7 @@ private:
 
   static Type getElementTypeStructuredPtr(tts::MakeTensorPtrOp op) {
     assert(!op.isBlockPtr());
-    // tensor<1024x!tt.ptr<f32, 1>>
+    // tensor<1024x!tt.ptr<f32>>
     auto ptrType = cast<triton::PointerType>(
         cast<RankedTensorType>(op.getType()).getElementType());
     return ptrType.getPointeeType();

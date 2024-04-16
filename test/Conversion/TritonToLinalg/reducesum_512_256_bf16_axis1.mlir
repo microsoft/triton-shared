@@ -20,7 +20,7 @@ module {
     // res pointer
     %18 = tt.splat %res : !tt.ptr<bf16> -> tensor<512x!tt.ptr<bf16>>
     %19 = tt.addptr %18, %0 : tensor<512x!tt.ptr<bf16>>, tensor<512xi32>
-    %afm = tt.load %9 {cache = 1 : i32, evict = 1 : i32, isVolatile = false} : tensor<512x256x!tt.ptr<bf16>>
+    %afm = tt.load %9 : tensor<512x256x!tt.ptr<bf16>>
     %5 = "tt.reduce"(%afm) ({
     ^bb0(%arg5: bf16, %arg6: bf16):
       %21 = arith.addf %arg5, %arg6 : bf16

@@ -17,7 +17,7 @@ module {
       // source = %arg1, offset = %1, size = 1024, strides = 0
       %5 = tt.addptr %4, %3 : tensor<1024x!tt.ptr<f32>>, tensor<1024xi32>
       // source = %arg1, offset = %1, size = 1024, strides = 1
-      %8 = tt.load %5 {cache = 1 : i32, evict = 1 : i32, isVolatile = false} : tensor<1024x!tt.ptr<f32>>
+      %8 = tt.load %5 : tensor<1024x!tt.ptr<f32>>
       %9 = math.exp %8 : tensor<1024xf32>
       %sum_next = arith.addf %sum_iter, %9 : tensor<1024xf32>
       %cast_i = arith.index_cast %i : index to i32

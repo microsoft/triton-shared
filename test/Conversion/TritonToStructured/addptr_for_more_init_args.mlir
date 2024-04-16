@@ -43,7 +43,7 @@ module {
   }
 }
 
-// CHECK:         tt.func @kernel([[PARAM_0_:%.+]]: !tt.ptr<bf16, 1>, [[PARAM_1_:%.+]]: !tt.ptr<bf16, 1>) {
+// CHECK:         tt.func @kernel([[PARAM_0_:%.+]]: !tt.ptr<bf16>, [[PARAM_1_:%.+]]: !tt.ptr<bf16>) {
 // CHECK-DAG:       [[CST_0_:%.+]] = arith.constant 0 : index
 // CHECK-DAG:       [[CST_1_:%.+]] = arith.constant 1 : index
 // CHECK-DAG:       [[CST_2_:%.+]] = arith.constant 2 : index
@@ -52,10 +52,10 @@ module {
 // CHECK-DAG:       [[CST_1024_:%.+]] = arith.constant 1024 : index
 // CHECK-NOT: separator of consecutive DAGs
 // CHECK-DAG:       [[VAR_0_:%.+]]:5 = scf.for [[VAR_arg2_:%.+]] = [[CST_0_]] to [[CST_12_]] step [[CST_3_]] iter_args([[VAR_arg3_:%.+]] = [[CST_1_]], [[VAR_arg4_:%.+]] = [[CST_2_]], [[VAR_arg5_:%.+]] = [[CST_3_]], [[VAR_arg6_:%.+]] = [[CST_1_]]024, [[VAR_arg7_:%.+]] = [[CST_1_]]024) -> (index, index, index, index, index) {
-// CHECK-DAG:         [[VAR_1_:%.+]] = tts.make_tptr [[PARAM_1_]] to sizes: [256], strides: {{.}}[[CST_1_]]{{.}}, offsets: {{.}}[[VAR_arg7_]]{{.}}, shape: [0], order: [] : <bf16, 1> to tensor<256x!tt.ptr<bf16, 1>>
-// CHECK-DAG:         [[VAR_2_:%.+]] = tts.make_tptr [[PARAM_0_]] to sizes: [256], strides: {{.}}[[CST_1_]]{{.}}, offsets: {{.}}[[VAR_arg6_]]{{.}}, shape: [0], order: [] : <bf16, 1> to tensor<256x!tt.ptr<bf16, 1>>
-// CHECK:             [[VAR_3_:%.+]] = "tts.load"([[VAR_2_]]) <{operandSegmentSizes = array<i32: 1, 0, 0>, static_mask_dims = array<i64>}> : (tensor<256x!tt.ptr<bf16, 1>>) -> tensor<256xbf16>
-// CHECK:             "tts.store"([[VAR_1_]], [[VAR_3_]]) <{static_mask_dims = array<i64>}> : (tensor<256x!tt.ptr<bf16, 1>>, tensor<256xbf16>) -> ()
+// CHECK-DAG:         [[VAR_1_:%.+]] = tts.make_tptr [[PARAM_1_]] to sizes: [256], strides: {{.}}[[CST_1_]]{{.}}, offsets: {{.}}[[VAR_arg7_]]{{.}}, shape: [0], order: [] : <bf16, 1> to tensor<256x!tt.ptr<bf16>>
+// CHECK-DAG:         [[VAR_2_:%.+]] = tts.make_tptr [[PARAM_0_]] to sizes: [256], strides: {{.}}[[CST_1_]]{{.}}, offsets: {{.}}[[VAR_arg6_]]{{.}}, shape: [0], order: [] : <bf16, 1> to tensor<256x!tt.ptr<bf16>>
+// CHECK:             [[VAR_3_:%.+]] = "tts.load"([[VAR_2_]]) <{operandSegmentSizes = array<i32: 1, 0, 0>, static_mask_dims = array<i64>}> : (tensor<256x!tt.ptr<bf16>>) -> tensor<256xbf16>
+// CHECK:             "tts.store"([[VAR_1_]], [[VAR_3_]]) <{static_mask_dims = array<i64>}> : (tensor<256x!tt.ptr<bf16>>, tensor<256xbf16>) -> ()
 // CHECK-DAG:         [[VAR_4_:%.+]] = arith.addi [[VAR_arg6_]], [[CST_3_]] : index
 // CHECK-DAG:         [[VAR_5_:%.+]] = arith.addi [[VAR_arg3_]], [[CST_3_]] : index
 // CHECK-DAG:         [[VAR_6_:%.+]] = arith.addi [[VAR_arg4_]], [[CST_3_]] : index

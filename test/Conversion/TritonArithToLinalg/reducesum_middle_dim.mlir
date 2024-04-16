@@ -28,7 +28,7 @@ module {
     // afloat pointer
     %8 = tt.splat %afloat : !tt.ptr<bf16> -> tensor<32x256x16x!tt.ptr<bf16>>
     %9 = tt.addptr %8, %mknoff : tensor<32x256x16x!tt.ptr<bf16>>, tensor<32x256x16xi32>
-    %afm = tt.load %9 {cache = 1 : i32, evict = 1 : i32, isVolatile = false} : tensor<32x256x16x!tt.ptr<bf16>>
+    %afm = tt.load %9 : tensor<32x256x16x!tt.ptr<bf16>>
     %5 = "tt.reduce"(%afm) ({
     ^bb0(%arg5: bf16, %arg6: bf16):
       %21 = arith.addf %arg5, %arg6 : bf16
@@ -46,7 +46,7 @@ module {
 // CHECK-DAG:   [[MAP_5_:#.+]] = affine_map<(d0, d1) -> (0, d1)>
 // CHECK-DAG:   [[MAP_6_:#.+]] = affine_map<(d0, d1, d2) -> (0, d1, d2)>
 // CHECK-LABEL:  func.func @kernel
-// CHECK-SAME:   ([[PARAM_0_:%.+]]: !tt.ptr<bf16, 1>, [[PARAM_1_:%.+]]: !tt.ptr<bf16, 1>, [[PARAM_2_:%.+]]: tensor<32x16x!tt.ptr<bf16, 1>>, [[PARAM_3_:%.+]]: i32, [[PARAM_4_:%.+]]: i32, [[PARAM_5_:%.+]]: i32, [[PARAM_6_:%.+]]: i32, [[PARAM_7_:%.+]]: i32, [[PARAM_8_:%.+]]: i32) {
+// CHECK-SAME:   ([[PARAM_0_:%.+]]: !tt.ptr<bf16>, [[PARAM_1_:%.+]]: !tt.ptr<bf16>, [[PARAM_2_:%.+]]: tensor<32x16x!tt.ptr<bf16>>, [[PARAM_3_:%.+]]: i32, [[PARAM_4_:%.+]]: i32, [[PARAM_5_:%.+]]: i32, [[PARAM_6_:%.+]]: i32, [[PARAM_7_:%.+]]: i32, [[PARAM_8_:%.+]]: i32) {
 // CHECK-DAG:       [[CST_256_:%.+]] = arith.constant 256 : i32
 // CHECK-DAG:       [[VAR_0_:%.+]] = tensor.empty() : tensor<32xi32>
 // CHECK-NOT: separator of consecutive DAGs
@@ -123,14 +123,14 @@ module {
 // CHECK:             [[VAR_29_5_:%.+]] = arith.addi [[in_]], [[in_]]_5 : i32
 // CHECK:             linalg.yield [[VAR_29_5_]] : i32
 // CHECK:           } -> tensor<32x256x16xi32>
-// CHECK:           [[VAR_23_:%.+]] = tensor.empty() : tensor<32x256x16x!tt.ptr<bf16, 1>>
-// CHECK:           [[VAR_24_:%.+]] = linalg.fill ins([[PARAM_0_]] : !tt.ptr<bf16, 1>) outs([[VAR_23_]] : tensor<32x256x16x!tt.ptr<bf16, 1>>) -> tensor<32x256x16x!tt.ptr<bf16, 1>>
-// CHECK:           [[VAR_25_:%.+]] = linalg.generic {indexing_maps = [#map4, #map4, #map4], iterator_types = ["parallel", "parallel", "parallel"]} ins([[VAR_24_]], [[VAR_22_]] : tensor<32x256x16x!tt.ptr<bf16, 1>>, tensor<32x256x16xi32>) outs([[VAR_24_]] : tensor<32x256x16x!tt.ptr<bf16, 1>>) {
-// CHECK:           ^bb0([[in_]]: !tt.ptr<bf16, 1>, [[in_]]_5: i32, [[out_]]: !tt.ptr<bf16, 1>):
-// CHECK:             [[VAR_29_6_:%.+]] = tt.addptr [[in_]], [[in_]]_5 : !tt.ptr<bf16, 1>, i32
-// CHECK:             linalg.yield [[VAR_29_6_]] : !tt.ptr<bf16, 1>
-// CHECK:           } -> tensor<32x256x16x!tt.ptr<bf16, 1>>
-// CHECK-DAG:       [[LOAD_VAR_25_MEM_:%.+]] = tt.load [[VAR_25_]] {cache = 1 : i32, evict = 1 : i32, isVolatile = false} : tensor<32x256x16x!tt.ptr<bf16>>
+// CHECK:           [[VAR_23_:%.+]] = tensor.empty() : tensor<32x256x16x!tt.ptr<bf16>>
+// CHECK:           [[VAR_24_:%.+]] = linalg.fill ins([[PARAM_0_]] : !tt.ptr<bf16>) outs([[VAR_23_]] : tensor<32x256x16x!tt.ptr<bf16>>) -> tensor<32x256x16x!tt.ptr<bf16>>
+// CHECK:           [[VAR_25_:%.+]] = linalg.generic {indexing_maps = [#map4, #map4, #map4], iterator_types = ["parallel", "parallel", "parallel"]} ins([[VAR_24_]], [[VAR_22_]] : tensor<32x256x16x!tt.ptr<bf16>>, tensor<32x256x16xi32>) outs([[VAR_24_]] : tensor<32x256x16x!tt.ptr<bf16>>) {
+// CHECK:           ^bb0([[in_]]: !tt.ptr<bf16>, [[in_]]_5: i32, [[out_]]: !tt.ptr<bf16>):
+// CHECK:             [[VAR_29_6_:%.+]] = tt.addptr [[in_]], [[in_]]_5 : !tt.ptr<bf16>, i32
+// CHECK:             linalg.yield [[VAR_29_6_]] : !tt.ptr<bf16>
+// CHECK:           } -> tensor<32x256x16x!tt.ptr<bf16>>
+// CHECK-DAG:       [[LOAD_VAR_25_MEM_:%.+]] = tt.load [[VAR_25_]] : tensor<32x256x16x!tt.ptr<bf16>>
 // CHECK-DAG:       [[CST_0_dot_000000_:%.+]] = arith.constant 0.000000e+00 : bf16
 // CHECK-DAG:       [[VAR_27_:%.+]] = tensor.empty() : tensor<32x16xbf16>
 // CHECK:           [[VAR_28_:%.+]] = linalg.fill ins([[CST_0_dot_000000_]] : bf16) outs([[VAR_27_]] : tensor<32x16xbf16>) -> tensor<32x16xbf16>
@@ -139,6 +139,6 @@ module {
 // CHECK:               [[VAR_29_7_:%.+]] = arith.addf [[in_]], [[in_]]it : bf16
 // CHECK:               linalg.yield [[VAR_29_7_]] : bf16
 // CHECK:             }
-// CHECK:           tt.store [[PARAM_2_]], [[VAR_reduced_]] {cache = 1 : i32, evict = 1 : i32} : tensor<32x16x!tt.ptr<bf16>>
+// CHECK:           tt.store [[PARAM_2_]], [[VAR_reduced_]] : tensor<32x16x!tt.ptr<bf16>>
 // CHECK:           return
 // CHECK:         }

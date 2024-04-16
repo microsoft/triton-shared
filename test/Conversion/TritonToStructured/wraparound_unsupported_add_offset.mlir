@@ -47,8 +47,8 @@ module {
     %31 = arith.muli %arg5, %c4_i32 : i32
     %32 = tt.splat %31 : i32 -> tensor<4x4xi32>
     %33:2 = scf.for %arg8 = %c0_i32 to %c2_i32 step %c1_i32 iter_args(%arg9 = %15, %arg10 = %26) -> (tensor<4x4x!tt.ptr<f32>>, tensor<4x4x!tt.ptr<f32>>)  : i32 {
-      %34 = tt.load %arg9, %28, %cst {cache = 1 : i32, evict = 1 : i32, isVolatile = false} : tensor<4x4x!tt.ptr<f32>>
-      tt.store %arg10, %34 {cache = 1 : i32, evict = 1 : i32} : tensor<4x4x!tt.ptr<f32>>
+      %34 = tt.load %arg9, %28, %cst : tensor<4x4x!tt.ptr<f32>>
+      tt.store %arg10, %34 : tensor<4x4x!tt.ptr<f32>>
       %35 = tt.addptr %arg9, %30 : tensor<4x4x!tt.ptr<f32>>, tensor<4x4xi32>
       %36 = tt.addptr %arg10, %32 : tensor<4x4x!tt.ptr<f32>>, tensor<4x4xi32>
       scf.yield %35, %36 : tensor<4x4x!tt.ptr<f32>>, tensor<4x4x!tt.ptr<f32>>
@@ -57,7 +57,7 @@ module {
   }
 }
 
-// CHECK:         tt.func public @wrap_side_by_side_masked_loop_01234567([[PARAM_0_:%.+]]: !tt.ptr<f32, 1>, [[PARAM_1_:%.+]]: !tt.ptr<f32, 1>, [[PARAM_2_:%.+]]: i32, [[PARAM_3_:%.+]]: i32, [[PARAM_4_:%.+]]: i32, [[PARAM_5_:%.+]]: i32, [[PARAM_6_:%.+]]: i32, [[PARAM_7_:%.+]]: i32) {
+// CHECK:         tt.func public @wrap_side_by_side_masked_loop_01234567([[PARAM_0_:%.+]]: !tt.ptr<f32>, [[PARAM_1_:%.+]]: !tt.ptr<f32>, [[PARAM_2_:%.+]]: i32, [[PARAM_3_:%.+]]: i32, [[PARAM_4_:%.+]]: i32, [[PARAM_5_:%.+]]: i32, [[PARAM_6_:%.+]]: i32, [[PARAM_7_:%.+]]: i32) {
 // CHECK-DAG:       [[CST_0_:%.+]] = arith.constant 0 : index
 // CHECK-DAG:       [[VAR_cst_:%.+]] = arith.constant dense<-9.900000e+01> : tensor<4x4xf32>
 // CHECK-DAG:       [[CST_1_:%.+]] = arith.constant 1 : i32
@@ -84,9 +84,9 @@ module {
 // CHECK-DAG:       [[VAR_11_:%.+]] = tt.broadcast [[VAR_7_]] : tensor<4x1xi32> -> tensor<4x4xi32>
 // CHECK:           [[VAR_12_:%.+]] = tt.broadcast [[VAR_10_]] : tensor<1x4xi32> -> tensor<4x4xi32>
 // CHECK-DAG:       [[VAR_13_:%.+]] = arith.addi [[VAR_11_]], [[VAR_12_]] : tensor<4x4xi32>
-// CHECK-DAG:       [[VAR_14_:%.+]] = tt.splat [[PARAM_0_]] : !tt.ptr<f32, 1> -> tensor<4x4x!tt.ptr<f32, 1>>
+// CHECK-DAG:       [[VAR_14_:%.+]] = tt.splat [[PARAM_0_]] : !tt.ptr<f32> -> tensor<4x4x!tt.ptr<f32>>
 // CHECK-NOT: separator of consecutive DAGs
-// CHECK-DAG:       [[VAR_15_:%.+]] = tt.addptr [[VAR_14_]], [[VAR_13_]] : tensor<4x4x!tt.ptr<f32, 1>>, tensor<4x4xi32>
+// CHECK-DAG:       [[VAR_15_:%.+]] = tt.addptr [[VAR_14_]], [[VAR_13_]] : tensor<4x4x!tt.ptr<f32>>, tensor<4x4xi32>
 // CHECK-DAG:       [[VAR_16_:%.+]] = tt.expand_dims [[VAR_0_]] {axis = 1 : i32} : tensor<4xi32> -> tensor<4x1xi32>
 // CHECK-DAG:       [[VAR_17_:%.+]] = arith.index_cast [[PARAM_6_]] : i32 to index
 // CHECK-DAG:       [[VAR_18_:%.+]] = arith.index_cast [[PARAM_7_]] : i32 to index
@@ -98,13 +98,13 @@ module {
 // CHECK-DAG:       [[VAR_23_:%.+]] = arith.muli [[PARAM_5_]], [[CST_4_]] : i32
 // CHECK-NOT: separator of consecutive DAGs
 // CHECK-DAG:       [[VAR_24_:%.+]] = arith.index_cast [[VAR_23_]] : i32 to index
-// CHECK-DAG:       [[VAR_25_:%.+]]:2 = scf.for [[VAR_arg8_:%.+]] = [[CST_0_1_]] to [[CST_2_]] step [[CST_1_]] iter_args([[VAR_arg9_:%.+]] = [[VAR_15_]], [[VAR_arg10_:%.+]] = [[CST_0_]]) -> (tensor<4x4x!tt.ptr<f32, 1>>, index)  : i32 {
-// CHECK-DAG:         [[VAR_26_:%.+]] = tts.make_tptr [[PARAM_1_]] to sizes: [4, 4], strides: {{.}}[[VAR_17_]], [[VAR_18_]]{{.}}, offsets: {{.}}[[PARAM_1_]]0, [[CST_0_]]{{.}}, shape: [0, 0], order: [] : <f32, 1> to tensor<4x4x!tt.ptr<f32, 1>>
-// CHECK-DAG:         [[LOAD_VAR_arg9_MEM_:%.+]] = tt.load [[VAR_arg9_]], [[VAR_20_]], [[VAR_cst_]] {cache = 1 : i32, evict = 1 : i32, isVolatile = false} : tensor<4x4x!tt.ptr<f32>>
-// CHECK:             "tts.store"([[VAR_26_]], [[LOAD_VAR_arg9_MEM_]]) <{static_mask_dims = array<i64>}> : (tensor<4x4x!tt.ptr<f32, 1>>, tensor<4x4xf32>) -> ()
-// CHECK-DAG:         [[VAR_28_:%.+]] = tt.addptr [[VAR_arg9_]], [[VAR_22_]] : tensor<4x4x!tt.ptr<f32, 1>>, tensor<4x4xi32>
+// CHECK-DAG:       [[VAR_25_:%.+]]:2 = scf.for [[VAR_arg8_:%.+]] = [[CST_0_1_]] to [[CST_2_]] step [[CST_1_]] iter_args([[VAR_arg9_:%.+]] = [[VAR_15_]], [[VAR_arg10_:%.+]] = [[CST_0_]]) -> (tensor<4x4x!tt.ptr<f32>>, index)  : i32 {
+// CHECK-DAG:         [[VAR_26_:%.+]] = tts.make_tptr [[PARAM_1_]] to sizes: [4, 4], strides: {{.}}[[VAR_17_]], [[VAR_18_]]{{.}}, offsets: {{.}}[[PARAM_1_]]0, [[CST_0_]]{{.}}, shape: [0, 0], order: [] : <f32, 1> to tensor<4x4x!tt.ptr<f32>>
+// CHECK-DAG:         [[LOAD_VAR_arg9_MEM_:%.+]] = tt.load [[VAR_arg9_]], [[VAR_20_]], [[VAR_cst_]] : tensor<4x4x!tt.ptr<f32>>
+// CHECK:             "tts.store"([[VAR_26_]], [[LOAD_VAR_arg9_MEM_]]) <{static_mask_dims = array<i64>}> : (tensor<4x4x!tt.ptr<f32>>, tensor<4x4xf32>) -> ()
+// CHECK-DAG:         [[VAR_28_:%.+]] = tt.addptr [[VAR_arg9_]], [[VAR_22_]] : tensor<4x4x!tt.ptr<f32>>, tensor<4x4xi32>
 // CHECK-DAG:         [[VAR_29_:%.+]] = arith.addi [[VAR_arg10_]], [[VAR_24_]] : index
-// CHECK:             scf.yield [[VAR_28_]], [[VAR_29_]] : tensor<4x4x!tt.ptr<f32, 1>>, index
+// CHECK:             scf.yield [[VAR_28_]], [[VAR_29_]] : tensor<4x4x!tt.ptr<f32>>, index
 // CHECK:           }
 // CHECK:           tt.return
 // CHECK:         }
