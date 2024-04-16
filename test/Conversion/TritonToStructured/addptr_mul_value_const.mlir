@@ -45,8 +45,8 @@ module {
 // CHECK-DAG:       [[VAR_5_:%.+]] = arith.addi [[VAR_2_]], [[VAR_4_]] : index
 // CHECK-DAG:       [[VAR_6_:%.+]] = arith.addi [[VAR_3_]], [[CST_1_]] : index
 // CHECK-NOT: separator of consecutive DAGs
-// CHECK-DAG:       [[VAR_7_:%.+]] = tts.make_tptr [[PARAM_0_]] to sizes: [1024], strides: {{.}}[[VAR_6_]]{{.}}, offsets: {{.}}[[VAR_5_]]{{.}}, shape: [0], order: [] : <bf16, 1> to tensor<1024x!tt.ptr<bf16>>
-// CHECK-DAG:       [[VAR_8_:%.+]] = tts.make_tptr [[PARAM_1_]] to sizes: [1024], strides: [1], offsets: {{.}}[[VAR_1_]]{{.}}, shape: [0], order: [] : <bf16, 1> to tensor<1024x!tt.ptr<bf16>>
+// CHECK-DAG:       [[VAR_7_:%.+]] = tts.make_tptr [[PARAM_0_]] to sizes: [1024], strides: {{.}}[[VAR_6_]]{{.}}, offsets: {{.}}[[VAR_5_]]{{.}}, shape: [0], order: [] : <bf16> to tensor<1024x!tt.ptr<bf16>>
+// CHECK-DAG:       [[VAR_8_:%.+]] = tts.make_tptr [[PARAM_1_]] to sizes: [1024], strides: [1], offsets: {{.}}[[VAR_1_]]{{.}}, shape: [0], order: [] : <bf16> to tensor<1024x!tt.ptr<bf16>>
 // CHECK:           [[VAR_9_:%.+]] = "tts.load"([[VAR_7_]]) <{operandSegmentSizes = array<i32: 1, 0, 0>, static_mask_dims = array<i64>}> : (tensor<1024x!tt.ptr<bf16>>) -> tensor<1024xbf16>
 // CHECK:           "tts.store"([[VAR_8_]], [[VAR_9_]]) <{static_mask_dims = array<i64>}> : (tensor<1024x!tt.ptr<bf16>>, tensor<1024xbf16>) -> ()
 // CHECK:           tt.return

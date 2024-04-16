@@ -65,7 +65,7 @@ module {
 // CHECK:           [[VAR_2_:%.+]] = arith.index_cast [[VAR_1_]] : i32 to index
 // CHECK-DAG:       [[VAR_3_:%.+]]:2 = scf.for [[VAR_arg5_:%.+]] = [[CST_0_]] to [[CST_12_]] step [[CST_3_]] iter_args([[VAR_arg6_:%.+]] = [[VAR_cst_]], [[VAR_arg7_:%.+]] = [[VAR_2_]]) -> (tensor<128x128xf32>, index) {
 // CHECK-DAG:         [[VAR_8_:%.+]] = arith.addi [[VAR_arg7_]], [[CST_128_]] : index
-// CHECK:             [[VAR_9_:%.+]] = tts.make_tptr [[PARAM_1_]] to sizes: [128, 128], strides: [1, 1], offsets: {{.}}[[VAR_8_]], 0], shape: [0, 0], order: [] : <f32, 1> to tensor<128x128x!tt.ptr<f32>>
+// CHECK:             [[VAR_9_:%.+]] = tts.make_tptr [[PARAM_1_]] to sizes: [128, 128], strides: [1, 1], offsets: {{.}}[[VAR_8_]], 0], shape: [0, 0], order: [] : <f32> to tensor<128x128x!tt.ptr<f32>>
 // CHECK:             [[VAR_10_:%.+]] = "tts.load"([[VAR_9_]]) <{operandSegmentSizes = array<i32: 1, 0, 0>, static_mask_dims = array<i64>}> : (tensor<128x128x!tt.ptr<f32>>) -> tensor<128x128xf32>
 // CHECK:             [[VAR_11_:%.+]] = math.exp [[VAR_10_]] : tensor<128x128xf32>
 // CHECK-DAG:         [[VAR_12_:%.+]] = arith.addf [[VAR_arg6_]], [[VAR_11_]] : tensor<128x128xf32>
@@ -75,7 +75,7 @@ module {
 // CHECK:           [[VAR_4_:%.+]] = arith.muli [[VAR_0_]], [[PARAM_3_]] : i32
 // CHECK:           [[VAR_5_:%.+]] = arith.index_cast [[VAR_4_]] : i32 to index
 // CHECK:           [[VAR_6_:%.+]] = arith.addi [[VAR_5_]], [[CST_128_]] : index
-// CHECK:           [[VAR_7_:%.+]] = tts.make_tptr [[PARAM_0_]] to sizes: [128, 128], strides: [1, 1], offsets: {{.}}[[VAR_6_]], 0], shape: [0, 0], order: [] : <f32, 1> to tensor<128x128x!tt.ptr<f32>>
+// CHECK:           [[VAR_7_:%.+]] = tts.make_tptr [[PARAM_0_]] to sizes: [128, 128], strides: [1, 1], offsets: {{.}}[[VAR_6_]], 0], shape: [0, 0], order: [] : <f32> to tensor<128x128x!tt.ptr<f32>>
 // CHECK:           "tts.store"([[VAR_7_]], [[VAR_3_]]#0) <{static_mask_dims = array<i64>}> : (tensor<128x128x!tt.ptr<f32>>, tensor<128x128xf32>) -> ()
 // CHECK:           tt.return
 // CHECK:         }
