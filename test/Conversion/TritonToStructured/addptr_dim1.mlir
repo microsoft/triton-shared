@@ -21,7 +21,7 @@ module {
     %5 = tt.addptr %2, %4 : tensor<1x256x!tt.ptr<bf16>>, tensor<1x256xi32>
     // source = %arg0, offset = [%arg1, 0], size = [1, 256], stride = [0, 1]
 
-    tt.store %5, %3 : tensor<1x256x!tt.ptr<bf16>>, tensor<1x256x!tt.ptr<bf16>>
+    tt.store %5, %3 : tensor<1x256x!tt.ptr<bf16>>
 
     %10 = arith.constant 0.0 : bf16
     %11 = tt.splat %10 : bf16 -> tensor<4x256xbf16>
@@ -65,7 +65,7 @@ module {
     %34 = tt.broadcast %33 : tensor<4x1xi32> -> tensor<4x256xi32>
     %35 = tt.broadcast %2 : tensor<1x256x!tt.ptr<bf16>> -> tensor<4x256x!tt.ptr<bf16>>
     %36 = tt.addptr %35, %34 : tensor<4x256x!tt.ptr<bf16>>, tensor<4x256xi32>
-    tt.store %36, %sum_out : tensor<4x256x!tt.ptr<bf16>>, tensor<4x256x!tt.ptr<bf16>>
+    tt.store %36, %sum_out : tensor<4x256x!tt.ptr<bf16>>
     tt.return
   }
 }
