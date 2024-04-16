@@ -22,6 +22,9 @@ def _ty_to_cpp(ty):
         "i16": "int16_t",
         "i32": "int32_t",
         "i64": "int64_t",
+        "u1": "uint32_t",
+        "u8": "uint8_t",
+        "u16": "uint16_t",
         "u32": "uint32_t",
         "u64": "uint64_t",
         "fp16": "float",
@@ -31,37 +34,32 @@ def _ty_to_cpp(ty):
         "fp64": "double",
     }[ty]
 
-def _extracted_ty(ty):
+def _extracted_type(ty):
     if ty[0] == '*':
         return "PyObject*"
-    return {
-        'i1': 'int32_t',
-        'i32': 'int32_t',
-        'i64': 'int64_t',
-        'u32': 'uint32_t',
-        'u64': 'uint64_t',
-        'fp16': 'float',
-        'bf16': 'float',
-        'fp32': 'float',
-        'f32': 'float',
-        'fp64': 'double',
-    }[ty]
+    return _ty_to_cpp(ty)
 
 def _format_of(ty):
     return {
-        "PyObject*": "O",
-        "float": "f",
-        "double": "d",
-        "long": "l",
-        "uint32_t": "I",
-        "int32_t": "i",
-        "uint64_t": "K",
-        "int64_t": "L",
+      "PyObject*": "O",
+      "float": "f",
+      "double": "d",
+      "long": "l",
+      "int8_t": "b",
+      "int16_t": "h",
+      "int32_t": "i",
+      "int64_t": "l",
+      "uint8_t": "B",
+      "uint16_t": "H",
+      "uint32_t": "I",
+      "uint64_t": "K",
     }[ty]
 
 def _generate_launcher(constants, signature, kernel_name):
     arg_decls = ', '.join(f"{_ty_to_cpp(ty)} arg{i}" for i, ty in signature.items())
-    format = "iiiOOO" + ''.join([_format_of(_extracted_ty(ty)) for ty in signature.values()])
+    args_format = ''.join([_format_of(_extracted_type(ty)) for ty in signature.values()])
+    format = "iiiOOOO" + args_format
+    args_list = ', ' + ', '.join(f"&_arg{i}" for i, ty in signature.items()) if len(signature) > 0 else ''
     return f"""
 #include <assert.h>
 #include <stdbool.h>
@@ -134,15 +132,41 @@ static PyObject* launch(PyObject* self, PyObject* args) {{
   int gridX, gridY, gridZ;
   PyObject *launch_enter_hook = NULL;
   PyObject *launch_exit_hook = NULL;
-  PyObject *metadata = NULL;
-  {' '.join([f"{_extracted_ty(ty)} _arg{i}; " for i, ty in signature.items()])}
-  if(!PyArg_ParseTuple(args, \"{format}\", &gridX, &gridY, &gridZ, &launch_enter_hook, &launch_exit_hook, &metadata
-                       {', ' + ', '.join(f"&_arg{i}" for i, ty in signature.items()) if len(signature) > 0 else ''})) {{
+  PyObject *kernel_metadata = NULL;
+  PyObject *launch_metadata = NULL;
+  {' '.join([f"{_extracted_type(ty)} _arg{i}; " for i, ty in signature.items()])}
+  if(!PyArg_ParseTuple(args, \"{format}\", &gridX, &gridY, &gridZ,
+                                           &kernel_metadata, &launch_metadata,
+                                           &launch_enter_hook, &launch_exit_hook {args_list})) {{
     return NULL;
   }}
 
-  if (launch_enter_hook != Py_None && !PyObject_CallObject(launch_enter_hook, args)) {{
+  // [CPULauncher-specific]: We don't need the metadata below but just put them
+  // here anyway to be consistent with others.
+  // This will make updating the driver easier in the future.
+
+  // extract kernel metadata
+  int num_warps     = PyLong_AsLong(PyObject_GetAttrString(kernel_metadata, "num_warps"));
+  int num_ctas      = PyLong_AsLong(PyObject_GetAttrString(kernel_metadata, "num_ctas"));
+  int shared_memory = PyLong_AsLong(PyObject_GetAttrString(kernel_metadata, "shared"));
+
+  // extract cluster dims
+  PyObject *clusterDim =  PyObject_GetAttrString(kernel_metadata, "cluster_dims");
+  if (!PyTuple_Check(kernel_metadata)) {{
+    PyErr_SetString(PyExc_TypeError, "kernel_metadata.cluster_dims must be a tuple");
     return NULL;
+  }}
+  int clusterDimX   = PyLong_AsLong(PyTuple_GetItem(clusterDim, 0));
+  int clusterDimY   = PyLong_AsLong(PyTuple_GetItem(clusterDim, 1));
+  int clusterDimZ   = PyLong_AsLong(PyTuple_GetItem(clusterDim, 2));
+
+  // extract launch metadata
+  if (launch_enter_hook != Py_None){{
+    PyObject* args = Py_BuildValue("(O)", launch_metadata);
+    PyObject* ret = PyObject_CallObject(launch_enter_hook, args);
+    Py_DECREF(args);
+    if (!ret)
+      return NULL;
   }}
 
   // raise exception asap
@@ -152,8 +176,12 @@ static PyObject* launch(PyObject* self, PyObject* args) {{
   if (PyErr_Occurred()) {{
     return NULL;
   }}
-  if (launch_exit_hook != Py_None && !PyObject_CallObject(launch_exit_hook, args)) {{
-    return NULL;
+  if(launch_exit_hook != Py_None){{
+    PyObject* args = Py_BuildValue("(O)", launch_metadata);
+    PyObject* ret = PyObject_CallObject(launch_exit_hook, args);
+    Py_DECREF(args);
+    if (!ret)
+      return NULL;
   }}
 
   // return None
@@ -200,15 +228,15 @@ def compile_module(launcher_src, kernel_placeholder_name):
     include_dir = os.path.join(cpu_backend_path, "include")
 
     def launch(
-        gridX, gridY, gridZ, num_warps, num_ctas, clusterDim0, clusterDim1, clusterDim2,
-        shared, stream, cu_function, launch_enter_hook, launch_exit_hook, metadata,
-        *args):
+        gridX, gridY, gridZ, stream, cu_function,
+        kernel_metadata, launch_metadata,
+        launch_enter_hook, launch_exit_hook, *args):
         # Unlike CUDA/HIP, we cannot easily pass function pointer across different pybind libraries.
         # Let's compile a kernel every time.
         # The cu_function parameter actually contains our assembly source code.
         # See CPUUtils.load_binary method.
         asm_src = cu_function
-        src = launcher_src.replace(kernel_placeholder_name, metadata.name)
+        src = launcher_src.replace(kernel_placeholder_name, kernel_metadata.name)
 
         key = hashlib.md5(src.encode("utf-8")).hexdigest()
         cache = get_cache_manager(key)
@@ -237,7 +265,10 @@ def compile_module(launcher_src, kernel_placeholder_name):
         spec = importlib.util.spec_from_file_location(name, cache_path)
         mod = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(mod)
-        return mod.launch(gridX, gridY, gridZ, launch_enter_hook, launch_exit_hook, metadata, *args)
+        return mod.launch(gridX, gridY, gridZ,
+                          kernel_metadata, launch_metadata,
+                          launch_enter_hook, launch_exit_hook,
+                          *args)
 
     return launch
 
@@ -245,10 +276,13 @@ def compile_module(launcher_src, kernel_placeholder_name):
 class CPULauncher(object):
 
     def __init__(self, src, metadata):
-        constants = src.constants if hasattr(src, "constants") else dict()
-
         kernel_placeholder_name = "KERNEL_NAME_PLACEHOLDER"
-        launcher_src = _generate_launcher(constants, src.signature, kernel_placeholder_name)
+
+        constants = src.constants if hasattr(src, "constants") else dict()
+        cst_key = lambda i: src.fn.arg_names.index(i) if isinstance(i, str) else i
+        constants = {cst_key(key): value for key, value in constants.items()}
+        signature = {cst_key(key): value for key, value in src.signature.items()}
+        launcher_src = _generate_launcher(constants, signature, kernel_placeholder_name)
         # Later KERNEL_NAME_PLACEHOLDER will be used to assign the kernel name
         # in the following launch function.
         self.launch = compile_module(launcher_src, kernel_placeholder_name)
