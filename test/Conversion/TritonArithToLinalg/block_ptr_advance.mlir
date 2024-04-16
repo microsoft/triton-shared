@@ -49,16 +49,16 @@ module {
 // CHECK:           [[VAR_6_:%.+]] = tt.make_tensor_ptr [[PARAM_0_]], {{.}}[[VAR_2_]], [[VAR_3_]]{{.}}, {{.}}[[VAR_4_]], [[VAR_5_]]{{.}}, {{.}}[[PARAM_12_]], [[CST_0_]]{{.}} {order = array<i32: 1, 0>} : <tensor<128x64xbf16>>
 // CHECK:           [[VAR_7_:%.+]] = tt.advance [[VAR_6_]], {{.}}[[CST_0_]], [[CST_64_]]{{.}} : <tensor<128x64xbf16>>
 // CHECK-DAG:       [[VAR_8_:%.+]]:3 = scf.for [[VAR_arg20_:%.+]] = [[CST_0_]] to [[PARAM_5_]] step [[CST_64_]] iter_args([[VAR_arg21_:%.+]] = [[VAR_1_]], [[VAR_arg22_:%.+]] = [[VAR_7_]], [[VAR_arg23_:%.+]] = [[VAR_6_]]) -> (tensor<128x64xbf16>, !tt.ptr<tensor<128x64xbf16>>, !tt.ptr<tensor<128x64xbf16>>)  : i32 {
-// CHECK-DAG:         [[LOAD_VAR_arg22_MEM_:%.+]] = tt.load [[VAR_arg22_]] {boundaryCheck = array<i32: 0, 1>, cache = 1 : i32, evict = 1 : i32, isVolatile = false} : !tt.ptr<tensor<128x64xbf16>> -> tensor<128x64x!tt.ptr<bf16>>
-// CHECK-DAG:         [[LOAD_VAR_arg23_MEM_:%.+]] = tt.load [[VAR_arg23_]] {boundaryCheck = array<i32: 0, 1>, cache = 1 : i32, evict = 1 : i32, isVolatile = false} : !tt.ptr<tensor<128x64xbf16>> -> tensor<128x64x!tt.ptr<bf16>>
+// CHECK-DAG:         [[LOAD_VAR_arg22_MEM_:%.+]] = tt.load [[VAR_arg22_]] {boundaryCheck = array<i32: 0, 1>} : !tt.ptr<tensor<128x64xbf16>>
+// CHECK-DAG:         [[LOAD_VAR_arg23_MEM_:%.+]] = tt.load [[VAR_arg23_]] {boundaryCheck = array<i32: 0, 1>} : !tt.ptr<tensor<128x64xbf16>>
 // CHECK:             [[VAR_16_:%.+]] = linalg.generic {indexing_maps = [#map, #map, #map], iterator_types = ["parallel", "parallel"]} ins([[LOAD_VAR_arg22_MEM_]], [[LOAD_VAR_arg23_MEM_]] : tensor<128x64xbf16>, tensor<128x64xbf16>) outs([[LOAD_VAR_arg22_MEM_]] : tensor<128x64xbf16>) {
-// CHECK:             ^bb0([[in_:%.+]]: bf16, [[in_]]_0: bf16, [[out_:%.+]]: bf16):
-// CHECK:               [[VAR_20_:%.+]] = arith.addf [[in_]], [[in_]]_0 : bf16
+// CHECK:             ^bb0([[IN_0_:%.+]]: bf16, [[IN_1_:%.+]]: bf16, [[IN_2_:%.+]]: bf16):
+// CHECK:               [[VAR_20_:%.+]] = arith.addf [[IN_0_]], [[IN_1_]] : bf16
 // CHECK:               linalg.yield [[VAR_20_]] : bf16
 // CHECK:             } -> tensor<128x64xbf16>
 // CHECK:             [[VAR_17_:%.+]] = linalg.generic {indexing_maps = [#map, #map, #map], iterator_types = ["parallel", "parallel"]} ins([[VAR_arg21_]], [[VAR_16_]] : tensor<128x64xbf16>, tensor<128x64xbf16>) outs([[VAR_arg21_]] : tensor<128x64xbf16>) {
-// CHECK:             ^bb0([[in_]]: bf16, [[in_]]_0: bf16, [[out_]]: bf16):
-// CHECK:               [[VAR_20_1_:%.+]] = arith.addf [[in_]], [[in_]]_0 : bf16
+// CHECK:             ^bb0([[IN_3_:%.+]]: bf16, [[IN_4_:%.+]]: bf16, [[IN_5_:%.+]]: bf16):
+// CHECK:               [[VAR_20_1_:%.+]] = arith.addf [[IN_3_]], [[IN_4_]] : bf16
 // CHECK:               linalg.yield [[VAR_20_1_]] : bf16
 // CHECK:             } -> tensor<128x64xbf16>
 // CHECK-DAG:         [[VAR_18_:%.+]] = tt.advance [[VAR_arg22_]], {{.}}[[CST_0_]], [[CST_64_]]{{.}} : <tensor<128x64xbf16>>
@@ -70,6 +70,6 @@ module {
 // CHECK-DAG:       [[VAR_11_:%.+]] = arith.extsi [[PARAM_4_]] : i32 to i64
 // CHECK-DAG:       [[VAR_12_:%.+]] = arith.muli [[PARAM_13_]], [[CST_256_]] : i32
 // CHECK:           [[VAR_13_:%.+]] = tt.make_tensor_ptr [[PARAM_2_]], {{.}}[[VAR_2_]], [[VAR_11_]]{{.}}, {{.}}[[VAR_9_]], [[VAR_10_]]{{.}}, {{.}}[[PARAM_12_]], [[VAR_12_]]{{.}} {order = array<i32: 1, 0>} : <tensor<128x64xbf16>>
-// CHECK:           tt.store [[VAR_13_]], [[VAR_8_]]#0 {boundaryCheck = array<i32: 0, 1>, cache = 1 : i32, evict = 1 : i32} : !tt.ptr<tensor<128x64xbf16>>
+// CHECK:           tt.store [[VAR_13_]], [[VAR_8_]]#0 {boundaryCheck = array<i32: 0, 1>} : !tt.ptr<tensor<128x64xbf16>>
 // CHECK:           return
 // CHECK:         }
