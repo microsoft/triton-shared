@@ -27,14 +27,14 @@ module {
     // afloat pointer
     %8 = tt.splat %afloat : !tt.ptr<bf16> -> tensor<32x256x16x!tt.ptr<bf16>>
     %9 = tt.addptr %8, %mknoff : tensor<32x256x16x!tt.ptr<bf16>>, tensor<32x256x16xi32>
-    %afm = tt.load %9 {cache = 1 : i32, evict = 1 : i32, isVolatile = false} : tensor<32x256x16xbf16>
+    %afm = tt.load %9 {cache = 1 : i32, evict = 1 : i32, isVolatile = false} : tensor<32x256x16x!tt.ptr<bf16>>
     %6 = "tt.reduce"(%afm) ({
     ^bb0(%arg5: bf16, %arg6: bf16):
       %21 = arith.cmpf ogt, %arg5, %arg6 : bf16
       %22 = arith.select %21, %arg5, %arg6 : bf16
       tt.reduce.return %22 : bf16
     }) {axis = 0 : i32} : (tensor<32x256x16xbf16>) -> tensor<256x16xbf16>
-    tt.store %res, %6 {cache = 1 : i32, evict = 1 : i32} : tensor<256x16xbf16>
+    tt.store %res, %6 {cache = 1 : i32, evict = 1 : i32} : tensor<256x16x!tt.ptr<bf16>>
     tt.return
     }
 }

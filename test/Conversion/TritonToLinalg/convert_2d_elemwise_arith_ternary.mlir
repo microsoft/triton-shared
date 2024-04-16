@@ -23,11 +23,11 @@ module {
         // c pointer
         %28 = tt.splat %c : !tt.ptr<f32> -> tensor<128x128x!tt.ptr<f32>>
         %29 = tt.addptr %28, %mkoff : tensor<128x128x!tt.ptr<f32>>, tensor<128x128xi32>
-        %am = tt.load %9 {cache = 1 : i32, evict = 1 : i32, isVolatile = false} : tensor<128x128xi1>
-        %bm = tt.load %19 {cache = 1 : i32, evict = 1 : i32, isVolatile = false} : tensor<128x128xf32>
-        %cm = tt.load %29 {cache = 1 : i32, evict = 1 : i32, isVolatile = false} : tensor<128x128xf32>
+        %am = tt.load %9 {cache = 1 : i32, evict = 1 : i32, isVolatile = false} : tensor<128x128x!tt.ptr<i1>>
+        %bm = tt.load %19 {cache = 1 : i32, evict = 1 : i32, isVolatile = false} : tensor<128x128x!tt.ptr<f32>>
+        %cm = tt.load %29 {cache = 1 : i32, evict = 1 : i32, isVolatile = false} : tensor<128x128x!tt.ptr<f32>>
         %100 = arith.select %am, %bm, %cm : tensor<128x128xi1>, tensor<128x128xf32>
-        tt.store %d, %100 {cache = 1 : i32, evict = 1 : i32} : tensor<128x128xf32>
+        tt.store %d, %100 {cache = 1 : i32, evict = 1 : i32} : tensor<128x128x!tt.ptr<f32>>
         tt.return
     }
 }

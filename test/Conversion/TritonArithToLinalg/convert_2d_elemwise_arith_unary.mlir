@@ -27,19 +27,19 @@ module {
     // f16ptr pointer
     %28 = tt.splat %f16ptr : !tt.ptr<f16> -> tensor<128x128x!tt.ptr<f16>>
     %29 = tt.addptr %28, %mkoff : tensor<128x128x!tt.ptr<f16>>, tensor<128x128xi32>
-    %afm = tt.load %9 {cache = 1 : i32, evict = 1 : i32, isVolatile = false} : tensor<128x128xf32>
-    %aim = tt.load %19 {cache = 1 : i32, evict = 1 : i32, isVolatile = false} : tensor<128x128xi32>
-    %bfm = tt.load %29 {cache = 1 : i32, evict = 1 : i32, isVolatile = false} : tensor<128x128xf16>
+    %afm = tt.load %9 {cache = 1 : i32, evict = 1 : i32, isVolatile = false} : tensor<128x128x!tt.ptr<f32>>
+    %aim = tt.load %19 {cache = 1 : i32, evict = 1 : i32, isVolatile = false} : tensor<128x128x!tt.ptr<i32>>
+    %bfm = tt.load %29 {cache = 1 : i32, evict = 1 : i32, isVolatile = false} : tensor<128x128x!tt.ptr<f16>>
     %5 = arith.truncf %afm : tensor<128x128xf32> to tensor<128x128xbf16>
     %6 = math.exp %afm : tensor<128x128xf32>
     %7 = arith.sitofp %aim : tensor<128x128xi32> to tensor<128x128xf32>
     %10 = arith.extf %bfm : tensor<128x128xf16> to tensor<128x128xf32>
     %11 = math.sqrt %afm : tensor<128x128xf32>
-    tt.store %save0, %5 {cache = 1 : i32, evict = 1 : i32} : tensor<128x128xbf16>
-    tt.store %save1, %6 {cache = 1 : i32, evict = 1 : i32} : tensor<128x128xf32>
-    tt.store %save2, %7 {cache = 1 : i32, evict = 1 : i32} : tensor<128x128xf32>
-    tt.store %save3, %10 {cache = 1 : i32, evict = 1 : i32} : tensor<128x128xf32>
-    tt.store %save4, %11 {cache = 1 : i32, evict = 1 : i32} : tensor<128x128xf32>
+    tt.store %save0, %5 {cache = 1 : i32, evict = 1 : i32} : tensor<128x128x!tt.ptr<bf16>>
+    tt.store %save1, %6 {cache = 1 : i32, evict = 1 : i32} : tensor<128x128x!tt.ptr<f32>>
+    tt.store %save2, %7 {cache = 1 : i32, evict = 1 : i32} : tensor<128x128x!tt.ptr<f32>>
+    tt.store %save3, %10 {cache = 1 : i32, evict = 1 : i32} : tensor<128x128x!tt.ptr<f32>>
+    tt.store %save4, %11 {cache = 1 : i32, evict = 1 : i32} : tensor<128x128x!tt.ptr<f32>>
     tt.return
   }
 }
@@ -101,9 +101,9 @@ module {
 // CHECK:             [[VAR_29_5_:%.+]] = tt.addptr [[in_]], [[in_]]_1 : !tt.ptr<f16, 1>, i32
 // CHECK:             linalg.yield [[VAR_29_5_]] : !tt.ptr<f16, 1>
 // CHECK:           } -> tensor<128x128x!tt.ptr<f16, 1>>
-// CHECK-DAG:       [[LOAD_VAR_11_MEM_:%.+]] = tt.load [[VAR_11_]] {cache = 1 : i32, evict = 1 : i32, isVolatile = false} : tensor<128x128xf32>
-// CHECK-DAG:       [[LOAD_VAR_14_MEM_:%.+]] = tt.load [[VAR_14_]] {cache = 1 : i32, evict = 1 : i32, isVolatile = false} : tensor<128x128xi32>
-// CHECK-DAG:       [[LOAD_VAR_17_MEM_:%.+]] = tt.load [[VAR_17_]] {cache = 1 : i32, evict = 1 : i32, isVolatile = false} : tensor<128x128xf16>
+// CHECK-DAG:       [[LOAD_VAR_11_MEM_:%.+]] = tt.load [[VAR_11_]] {cache = 1 : i32, evict = 1 : i32, isVolatile = false} : tensor<128x128x!tt.ptr<f32>>
+// CHECK-DAG:       [[LOAD_VAR_14_MEM_:%.+]] = tt.load [[VAR_14_]] {cache = 1 : i32, evict = 1 : i32, isVolatile = false} : tensor<128x128x!tt.ptr<i32>>
+// CHECK-DAG:       [[LOAD_VAR_17_MEM_:%.+]] = tt.load [[VAR_17_]] {cache = 1 : i32, evict = 1 : i32, isVolatile = false} : tensor<128x128x!tt.ptr<f16>>
 // CHECK-DAG:       [[VAR_21_:%.+]] = tensor.empty() : tensor<128x128xbf16>
 // CHECK:           [[VAR_22_:%.+]] = linalg.generic {indexing_maps = [#map2, #map2], iterator_types = ["parallel", "parallel"]} ins([[LOAD_VAR_11_MEM_]] : tensor<128x128xf32>) outs([[VAR_21_]] : tensor<128x128xbf16>) {
 // CHECK:           ^bb0([[in_]]: f32, [[out_]]: bf16):
@@ -132,10 +132,10 @@ module {
 // CHECK:             [[VAR_29_10_:%.+]] = math.sqrt [[in_]] : f32
 // CHECK:             linalg.yield [[VAR_29_10_]] : f32
 // CHECK:           } -> tensor<128x128xf32>
-// CHECK:           tt.store [[PARAM_3_]], [[VAR_22_]] {cache = 1 : i32, evict = 1 : i32} : tensor<128x128xbf16>
-// CHECK:           tt.store [[PARAM_4_]], [[VAR_23_]] {cache = 1 : i32, evict = 1 : i32} : tensor<128x128xf32>
-// CHECK:           tt.store [[PARAM_5_]], [[VAR_25_]] {cache = 1 : i32, evict = 1 : i32} : tensor<128x128xf32>
-// CHECK:           tt.store [[PARAM_6_]], [[VAR_27_]] {cache = 1 : i32, evict = 1 : i32} : tensor<128x128xf32>
-// CHECK:           tt.store [[PARAM_7_]], [[VAR_28_]] {cache = 1 : i32, evict = 1 : i32} : tensor<128x128xf32>
+// CHECK:           tt.store [[PARAM_3_]], [[VAR_22_]] {cache = 1 : i32, evict = 1 : i32} : tensor<128x128x!tt.ptr<bf16>>
+// CHECK:           tt.store [[PARAM_4_]], [[VAR_23_]] {cache = 1 : i32, evict = 1 : i32} : tensor<128x128x!tt.ptr<f32>>
+// CHECK:           tt.store [[PARAM_5_]], [[VAR_25_]] {cache = 1 : i32, evict = 1 : i32} : tensor<128x128x!tt.ptr<f32>>
+// CHECK:           tt.store [[PARAM_6_]], [[VAR_27_]] {cache = 1 : i32, evict = 1 : i32} : tensor<128x128x!tt.ptr<f32>>
+// CHECK:           tt.store [[PARAM_7_]], [[VAR_28_]] {cache = 1 : i32, evict = 1 : i32} : tensor<128x128x!tt.ptr<f32>>
 // CHECK:           return
 // CHECK:         }

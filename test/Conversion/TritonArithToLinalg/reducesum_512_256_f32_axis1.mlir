@@ -20,13 +20,13 @@ module {
     // res pointer
     %18 = tt.splat %res : !tt.ptr<f32> -> tensor<512x!tt.ptr<f32>>
     %19 = tt.addptr %18, %0 : tensor<512x!tt.ptr<f32>>, tensor<512xi32>
-    %afm = tt.load %9 {cache = 1 : i32, evict = 1 : i32, isVolatile = false} : tensor<512x256xf32>
+    %afm = tt.load %9 {cache = 1 : i32, evict = 1 : i32, isVolatile = false} : tensor<512x256x!tt.ptr<f32>>
     %5 = "tt.reduce"(%afm) ({
     ^bb0(%arg5: f32, %arg6: f32):
       %21 = arith.addf %arg5, %arg6 : f32
       tt.reduce.return %21 : f32
     }) {axis = 1 : i32} : (tensor<512x256xf32>) -> tensor<512xf32>
-    tt.store %19, %5 : tensor<512xf32>
+    tt.store %19, %5 : tensor<512x!tt.ptr<f32>>
     tt.return
     }
 }
@@ -90,7 +90,7 @@ module {
 // CHECK:             [[VAR_22_5_:%.+]] = tt.addptr [[in_]], [[in_]]_1 : !tt.ptr<f32, 1>, i32
 // CHECK:             linalg.yield [[VAR_22_5_]] : !tt.ptr<f32, 1>
 // CHECK:           } -> tensor<512x!tt.ptr<f32, 1>>
-// CHECK-DAG:       [[LOAD_VAR_14_MEM_:%.+]] = tt.load [[VAR_14_]] {cache = 1 : i32, evict = 1 : i32, isVolatile = false} : tensor<512x256xf32>
+// CHECK-DAG:       [[LOAD_VAR_14_MEM_:%.+]] = tt.load [[VAR_14_]] {cache = 1 : i32, evict = 1 : i32, isVolatile = false} : tensor<512x256x!tt.ptr<f32>>
 // CHECK-DAG:       [[VAR_19_:%.+]] = tensor.empty() : tensor<256x512xf32>
 // CHECK-NOT: separator of consecutive DAGs
 // CHECK-DAG:       [[VAR_transposed_:%.+]] = linalg.transpose ins([[LOAD_VAR_14_MEM_]] : tensor<512x256xf32>) outs([[VAR_19_]] : tensor<256x512xf32>) permutation = [1, 0]
@@ -102,6 +102,6 @@ module {
 // CHECK:               [[VAR_22_6_:%.+]] = arith.addf [[in_]], [[in_]]it : f32
 // CHECK:               linalg.yield [[VAR_22_6_]] : f32
 // CHECK:             }
-// CHECK:           tt.store [[VAR_17_]], [[VAR_reduced_]] {cache = 1 : i32, evict = 1 : i32} : tensor<512xf32>
+// CHECK:           tt.store [[VAR_17_]], [[VAR_reduced_]] {cache = 1 : i32, evict = 1 : i32} : tensor<512x!tt.ptr<f32>>
 // CHECK:           return
 // CHECK:         }

@@ -41,8 +41,8 @@ module {
   %10 = tt.splat %arg1 : !tt.ptr<bf16> -> tensor<4x256x!tt.ptr<bf16>>
   %11 = tt.addptr %10, %7 : tensor<4x256x!tt.ptr<bf16>>, tensor<4x256xi32>
   // source = %arg1, offset = [%arg2+%arg3+10, 0], size = [4, 256], stride = [1, 6]
-  %12 = tt.load %9 {cache = 1 : i32, evict = 1 : i32, isVolatile = false} : tensor<4x256xbf16>
-  tt.store %11, %12 : tensor<4x256xbf16>
+  %12 = tt.load %9 {cache = 1 : i32, evict = 1 : i32, isVolatile = false} : tensor<4x256x!tt.ptr<bf16>>
+  tt.store %11, %12 : tensor<4x256x!tt.ptr<bf16>>
   tt.return
   }
 }

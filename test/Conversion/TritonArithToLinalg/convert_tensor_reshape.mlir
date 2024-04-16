@@ -12,13 +12,13 @@ module {
     %7 = arith.addi %6, %5 : tensor<2048xi32>
     %8 = tt.splat %arg0 : !tt.ptr<f32, 1> -> tensor<32x!tt.ptr<f32, 1>>
     %9 = tt.addptr %8, %4 : tensor<32x!tt.ptr<f32, 1>>, tensor<32xi32>
-    %10 = tt.load %9 {cache = 1 : i32, evict = 1 : i32, isVolatile = false} : tensor<32xf32>
+    %10 = tt.load %9 {cache = 1 : i32, evict = 1 : i32, isVolatile = false} : tensor<32x!tt.ptr<f32>>
     %11 = tt.reshape %10 {allow_reorder = false} : tensor<32xf32> -> tensor<1x32xf32>
     %12 = tt.broadcast %11 : tensor<1x32xf32> -> tensor<64x32xf32>
     %13 = tt.reshape %12 {allow_reorder = false} : tensor<64x32xf32> -> tensor<2048xf32>
     %14 = tt.splat %arg1 : !tt.ptr<f32, 1> -> tensor<2048x!tt.ptr<f32, 1>>
     %15 = tt.addptr %14, %7 : tensor<2048x!tt.ptr<f32, 1>>, tensor<2048xi32>
-    tt.store %15, %13 {cache = 1 : i32, evict = 1 : i32} : tensor<2048xf32>
+    tt.store %15, %13 {cache = 1 : i32, evict = 1 : i32} : tensor<2048x!tt.ptr<f32>>
     tt.return
   }
 }
@@ -65,7 +65,7 @@ module {
 // CHECK:             [[VAR_22_4_:%.+]] = tt.addptr [[in_]], [[in_]]_1 : !tt.ptr<f32, 1>, i32
 // CHECK:             linalg.yield [[VAR_22_4_]] : !tt.ptr<f32, 1>
 // CHECK:           } -> tensor<32x!tt.ptr<f32, 1>>
-// CHECK-DAG:       [[LOAD_VAR_13_MEM_:%.+]] = tt.load [[VAR_13_]] {cache = 1 : i32, evict = 1 : i32, isVolatile = false} : tensor<32xf32>
+// CHECK-DAG:       [[LOAD_VAR_13_MEM_:%.+]] = tt.load [[VAR_13_]] {cache = 1 : i32, evict = 1 : i32, isVolatile = false} : tensor<32x!tt.ptr<f32>>
 // CHECK-DAG:       [[VAR_cst_:%.+]] = arith.constant dense<[1, 32]> : tensor<2xi64>
 // CHECK-NOT: separator of consecutive DAGs
 // CHECK-DAG:       [[VAR_reshape_:%.+]] = tensor.reshape [[LOAD_VAR_13_MEM_]]([[VAR_cst_]]) : (tensor<32xf32>, tensor<2xi64>) -> tensor<1x32xf32>
@@ -85,6 +85,6 @@ module {
 // CHECK:             [[VAR_22_5_:%.+]] = tt.addptr [[in_]], [[in_]]_1 : !tt.ptr<f32, 1>, i32
 // CHECK:             linalg.yield [[VAR_22_5_]] : !tt.ptr<f32, 1>
 // CHECK:           } -> tensor<2048x!tt.ptr<f32, 1>>
-// CHECK:           tt.store [[VAR_21_]], [[VAR_reshape_0_]] {cache = 1 : i32, evict = 1 : i32} : tensor<2048xf32>
+// CHECK:           tt.store [[VAR_21_]], [[VAR_reshape_0_]] {cache = 1 : i32, evict = 1 : i32} : tensor<2048x!tt.ptr<f32>>
 // CHECK:           return
 // CHECK:         }

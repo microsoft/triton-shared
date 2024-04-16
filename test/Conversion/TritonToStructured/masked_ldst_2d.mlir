@@ -56,8 +56,8 @@ module {
     // combined mask
     %mask = arith.andi %11, %15 : tensor<128x256xi1>
     // dim0 = min(%arg2, 128), dim1 = min(%arg3, 256)
-    %buff = tt.load %ldptr, %mask, %nans {cache = 1 : i32, evict = 1 : i32, isVolatile = false} : tensor<128x256xbf16>
-    tt.store %stptr, %buff, %mask : tensor<128x256xbf16>
+    %buff = tt.load %ldptr, %mask, %nans {cache = 1 : i32, evict = 1 : i32, isVolatile = false} : tensor<128x256x!tt.ptr<bf16>>
+    tt.store %stptr, %buff, %mask : tensor<128x256x!tt.ptr<bf16>>
     tt.return
   }
 }

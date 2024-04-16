@@ -13,13 +13,13 @@ module {
     %18 = tt.splat %b : !tt.ptr<f32> -> tensor<1024x!tt.ptr<f32>>
     %19 = tt.addptr %18, %0 : tensor<1024x!tt.ptr<f32>>, tensor<1024xi32>
 
-    %am = tt.load %9 {cache = 1 : i32, evict = 1 : i32, isVolatile = false} : tensor<1024xi32>
+    %am = tt.load %9 {cache = 1 : i32, evict = 1 : i32, isVolatile = false} : tensor<1024x!tt.ptr<i32>>
 
     // cast result before doing float add
     %am_bitcast = tt.bitcast %am : tensor<1024xi32> -> tensor<1024xf32>
 
 
-    tt.store %19, %am_bitcast : tensor<1024xf32>
+    tt.store %19, %am_bitcast : tensor<1024x!tt.ptr<f32>>
     tt.return
   }
 }
@@ -49,13 +49,13 @@ module {
 // CHECK:             [[VAR_11_2_:%.+]] = tt.addptr [[in_]], [[in_]]_0 : !tt.ptr<f32, 1>, i32
 // CHECK:             linalg.yield [[VAR_11_2_]] : !tt.ptr<f32, 1>
 // CHECK:           } -> tensor<1024x!tt.ptr<f32, 1>>
-// CHECK-DAG:       [[LOAD_VAR_4_MEM_:%.+]] = tt.load [[VAR_4_]] {cache = 1 : i32, evict = 1 : i32, isVolatile = false} : tensor<1024xi32>
+// CHECK-DAG:       [[LOAD_VAR_4_MEM_:%.+]] = tt.load [[VAR_4_]] {cache = 1 : i32, evict = 1 : i32, isVolatile = false} : tensor<1024x!tt.ptr<i32>>
 // CHECK-DAG:       [[VAR_9_:%.+]] = tensor.empty() : tensor<1024xf32>
 // CHECK:           [[VAR_10_:%.+]] = linalg.generic {indexing_maps = [#map, #map], iterator_types = ["parallel"]} ins([[LOAD_VAR_4_MEM_]] : tensor<1024xi32>) outs([[VAR_9_]] : tensor<1024xf32>) {
 // CHECK:           ^bb0([[in_]]: i32, [[out_]]: f32):
 // CHECK:             [[VAR_11_3_:%.+]] = arith.bitcast [[in_]] : i32 to f32
 // CHECK:             linalg.yield [[VAR_11_3_]] : f32
 // CHECK:           } -> tensor<1024xf32>
-// CHECK:           tt.store [[VAR_7_]], [[VAR_10_]] {cache = 1 : i32, evict = 1 : i32} : tensor<1024xf32>
+// CHECK:           tt.store [[VAR_7_]], [[VAR_10_]] {cache = 1 : i32, evict = 1 : i32} : tensor<1024x!tt.ptr<f32>>
 // CHECK:           return
 // CHECK:         }

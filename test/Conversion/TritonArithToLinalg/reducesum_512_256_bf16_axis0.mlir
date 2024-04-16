@@ -20,13 +20,13 @@ module {
     // res pointer
     %18 = tt.splat %res : !tt.ptr<bf16> -> tensor<256x!tt.ptr<bf16>>
     %19 = tt.addptr %18, %3 : tensor<256x!tt.ptr<bf16>>, tensor<256xi32>
-    %afm = tt.load %9 {cache = 1 : i32, evict = 1 : i32, isVolatile = false} : tensor<512x256xbf16>
+    %afm = tt.load %9 {cache = 1 : i32, evict = 1 : i32, isVolatile = false} : tensor<512x256x!tt.ptr<bf16>>
     %5 = "tt.reduce"(%afm) ({
     ^bb0(%arg5: bf16, %arg6: bf16):
       %21 = arith.addf %arg5, %arg6 : bf16
       tt.reduce.return %21 : bf16
     }) {axis = 0 : i32} : (tensor<512x256xbf16>) -> tensor<256xbf16>
-    tt.store %19, %5 : tensor<256xbf16>
+    tt.store %19, %5 : tensor<256x!tt.ptr<bf16>>
     tt.return
     }
 }
@@ -90,7 +90,7 @@ module {
 // CHECK:             [[VAR_21_5_:%.+]] = tt.addptr [[in_]], [[in_]]_1 : !tt.ptr<bf16, 1>, i32
 // CHECK:             linalg.yield [[VAR_21_5_]] : !tt.ptr<bf16, 1>
 // CHECK:           } -> tensor<256x!tt.ptr<bf16, 1>>
-// CHECK-DAG:       [[LOAD_VAR_14_MEM_:%.+]] = tt.load [[VAR_14_]] {cache = 1 : i32, evict = 1 : i32, isVolatile = false} : tensor<512x256xbf16>
+// CHECK-DAG:       [[LOAD_VAR_14_MEM_:%.+]] = tt.load [[VAR_14_]] {cache = 1 : i32, evict = 1 : i32, isVolatile = false} : tensor<512x256x!tt.ptr<bf16>>
 // CHECK-DAG:       [[CST_0_dot_000000_:%.+]] = arith.constant 0.000000e+00 : bf16
 // CHECK-DAG:       [[VAR_19_:%.+]] = tensor.empty() : tensor<256xbf16>
 // CHECK:           [[VAR_20_:%.+]] = linalg.fill ins([[CST_0_dot_000000_]] : bf16) outs([[VAR_19_]] : tensor<256xbf16>) -> tensor<256xbf16>
@@ -99,6 +99,6 @@ module {
 // CHECK:               [[VAR_21_6_:%.+]] = arith.addf [[in_]], [[in_]]it : bf16
 // CHECK:               linalg.yield [[VAR_21_6_]] : bf16
 // CHECK:             }
-// CHECK:           tt.store [[VAR_17_]], [[VAR_reduced_]] {cache = 1 : i32, evict = 1 : i32} : tensor<256xbf16>
+// CHECK:           tt.store [[VAR_17_]], [[VAR_reduced_]] {cache = 1 : i32, evict = 1 : i32} : tensor<256x!tt.ptr<bf16>>
 // CHECK:           return
 // CHECK:         }

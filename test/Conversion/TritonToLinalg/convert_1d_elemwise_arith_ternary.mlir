@@ -17,11 +17,11 @@ module {
     // c pointer
     %28 = tt.splat %c : !tt.ptr<f32> -> tensor<1024x!tt.ptr<f32>>
     %29 = tt.addptr %28, %0 : tensor<1024x!tt.ptr<f32>>, tensor<1024xi32>
-    %am = tt.load %9 {cache = 1 : i32, evict = 1 : i32, isVolatile = false} : tensor<1024xi1>
-    %bm = tt.load %19 {cache = 1 : i32, evict = 1 : i32, isVolatile = false} : tensor<1024xf32>
-    %cm = tt.load %29 {cache = 1 : i32, evict = 1 : i32, isVolatile = false} : tensor<1024xf32>
+    %am = tt.load %9 {cache = 1 : i32, evict = 1 : i32, isVolatile = false} : tensor<1024x!tt.ptr<i1>>
+    %bm = tt.load %19 {cache = 1 : i32, evict = 1 : i32, isVolatile = false} : tensor<1024x!tt.ptr<f32>>
+    %cm = tt.load %29 {cache = 1 : i32, evict = 1 : i32, isVolatile = false} : tensor<1024x!tt.ptr<f32>>
     %10 = arith.select %am, %bm, %cm : tensor<1024xi1>, tensor<1024xf32>
-    tt.store %d, %10 {cache = 1 : i32, evict = 1 : i32} : tensor<1024xf32>
+    tt.store %d, %10 {cache = 1 : i32, evict = 1 : i32} : tensor<1024x!tt.ptr<f32>>
     tt.return
   }
 }

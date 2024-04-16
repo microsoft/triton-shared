@@ -13,13 +13,13 @@ module {
     %18 = tt.splat %b : !tt.ptr<f32> -> tensor<1024x!tt.ptr<f32>>
     %19 = tt.addptr %18, %0 : tensor<1024x!tt.ptr<f32>>, tensor<1024xi32>
 
-    %am = tt.load %9 {cache = 1 : i32, evict = 1 : i32, isVolatile = false} : tensor<1024xi32>
+    %am = tt.load %9 {cache = 1 : i32, evict = 1 : i32, isVolatile = false} : tensor<1024x!tt.ptr<i32>>
 
     // cast result before doing float add
     %am_bitcast = tt.bitcast %am : tensor<1024xi32> -> tensor<1024xf32>
 
 
-    tt.store %19, %am_bitcast : tensor<1024xf32>
+    tt.store %19, %am_bitcast : tensor<1024x!tt.ptr<f32>>
     tt.return
   }
 }

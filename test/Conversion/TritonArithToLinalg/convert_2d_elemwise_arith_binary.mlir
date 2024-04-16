@@ -20,12 +20,12 @@ module {
         // b pointer
         %18 = tt.splat %b : !tt.ptr<f32> -> tensor<128x128x!tt.ptr<f32>>
         %19 = tt.addptr %18, %mkoff : tensor<128x128x!tt.ptr<f32>>, tensor<128x128xi32>
-        %af = tt.load %9 {cache = 1 : i32, evict = 1 : i32, isVolatile = false} : tensor<128x128xf32>
-        %bf = tt.load %19 {cache = 1 : i32, evict = 1 : i32, isVolatile = false} : tensor<128x128xf32>
+        %af = tt.load %9 {cache = 1 : i32, evict = 1 : i32, isVolatile = false} : tensor<128x128x!tt.ptr<f32>>
+        %bf = tt.load %19 {cache = 1 : i32, evict = 1 : i32, isVolatile = false} : tensor<128x128x!tt.ptr<f32>>
         %res0 = arith.addf %af, %bf : tensor<128x128xf32>
         %res1 = arith.subf %af, %bf : tensor<128x128xf32>
-        tt.store %c, %res0 {cache = 1 : i32, evict = 1 : i32} : tensor<128x128xf32>
-        tt.store %d, %res1 {cache = 1 : i32, evict = 1 : i32} : tensor<128x128xf32>
+        tt.store %c, %res0 {cache = 1 : i32, evict = 1 : i32} : tensor<128x128x!tt.ptr<f32>>
+        tt.store %d, %res1 {cache = 1 : i32, evict = 1 : i32} : tensor<128x128x!tt.ptr<f32>>
         tt.return
     }
 }
@@ -80,8 +80,8 @@ module {
 // CHECK:             [[VAR_19_4_:%.+]] = tt.addptr [[in_]], [[in_]]_1 : !tt.ptr<f32, 1>, i32
 // CHECK:             linalg.yield [[VAR_19_4_]] : !tt.ptr<f32, 1>
 // CHECK:           } -> tensor<128x128x!tt.ptr<f32, 1>>
-// CHECK-DAG:       [[LOAD_VAR_11_MEM_:%.+]] = tt.load [[VAR_11_]] {cache = 1 : i32, evict = 1 : i32, isVolatile = false} : tensor<128x128xf32>
-// CHECK-DAG:       [[LOAD_VAR_14_MEM_:%.+]] = tt.load [[VAR_14_]] {cache = 1 : i32, evict = 1 : i32, isVolatile = false} : tensor<128x128xf32>
+// CHECK-DAG:       [[LOAD_VAR_11_MEM_:%.+]] = tt.load [[VAR_11_]] {cache = 1 : i32, evict = 1 : i32, isVolatile = false} : tensor<128x128x!tt.ptr<f32>>
+// CHECK-DAG:       [[LOAD_VAR_14_MEM_:%.+]] = tt.load [[VAR_14_]] {cache = 1 : i32, evict = 1 : i32, isVolatile = false} : tensor<128x128x!tt.ptr<f32>>
 // CHECK:           [[VAR_17_:%.+]] = linalg.generic {indexing_maps = [#map2, #map2, #map2], iterator_types = ["parallel", "parallel"]} ins([[LOAD_VAR_11_MEM_]], [[LOAD_VAR_14_MEM_]] : tensor<128x128xf32>, tensor<128x128xf32>) outs([[LOAD_VAR_11_MEM_]] : tensor<128x128xf32>) {
 // CHECK:           ^bb0([[in_]]: f32, [[in_]]_1: f32, [[out_]]: f32):
 // CHECK:             [[VAR_19_5_:%.+]] = arith.addf [[in_]], [[in_]]_1 : f32
@@ -92,7 +92,7 @@ module {
 // CHECK:             [[VAR_19_6_:%.+]] = arith.subf [[in_]], [[in_]]_1 : f32
 // CHECK:             linalg.yield [[VAR_19_6_]] : f32
 // CHECK:           } -> tensor<128x128xf32>
-// CHECK:           tt.store [[PARAM_2_]], [[VAR_17_]] {cache = 1 : i32, evict = 1 : i32} : tensor<128x128xf32>
-// CHECK:           tt.store [[PARAM_3_]], [[VAR_18_]] {cache = 1 : i32, evict = 1 : i32} : tensor<128x128xf32>
+// CHECK:           tt.store [[PARAM_2_]], [[VAR_17_]] {cache = 1 : i32, evict = 1 : i32} : tensor<128x128x!tt.ptr<f32>>
+// CHECK:           tt.store [[PARAM_3_]], [[VAR_18_]] {cache = 1 : i32, evict = 1 : i32} : tensor<128x128x!tt.ptr<f32>>
 // CHECK:           return
 // CHECK:         }

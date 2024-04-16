@@ -14,15 +14,15 @@ module {
         // b pointer
         %18 = tt.splat %b : !tt.ptr<f32> -> tensor<1024x!tt.ptr<f32>>
         %19 = tt.addptr %18, %0 : tensor<1024x!tt.ptr<f32>>, tensor<1024xi32>
-        %am = tt.load %9 {cache = 1 : i32, evict = 1 : i32, isVolatile = false} : tensor<1024xf32>
-        %bm = tt.load %19 {cache = 1 : i32, evict = 1 : i32, isVolatile = false} : tensor<1024xf32>
+        %am = tt.load %9 {cache = 1 : i32, evict = 1 : i32, isVolatile = false} : tensor<1024x!tt.ptr<f32>>
+        %bm = tt.load %19 {cache = 1 : i32, evict = 1 : i32, isVolatile = false} : tensor<1024x!tt.ptr<f32>>
         %1 = arith.addf %am, %bm : tensor<1024xf32>
         %2 = arith.subf %1, %bm : tensor<1024xf32>
         %3 = arith.mulf %2, %bm : tensor<1024xf32>
         %4 = arith.divf %3, %bm : tensor<1024xf32>
         %5 = arith.cmpf "oeq", %4, %bm : tensor<1024xf32>
         %6 = arith.select %5, %am, %bm : tensor<1024xi1>, tensor<1024xf32>
-        tt.store %c, %6 {cache = 1 : i32, evict = 1 : i32} : tensor<1024xf32>
+        tt.store %c, %6 {cache = 1 : i32, evict = 1 : i32} : tensor<1024x!tt.ptr<f32>>
         tt.return
     }
 }
@@ -50,8 +50,8 @@ module {
 // CHECK:             [[VAR_17_2_:%.+]] = tt.addptr [[in_]], [[in_]]_0 : !tt.ptr<f32, 1>, i32
 // CHECK:             linalg.yield [[VAR_17_2_]] : !tt.ptr<f32, 1>
 // CHECK:           } -> tensor<1024x!tt.ptr<f32, 1>>
-// CHECK-DAG:       [[LOAD_VAR_4_MEM_:%.+]] = tt.load [[VAR_4_]] {cache = 1 : i32, evict = 1 : i32, isVolatile = false} : tensor<1024xf32>
-// CHECK-DAG:       [[LOAD_VAR_7_MEM_:%.+]] = tt.load [[VAR_7_]] {cache = 1 : i32, evict = 1 : i32, isVolatile = false} : tensor<1024xf32>
+// CHECK-DAG:       [[LOAD_VAR_4_MEM_:%.+]] = tt.load [[VAR_4_]] {cache = 1 : i32, evict = 1 : i32, isVolatile = false} : tensor<1024x!tt.ptr<f32>>
+// CHECK-DAG:       [[LOAD_VAR_7_MEM_:%.+]] = tt.load [[VAR_7_]] {cache = 1 : i32, evict = 1 : i32, isVolatile = false} : tensor<1024x!tt.ptr<f32>>
 // CHECK:           [[VAR_10_:%.+]] = linalg.generic {indexing_maps = [#map, #map, #map], iterator_types = ["parallel"]} ins([[LOAD_VAR_4_MEM_]], [[LOAD_VAR_7_MEM_]] : tensor<1024xf32>, tensor<1024xf32>) outs([[LOAD_VAR_4_MEM_]] : tensor<1024xf32>) {
 // CHECK:           ^bb0([[in_]]: f32, [[in_]]_0: f32, [[out_]]: f32):
 // CHECK:             [[VAR_17_3_:%.+]] = arith.addf [[in_]], [[in_]]_0 : f32
@@ -83,6 +83,6 @@ module {
 // CHECK:             [[VAR_17_8_:%.+]] = arith.select [[in_]], [[in_]]_0, [[in_]]_1 : f32
 // CHECK:             linalg.yield [[VAR_17_8_]] : f32
 // CHECK:           } -> tensor<1024xf32>
-// CHECK:           tt.store [[PARAM_2_]], [[VAR_16_]] {cache = 1 : i32, evict = 1 : i32} : tensor<1024xf32>
+// CHECK:           tt.store [[PARAM_2_]], [[VAR_16_]] {cache = 1 : i32, evict = 1 : i32} : tensor<1024x!tt.ptr<f32>>
 // CHECK:           return
 // CHECK:         }

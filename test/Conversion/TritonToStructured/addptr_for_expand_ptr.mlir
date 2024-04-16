@@ -40,8 +40,8 @@ module {
       // source: arg0, sizes: [256, 256], offsets: [1024 + i*3, 256], strides: [2, 1]
 
       // perform load
-      %16 = tt.load %15 {cache = 1 : i32, evict = 1 : i32, isVolatile = false}: tensor<256x256xbf16>
-      tt.store %15, %16 : tensor<256x256xbf16>
+      %16 = tt.load %15 {cache = 1 : i32, evict = 1 : i32, isVolatile = false}: tensor<256x256x!tt.ptr<bf16>>
+      tt.store %15, %16 : tensor<256x256x!tt.ptr<bf16>>
       // pointer updates
       %17 = tt.splat %i_c3 : i32 -> tensor<256xi32>
       // sizes: 256, offsets: 3, strides: 0

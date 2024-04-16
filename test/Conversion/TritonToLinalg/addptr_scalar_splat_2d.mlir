@@ -19,7 +19,7 @@ module {
     // offset = [128, 0], size = [128, 128], strides = [1, 1]
     %11 = tt.addptr %3, %10 : tensor<128x128x!tt.ptr<f32>>, tensor<128x128xi32>
     // source = %arg1, offset = [%1 + 128, 0], size = [128, 128], strides = [1, 1]
-    %12 = tt.load %11 {cache = 1 : i32, evict = 1 : i32, isVolatile = false} : tensor<128x128xf32>
+    %12 = tt.load %11 {cache = 1 : i32, evict = 1 : i32, isVolatile = false} : tensor<128x128x!tt.ptr<f32>>
     %17 = math.exp %12 : tensor<128x128xf32>
     %18 = arith.muli %0, %arg3 : i32
     %19 = tt.addptr %arg0, %18 : !tt.ptr<f32>, i32
@@ -28,7 +28,7 @@ module {
     // source = arg0, offset = [%18, 0], size = [128, 128], strides = [0, 0]
     %21 = tt.addptr %20, %10 : tensor<128x128x!tt.ptr<f32>>, tensor<128x128xi32>
     // source = %arg0, offset = [%18 + 128, 0], size = [128, 128], strides = [1, 1]
-    tt.store %21, %17 : tensor<128x128xf32>
+    tt.store %21, %17 : tensor<128x128x!tt.ptr<f32>>
     tt.return
   }
 }

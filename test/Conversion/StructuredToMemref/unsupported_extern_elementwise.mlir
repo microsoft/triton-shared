@@ -5,11 +5,11 @@ module {
     %0 = tt.make_range {end = 8 : i32, start = 0 : i32} : tensor<8xi32>
     %1 = tt.splat %arg0 : !tt.ptr<i32, 1> -> tensor<8x!tt.ptr<i32, 1>>
     %2 = tt.addptr %1, %0 : tensor<8x!tt.ptr<i32, 1>>, tensor<8xi32>
-    %3 = tt.load %2 {cache = 1 : i32, evict = 1 : i32, isVolatile = false} : tensor<8xi32>
+    %3 = tt.load %2 {cache = 1 : i32, evict = 1 : i32, isVolatile = false} : tensor<8x!tt.ptr<i32>>
     %4 = tt.extern_elementwise %3, %0 {libname = "", libpath = "", pure = true, symbol = "some_symbol"} : (tensor<8xi32>, tensor<8xi32>) -> tensor<8xi32>
     %5 = tt.splat %arg1 : !tt.ptr<i32, 1> -> tensor<8x!tt.ptr<i32, 1>>
     %6 = tt.addptr %5, %0 : tensor<8x!tt.ptr<i32, 1>>, tensor<8xi32>
-    tt.store %6, %4 {cache = 1 : i32, evict = 1 : i32} : tensor<8xi32>
+    tt.store %6, %4 {cache = 1 : i32, evict = 1 : i32} : tensor<8x!tt.ptr<i32>>
     tt.return
   }
 }

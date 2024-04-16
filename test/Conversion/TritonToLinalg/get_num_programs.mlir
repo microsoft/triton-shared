@@ -11,13 +11,13 @@ module {
     %6 = tt.splat %arg0 : !tt.ptr<i32> -> tensor<1x!tt.ptr<i32>>
     %7 = tt.addptr %6, %3 : tensor<1x!tt.ptr<i32>>, tensor<1xi32>
     %8 = tt.splat %0 : i32 -> tensor<1xi32>
-    tt.store %7, %8 {cache = 1 : i32, evict = 1 : i32} : tensor<1xi32>
+    tt.store %7, %8 {cache = 1 : i32, evict = 1 : i32} : tensor<1x!tt.ptr<i32>>
     %9 = tt.addptr %6, %4 : tensor<1x!tt.ptr<i32>>, tensor<1xi32>
     %10 = tt.splat %1 : i32 -> tensor<1xi32>
-    tt.store %9, %10 {cache = 1 : i32, evict = 1 : i32} : tensor<1xi32>
+    tt.store %9, %10 {cache = 1 : i32, evict = 1 : i32} : tensor<1x!tt.ptr<i32>>
     %11 = tt.addptr %6, %5 : tensor<1x!tt.ptr<i32>>, tensor<1xi32>
     %12 = tt.splat %2 : i32 -> tensor<1xi32>
-    tt.store %11, %12 {cache = 1 : i32, evict = 1 : i32} : tensor<1xi32>
+    tt.store %11, %12 {cache = 1 : i32, evict = 1 : i32} : tensor<1x!tt.ptr<i32>>
     tt.return
   }
 }

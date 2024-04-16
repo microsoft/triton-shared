@@ -31,7 +31,7 @@ module {
     %9 = arith.addi %7, %8 : tensor<4x4xi32>
     %10 = tt.splat %arg0 : !tt.ptr<f32, 1> -> tensor<4x4x!tt.ptr<f32, 1>>
     %11 = tt.addptr %10, %9 : tensor<4x4x!tt.ptr<f32, 1>>, tensor<4x4xi32>
-    %12 = tt.load %11 {cache = 1 : i32, evict = 1 : i32, isVolatile = false} : tensor<4x4xf32>
+    %12 = tt.load %11 {cache = 1 : i32, evict = 1 : i32, isVolatile = false} : tensor<4x4x!tt.ptr<f32>>
     %13 = tt.broadcast %4 : tensor<1x4xi32> -> tensor<4x4xi32>
     %14:2 = "tt.reduce"(%12, %13) <{axis = 1 : i32}> ({
     ^bb0(%arg4: f32, %arg5: i32, %arg6: f32, %arg7: i32):
@@ -47,7 +47,7 @@ module {
     %15 = tt.splat %arg1 : !tt.ptr<f32, 1> -> tensor<4x!tt.ptr<f32, 1>>
     %16 = tt.addptr %15, %0 : tensor<4x!tt.ptr<f32, 1>>, tensor<4xi32>
     %17 = arith.sitofp %14#1 : tensor<4xi32> to tensor<4xf32>
-    tt.store %16, %17 {cache = 1 : i32, evict = 1 : i32} : tensor<4xf32>
+    tt.store %16, %17 {cache = 1 : i32, evict = 1 : i32} : tensor<4x!tt.ptr<f32>>
     tt.return
   }
 }
@@ -138,7 +138,7 @@ module {
     %9 = arith.addi %7, %8 : tensor<4x4xi32>
     %10 = tt.splat %arg0 : !tt.ptr<f32, 1> -> tensor<4x4x!tt.ptr<f32, 1>>
     %11 = tt.addptr %10, %9 : tensor<4x4x!tt.ptr<f32, 1>>, tensor<4x4xi32>
-    %12 = tt.load %11 {cache = 1 : i32, evict = 1 : i32, isVolatile = false} : tensor<4x4xf32>
+    %12 = tt.load %11 {cache = 1 : i32, evict = 1 : i32, isVolatile = false} : tensor<4x4x!tt.ptr<f32>>
     %13 = tt.broadcast %4 : tensor<1x4xi32> -> tensor<4x4xi32>
     %14:2 = "tt.reduce"(%12, %13) <{axis = 1 : i32}> ({
     ^bb0(%arg4: f32, %arg5: i32, %arg6: f32, %arg7: i32):
@@ -154,7 +154,7 @@ module {
     %15 = tt.splat %arg1 : !tt.ptr<f32, 1> -> tensor<4x!tt.ptr<f32, 1>>
     %16 = tt.addptr %15, %0 : tensor<4x!tt.ptr<f32, 1>>, tensor<4xi32>
     %17 = arith.sitofp %14#1 : tensor<4xi32> to tensor<4xf32>
-    tt.store %16, %17 {cache = 1 : i32, evict = 1 : i32} : tensor<4xf32>
+    tt.store %16, %17 {cache = 1 : i32, evict = 1 : i32} : tensor<4x!tt.ptr<f32>>
     tt.return
   }
 }

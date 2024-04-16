@@ -30,14 +30,14 @@ module {
     %8 = tt.splat %arg0 : !tt.ptr<bf16> -> tensor<4x256x!tt.ptr<bf16>>
     %9 = tt.addptr %8, %7 : tensor<4x256x!tt.ptr<bf16>>, tensor<4x256xi32>
     // source: %arg0, offset = [%arg1, 0], size = [4, 256], stride = [1, 5]
-    %10 = tt.load %9 {cache = 1 : i32, evict = 1 : i32, isVolatile = false}: tensor<4x256xbf16>
+    %10 = tt.load %9 {cache = 1 : i32, evict = 1 : i32, isVolatile = false}: tensor<4x256x!tt.ptr<bf16>>
     %12 = tt.addptr %9, %7 : tensor<4x256x!tt.ptr<bf16>>, tensor<4x256xi32>
     // source: %arg0, offset = [%arg1+%arg1, 0], size = [4, 256], stride = [2, 10]
-    %13 = tt.load %12 {cache = 1 : i32, evict = 1 : i32, isVolatile = false}: tensor<4x256xbf16>
+    %13 = tt.load %12 {cache = 1 : i32, evict = 1 : i32, isVolatile = false}: tensor<4x256x!tt.ptr<bf16>>
     %14 = arith.addf %10, %13 : tensor<4x256xbf16>
     %16 = tt.addptr %12, %7 : tensor<4x256x!tt.ptr<bf16>>, tensor<4x256xi32>
     // source: %arg0, offset = [%arg1+%arg1+%arg1, 0], size = [4, 256], stride = [3, 15]
-    tt.store %16, %14 : tensor<4x256xbf16>
+    tt.store %16, %14 : tensor<4x256x!tt.ptr<bf16>>
     tt.return
   }
 }

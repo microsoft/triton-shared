@@ -14,14 +14,14 @@ module {
     // source = %arg0, offset = [0, 0], size = [1, 256], stride = [0, 1]
 
     // 1x256 pointer should have meaningful stride in outer dimension
-    %3 = tt.load %2 {cache = 1 : i32, evict = 1 : i32, isVolatile = false}: tensor<1x256xbf16>
+    %3 = tt.load %2 {cache = 1 : i32, evict = 1 : i32, isVolatile = false}: tensor<1x256x!tt.ptr<bf16>>
 
     %4 = tt.splat %arg1 : i32 -> tensor<1x256xi32>
     // 1x256 pointer should have meaningful stride in outer dimension
     %5 = tt.addptr %2, %4 : tensor<1x256x!tt.ptr<bf16>>, tensor<1x256xi32>
     // source = %arg0, offset = [%arg1, 0], size = [1, 256], stride = [0, 1]
 
-    tt.store %5, %3 {cache = 1 : i32, evict = 1 : i32, isVolatile = false} : tensor<1x256x!tt.ptr<bf16>>, tensor<1x256xbf16>
+    tt.store %5, %3 {cache = 1 : i32, evict = 1 : i32, isVolatile = false} : tensor<1x256x!tt.ptr<bf16>>, tensor<1x256x!tt.ptr<bf16>>
 
     %10 = arith.constant 0.0 : bf16
     %11 = tt.splat %10 : bf16 -> tensor<4x256xbf16>
@@ -48,7 +48,7 @@ module {
         %30 = tt.addptr %bptr, %25 : tensor<4x256x!tt.ptr<bf16>>, tensor<4x256xi32>
         // source = %arg0, offset = [0, 0], size = [4, 256], stride = [i*256, 1]
 
-        %31 = tt.load %30 {cache = 1 : i32, evict = 1 : i32, isVolatile = false}: tensor<4x256xbf16>
+        %31 = tt.load %30 {cache = 1 : i32, evict = 1 : i32, isVolatile = false}: tensor<4x256x!tt.ptr<bf16>>
         %32 = arith.addf %sum_iter, %31 : tensor<4x256xbf16>
 
         %40 = tt.splat %c256 : i32 -> tensor<1x256xi32>
@@ -65,7 +65,7 @@ module {
     %34 = tt.broadcast %33 : tensor<4x1xi32> -> tensor<4x256xi32>
     %35 = tt.broadcast %2 : tensor<1x256x!tt.ptr<bf16>> -> tensor<4x256x!tt.ptr<bf16>>
     %36 = tt.addptr %35, %34 : tensor<4x256x!tt.ptr<bf16>>, tensor<4x256xi32>
-    tt.store %36, %sum_out {cache = 1 : i32, evict = 1 : i32, isVolatile = false} : tensor<4x256x!tt.ptr<bf16>>, tensor<4x256xbf16>
+    tt.store %36, %sum_out {cache = 1 : i32, evict = 1 : i32, isVolatile = false} : tensor<4x256x!tt.ptr<bf16>>, tensor<4x256x!tt.ptr<bf16>>
     tt.return
   }
 }

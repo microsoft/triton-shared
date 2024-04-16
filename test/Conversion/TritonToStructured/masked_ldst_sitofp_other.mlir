@@ -17,8 +17,8 @@ module {
     %splat_c7_bf16 = arith.sitofp %splat_c7_i32 : tensor<128xi32> to tensor<128xbf16>
     %5 = tt.splat %arg2 : i32 -> tensor<128xi32>
     %mask = arith.cmpi slt, %2, %5 : tensor<128xi32>
-    %buff = tt.load %ldptr, %mask, %splat_c7_bf16 {cache = 1 : i32, evict = 1 : i32, isVolatile = false} : tensor<128xbf16>
-    tt.store %stptr, %buff, %mask : tensor<128xbf16>
+    %buff = tt.load %ldptr, %mask, %splat_c7_bf16 {cache = 1 : i32, evict = 1 : i32, isVolatile = false} : tensor<128x!tt.ptr<bf16>>
+    tt.store %stptr, %buff, %mask : tensor<128x!tt.ptr<bf16>>
     tt.return
   }
 }

@@ -22,8 +22,8 @@ module {
         %ptr_iter = tt.addptr %ptr, %4 : tensor<256x!tt.ptr<bf16>>, tensor<256xi32>
         // source: arg0, sizes: 256, offsets: 1024 + i, strides: 1
         // perform load
-        %3 = tt.load %ptr_iter {cache = 1 : i32, evict = 1 : i32, isVolatile = false}: tensor<256xbf16>
-        tt.store %ptr_iter, %3 : tensor<256xbf16>
+        %3 = tt.load %ptr_iter {cache = 1 : i32, evict = 1 : i32, isVolatile = false}: tensor<256x!tt.ptr<bf16>>
+        tt.store %ptr_iter, %3 : tensor<256x!tt.ptr<bf16>>
         scf.yield %ptr_iter : tensor<256x!tt.ptr<bf16>>
     }
     // Expected output
@@ -43,8 +43,8 @@ module {
     //    // generate pointer
     //    %gep_ptr = tt.addptr %0, %ptr_iter : tensor<256x!tt.ptr<bf16>>
     //    // perform load
-    //    %4 = tt.load %gep_ptr {cache = 1 : i32, evict = 1 : i32, isVolatile = false}: tensor<256xbf16>
-    //    tt.store %gep_ptr, %4 : tensor<256xbf16>
+    //    %4 = tt.load %gep_ptr {cache = 1 : i32, evict = 1 : i32, isVolatile = false}: tensor<256x!tt.ptr<bf16>>
+    //    tt.store %gep_ptr, %4 : tensor<256x!tt.ptr<bf16>>
     //    scf.yield %ptr_iter : tensor<256xi32>
     //}
     // Expected output
@@ -61,8 +61,8 @@ module {
     //    %gep_ptr = tt.addptr %0, %ptr : tensor<256x!tt.ptr<bf16>>
     //
     //    // perform load
-    //    %4 = tt.load %gep_ptr {cache = 1 : i32, evict = 1 : i32, isVolatile = false}: tensor<256xbf16>
-    //    tt.store %gep_ptr, %4 : tensor<256xbf16>
+    //    %4 = tt.load %gep_ptr {cache = 1 : i32, evict = 1 : i32, isVolatile = false}: tensor<256x!tt.ptr<bf16>>
+    //    tt.store %gep_ptr, %4 : tensor<256x!tt.ptr<bf16>>
     //    // offset update
     //    %3 = tt.splat %c3 : i32 -> tensor<256xi32>
     //    %ptr_iter = arith.addi %3, %ptr : tensor<256xi32>

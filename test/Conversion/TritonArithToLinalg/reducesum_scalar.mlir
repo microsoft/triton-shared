@@ -5,7 +5,7 @@ module {
     %0 = tt.make_range {end = 128 : i32, start = 0 : i32} : tensor<128xi32>
     %1 = tt.splat %afloat : !tt.ptr<bf16> -> tensor<128x!tt.ptr<bf16>>
     %2 = tt.addptr %1, %0 : tensor<128x!tt.ptr<bf16>>, tensor<128xi32>
-    %afm = tt.load %2 {cache = 1 : i32, evict = 1 : i32, isVolatile = false} : tensor<128xbf16>
+    %afm = tt.load %2 {cache = 1 : i32, evict = 1 : i32, isVolatile = false} : tensor<128x!tt.ptr<bf16>>
     %3 = "tt.reduce"(%afm) ({
     ^bb0(%arg5: bf16, %arg6: bf16):
       %21 = arith.addf %arg5, %arg6 : bf16
@@ -32,7 +32,7 @@ module {
 // CHECK:             [[VAR_8_1_:%.+]] = tt.addptr [[in_]], [[in_]]_0 : !tt.ptr<bf16, 1>, i32
 // CHECK:             linalg.yield [[VAR_8_1_]] : !tt.ptr<bf16, 1>
 // CHECK:           } -> tensor<128x!tt.ptr<bf16, 1>>
-// CHECK-DAG:       [[LOAD_VAR_4_MEM_:%.+]] = tt.load [[VAR_4_]] {cache = 1 : i32, evict = 1 : i32, isVolatile = false} : tensor<128xbf16>
+// CHECK-DAG:       [[LOAD_VAR_4_MEM_:%.+]] = tt.load [[VAR_4_]] {cache = 1 : i32, evict = 1 : i32, isVolatile = false} : tensor<128x!tt.ptr<bf16>>
 // CHECK-DAG:       [[CST_0_dot_000000_:%.+]] = arith.constant 0.000000e+00 : f32
 // CHECK-DAG:       [[VAR_6_:%.+]] = bufferization.alloc_tensor() : tensor<f32>
 // CHECK:           [[VAR_inserted_:%.+]] = tensor.insert [[CST_0_dot_000000_]] into [[VAR_6_]][] : tensor<f32>

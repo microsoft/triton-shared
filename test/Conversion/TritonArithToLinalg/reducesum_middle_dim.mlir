@@ -28,13 +28,13 @@ module {
     // afloat pointer
     %8 = tt.splat %afloat : !tt.ptr<bf16> -> tensor<32x256x16x!tt.ptr<bf16>>
     %9 = tt.addptr %8, %mknoff : tensor<32x256x16x!tt.ptr<bf16>>, tensor<32x256x16xi32>
-    %afm = tt.load %9 {cache = 1 : i32, evict = 1 : i32, isVolatile = false} : tensor<32x256x16xbf16>
+    %afm = tt.load %9 {cache = 1 : i32, evict = 1 : i32, isVolatile = false} : tensor<32x256x16x!tt.ptr<bf16>>
     %5 = "tt.reduce"(%afm) ({
     ^bb0(%arg5: bf16, %arg6: bf16):
       %21 = arith.addf %arg5, %arg6 : bf16
       tt.reduce.return %21 : bf16
     }) {axis = 1 : i32} : (tensor<32x256x16xbf16>) -> tensor<32x16xbf16>
-    tt.store %out, %5 : tensor<32x16xbf16>
+    tt.store %out, %5 : tensor<32x16x!tt.ptr<bf16>>
     tt.return
     }
 }
@@ -130,7 +130,7 @@ module {
 // CHECK:             [[VAR_29_6_:%.+]] = tt.addptr [[in_]], [[in_]]_5 : !tt.ptr<bf16, 1>, i32
 // CHECK:             linalg.yield [[VAR_29_6_]] : !tt.ptr<bf16, 1>
 // CHECK:           } -> tensor<32x256x16x!tt.ptr<bf16, 1>>
-// CHECK-DAG:       [[LOAD_VAR_25_MEM_:%.+]] = tt.load [[VAR_25_]] {cache = 1 : i32, evict = 1 : i32, isVolatile = false} : tensor<32x256x16xbf16>
+// CHECK-DAG:       [[LOAD_VAR_25_MEM_:%.+]] = tt.load [[VAR_25_]] {cache = 1 : i32, evict = 1 : i32, isVolatile = false} : tensor<32x256x16x!tt.ptr<bf16>>
 // CHECK-DAG:       [[CST_0_dot_000000_:%.+]] = arith.constant 0.000000e+00 : bf16
 // CHECK-DAG:       [[VAR_27_:%.+]] = tensor.empty() : tensor<32x16xbf16>
 // CHECK:           [[VAR_28_:%.+]] = linalg.fill ins([[CST_0_dot_000000_]] : bf16) outs([[VAR_27_]] : tensor<32x16xbf16>) -> tensor<32x16xbf16>
@@ -139,6 +139,6 @@ module {
 // CHECK:               [[VAR_29_7_:%.+]] = arith.addf [[in_]], [[in_]]it : bf16
 // CHECK:               linalg.yield [[VAR_29_7_]] : bf16
 // CHECK:             }
-// CHECK:           tt.store [[PARAM_2_]], [[VAR_reduced_]] {cache = 1 : i32, evict = 1 : i32} : tensor<32x16xbf16>
+// CHECK:           tt.store [[PARAM_2_]], [[VAR_reduced_]] {cache = 1 : i32, evict = 1 : i32} : tensor<32x16x!tt.ptr<bf16>>
 // CHECK:           return
 // CHECK:         }

@@ -5,11 +5,11 @@ module {
     %0 = tt.make_range {end = 8 : i32, start = 0 : i32} : tensor<8xi32>
     %1 = tt.splat %arg0 : !tt.ptr<i32, 1> -> tensor<8x!tt.ptr<i32, 1>>
     %2 = tt.addptr %1, %0 : tensor<8x!tt.ptr<i32, 1>>, tensor<8xi32>
-    %3 = tt.load %2 {cache = 1 : i32, evict = 1 : i32, isVolatile = false} : tensor<8xi32>
+    %3 = tt.load %2 {cache = 1 : i32, evict = 1 : i32, isVolatile = false} : tensor<8x!tt.ptr<i32>>
     %4 = tt.extern_elementwise %3, %0 {libname = "", libpath = "", pure = true, symbol = "some_symbol"} : (tensor<8xi32>, tensor<8xi32>) -> tensor<8xi32>
     %5 = tt.splat %arg1 : !tt.ptr<i32, 1> -> tensor<8x!tt.ptr<i32, 1>>
     %6 = tt.addptr %5, %0 : tensor<8x!tt.ptr<i32, 1>>, tensor<8xi32>
-    tt.store %6, %4 {cache = 1 : i32, evict = 1 : i32} : tensor<8xi32>
+    tt.store %6, %4 {cache = 1 : i32, evict = 1 : i32} : tensor<8x!tt.ptr<i32>>
     tt.return
   }
 }
@@ -31,7 +31,7 @@ module {
 // CHECK:             [[VAR_10_1_:%.+]] = tt.addptr [[in_]], [[in_]]_0 : !tt.ptr<i32, 1>, i32
 // CHECK:             linalg.yield [[VAR_10_1_]] : !tt.ptr<i32, 1>
 // CHECK:           } -> tensor<8x!tt.ptr<i32, 1>>
-// CHECK:           [[LOAD_VAR_4_MEM_:%.+]] = tt.load [[VAR_4_]] {cache = 1 : i32, evict = 1 : i32, isVolatile = false} : tensor<8xi32>
+// CHECK:           [[LOAD_VAR_4_MEM_:%.+]] = tt.load [[VAR_4_]] {cache = 1 : i32, evict = 1 : i32, isVolatile = false} : tensor<8x!tt.ptr<i32>>
 // CHECK-DAG:       [[VAR_6_:%.+]] = tt.extern_elementwise [[LOAD_VAR_4_MEM_]], [[VAR_1_]] {libname = "", libpath = "", pure = true, symbol = "some_symbol"} : (tensor<8xi32>, tensor<8xi32>) -> tensor<8xi32>
 // CHECK-DAG:       [[VAR_7_:%.+]] = tensor.empty() : tensor<8x!tt.ptr<i32, 1>>
 // CHECK:           [[VAR_8_:%.+]] = linalg.fill ins([[PARAM_1_]] : !tt.ptr<i32, 1>) outs([[VAR_7_]] : tensor<8x!tt.ptr<i32, 1>>) -> tensor<8x!tt.ptr<i32, 1>>
@@ -40,6 +40,6 @@ module {
 // CHECK:             [[VAR_10_2_:%.+]] = tt.addptr [[in_]], [[in_]]_0 : !tt.ptr<i32, 1>, i32
 // CHECK:             linalg.yield [[VAR_10_2_]] : !tt.ptr<i32, 1>
 // CHECK:           } -> tensor<8x!tt.ptr<i32, 1>>
-// CHECK:           tt.store [[VAR_9_]], [[VAR_6_]] {cache = 1 : i32, evict = 1 : i32} : tensor<8xi32>
+// CHECK:           tt.store [[VAR_9_]], [[VAR_6_]] {cache = 1 : i32, evict = 1 : i32} : tensor<8x!tt.ptr<i32>>
 // CHECK:           return
 // CHECK:         }
