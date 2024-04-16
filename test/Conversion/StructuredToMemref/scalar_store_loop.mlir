@@ -7,7 +7,7 @@ module {
     %c1_i32 = arith.constant 1 : i32
     %0 = scf.for %arg7 = %c0_i32 to %c8_i32 step %c1_i32 iter_args(%arg8 = %arg0) -> (!tt.ptr<f32>)  : i32 {
       %1 = arith.sitofp %arg7 : i32 to f32
-      tt.store %arg8, %1 : f32
+      tt.store %arg8, %1 : !tt.ptr<f32>
       %2 = tt.addptr %arg8, %c1_i32 : !tt.ptr<f32>, i32
       scf.yield %2 : !tt.ptr<f32>
     }

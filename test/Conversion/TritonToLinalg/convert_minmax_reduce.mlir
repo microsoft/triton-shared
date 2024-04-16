@@ -8,7 +8,7 @@ module {
       %70 = arith.select %69, %arg14, %arg15 : i32
       tt.reduce.return %70 : i32
     }) {axis = 0 : i32} : (tensor<4096xi32>) -> i32
-    tt.store %arg0, %63 : i32
+    tt.store %arg0, %63 : !tt.ptr<i32>
     tt.return
   }
 }
@@ -40,7 +40,7 @@ module {
       %70 = arith.select %69, %arg14, %arg15 : i32
       tt.reduce.return %70 : i32
     }) {axis = 0 : i32} : (tensor<4096xi32>) -> i32
-    tt.store %arg0, %63 : i32
+    tt.store %arg0, %63 : !tt.ptr<i32>
     tt.return
   }
 }
@@ -72,7 +72,7 @@ module {
       %70 = arith.select %69, %arg14, %arg15 : i32
       tt.reduce.return %70 : i32
     }) {axis = 0 : i32} : (tensor<4096xi32>) -> i32
-    tt.store %arg0, %63 : i32
+    tt.store %arg0, %63 : !tt.ptr<i32>
     tt.return
   }
 }
@@ -104,7 +104,7 @@ module {
       %70 = arith.select %69, %arg14, %arg15 : i32
       tt.reduce.return %70 : i32
     }) {axis = 0 : i32} : (tensor<4096xi32>) -> i32
-    tt.store %arg0, %63 : i32
+    tt.store %arg0, %63 : !tt.ptr<i32>
     tt.return
   }
 }

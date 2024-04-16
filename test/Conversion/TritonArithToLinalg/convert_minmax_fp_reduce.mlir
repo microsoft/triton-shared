@@ -8,7 +8,7 @@ module {
       %69 = arith.maxnumf %arg14, %arg15 : f32
       tt.reduce.return %69 : f32
     }) {axis = 0 : i32} : (tensor<4096xf32>) -> f32
-    tt.store %arg0, %63 : f32
+    tt.store %arg0, %63 : !tt.ptr<f32>
     tt.return
   }
 }
@@ -25,7 +25,7 @@ module {
       %69 = arith.minnumf %arg14, %arg15 : f32
       tt.reduce.return %69 : f32
     }) {axis = 0 : i32} : (tensor<4096xf32>) -> f32
-    tt.store %arg0, %63 : f32
+    tt.store %arg0, %63 : !tt.ptr<f32>
     tt.return
   }
 }
@@ -45,7 +45,7 @@ module {
 // CHECK:               linalg.yield [[VAR_3_]] : f32
 // CHECK:             }
 // CHECK:           [[VAR_extracted_:%.+]] = tensor.extract [[VAR_reduced_]][] : tensor<f32>
-// CHECK:           tt.store [[PARAM_0_]], [[VAR_extracted_]] : f32
+// CHECK:           tt.store [[PARAM_0_]], [[VAR_extracted_]] : !tt.ptr<f32>
 // CHECK:           return
 // CHECK:         }
 // CHECK-LABEL:  func.func @minnumf
@@ -63,6 +63,6 @@ module {
 // CHECK:               linalg.yield [[VAR_3_]] : f32
 // CHECK:             }
 // CHECK:           [[VAR_extracted_:%.+]] = tensor.extract [[VAR_reduced_]][] : tensor<f32>
-// CHECK:           tt.store [[PARAM_0_]], [[VAR_extracted_]] : f32
+// CHECK:           tt.store [[PARAM_0_]], [[VAR_extracted_]] : !tt.ptr<f32>
 // CHECK:           return
 // CHECK:         }

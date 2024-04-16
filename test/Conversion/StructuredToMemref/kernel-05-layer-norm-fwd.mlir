@@ -56,9 +56,9 @@ module {
     %20 = math.sqrt %19 : f32
     %21 = arith.divf %cst, %20 : f32
     %22 = tt.addptr %arg4, %0 : !tt.ptr<f32>, i32
-    tt.store %22, %11 : f32
+    tt.store %22, %11 : !tt.ptr<f32>
     %23 = tt.addptr %arg5, %0 : !tt.ptr<f32>, i32
-    tt.store %23, %21 : f32
+    tt.store %23, %21 : !tt.ptr<f32>
     %24 = tt.make_range {end = 256 : i32, start = 0 : i32} : tensor<256xi32>
     %25 = tt.splat %arg7 : i32 -> tensor<256xi32>
     %26 = tt.splat %arg2 : !tt.ptr<f32> -> tensor<256x!tt.ptr<f32>>

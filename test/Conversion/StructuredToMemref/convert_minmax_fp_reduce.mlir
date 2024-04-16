@@ -8,7 +8,7 @@ module {
       %69 = arith.maxnumf %arg14, %arg15 : f32
       tt.reduce.return %69 : f32
     }) {axis = 0 : i32} : (tensor<4096xf32>) -> f32
-    tt.store %arg0, %63 : f32
+    tt.store %arg0, %63 : !tt.ptr<f32>
     tt.return
   }
 }
@@ -45,7 +45,7 @@ module {
       %69 = arith.minnumf %arg14, %arg15 : f32
       tt.reduce.return %69 : f32
     }) {axis = 0 : i32} : (tensor<4096xf32>) -> f32
-    tt.store %arg0, %63 : f32
+    tt.store %arg0, %63 : !tt.ptr<f32>
     tt.return
   }
 }

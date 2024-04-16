@@ -11,7 +11,7 @@ module {
       %21 = arith.addf %arg5, %arg6 : bf16
       tt.reduce.return %21 : bf16
     }) {axis = 0 : i32} : (tensor<128xbf16>) -> bf16
-    tt.store %res, %3 : bf16
+    tt.store %res, %3 : !tt.ptr<bf16>
     tt.return
   }
 }

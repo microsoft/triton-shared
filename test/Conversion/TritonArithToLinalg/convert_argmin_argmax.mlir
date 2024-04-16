@@ -22,7 +22,7 @@ module {
       tt.reduce.return %16, %17 : f32, i32
   }) : (tensor<4096xf32>, tensor<4096xi32>) -> (f32, i32)
     %9 = tt.addptr %arg1, %0 : !tt.ptr<i32>, i32
-    tt.store %9, %8#1 : i32
+    tt.store %9, %8#1 : !tt.ptr<i32>
     tt.return
   }
 }
@@ -52,7 +52,7 @@ module {
       tt.reduce.return %16, %17 : f32, i32
   }) : (tensor<4096xf32>, tensor<4096xi32>) -> (f32, i32)
     %9 = tt.addptr %arg1, %0 : !tt.ptr<i32>, i32
-    tt.store %9, %8#1 : i32
+    tt.store %9, %8#1 : !tt.ptr<i32>
     tt.return
   }
 }
@@ -105,7 +105,7 @@ module {
 // CHECK-DAG:       [[VAR_extracted_:%.+]] = tensor.extract [[VAR_reduced_]]#0[] : tensor<f32>
 // CHECK-DAG:       [[VAR_extracted_0_:%.+]] = tensor.extract [[VAR_reduced_]]#1[] : tensor<i32>
 // CHECK-DAG:       [[VAR_14_:%.+]] = tt.addptr [[PARAM_1_]], [[PARAM_6_]] : !tt.ptr<i32>, i32
-// CHECK:           tt.store [[VAR_14_]], [[VAR_extracted_0_]] : i32
+// CHECK:           tt.store [[VAR_14_]], [[VAR_extracted_0_]] : !tt.ptr<i32>
 // CHECK:           return
 // CHECK:         }
 
@@ -157,6 +157,6 @@ module {
 // CHECK-DAG:       [[VAR_extracted_:%.+]] = tensor.extract [[VAR_reduced_]]#0[] : tensor<f32>
 // CHECK-DAG:       [[VAR_extracted_0_:%.+]] = tensor.extract [[VAR_reduced_]]#1[] : tensor<i32>
 // CHECK-DAG:       [[VAR_14_:%.+]] = tt.addptr [[PARAM_1_]], [[PARAM_6_]] : !tt.ptr<i32>, i32
-// CHECK:           tt.store [[VAR_14_]], [[VAR_extracted_0_]] : i32
+// CHECK:           tt.store [[VAR_14_]], [[VAR_extracted_0_]] : !tt.ptr<i32>
 // CHECK:           return
 // CHECK:         }

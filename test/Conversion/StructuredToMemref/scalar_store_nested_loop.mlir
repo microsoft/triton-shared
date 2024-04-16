@@ -11,7 +11,7 @@ module {
       %2 = scf.for %arg9 = %c0_i32 to %c2_i32 step %c1_i32 iter_args(%arg10 = %arg8) -> (!tt.ptr<f32>)  : i32 {
         %3 = arith.muli %arg7, %arg9 : i32
         %4 = arith.sitofp %3 : i32 to f32
-        tt.store %arg10, %4 : f32
+        tt.store %arg10, %4 : !tt.ptr<f32>
         %5 = tt.addptr %arg10, %c1_i32 : !tt.ptr<f32>, i32
         scf.yield %5 : !tt.ptr<f32>
       }

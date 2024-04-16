@@ -9,7 +9,7 @@ module {
     %1 = arith.sitofp %arg7 : i32 to f32
     scf.for %arg10 = %c0_i32 to %c5_i32 step %c1_i32  : i32 {
       %2 = tt.addptr %0, %arg10 : !tt.ptr<f32>, i32
-      tt.store %2, %1 : f32
+      tt.store %2, %1 : !tt.ptr<f32>
     }
     return
   }

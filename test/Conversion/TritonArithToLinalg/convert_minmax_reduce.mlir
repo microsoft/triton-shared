@@ -8,7 +8,7 @@ module {
       %70 = arith.select %69, %arg14, %arg15 : i32
       tt.reduce.return %70 : i32
     }) {axis = 0 : i32} : (tensor<4096xi32>) -> i32
-    tt.store %arg0, %63 : i32
+    tt.store %arg0, %63 : !tt.ptr<i32>
     tt.return
   }
 }
@@ -25,7 +25,7 @@ module {
       %70 = arith.select %69, %arg14, %arg15 : i32
       tt.reduce.return %70 : i32
     }) {axis = 0 : i32} : (tensor<4096xi32>) -> i32
-    tt.store %arg0, %63 : i32
+    tt.store %arg0, %63 : !tt.ptr<i32>
     tt.return
   }
 }
@@ -42,7 +42,7 @@ module {
       %70 = arith.select %69, %arg14, %arg15 : i32
       tt.reduce.return %70 : i32
     }) {axis = 0 : i32} : (tensor<4096xi32>) -> i32
-    tt.store %arg0, %63 : i32
+    tt.store %arg0, %63 : !tt.ptr<i32>
     tt.return
   }
 }
@@ -59,7 +59,7 @@ module {
       %70 = arith.select %69, %arg14, %arg15 : i32
       tt.reduce.return %70 : i32
     }) {axis = 0 : i32} : (tensor<4096xi32>) -> i32
-    tt.store %arg0, %63 : i32
+    tt.store %arg0, %63 : !tt.ptr<i32>
     tt.return
   }
 }
@@ -79,7 +79,7 @@ module {
 // CHECK:               linalg.yield [[VAR_3_]] : i32
 // CHECK:             }
 // CHECK:           [[VAR_extracted_:%.+]] = tensor.extract [[VAR_reduced_]][] : tensor<i32>
-// CHECK:           tt.store [[PARAM_0_]], [[VAR_extracted_]] : i32
+// CHECK:           tt.store [[PARAM_0_]], [[VAR_extracted_]] : !tt.ptr<i32>
 // CHECK:           return
 // CHECK:         }
 // CHECK-LABEL:  func.func @minmax_ugt
@@ -97,7 +97,7 @@ module {
 // CHECK:               linalg.yield [[VAR_3_]] : i32
 // CHECK:             }
 // CHECK:           [[VAR_extracted_:%.+]] = tensor.extract [[VAR_reduced_]][] : tensor<i32>
-// CHECK:           tt.store [[PARAM_0_]], [[VAR_extracted_]] : i32
+// CHECK:           tt.store [[PARAM_0_]], [[VAR_extracted_]] : !tt.ptr<i32>
 // CHECK:           return
 // CHECK:         }
 // CHECK-LABEL:  func.func @minmax_slt
@@ -115,7 +115,7 @@ module {
 // CHECK:               linalg.yield [[VAR_3_]] : i32
 // CHECK:             }
 // CHECK:           [[VAR_extracted_:%.+]] = tensor.extract [[VAR_reduced_]][] : tensor<i32>
-// CHECK:           tt.store [[PARAM_0_]], [[VAR_extracted_]] : i32
+// CHECK:           tt.store [[PARAM_0_]], [[VAR_extracted_]] : !tt.ptr<i32>
 // CHECK:           return
 // CHECK:         }
 // CHECK-LABEL:  func.func @minmax_ult
@@ -133,6 +133,6 @@ module {
 // CHECK:               linalg.yield [[VAR_3_]] : i32
 // CHECK:             }
 // CHECK:           [[VAR_extracted_:%.+]] = tensor.extract [[VAR_reduced_]][] : tensor<i32>
-// CHECK:           tt.store [[PARAM_0_]], [[VAR_extracted_]] : i32
+// CHECK:           tt.store [[PARAM_0_]], [[VAR_extracted_]] : !tt.ptr<i32>
 // CHECK:           return
 // CHECK:         }

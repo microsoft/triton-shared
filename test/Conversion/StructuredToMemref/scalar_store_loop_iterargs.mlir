@@ -9,7 +9,7 @@ module {
     %1 = tt.addptr %arg1, %arg7 : !tt.ptr<f32>, i32
     %2 = arith.sitofp %arg7 : i32 to f32
     %3:2 = scf.for %arg10 = %c0_i32 to %c5_i32 step %c1_i32 iter_args(%arg11 = %1, %arg12 = %0) -> (!tt.ptr<f32>, index)  : i32 {
-      tt.store %arg11, %2 : f32
+      tt.store %arg11, %2 : !tt.ptr<f32>
       %4 = tt.addptr %arg11, %arg10 : !tt.ptr<f32>, i32
       %5 = arith.index_cast %arg10 : i32 to index
       %6 = arith.addi %arg12, %5 : index

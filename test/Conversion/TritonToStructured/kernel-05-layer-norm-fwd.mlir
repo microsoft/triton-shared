@@ -56,9 +56,9 @@ module {
     %20 = math.sqrt %19 : f32
     %21 = arith.divf %cst, %20 : f32
     %22 = tt.addptr %arg4, %0 : !tt.ptr<f32>, i32
-    tt.store %22, %11 : f32
+    tt.store %22, %11 : !tt.ptr<f32>
     %23 = tt.addptr %arg5, %0 : !tt.ptr<f32>, i32
-    tt.store %23, %21 : f32
+    tt.store %23, %21 : !tt.ptr<f32>
     %24 = tt.make_range {end = 256 : i32, start = 0 : i32} : tensor<256xi32>
     %25 = tt.splat %arg7 : i32 -> tensor<256xi32>
     %26 = tt.splat %arg2 : !tt.ptr<f32> -> tensor<256x!tt.ptr<f32>>
@@ -154,9 +154,9 @@ module {
 // CHECK:           [[VAR_15_:%.+]] = math.sqrt [[VAR_14_]] : f32
 // CHECK-DAG:       [[VAR_16_:%.+]] = arith.divf [[CST_1_dot_000000_]], [[VAR_15_]] : f32
 // CHECK-DAG:       [[VAR_17_:%.+]] = tt.addptr [[PARAM_4_]], [[VAR_0_]] : !tt.ptr<f32>, i32
-// CHECK:           tt.store [[VAR_17_]], [[VAR_7_]] : f32
+// CHECK:           tt.store [[VAR_17_]], [[VAR_7_]] : !tt.ptr<f32>
 // CHECK:           [[VAR_18_:%.+]] = tt.addptr [[PARAM_5_]], [[VAR_0_]] : !tt.ptr<f32>, i32
-// CHECK:           tt.store [[VAR_18_]], [[VAR_16_]] : f32
+// CHECK:           tt.store [[VAR_18_]], [[VAR_16_]] : !tt.ptr<f32>
 // CHECK-DAG:       [[VAR_19_:%.+]] = tt.splat [[VAR_7_]] : f32 -> tensor<256xf32>
 // CHECK-DAG:       [[VAR_20_:%.+]] = tt.splat [[VAR_16_]] : f32 -> tensor<256xf32>
 // CHECK:           scf.for [[VAR_arg9_1_:%.+]] = [[CST_0_]] to [[PARAM_7_]] step [[CST_256_1_]]  : i32 {

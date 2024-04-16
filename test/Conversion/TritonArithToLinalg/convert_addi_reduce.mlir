@@ -8,7 +8,7 @@ module {
       %69 = arith.addi %arg14, %arg15 : i32
       tt.reduce.return %69 : i32
     }) {axis = 0 : i32} : (tensor<4096xi32>) -> i32
-    tt.store %arg0, %63 : i32
+    tt.store %arg0, %63 : !tt.ptr<i32>
     tt.return
   }
 }
@@ -28,6 +28,6 @@ module {
 // CHECK:               linalg.yield [[VAR_3_]] : i32
 // CHECK:             }
 // CHECK:           [[VAR_extracted_:%.+]] = tensor.extract [[VAR_reduced_]][] : tensor<i32>
-// CHECK:           tt.store [[PARAM_0_]], [[VAR_extracted_]] : i32
+// CHECK:           tt.store [[PARAM_0_]], [[VAR_extracted_]] : !tt.ptr<i32>
 // CHECK:           return
 // CHECK:         }

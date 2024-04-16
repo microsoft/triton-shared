@@ -22,7 +22,7 @@ module {
       tt.reduce.return %16, %17 : f32, i32
   }) : (tensor<4096xf32>, tensor<4096xi32>) -> (f32, i32)
     %9 = tt.addptr %arg1, %0 : !tt.ptr<i32>, i32
-    tt.store %9, %8#1 : i32
+    tt.store %9, %8#1 : !tt.ptr<i32>
     tt.return
   }
 }
@@ -93,7 +93,7 @@ module {
       tt.reduce.return %16, %17 : f32, i32
   }) : (tensor<4096xf32>, tensor<4096xi32>) -> (f32, i32)
     %9 = tt.addptr %arg1, %0 : !tt.ptr<i32>, i32
-    tt.store %9, %8#1 : i32
+    tt.store %9, %8#1 : !tt.ptr<i32>
     tt.return
   }
 }
