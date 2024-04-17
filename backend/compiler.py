@@ -150,6 +150,9 @@ class CPUBackend(BaseBackend):
         return codegen_fns
 
     def pack_metadata(self, metadata):
+        # Note: We actually don't need any of these except for the name which is
+        # used in the launch function in driver.py. Putting these in so we're
+        # consistent with other backends
         return (
             metadata.num_warps,
             metadata.num_ctas,
