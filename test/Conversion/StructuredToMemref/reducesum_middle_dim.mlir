@@ -28,19 +28,19 @@ module {
     // afloat pointer
     %8 = tt.splat %afloat : !tt.ptr<bf16> -> tensor<32x256x16x!tt.ptr<bf16>>
     %9 = tt.addptr %8, %mknoff : tensor<32x256x16x!tt.ptr<bf16>>, tensor<32x256x16xi32>
-    %afm = tt.load %9 {cache = 1 : i32, evict = 1 : i32, isVolatile = false} : tensor<32x256x16xbf16>
+    %afm = tt.load %9 : tensor<32x256x16x!tt.ptr<bf16>>
     %5 = "tt.reduce"(%afm) ({
     ^bb0(%arg5: bf16, %arg6: bf16):
       %21 = arith.addf %arg5, %arg6 : bf16
       tt.reduce.return %21 : bf16
     }) {axis = 1 : i32} : (tensor<32x256x16xbf16>) -> tensor<32x16xbf16>
-    tt.store %out, %5 : tensor<32x16xbf16>
+    tt.store %out, %5 : tensor<32x16x!tt.ptr<bf16>>
     tt.return
     }
 }
 // mlir2FileCheck.py
 // CHECK-LABEL:  func.func @kernel
-// CHECK-SAME:   ([[PARAM_0_:%.+]]: memref<*xbf16>, [[PARAM_1_:%.+]]: memref<*xbf16>, [[PARAM_2_:%.+]]: tensor<32x16x!tt.ptr<bf16, 1>>, [[PARAM_3_:%.+]]: i32, [[PARAM_4_:%.+]]: i32, [[PARAM_5_:%.+]]: i32, [[PARAM_6_:%.+]]: i32, [[PARAM_7_:%.+]]: i32, [[PARAM_8_:%.+]]: i32) {
+// CHECK-SAME:   ([[PARAM_0_:%.+]]: memref<*xbf16>, [[PARAM_1_:%.+]]: memref<*xbf16>, [[PARAM_2_:%.+]]: tensor<32x16x!tt.ptr<bf16>>, [[PARAM_3_:%.+]]: i32, [[PARAM_4_:%.+]]: i32, [[PARAM_5_:%.+]]: i32, [[PARAM_6_:%.+]]: i32, [[PARAM_7_:%.+]]: i32, [[PARAM_8_:%.+]]: i32) {
 // CHECK-DAG:       [[CST_0_dot_000000_:%.+]] = arith.constant 0.000000e+00 : bf16
 // CHECK-DAG:       [[CST_256_:%.+]] = arith.constant 256 : index
 // CHECK-NOT: separator of consecutive DAGs
@@ -55,6 +55,6 @@ module {
 // CHECK:               [[VAR_3_:%.+]] = arith.addf [[in_]], [[init_]] : bf16
 // CHECK:               linalg.yield [[VAR_3_]] : bf16
 // CHECK:             }
-// CHECK:           tt.store [[PARAM_2_]], [[VAR_reduced_]] {cache = 1 : i32, evict = 1 : i32} : tensor<32x16xbf16>
+// CHECK:           tt.store [[PARAM_2_]], [[VAR_reduced_]] : tensor<32x16x!tt.ptr<bf16>>
 // CHECK:           return
 // CHECK:         }

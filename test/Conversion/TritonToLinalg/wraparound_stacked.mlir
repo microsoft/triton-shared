@@ -42,8 +42,8 @@ module {
     %29 = arith.muli %arg5, %c4_i32 : i32
     %30 = tt.splat %29 : i32 -> tensor<4x4xi32>
     %31:2 = scf.for %arg8 = %c0_i32 to %c2_i32 step %c1_i32 iter_args(%arg9 = %15, %arg10 = %26) -> (tensor<4x4x!tt.ptr<f32>>, tensor<4x4x!tt.ptr<f32>>)  : i32 {
-      %32 = tt.load %arg9, %28, %cst {cache = 1 : i32, evict = 1 : i32, isVolatile = false} : tensor<4x4xf32>
-      tt.store %arg10, %32 {cache = 1 : i32, evict = 1 : i32} : tensor<4x4xf32>
+      %32 = tt.load %arg9, %28, %cst : tensor<4x4x!tt.ptr<f32>>
+      tt.store %arg10, %32 : tensor<4x4x!tt.ptr<f32>>
       %33 = tt.addptr %arg9, %30 : tensor<4x4x!tt.ptr<f32>>, tensor<4x4xi32>
       %34 = tt.addptr %arg10, %30 : tensor<4x4x!tt.ptr<f32>>, tensor<4x4xi32>
       scf.yield %33, %34 : tensor<4x4x!tt.ptr<f32>>, tensor<4x4x!tt.ptr<f32>>

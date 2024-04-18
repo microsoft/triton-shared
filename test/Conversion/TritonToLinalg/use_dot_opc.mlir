@@ -35,17 +35,17 @@ module {
     %26 = arith.addi %23, %25 : tensor<128x256xi32>
     %30 = tt.splat %arg0 : !tt.ptr<bf16> -> tensor<128x64x!tt.ptr<bf16>>
     %31 = tt.addptr %30, %8 : tensor<128x64x!tt.ptr<bf16>>, tensor<128x64xi32>
-    %32 = tt.load %31 {cache = 1 : i32, evict = 1 : i32, isVolatile = false}: tensor<128x64xbf16>
+    %32 = tt.load %31 {cache = 1 : i32, evict = 1 : i32, isVolatile = false}: tensor<128x64x!tt.ptr<bf16>>
     %40 = tt.splat %arg1 : !tt.ptr<bf16> -> tensor<64x256x!tt.ptr<bf16>>
     %41 = tt.addptr %40, %18 : tensor<64x256x!tt.ptr<bf16>>, tensor<64x256xi32>
-    %42 = tt.load %41 {cache = 1 : i32, evict = 1 : i32, isVolatile = false}: tensor<64x256xbf16>
+    %42 = tt.load %41 {cache = 1 : i32, evict = 1 : i32, isVolatile = false}: tensor<64x256x!tt.ptr<bf16>>
     %50 = tt.splat %arg2 : !tt.ptr<bf16> -> tensor<128x256x!tt.ptr<bf16>>
     %51 = tt.addptr %50, %26 : tensor<128x256x!tt.ptr<bf16>>, tensor<128x256xi32>
     %cf0 = arith.constant 0.0 : bf16
     %71 = tt.splat %cf0 : bf16 -> tensor<128x256xbf16>
-    %60 = tt.dot %32, %42, %71 {allowTF32 = false, maxNumImpreciseAcc = 0 : i32} : tensor<128x64xbf16> * tensor<64x256xbf16> -> tensor<128x256xbf16>
-    tt.store %51, %60 : tensor<128x256xbf16>
-    tt.store %51, %71 : tensor<128x256xbf16>
+    %60 = tt.dot %32, %42, %71 {inputPrecision = 2 : i32, maxNumImpreciseAcc = 0 : i32} : tensor<128x64xbf16> * tensor<64x256xbf16> -> tensor<128x256xbf16>
+    tt.store %51, %60 : tensor<128x256x!tt.ptr<bf16>>
+    tt.store %51, %71 : tensor<128x256x!tt.ptr<bf16>>
     tt.return
   }
 }

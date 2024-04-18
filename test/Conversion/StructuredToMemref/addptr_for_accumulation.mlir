@@ -33,7 +33,7 @@ module {
     %8 = tt.splat %arg0 : !tt.ptr<bf16> -> tensor<4x256x!tt.ptr<bf16>> // Why is the input unknown
     %9 = tt.addptr %8, %7 : tensor<4x256x!tt.ptr<bf16>>, tensor<4x256xi32>
     // source: %arg0, offset = [%arg3, 0], size = [4, 256], stride = [1, 5]
-    %19 = tt.load %9 {cache = 1 : i32, evict = 1 : i32, isVolatile = false}: tensor<4x256xbf16> // this will be replaced with a memref.copy
+    %19 = tt.load %9 {cache = 1 : i32, evict = 1 : i32, isVolatile = false}: tensor<4x256x!tt.ptr<bf16>> // this will be replaced with a memref.copy
     %11 = tt.splat %arg1 : !tt.ptr<bf16> -> tensor<4x256x!tt.ptr<bf16>>
     %12 = tt.addptr %11, %7 : tensor<4x256x!tt.ptr<bf16>>, tensor<4x256xi32>
     // source: %arg1, offset = [%arg3, 0], size = [4, 256], stride = [1, 5]
@@ -42,7 +42,7 @@ module {
     %c3 = arith.constant 3 : index
     %i_c3 = arith.constant 3 : i32
     %sum_out, %_ptr = scf.for %i = %c0 to %c12 step %c3 iter_args(%sum_iter = %19, %ptr_iter = %12) -> (tensor<4x256xbf16>, tensor<4x256x!tt.ptr<bf16>>) {
-        %20 = tt.load %ptr_iter {cache = 1 : i32, evict = 1 : i32, isVolatile = false}: tensor<4x256xbf16>
+        %20 = tt.load %ptr_iter {cache = 1 : i32, evict = 1 : i32, isVolatile = false}: tensor<4x256x!tt.ptr<bf16>>
         %sum = arith.addf %sum_iter, %20 : tensor<4x256xbf16>
         // pointer updates
         %17 = tt.splat %i_c3 : i32 -> tensor<4x256xi32>
@@ -54,7 +54,7 @@ module {
     %15 = tt.splat %arg2 : !tt.ptr<bf16> -> tensor<4x256x!tt.ptr<bf16>>
     %16 = tt.addptr %15, %7 : tensor<4x256x!tt.ptr<bf16>>, tensor<4x256xi32>
     // source: %arg2, offset = [%arg3, 0], size = [4, 256], stride = [1, 5]
-    tt.store %16, %sum_out : tensor<4x256xbf16>
+    tt.store %16, %sum_out : tensor<4x256x!tt.ptr<bf16>>
     tt.return
   }
 }

@@ -27,11 +27,11 @@ module {
   // offset = [512,6144], size = [256,128], stride = [1,6]
   %17 = tt.splat %arg1 : !tt.ptr<bf16> -> tensor<256x128x!tt.ptr<bf16>>
   %18 = tt.addptr %17, %14 : tensor<256x128x!tt.ptr<bf16>>, tensor<256x128xi32>
-  %19 = tt.load %18 {cache = 1 : i32, evict = 1 : i32, isVolatile = false} : tensor<256x128xbf16>
-  tt.store %18, %19 : tensor<256x128xbf16>
+  %19 = tt.load %18 : tensor<256x128x!tt.ptr<bf16>>
+  tt.store %18, %19 : tensor<256x128x!tt.ptr<bf16>>
   %20 = tt.splat %arg2 : !tt.ptr<i32> -> tensor<256x128x!tt.ptr<i32>>
   %21 = tt.addptr %20, %14 : tensor<256x128x!tt.ptr<i32>>, tensor<256x128xi32>
-  tt.store %21, %2 : tensor<256x128xi32>
+  tt.store %21, %2 : tensor<256x128x!tt.ptr<i32>>
   tt.return
   }
 }

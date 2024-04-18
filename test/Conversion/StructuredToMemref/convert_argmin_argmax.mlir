@@ -9,7 +9,7 @@ module {
     %4 = arith.addi %3, %2 : tensor<4096xi32>
     %5 = tt.splat %arg0 : !tt.ptr<f32> -> tensor<4096x!tt.ptr<f32>>
     %6 = tt.addptr %5, %4 : tensor<4096x!tt.ptr<f32>>, tensor<4096xi32>
-    %7 = tt.load %6 {cache = 1 : i32, evict = 1 : i32, isVolatile = false} : tensor<4096xf32>
+    %7 = tt.load %6 : tensor<4096x!tt.ptr<f32>>
     %8:2 = "tt.reduce"(%7, %2) <{axis = 0 : i32}> ({
     ^bb0(%arg9: f32, %arg10: i32, %arg11: f32, %arg12: i32):
       %11 = arith.cmpf oeq, %arg9, %arg11 : f32
@@ -22,7 +22,7 @@ module {
       tt.reduce.return %16, %17 : f32, i32
   }) : (tensor<4096xf32>, tensor<4096xi32>) -> (f32, i32)
     %9 = tt.addptr %arg1, %0 : !tt.ptr<i32>, i32
-    tt.store %9, %8#1 {cache = 1 : i32, evict = 1 : i32} : i32
+    tt.store %9, %8#1 : !tt.ptr<i32>
     tt.return
   }
 }
@@ -81,7 +81,7 @@ module {
     %4 = arith.addi %3, %2 : tensor<4096xi32>
     %5 = tt.splat %arg0 : !tt.ptr<f32> -> tensor<4096x!tt.ptr<f32>>
     %6 = tt.addptr %5, %4 : tensor<4096x!tt.ptr<f32>>, tensor<4096xi32>
-    %7 = tt.load %6 {cache = 1 : i32, evict = 1 : i32, isVolatile = false} : tensor<4096xf32>
+    %7 = tt.load %6 : tensor<4096x!tt.ptr<f32>>
     %8:2 = "tt.reduce"(%7, %2) <{axis = 0 : i32}> ({
     ^bb0(%arg9: f32, %arg10: i32, %arg11: f32, %arg12: i32):
       %11 = arith.cmpf oeq, %arg9, %arg11 : f32
@@ -94,7 +94,7 @@ module {
       tt.reduce.return %16, %17 : f32, i32
   }) : (tensor<4096xf32>, tensor<4096xi32>) -> (f32, i32)
     %9 = tt.addptr %arg1, %0 : !tt.ptr<i32>, i32
-    tt.store %9, %8#1 {cache = 1 : i32, evict = 1 : i32} : i32
+    tt.store %9, %8#1 : !tt.ptr<i32>
     tt.return
   }
 }

@@ -8,13 +8,13 @@ module {
       %69 = arith.addi %arg14, %arg15 : i32
       tt.reduce.return %69 : i32
     }) {axis = 0 : i32} : (tensor<4096xi32>) -> i32
-    tt.store %arg0, %63 {cache = 1 : i32, evict = 1 : i32} : i32
+    tt.store %arg0, %63 : !tt.ptr<i32>
     tt.return
   }
 }
 
 // CHECK-LABEL:  func.func @addi
-// CHECK-SAME:   ([[PARAM_0_:%.+]]: !tt.ptr<i32, 1>, [[PARAM_1_:%.+]]: i32, [[PARAM_2_:%.+]]: i32, [[PARAM_3_:%.+]]: i32, [[PARAM_4_:%.+]]: i32, [[PARAM_5_:%.+]]: i32, [[PARAM_6_:%.+]]: i32) {
+// CHECK-SAME:   ([[PARAM_0_:%.+]]: !tt.ptr<i32>, [[PARAM_1_:%.+]]: i32, [[PARAM_2_:%.+]]: i32, [[PARAM_3_:%.+]]: i32, [[PARAM_4_:%.+]]: i32, [[PARAM_5_:%.+]]: i32, [[PARAM_6_:%.+]]: i32) {
 // CHECK-DAG:       [[CST_0_:%.+]] = arith.constant 0 : i32
 // CHECK-DAG:       [[VAR_0_:%.+]] = tensor.empty() : tensor<4096xi32>
 // CHECK-NOT: separator of consecutive DAGs
@@ -28,6 +28,6 @@ module {
 // CHECK:               linalg.yield [[VAR_3_]] : i32
 // CHECK:             }
 // CHECK:           [[VAR_extracted_:%.+]] = tensor.extract [[VAR_reduced_]][] : tensor<i32>
-// CHECK:           tt.store [[PARAM_0_]], [[VAR_extracted_]] {cache = 1 : i32, evict = 1 : i32} : i32
+// CHECK:           tt.store [[PARAM_0_]], [[VAR_extracted_]] : !tt.ptr<i32>
 // CHECK:           return
 // CHECK:         }

@@ -12,10 +12,10 @@ module {
         // b pointer
         %18 = tt.splat %b : !tt.ptr<i32> -> tensor<1024x!tt.ptr<i32>>
         %19 = tt.addptr %18, %0 : tensor<1024x!tt.ptr<i32>>, tensor<1024xi32>
-        %am = tt.load %9 {cache = 1 : i32, evict = 1 : i32, isVolatile = false} : tensor<1024xi32>
-        %bm = tt.load %19 {cache = 1 : i32, evict = 1 : i32, isVolatile = false} : tensor<1024xi32>
+        %am = tt.load %9 : tensor<1024x!tt.ptr<i32>>
+        %bm = tt.load %19 : tensor<1024x!tt.ptr<i32>>
         %5 = arith.addi %am, %bm : tensor<1024xi32>
-        tt.store %19, %5 : tensor<1024xi32>
+        tt.store %19, %5 : tensor<1024x!tt.ptr<i32>>
         tt.return
     }
 }

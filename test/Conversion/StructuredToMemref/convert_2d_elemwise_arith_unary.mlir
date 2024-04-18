@@ -27,26 +27,26 @@ module {
     // f16ptr pointer
     %28 = tt.splat %f16ptr : !tt.ptr<f16> -> tensor<128x128x!tt.ptr<f16>>
     %29 = tt.addptr %28, %mkoff : tensor<128x128x!tt.ptr<f16>>, tensor<128x128xi32>
-    %afm = tt.load %9 {cache = 1 : i32, evict = 1 : i32, isVolatile = false} : tensor<128x128xf32>
-    %aim = tt.load %19 {cache = 1 : i32, evict = 1 : i32, isVolatile = false} : tensor<128x128xi32>
-    %bfm = tt.load %29 {cache = 1 : i32, evict = 1 : i32, isVolatile = false} : tensor<128x128xf16>
+    %afm = tt.load %9 : tensor<128x128x!tt.ptr<f32>>
+    %aim = tt.load %19 : tensor<128x128x!tt.ptr<i32>>
+    %bfm = tt.load %29 : tensor<128x128x!tt.ptr<f16>>
     %5 = arith.truncf %afm : tensor<128x128xf32> to tensor<128x128xbf16>
     %6 = math.exp %afm : tensor<128x128xf32>
     %7 = arith.sitofp %aim : tensor<128x128xi32> to tensor<128x128xf32>
     %10 = arith.extf %bfm : tensor<128x128xf16> to tensor<128x128xf32>
     %11 = math.sqrt %afm : tensor<128x128xf32>
-    tt.store %save0, %5 {cache = 1 : i32, evict = 1 : i32} : tensor<128x128xbf16>
-    tt.store %save1, %6 {cache = 1 : i32, evict = 1 : i32} : tensor<128x128xf32>
-    tt.store %save2, %7 {cache = 1 : i32, evict = 1 : i32} : tensor<128x128xf32>
-    tt.store %save3, %10 {cache = 1 : i32, evict = 1 : i32} : tensor<128x128xf32>
-    tt.store %save4, %11 {cache = 1 : i32, evict = 1 : i32} : tensor<128x128xf32>
+    tt.store %save0, %5 : tensor<128x128x!tt.ptr<bf16>>
+    tt.store %save1, %6 : tensor<128x128x!tt.ptr<f32>>
+    tt.store %save2, %7 : tensor<128x128x!tt.ptr<f32>>
+    tt.store %save3, %10 : tensor<128x128x!tt.ptr<f32>>
+    tt.store %save4, %11 : tensor<128x128x!tt.ptr<f32>>
     tt.return
   }
 }
 
 // CHECK-DAG:   [[MAP_0_:#.+]] = affine_map<(d0, d1) -> (d0, d1)>
 // CHECK-LABEL:  func.func @kernel
-// CHECK-SAME:   ([[PARAM_0_:%.+]]: memref<*xf32>, [[PARAM_1_:%.+]]: memref<*xi32>, [[PARAM_2_:%.+]]: memref<*xf16>, [[PARAM_3_:%.+]]: tensor<128x128x!tt.ptr<bf16, 1>>, [[PARAM_4_:%.+]]: tensor<128x128x!tt.ptr<f32, 1>>, [[PARAM_5_:%.+]]: tensor<128x128x!tt.ptr<f32, 1>>, [[PARAM_6_:%.+]]: tensor<128x128x!tt.ptr<f32, 1>>, [[PARAM_7_:%.+]]: tensor<128x128x!tt.ptr<f32, 1>>, [[PARAM_8_:%.+]]: i32, [[PARAM_9_:%.+]]: i32, [[PARAM_10_:%.+]]: i32, [[PARAM_11_:%.+]]: i32, [[PARAM_12_:%.+]]: i32, [[PARAM_13_:%.+]]: i32) {
+// CHECK-SAME:   ([[PARAM_0_:%.+]]: memref<*xf32>, [[PARAM_1_:%.+]]: memref<*xi32>, [[PARAM_2_:%.+]]: memref<*xf16>, [[PARAM_3_:%.+]]: tensor<128x128x!tt.ptr<bf16>>, [[PARAM_4_:%.+]]: tensor<128x128x!tt.ptr<f32>>, [[PARAM_5_:%.+]]: tensor<128x128x!tt.ptr<f32>>, [[PARAM_6_:%.+]]: tensor<128x128x!tt.ptr<f32>>, [[PARAM_7_:%.+]]: tensor<128x128x!tt.ptr<f32>>, [[PARAM_8_:%.+]]: i32, [[PARAM_9_:%.+]]: i32, [[PARAM_10_:%.+]]: i32, [[PARAM_11_:%.+]]: i32, [[PARAM_12_:%.+]]: i32, [[PARAM_13_:%.+]]: i32) {
 // CHECK-DAG:       [[VAR_reinterpret_cast_:%.+]] = memref.reinterpret_cast [[PARAM_0_]] to offset: [0], sizes: [128, 128], strides: [1, 1] : memref<*xf32> to memref<128x128xf32, strided<[1, 1]>>
 // CHECK-DAG:       [[VAR_reinterpret_cast_0_:%.+]] = memref.reinterpret_cast [[PARAM_1_]] to offset: [0], sizes: [128, 128], strides: [1, 1] : memref<*xi32> to memref<128x128xi32, strided<[1, 1]>>
 // CHECK-DAG:       [[VAR_reinterpret_cast_1_:%.+]] = memref.reinterpret_cast [[PARAM_2_]] to offset: [0], sizes: [128, 128], strides: [1, 1] : memref<*xf16> to memref<128x128xf16, strided<[1, 1]>>
@@ -86,10 +86,10 @@ module {
 // CHECK:             [[VAR_10_4_:%.+]] = math.sqrt [[IN_8_]] : f32
 // CHECK:             linalg.yield [[VAR_10_4_]] : f32
 // CHECK:           } -> tensor<128x128xf32>
-// CHECK:           tt.store [[PARAM_3_]], [[VAR_4_]] {cache = 1 : i32, evict = 1 : i32} : tensor<128x128xbf16>
-// CHECK:           tt.store [[PARAM_4_]], [[VAR_5_]] {cache = 1 : i32, evict = 1 : i32} : tensor<128x128xf32>
-// CHECK:           tt.store [[PARAM_5_]], [[VAR_7_]] {cache = 1 : i32, evict = 1 : i32} : tensor<128x128xf32>
-// CHECK:           tt.store [[PARAM_6_]], [[VAR_8_]] {cache = 1 : i32, evict = 1 : i32} : tensor<128x128xf32>
-// CHECK:           tt.store [[PARAM_7_]], [[VAR_9_]] {cache = 1 : i32, evict = 1 : i32} : tensor<128x128xf32>
+// CHECK:           tt.store [[PARAM_3_]], [[VAR_4_]] : tensor<128x128x!tt.ptr<bf16>>
+// CHECK:           tt.store [[PARAM_4_]], [[VAR_5_]] : tensor<128x128x!tt.ptr<f32>>
+// CHECK:           tt.store [[PARAM_5_]], [[VAR_7_]] : tensor<128x128x!tt.ptr<f32>>
+// CHECK:           tt.store [[PARAM_6_]], [[VAR_8_]] : tensor<128x128x!tt.ptr<f32>>
+// CHECK:           tt.store [[PARAM_7_]], [[VAR_9_]] : tensor<128x128x!tt.ptr<f32>>
 // CHECK:           return
 // CHECK:         }

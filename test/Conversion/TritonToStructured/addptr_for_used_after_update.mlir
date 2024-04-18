@@ -22,8 +22,8 @@ module {
         %ptr_iter = tt.addptr %ptr, %4 : tensor<256x!tt.ptr<bf16>>, tensor<256xi32>
         // source: arg0, sizes: 256, offsets: 1024 + i, strides: 1
         // perform load
-        %3 = tt.load %ptr_iter {cache = 1 : i32, evict = 1 : i32, isVolatile = false}: tensor<256xbf16>
-        tt.store %ptr_iter, %3 : tensor<256xbf16>
+        %3 = tt.load %ptr_iter {cache = 1 : i32, evict = 1 : i32, isVolatile = false}: tensor<256x!tt.ptr<bf16>>
+        tt.store %ptr_iter, %3 : tensor<256x!tt.ptr<bf16>>
         scf.yield %ptr_iter : tensor<256x!tt.ptr<bf16>>
     }
     // Expected output
@@ -43,8 +43,8 @@ module {
     //    // generate pointer
     //    %gep_ptr = tt.addptr %0, %ptr_iter : tensor<256x!tt.ptr<bf16>>
     //    // perform load
-    //    %4 = tt.load %gep_ptr {cache = 1 : i32, evict = 1 : i32, isVolatile = false}: tensor<256xbf16>
-    //    tt.store %gep_ptr, %4 : tensor<256xbf16>
+    //    %4 = tt.load %gep_ptr {cache = 1 : i32, evict = 1 : i32, isVolatile = false}: tensor<256x!tt.ptr<bf16>>
+    //    tt.store %gep_ptr, %4 : tensor<256x!tt.ptr<bf16>>
     //    scf.yield %ptr_iter : tensor<256xi32>
     //}
     // Expected output
@@ -61,8 +61,8 @@ module {
     //    %gep_ptr = tt.addptr %0, %ptr : tensor<256x!tt.ptr<bf16>>
     //
     //    // perform load
-    //    %4 = tt.load %gep_ptr {cache = 1 : i32, evict = 1 : i32, isVolatile = false}: tensor<256xbf16>
-    //    tt.store %gep_ptr, %4 : tensor<256xbf16>
+    //    %4 = tt.load %gep_ptr {cache = 1 : i32, evict = 1 : i32, isVolatile = false}: tensor<256x!tt.ptr<bf16>>
+    //    tt.store %gep_ptr, %4 : tensor<256x!tt.ptr<bf16>>
     //    // offset update
     //    %3 = tt.splat %c3 : i32 -> tensor<256xi32>
     //    %ptr_iter = arith.addi %3, %ptr : tensor<256xi32>
@@ -80,7 +80,7 @@ module {
   }
 }
 
-// CHECK:         tt.func @kernel([[PARAM_0_:%.+]]: !tt.ptr<bf16, 1>) {
+// CHECK:         tt.func @kernel([[PARAM_0_:%.+]]: !tt.ptr<bf16>) {
 // CHECK-DAG:       [[CST_3_:%.+]] = arith.constant 3 : index
 // CHECK-DAG:       [[CST_1_:%.+]] = arith.constant 1 : index
 // CHECK-DAG:       [[CST_1024_:%.+]] = arith.constant 1024 : index
@@ -89,9 +89,9 @@ module {
 // CHECK-NOT: separator of consecutive DAGs
 // CHECK-DAG:       [[VAR_0_:%.+]] = scf.for [[VAR_arg1_:%.+]] = [[CST_0_]] to [[CST_12_]] step [[CST_3_]] iter_args([[VAR_arg2_:%.+]] = [[CST_1024_]]) -> (index) {
 // CHECK-DAG:         [[VAR_1_:%.+]] = arith.addi [[VAR_arg2_]], [[CST_3_]] : index
-// CHECK:             [[VAR_2_:%.+]] = tts.make_tptr [[PARAM_0_]] to sizes: [256], strides: {{.}}[[CST_1_]]{{.}}, offsets: {{.}}[[VAR_1_]]{{.}}, shape: [0], order: [] : <bf16, 1> to tensor<256x!tt.ptr<bf16, 1>>
-// CHECK:             [[VAR_3_:%.+]] = "tts.load"([[VAR_2_]]) <{operandSegmentSizes = array<i32: 1, 0, 0>, static_mask_dims = array<i64>}> : (tensor<256x!tt.ptr<bf16, 1>>) -> tensor<256xbf16>
-// CHECK:             "tts.store"([[VAR_2_]], [[VAR_3_]]) <{static_mask_dims = array<i64>}> : (tensor<256x!tt.ptr<bf16, 1>>, tensor<256xbf16>) -> ()
+// CHECK:             [[VAR_2_:%.+]] = tts.make_tptr [[PARAM_0_]] to sizes: [256], strides: {{.}}[[CST_1_]]{{.}}, offsets: {{.}}[[VAR_1_]]{{.}}, shape: [0], order: [] : <bf16> to tensor<256x!tt.ptr<bf16>>
+// CHECK:             [[VAR_3_:%.+]] = "tts.load"([[VAR_2_]]) <{operandSegmentSizes = array<i32: 1, 0, 0>, static_mask_dims = array<i64>}> : (tensor<256x!tt.ptr<bf16>>) -> tensor<256xbf16>
+// CHECK:             "tts.store"([[VAR_2_]], [[VAR_3_]]) <{static_mask_dims = array<i64>}> : (tensor<256x!tt.ptr<bf16>>, tensor<256xbf16>) -> ()
 // CHECK:             scf.yield [[VAR_1_]] : index
 // CHECK:           }
 // CHECK:           tt.return

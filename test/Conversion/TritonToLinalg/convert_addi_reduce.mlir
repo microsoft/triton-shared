@@ -8,7 +8,7 @@ module {
       %69 = arith.addi %arg14, %arg15 : i32
       tt.reduce.return %69 : i32
     }) {axis = 0 : i32} : (tensor<4096xi32>) -> i32
-    tt.store %arg0, %63 {cache = 1 : i32, evict = 1 : i32} : i32
+    tt.store %arg0, %63 : !tt.ptr<i32>
     tt.return
   }
 }

@@ -20,12 +20,12 @@ module {
         // b pointer
         %18 = tt.splat %b : !tt.ptr<f32> -> tensor<128x128x!tt.ptr<f32>>
         %19 = tt.addptr %18, %mkoff : tensor<128x128x!tt.ptr<f32>>, tensor<128x128xi32>
-        %af = tt.load %9 {cache = 1 : i32, evict = 1 : i32, isVolatile = false} : tensor<128x128xf32>
-        %bf = tt.load %19 {cache = 1 : i32, evict = 1 : i32, isVolatile = false} : tensor<128x128xf32>
+        %af = tt.load %9 : tensor<128x128x!tt.ptr<f32>>
+        %bf = tt.load %19 : tensor<128x128x!tt.ptr<f32>>
         %res0 = arith.addf %af, %bf : tensor<128x128xf32>
         %res1 = arith.subf %af, %bf : tensor<128x128xf32>
-        tt.store %c, %res0 {cache = 1 : i32, evict = 1 : i32} : tensor<128x128xf32>
-        tt.store %d, %res1 {cache = 1 : i32, evict = 1 : i32} : tensor<128x128xf32>
+        tt.store %c, %res0 : tensor<128x128x!tt.ptr<f32>>
+        tt.store %d, %res1 : tensor<128x128x!tt.ptr<f32>>
         tt.return
     }
 }

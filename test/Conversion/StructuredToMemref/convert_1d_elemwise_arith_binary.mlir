@@ -14,22 +14,22 @@ module {
         // b pointer
         %18 = tt.splat %b : !tt.ptr<f32> -> tensor<1024x!tt.ptr<f32>>
         %19 = tt.addptr %18, %0 : tensor<1024x!tt.ptr<f32>>, tensor<1024xi32>
-        %am = tt.load %9 {cache = 1 : i32, evict = 1 : i32, isVolatile = false} : tensor<1024xf32>
-        %bm = tt.load %19 {cache = 1 : i32, evict = 1 : i32, isVolatile = false} : tensor<1024xf32>
+        %am = tt.load %9 : tensor<1024x!tt.ptr<f32>>
+        %bm = tt.load %19 : tensor<1024x!tt.ptr<f32>>
         %1 = arith.addf %am, %bm : tensor<1024xf32>
         %2 = arith.subf %1, %bm : tensor<1024xf32>
         %3 = arith.mulf %2, %bm : tensor<1024xf32>
         %4 = arith.divf %3, %bm : tensor<1024xf32>
         %5 = arith.cmpf "oeq", %4, %bm : tensor<1024xf32>
         %6 = arith.select %5, %am, %bm : tensor<1024xi1>, tensor<1024xf32>
-        tt.store %c, %6 {cache = 1 : i32, evict = 1 : i32} : tensor<1024xf32>
+        tt.store %c, %6 : tensor<1024x!tt.ptr<f32>>
         tt.return
     }
 }
 // mlir2FileCheck.py
 // CHECK-DAG:   [[MAP_0_:#.+]] = affine_map<(d0) -> (d0)>
 // CHECK-LABEL:  func.func @kernel
-// CHECK-SAME:   ([[PARAM_0_:%.+]]: memref<*xf32>, [[PARAM_1_:%.+]]: memref<*xf32>, [[PARAM_2_:%.+]]: tensor<1024x!tt.ptr<f32, 1>>, [[PARAM_3_:%.+]]: i32, [[PARAM_4_:%.+]]: i32, [[PARAM_5_:%.+]]: i32, [[PARAM_6_:%.+]]: i32, [[PARAM_7_:%.+]]: i32, [[PARAM_8_:%.+]]: i32) {
+// CHECK-SAME:   ([[PARAM_0_:%.+]]: memref<*xf32>, [[PARAM_1_:%.+]]: memref<*xf32>, [[PARAM_2_:%.+]]: tensor<1024x!tt.ptr<f32>>, [[PARAM_3_:%.+]]: i32, [[PARAM_4_:%.+]]: i32, [[PARAM_5_:%.+]]: i32, [[PARAM_6_:%.+]]: i32, [[PARAM_7_:%.+]]: i32, [[PARAM_8_:%.+]]: i32) {
 // CHECK-DAG:       [[VAR_reinterpret_cast_:%.+]] = memref.reinterpret_cast [[PARAM_0_]] to offset: [0], sizes: [1024], strides: [1] : memref<*xf32> to memref<1024xf32, strided<[1]>>
 // CHECK-DAG:       [[VAR_reinterpret_cast_0_:%.+]] = memref.reinterpret_cast [[PARAM_1_]] to offset: [0], sizes: [1024], strides: [1] : memref<*xf32> to memref<1024xf32, strided<[1]>>
 // CHECK-DAG:       [[RES_:%.+]] = memref.alloc() : memref<1024xf32>
@@ -69,6 +69,6 @@ module {
 // CHECK:             [[VAR_9_5_:%.+]] = arith.select [[IN_15_]], [[IN_16_]], [[IN_17_]] : f32
 // CHECK:             linalg.yield [[VAR_9_5_]] : f32
 // CHECK:           } -> tensor<1024xf32>
-// CHECK:           tt.store [[PARAM_2_]], [[VAR_8_]] {cache = 1 : i32, evict = 1 : i32} : tensor<1024xf32>
+// CHECK:           tt.store [[PARAM_2_]], [[VAR_8_]] : tensor<1024x!tt.ptr<f32>>
 // CHECK:           return
 // CHECK:         }

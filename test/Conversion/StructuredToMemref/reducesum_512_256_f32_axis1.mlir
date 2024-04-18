@@ -20,13 +20,13 @@ module {
     // res pointer
     %18 = tt.splat %res : !tt.ptr<f32> -> tensor<512x!tt.ptr<f32>>
     %19 = tt.addptr %18, %0 : tensor<512x!tt.ptr<f32>>, tensor<512xi32>
-    %afm = tt.load %9 {cache = 1 : i32, evict = 1 : i32, isVolatile = false} : tensor<512x256xf32>
+    %afm = tt.load %9 : tensor<512x256x!tt.ptr<f32>>
     %5 = "tt.reduce"(%afm) ({
     ^bb0(%arg5: f32, %arg6: f32):
       %21 = arith.addf %arg5, %arg6 : f32
       tt.reduce.return %21 : f32
     }) {axis = 1 : i32} : (tensor<512x256xf32>) -> tensor<512xf32>
-    tt.store %19, %5 : tensor<512xf32>
+    tt.store %19, %5 : tensor<512x!tt.ptr<f32>>
     tt.return
     }
 }

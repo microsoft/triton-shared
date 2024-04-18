@@ -12,7 +12,7 @@ module {
     %6 = tt.splat %arg4 : i32 -> tensor<128xi32>
     %7 = arith.cmpi slt, %3, %6 : tensor<128xi32>
     %8 = tt.splat %cst : f32 -> tensor<128xf32>
-    %9 = tt.load %5, %7, %8 {cache = 1 : i32, evict = 1 : i32, isVolatile = false} : tensor<128xf32>
+    %9 = tt.load %5, %7, %8 : tensor<128x!tt.ptr<f32>>
     %10 = "tt.reduce"(%9) ({
     ^bb0(%arg5: f32, %arg6: f32):
       %21 = arith.cmpf ogt, %arg5, %arg6 : f32
@@ -33,21 +33,21 @@ module {
     %18 = tt.addptr %arg0, %17 : !tt.ptr<f32>, i32
     %19 = tt.splat %18 : !tt.ptr<f32> -> tensor<128x!tt.ptr<f32>>
     %20 = tt.addptr %19, %3 : tensor<128x!tt.ptr<f32>>, tensor<128xi32>
-    tt.store %20, %16, %7 {cache = 1 : i32, evict = 1 : i32} : tensor<128xf32>
+    tt.store %20, %16, %7 : tensor<128x!tt.ptr<f32>>
     tt.return
   }
 }
 
-// CHECK:         tt.func public @softmax_kernel_012345([[PARAM_0_:%.+]]: !tt.ptr<f32, 1>, [[PARAM_1_:%.+]]: !tt.ptr<f32, 1>, [[PARAM_2_:%.+]]: i32, [[PARAM_3_:%.+]]: i32, [[PARAM_4_:%.+]]: i32) {
+// CHECK:         tt.func public @softmax_kernel_012345([[PARAM_0_:%.+]]: !tt.ptr<f32>, [[PARAM_1_:%.+]]: !tt.ptr<f32>, [[PARAM_2_:%.+]]: i32, [[PARAM_3_:%.+]]: i32, [[PARAM_4_:%.+]]: i32) {
 // CHECK-DAG:       [[CST_128_:%.+]] = arith.constant 128 : index
 // CHECK-DAG:       [[CST_0_:%.+]] = arith.constant 0xFF800000 : f32
 // CHECK-DAG:       [[VAR_0_:%.+]] = tt.get_program_id x : i32
 // CHECK:           [[VAR_1_:%.+]] = arith.muli [[VAR_0_]], [[PARAM_2_]] : i32
 // CHECK:           [[VAR_2_:%.+]] = arith.index_cast [[VAR_1_]] : i32 to index
-// CHECK-DAG:       [[VAR_3_:%.+]] = tts.make_tptr [[PARAM_1_]] to sizes: [128], strides: [1], offsets: {{.}}[[VAR_2_]]{{.}}, shape: [0], order: [] : <f32, 1> to tensor<128x!tt.ptr<f32, 1>>
+// CHECK-DAG:       [[VAR_3_:%.+]] = tts.make_tptr [[PARAM_1_]] to sizes: [128], strides: [1], offsets: {{.}}[[VAR_2_]]{{.}}, shape: [0], order: [] : <f32> to tensor<128x!tt.ptr<f32>>
 // CHECK-DAG:       [[VAR_4_:%.+]] = arith.index_cast [[PARAM_4_]] : i32 to index
 // CHECK:           [[VAR_5_:%.+]] = arith.minsi [[VAR_4_]], [[CST_128_]] : index
-// CHECK:           [[VAR_6_:%.+]] = "tts.load"([[VAR_3_]], [[VAR_5_]], [[CST_0_]]) <{operandSegmentSizes = array<i32: 1, 1, 1>, static_mask_dims = array<i64: -9223372036854775808>}> : (tensor<128x!tt.ptr<f32, 1>>, index, f32) -> tensor<128xf32>
+// CHECK:           [[VAR_6_:%.+]] = "tts.load"([[VAR_3_]], [[VAR_5_]], [[CST_0_]]) <{operandSegmentSizes = array<i32: 1, 1, 1>, static_mask_dims = array<i64: -9223372036854775808>}> : (tensor<128x!tt.ptr<f32>>, index, f32) -> tensor<128xf32>
 // CHECK:           [[VAR_7_:%.+]] = "tt.reduce"([[VAR_6_]]) <{axis = 0 : i32}> ({
 // CHECK:           ^bb0([[arg5_:%.+]]: f32, [[arg6_:%.+]]: f32):
 // CHECK:             [[VAR_19_:%.+]] = arith.cmpf ogt, [[arg5_]], [[arg6_]] : f32
@@ -66,9 +66,9 @@ module {
 // CHECK-DAG:       [[VAR_13_:%.+]] = arith.divf [[VAR_10_]], [[VAR_12_]] : tensor<128xf32>
 // CHECK-DAG:       [[VAR_14_:%.+]] = arith.muli [[VAR_0_]], [[PARAM_3_]] : i32
 // CHECK:           [[VAR_15_:%.+]] = arith.index_cast [[VAR_14_]] : i32 to index
-// CHECK-DAG:       [[VAR_16_:%.+]] = tts.make_tptr [[PARAM_0_]] to sizes: [128], strides: [1], offsets: {{.}}[[VAR_15_]]{{.}}, shape: [0], order: [] : <f32, 1> to tensor<128x!tt.ptr<f32, 1>>
+// CHECK-DAG:       [[VAR_16_:%.+]] = tts.make_tptr [[PARAM_0_]] to sizes: [128], strides: [1], offsets: {{.}}[[VAR_15_]]{{.}}, shape: [0], order: [] : <f32> to tensor<128x!tt.ptr<f32>>
 // CHECK-DAG:       [[VAR_17_:%.+]] = arith.index_cast [[PARAM_4_]] : i32 to index
 // CHECK:           [[VAR_18_:%.+]] = arith.minsi [[VAR_17_]], [[CST_128_]] : index
-// CHECK:           "tts.store"([[VAR_16_]], [[VAR_13_]], [[VAR_18_]]) <{static_mask_dims = array<i64: -9223372036854775808>}> : (tensor<128x!tt.ptr<f32, 1>>, tensor<128xf32>, index) -> ()
+// CHECK:           "tts.store"([[VAR_16_]], [[VAR_13_]], [[VAR_18_]]) <{static_mask_dims = array<i64: -9223372036854775808>}> : (tensor<128x!tt.ptr<f32>>, tensor<128xf32>, index) -> ()
 // CHECK:           tt.return
 // CHECK:         }

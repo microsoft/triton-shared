@@ -20,8 +20,8 @@ module {
     // source: arg1, sizes: 256, offsets: 1024, strides: 1
     %_arg2, %_ptr_ld, %_arg3, %_ptr_st, %_arg4 = scf.for %i = %c0 to %c12 step %c3 iter_args(%arg2 = %c1, %ptr_ld = %2, %arg3 = %c2, %ptr_st = %4, %arg4 = %c3) -> (index, tensor<256x!tt.ptr<bf16>>, index, tensor<256x!tt.ptr<bf16>>, index) {
         // perform load
-        %5 = tt.load %ptr_ld {cache = 1 : i32, evict = 1 : i32, isVolatile = false}: tensor<256xbf16>
-        tt.store %ptr_st, %5 : tensor<256xbf16>
+        %5 = tt.load %ptr_ld {cache = 1 : i32, evict = 1 : i32, isVolatile = false}: tensor<256x!tt.ptr<bf16>>
+        tt.store %ptr_st, %5 : tensor<256x!tt.ptr<bf16>>
         // pointer updates
         %cast3 = arith.index_cast %c3 : index to i32
         %6 = tt.splat %cast3 : i32 -> tensor<256xi32>

@@ -19,7 +19,7 @@ module {
       %33 = arith.addi %32, %5 : tensor<256xi32>
       %34 = arith.cmpi slt, %33, %6 : tensor<256xi32>
       %35 = tt.addptr %7, %33 : tensor<256x!tt.ptr<f32>>, tensor<256xi32>
-      %36 = tt.load %35, %34, %4 {cache = 1 : i32, evict = 1 : i32, isVolatile = false} : tensor<256xf32>
+      %36 = tt.load %35, %34, %4 : tensor<256x!tt.ptr<f32>>
       %37 = arith.addf %arg10, %36 : tensor<256xf32>
       scf.yield %37 : tensor<256xf32>
     }
@@ -39,7 +39,7 @@ module {
       %33 = arith.addi %32, %12 : tensor<256xi32>
       %34 = arith.cmpi slt, %33, %13 : tensor<256xi32>
       %35 = tt.addptr %14, %33 : tensor<256x!tt.ptr<f32>>, tensor<256xi32>
-      %36 = tt.load %35, %34, %4 {cache = 1 : i32, evict = 1 : i32, isVolatile = false} : tensor<256xf32>
+      %36 = tt.load %35, %34, %4 : tensor<256x!tt.ptr<f32>>
       %37 = arith.subf %36, %15 : tensor<256xf32>
       %38 = arith.select %34, %37, %4 : tensor<256xi1>, tensor<256xf32>
       %39 = arith.mulf %38, %38 : tensor<256xf32>
@@ -56,9 +56,9 @@ module {
     %20 = math.sqrt %19 : f32
     %21 = arith.divf %cst, %20 : f32
     %22 = tt.addptr %arg4, %0 : !tt.ptr<f32>, i32
-    tt.store %22, %11 {cache = 1 : i32, evict = 1 : i32} : f32
+    tt.store %22, %11 : !tt.ptr<f32>
     %23 = tt.addptr %arg5, %0 : !tt.ptr<f32>, i32
-    tt.store %23, %21 {cache = 1 : i32, evict = 1 : i32} : f32
+    tt.store %23, %21 : !tt.ptr<f32>
     %24 = tt.make_range {end = 256 : i32, start = 0 : i32} : tensor<256xi32>
     %25 = tt.splat %arg7 : i32 -> tensor<256xi32>
     %26 = tt.splat %arg2 : !tt.ptr<f32> -> tensor<256x!tt.ptr<f32>>
@@ -72,17 +72,17 @@ module {
       %33 = arith.addi %32, %24 : tensor<256xi32>
       %34 = arith.cmpi slt, %33, %25 : tensor<256xi32>
       %35 = tt.addptr %26, %33 : tensor<256x!tt.ptr<f32>>, tensor<256xi32>
-      %36 = tt.load %35, %34 {cache = 1 : i32, evict = 1 : i32, isVolatile = false} : tensor<256xf32>
+      %36 = tt.load %35, %34 : tensor<256x!tt.ptr<f32>>
       %37 = tt.addptr %27, %33 : tensor<256x!tt.ptr<f32>>, tensor<256xi32>
-      %38 = tt.load %37, %34 {cache = 1 : i32, evict = 1 : i32, isVolatile = false} : tensor<256xf32>
+      %38 = tt.load %37, %34 : tensor<256x!tt.ptr<f32>>
       %39 = tt.addptr %28, %33 : tensor<256x!tt.ptr<f32>>, tensor<256xi32>
-      %40 = tt.load %39, %34, %4 {cache = 1 : i32, evict = 1 : i32, isVolatile = false} : tensor<256xf32>
+      %40 = tt.load %39, %34, %4 : tensor<256x!tt.ptr<f32>>
       %41 = arith.subf %40, %29 : tensor<256xf32>
       %42 = arith.mulf %41, %30 : tensor<256xf32>
       %43 = arith.mulf %42, %36 : tensor<256xf32>
       %44 = arith.addf %43, %38 : tensor<256xf32>
       %45 = tt.addptr %31, %33 : tensor<256x!tt.ptr<f32>>, tensor<256xi32>
-      tt.store %45, %44, %34 {cache = 1 : i32, evict = 1 : i32} : tensor<256xf32>
+      tt.store %45, %44, %34 : tensor<256x!tt.ptr<f32>>
     }
     tt.return
   }

@@ -16,8 +16,8 @@ module {
     // Example 2, gep operand is another gep's output, which is passed into the loop as varible, used before update
     %_ptr2 = scf.for %i = %c0 to %c12 step %c3 iter_args(%ptr = %2) -> (tensor<256x!tt.ptr<bf16>>) {
         // perform load
-        %3 = tt.load %ptr {cache = 1 : i32, evict = 1 : i32, isVolatile = false}: tensor<256xbf16>
-        tt.store %ptr, %3 : tensor<256xbf16>
+        %3 = tt.load %ptr {cache = 1 : i32, evict = 1 : i32, isVolatile = false}: tensor<256x!tt.ptr<bf16>>
+        tt.store %ptr, %3 : tensor<256x!tt.ptr<bf16>>
         // pointer updates
         %4 = tt.splat %i_c3 : i32 -> tensor<256xi32>
         %ptr_iter = tt.addptr %ptr, %4 : tensor<256x!tt.ptr<bf16>>, tensor<256xi32>
