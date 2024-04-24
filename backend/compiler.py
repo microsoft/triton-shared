@@ -1,4 +1,4 @@
-from triton.backends.compiler import BaseBackend
+from triton.backends.compiler import BaseBackend, GPUTarget
 from triton._C.libtriton import ir, passes
 from dataclasses import dataclass
 from typing import Any, Tuple
@@ -134,14 +134,14 @@ class CPUBackend(BaseBackend):
     binary_ext = 'cpuasm'
 
     @staticmethod
-    def supports_target(target: str):
-        return target == 'cpu'
+    def supports_target(target: GPUTarget):
+        return target.backend == 'cpu'
 
-    def __init__(self, target: tuple) -> None:
+    def __init__(self, target: GPUTarget) -> None:
         super().__init__(target)
 
     def parse_options(self, opts) -> Any:
-        args = {'arch': self.target}
+        args = {'arch': self.target.arch}
         args.update({k: opts[k] for k in CPUOptions.__dataclass_fields__.keys() if k in opts})
         return CPUOptions(**args)
 
