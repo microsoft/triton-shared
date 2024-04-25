@@ -10,7 +10,7 @@ from pathlib import Path
 
 from triton.runtime.cache import get_cache_manager
 from triton.backends.driver import DriverBase
-
+from triton.backends.compiler import GPUTarget
 
 # -------------------- Launcher ----------------------------
 def _ty_to_cpp(ty):
@@ -353,7 +353,7 @@ class CPUDriver(DriverBase):
         return
 
     def get_current_target(self):
-        return "cpu"
+        return GPUTarget("cpu", 0, 0)
 
     def assemble_tensormap_to_arg(self, tensormaps_info, args):
         return args
