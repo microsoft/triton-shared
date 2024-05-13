@@ -14,8 +14,8 @@
 namespace mlir {
 
 std::optional<int64_t> getIntAttr(const OpFoldResult ofr) {
-  if (ofr.is<Attribute>() && ofr.get<Attribute>().isa<IntegerAttr>())
-    return ofr.get<Attribute>().dyn_cast<IntegerAttr>().getInt();
+  if (ofr.is<Attribute>() && isa<IntegerAttr>(ofr.get<Attribute>()))
+    return dyn_cast<IntegerAttr>(ofr.get<Attribute>()).getInt();
 
   return std::nullopt;
 }
@@ -29,7 +29,7 @@ bool hasConstZero(const OpFoldResult ofr) {
     return false;
   }
 
-  auto val = ofr.dyn_cast<Value>();
+  auto val = dyn_cast<Value>(ofr);
   assert(val);
   auto constOp = val.getDefiningOp<arith::ConstantOp>();
   if (!constOp)
@@ -48,7 +48,7 @@ bool hasConstZero(const OpFoldResult ofr) {
 
 Value ofrToIndexValue(const OpFoldResult ofr, const Location loc,
                       OpBuilder &b) {
-  if (Value val = ofr.dyn_cast<Value>()) {
+  if (Value val = dyn_cast<Value>(ofr)) {
     assert(val.getType().isIndex() && "Provided ofr is of type index");
     return val;
   }
@@ -85,22 +85,22 @@ OpFoldResult addOFRs(const OpFoldResult lhs, const OpFoldResult rhs,
     return b.getIndexAttr(lhsIntAttr.value() + rhsIntAttr.value());
 
   // otherwise, need to create instructions to calculate new attribute value
-  auto lhsValue = lhs.dyn_cast<Value>();
+  auto lhsValue = dyn_cast<Value>(lhs);
   if (lhsIntAttr) {
     auto lhsOp =
         b.create<arith::ConstantOp>(loc, b.getIndexAttr(lhsIntAttr.value()));
     lhsValue = lhsOp.getResult();
   } else {
-    assert(lhsValue.getType().isa<IndexType>());
+    assert(isa<IndexType>(lhsValue.getType()));
   }
 
-  auto rhsValue = rhs.dyn_cast<Value>();
+  auto rhsValue dyn_cast<Value>(= rhs);
   if (rhsIntAttr) {
     auto rhsOp =
         b.create<arith::ConstantOp>(loc, b.getIndexAttr(rhsIntAttr.value()));
     rhsValue = rhsOp.getResult();
   } else {
-    assert(lhsValue.getType().isa<IndexType>());
+    assert(isa<IndexType>(lhsValue.getType()));
   }
 
   return b.create<arith::AddIOp>(loc, lhsValue, rhsValue).getResult();
@@ -120,14 +120,14 @@ OpFoldResult subOFRs(const OpFoldResult lhs, const OpFoldResult rhs,
     return b.getIndexAttr(lhsIntAttr.value() - rhsIntAttr.value());
 
   // otherwise, need to create instructions to calculate new attribute value
-  auto lhsValue = lhs.dyn_cast<Value>();
+  auto lhsValue = dyn_cast<Value>(lhs);
   if (lhsIntAttr) {
     auto lhsOp =
         b.create<arith::ConstantOp>(loc, b.getIndexAttr(lhsIntAttr.value()));
     lhsValue = lhsOp.getResult();
   }
 
-  auto rhsValue = rhs.dyn_cast<Value>();
+  auto rhsValue = dyn_cast<Value>(rhs);
   if (rhsIntAttr) {
     auto rhsOp =
         b.create<arith::ConstantOp>(loc, b.getIndexAttr(rhsIntAttr.value()));
@@ -149,7 +149,7 @@ OpFoldResult mulOFRValue(const OpFoldResult lhs, const Value rhs,
   auto rhsOp = rhs.getDefiningOp<arith::ConstantOp>();
   if (rhsOp) {
     rhsIsConst = true;
-    rhsConstValue = rhsOp.getValue().cast<IntegerAttr>().getInt();
+    rhsConstValue = cast<IntegerAttr>(rhsOp.getValue()).getInt();
   }
 
   // shortcuts for special cases
@@ -194,14 +194,14 @@ OpFoldResult minOFRs(const OpFoldResult lhs, const OpFoldResult rhs,
     return b.getIndexAttr(std::min(lhsIntAttr.value(), rhsIntAttr.value()));
 
   // otherwise, need to create instructions to calculate new attribute value
-  auto lhsValue = lhs.dyn_cast<Value>();
+  auto lhsValue = dyn_cast<Value>(lhs);
   if (lhsIntAttr) {
     auto lhsOp =
         b.create<arith::ConstantOp>(loc, b.getIndexAttr(lhsIntAttr.value()));
     lhsValue = lhsOp.getResult();
   }
 
-  auto rhsValue = rhs.dyn_cast<Value>();
+  auto rhsValue = dyn_cast<Value>(rhs);
   if (rhsIntAttr) {
     auto rhsOp =
         b.create<arith::ConstantOp>(loc, b.getIndexAttr(rhsIntAttr.value()));

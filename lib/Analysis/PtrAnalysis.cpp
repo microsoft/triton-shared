@@ -40,7 +40,7 @@ MemRefType PtrState::getResultMemrefType(MLIRContext *context, int64_t offset,
     dispatchIndexOpFoldResults(strides, dynamicStrides, staticStrides);
   }
 
-  auto elementType = source.getType().cast<BaseMemRefType>().getElementType();
+  auto elementType = cast<BaseMemRefType>(source.getType()).getElementType();
   auto layout =
       StridedLayoutAttr::get(source.getContext(), offset, staticStrides);
 
@@ -429,7 +429,7 @@ void PtrAnalysis::visitOperandMakeRange(
     const llvm::SmallDenseMap<Value, PtrState> &knownPtrs) {
   assert(state.isEmpty());
 
-  auto shape = rangeOp.getType().cast<ShapedType>().getShape();
+  auto shape = cast<ShapedType>(rangeOp.getType()).getShape();
 
   auto start = rangeOp.getStart();
   auto end = rangeOp.getEnd();
@@ -458,7 +458,7 @@ void PtrAnalysis::visitOperandExpandDims(
                knownPtrs);
 
   auto dstShape =
-      expandDimsOp.getResult().getType().cast<ShapedType>().getShape();
+      cast<ShapedType>(expandDimsOp.getResult().getType()).getShape();
   auto axis = expandDimsOp.getAxis();
 
   assert(dstShape[axis] == 1 &&
@@ -484,11 +484,11 @@ void PtrAnalysis::visitOperandBroadcast(
   // memref conversion.
   auto src = broadcastOp.getSrcMutable().get();
   auto dst = broadcastOp.getResult();
-  assert(src.getType().isa<ShapedType>() &&
+  assert(isa<ShapedType>(src.getType()) &&
          "input to tt.broadcast should be a tensor");
 
-  auto srcShape = src.getType().cast<ShapedType>().getShape();
-  auto dstShape = dst.getType().cast<ShapedType>().getShape();
+  auto srcShape = cast<ShapedType>(src.getType()).getShape();
+  auto dstShape = cast<ShapedType>(dst.getType()).getShape();
   assert(srcShape.size() == dstShape.size() &&
          "rank of source and destination should match");
 
@@ -512,12 +512,11 @@ void PtrAnalysis::visitOperandSplat(
 
   auto src = splatOp.getSrc();
   auto dst = splatOp.getResult();
-  auto dstShape = dst.getType().cast<ShapedType>().getShape();
+  auto dstShape = cast<ShapedType>(dst.getType()).getShape();
 
   visitOperand(src, state, loc, rewriter, knownPtrs);
 
-  if (src.getType().isa<IntegerType>() ||
-      src.getType().isa<triton::PointerType>()) {
+  if (isa<IntegerType, triton::PointerType>(src.getType())) {
     for (auto s : dstShape) {
       state.offsets.push_back(rewriter.getIndexAttr(0));
       state.sizes.push_back(rewriter.getIndexAttr(s));
@@ -529,7 +528,7 @@ void PtrAnalysis::visitOperandSplat(
     // one dimension of size 1. This happens inside a for loop that
     // originally has an init arg that is a tensor of pointers; this arg
     // would have been replaced by rewriteForOp.
-    auto srcType = src.getType().cast<MemRefType>();
+    auto srcType = cast<MemRefType>(src.getType());
     assert(srcType.getRank() == 1 && state.getRank() == 1 &&
            "splat MemRef source should have rank 1");
     assert(srcType.getShape()[0] == 1 &&
@@ -648,14 +647,14 @@ void PtrAnalysis::visitOperand(
     return;
   }
 
-  if (operand.getType().isa<IntegerType>()) {
+  if (isa<IntegerType>(operand.getType())) {
     auto castOp = rewriter.create<arith::IndexCastOp>(
         loc, rewriter.getIndexType(), operand);
     state.scalar = castOp.getResult();
     return;
   }
 
-  if (operand.getType().isa<triton::PointerType>()) {
+  if (isa<triton::operand.getType() PointerType>()) {
     auto remappedPtr = rewriter.getRemappedValue(operand);
     assert(remappedPtr);
 
@@ -711,7 +710,7 @@ void PtrAnalysis::visitOperandConstSplat(
   // folded
   auto attr = cast<DenseElementsAttr>(op.getValue());
   auto elementType = attr.getElementType();
-  assert(attr.isSplat() && elementType.isa<IntegerType>());
+  assert(attr.isSplat() && isa<IntegerType>(elementType));
   auto values = attr.getValues<IntegerAttr>();
   auto value = values[0].getValue();
   auto constAttr = rewriter.getIndexAttr(value.getSExtValue());
@@ -755,7 +754,7 @@ void PtrAnalysis::rewriteAddptrOp(
 
   SmallVector<int64_t> scalarShape(1, 1);
   ArrayRef<int64_t> resultShape;
-  if (auto shapedType = op.getResult().getType().dyn_cast<ShapedType>()) {
+  if (auto shapedType = dyn_cast<ShapedType>(op.getResult().getType())) {
     resultShape = shapedType.getShape();
   } else {
     // scalar pointer, should produce a one dimensional memref
@@ -882,8 +881,8 @@ void PtrAnalysis::rewriteAdvanceOp(
 
   SmallVector<int64_t> scalarShape(1, 1);
   ArrayRef<int64_t> resultShape;
-  auto pointerType = op.getResult().getType().cast<mlir::triton::PointerType>();
-  if (auto shapedType = pointerType.getPointeeType().dyn_cast<ShapedType>()) {
+  auto pointerType = cast<mlir::triton::PointerType>(op.getResult().getType());
+  if (auto shapedType = dyn_cast<ShapedType>(pointerType.getPointeeType())) {
     resultShape = shapedType.getShape();
   } else {
     // scalar pointer, should produce a one dimensional memref
@@ -946,11 +945,9 @@ void PtrAnalysis::rewriteYieldOp(
         // TODO:
         //  The scenario where a value is a tensor of pointers but not
         //  produced by AddPtrOp is not supported
-        if (mappedV.getType().isa<TensorType>() &&
-            mappedV.getType()
-                .dyn_cast<TensorType>()
-                .getElementType()
-                .isa<triton::PointerType>())
+        if (isa<TensorType>(mappedV.getType()) &&
+            isa<triton::PointerType>(
+                dyn_cast<TensorType>(mappedV.getType()).getElementType()))
           llvm_unreachable("unsupported scenario where a value is a tensor of "
                            "pointers but not produced by AddPtrOp");
         v = mappedV;
@@ -970,8 +967,8 @@ void PtrAnalysis::rewriteYieldOp(
         reintCastOp ||
         (unrealizedCastOp &&
          unrealizedCastOp->hasAttr(ModuloState::WraparoundAttr)) ||
-        (v.getType().isa<TensorType>() &&
-         v.getType().dyn_cast<TensorType>().getElementType().isa<IndexType>()));
+        (isa<TensorType>(v.getType()) &&
+         isa<IndexType>(dyn_cast<TensorType>(v.getType()).getElementType())));
 
     PtrState state;
     if (reintCastOp) {
@@ -1100,8 +1097,8 @@ void PtrAnalysis::rewriteForOp(
       // TODO:
       //  Passing a block argument pointer directly into a for loop not
       //  supported.
-      assert(!(mappedV.dyn_cast<BlockArgument>() &&
-               mappedV.getType().isa<UnrankedMemRefType>()) &&
+      assert(!(dyn_cast<BlockArgument>(mappedV) &&
+               isa<UnrankedMemRefType>(mappedV.getType())) &&
              "cannot take pointer block argument as init arg for for loop");
       if (auto op = mappedV.getDefiningOp<memref::ReinterpretCastOp>()) {
         reintCastOp = op;
@@ -1131,8 +1128,8 @@ void PtrAnalysis::rewriteForOp(
     }
 
     auto indexTensor =
-        arg.getType().isa<TensorType>() &&
-        arg.getType().dyn_cast<TensorType>().getElementType().isa<IndexType>();
+        isa<TensorType>(arg.getType()) &&
+        isa<IndexType>(dyn_cast<TensorType>(arg.getType()).getElementType());
 
     if (!unrealizedCastOp && !reintCastOp && !indexTensor)
       continue;
@@ -1349,8 +1346,7 @@ void PtrAnalysis::rewriteForOp(
 
 Value PtrAnalysis::getScalarMemRef(Value ptr, Value memRef, const Location loc,
                                    ConversionPatternRewriter &rewriter) {
-  assert(ptr.getType().cast<triton::PointerType>() &&
-         "expected scalar pointer");
+  assert(cast<triton::PointerType>(ptr.getType()) && "expected scalar pointer");
 
   // If the pointer is generated by tt.addptr, we will have already inserted an
   // ReinterpretCastOp to cast its type from tt.ptr to unranked memref. Return

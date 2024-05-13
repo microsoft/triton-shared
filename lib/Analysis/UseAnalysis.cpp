@@ -33,7 +33,7 @@ void triton::UseAnalysis::visitOperation(Operation *op,
   // yielded. In this case, if the loop returns data tensors, addptr will be
   // marked correctly as meta use.
   if (op->getResults().size() == 1) {
-    auto resultType = op->getResult(0).getType().dyn_cast<ShapedType>();
+    auto resultType = dyn_cast<ShapedType>(op->getResult(0).getType());
     if (resultType && isa<triton::PointerType>(resultType.getElementType())) {
       for (auto opnd : operands)
         propagateUse(opnd, UseType::MetaUse);
@@ -122,7 +122,7 @@ LogicalResult triton::runUseAnalysis(triton::FuncOp &funcOp) {
       assert(op->getNumResults() == 1 &&
              "Ops used for meta computation are expected to have one result");
       // Only set the tag if the operation uses tensors
-      if (op->getResult(0).getType().isa<ShapedType>()) {
+      if (isa<ShapedType>(op->getResult(0).getType())) {
         // Setting tag for erasing op later
         op->setAttr("MetaUse", UnitAttr::get(context));
       }
@@ -137,7 +137,7 @@ LogicalResult triton::runUseAnalysis(triton::FuncOp &funcOp) {
     // If the operation only produces scalars, no need to clone it
     bool shapedResult = true;
     for (auto result : op->getResults())
-      shapedResult &= result.getType().isa<ShapedType>();
+      shapedResult &= isa<ShapedType>(result.getType());
     if (!shapedResult) {
       LLVM_DEBUG({ op->setAttr("MixUse", UnitAttr::get(context)); });
       return;

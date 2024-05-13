@@ -20,7 +20,7 @@ LogicalResult MaskState::parse(Value operand, const Location loc,
                                OpBuilder &builder) {
   if (auto op = operand.getDefiningOp<arith::ConstantOp>()) {
     return this->parseConstant(op, loc, builder);
-  } else if (operand.getType().isa<IntegerType>()) {
+  } else if (isa<IntegerType>(operand.getType())) {
     return this->parseIntScalar(operand, loc, builder);
   } else if (auto op = operand.getDefiningOp<arith::AddIOp>()) {
     return this->parseAdd(op, loc, builder);
@@ -41,10 +41,10 @@ LogicalResult MaskState::parse(Value operand, const Location loc,
   }
 }
 
-tensor::ExtractSliceOp
-MaskState::getExtractSlice(Value source, const Location loc,
-                           OpBuilder &builder) const {
-  auto sourceType = source.getType().cast<RankedTensorType>();
+tensor::ExtractSliceOp MaskState::getExtractSlice(Value source,
+                                                  const Location loc,
+                                                  OpBuilder &builder) const {
+  auto sourceType = cast<RankedTensorType>(source.getType());
   SmallVector<OpFoldResult> offsets(getRank(), builder.getIndexAttr(0));
   SmallVector<OpFoldResult> strides(getRank(), builder.getIndexAttr(1));
 
@@ -52,20 +52,19 @@ MaskState::getExtractSlice(Value source, const Location loc,
                                                          dims, strides);
 
   return builder.create<tensor::ExtractSliceOp>(loc, dstType, source, offsets,
-                                                 dims, strides);
+                                                dims, strides);
 }
 
-memref::SubViewOp
-MaskState::getSubview(Value source, const Location loc,
-                      OpBuilder &builder) const {
-  auto sourceType = source.getType().cast<MemRefType>();
+memref::SubViewOp MaskState::getSubview(Value source, const Location loc,
+                                        OpBuilder &builder) const {
+  auto sourceType = cast<MemRefType>(source.getType());
   SmallVector<OpFoldResult> offsets(getRank(), builder.getIndexAttr(0));
   SmallVector<OpFoldResult> strides(getRank(), builder.getIndexAttr(1));
   auto dstType =
       memref::SubViewOp::inferResultType(sourceType, offsets, dims, strides);
 
-  return builder.create<memref::SubViewOp>(loc, dstType.cast<MemRefType>(),
-                                            source, offsets, dims, strides);
+  return builder.create<memref::SubViewOp>(loc, cast<MemRefType>(dstType),
+                                           source, offsets, dims, strides);
 }
 
 static memref::SubViewOp createSubview(Value src, Location loc, OpBuilder &b,
@@ -139,11 +138,9 @@ MaskState::getSideBySideSubviews(Value block1, Value block2, const Location loc,
                                  OpBuilder &builder) const {
   OpFoldResult subviewRowFull = dims[0];
   OpFoldResult subviewColFull = dims[1];
-  OpFoldResult col1 =
-      builder.create<memref::DimOp>(loc, block1, 1).getResult();
+  OpFoldResult col1 = builder.create<memref::DimOp>(loc, block1, 1).getResult();
   OpFoldResult subviewCol1 = minOFRs(col1, subviewColFull, loc, builder);
-  OpFoldResult subviewCol2 =
-      subOFRs(subviewColFull, subviewCol1, loc, builder);
+  OpFoldResult subviewCol2 = subOFRs(subviewColFull, subviewCol1, loc, builder);
 
   SmallVector<OpFoldResult> offsets(getRank(), builder.getIndexAttr(0));
   SmallVector<OpFoldResult> strides(getRank(), builder.getIndexAttr(1));
@@ -160,11 +157,9 @@ MaskState::getStackedSubviews(Value block1, Value block2, const Location loc,
                               OpBuilder &builder) const {
   OpFoldResult subviewRowFull = dims[0];
   OpFoldResult subviewColFull = dims[1];
-  OpFoldResult row1 =
-      builder.create<memref::DimOp>(loc, block1, 0).getResult();
+  OpFoldResult row1 = builder.create<memref::DimOp>(loc, block1, 0).getResult();
   OpFoldResult subviewRow1 = minOFRs(row1, subviewRowFull, loc, builder);
-  OpFoldResult subviewRow2 =
-      subOFRs(subviewRowFull, subviewRow1, loc, builder);
+  OpFoldResult subviewRow2 = subOFRs(subviewRowFull, subviewRow1, loc, builder);
 
   SmallVector<OpFoldResult> offsets(getRank(), builder.getIndexAttr(0));
   SmallVector<OpFoldResult> strides(getRank(), builder.getIndexAttr(1));
@@ -231,7 +226,7 @@ LogicalResult MaskState::parseConstant(arith::ConstantOp constOp,
   if (isa<DenseElementsAttr>(constOp.getValue())) {
     auto attr = cast<DenseElementsAttr>(constOp.getValue());
     auto elementType = attr.getElementType();
-    assert(attr.isSplat() && elementType.isa<IntegerType>() &&
+    assert(attr.isSplat() && isa<IntegerType>(elementType) &&
            "All elements must share a single integer constant value");
     auto values = attr.getValues<IntegerAttr>();
     auto value = values[0].getValue();
@@ -240,7 +235,7 @@ LogicalResult MaskState::parseConstant(arith::ConstantOp constOp,
                                              builder.getIndexType(), loc);
     this->scalar = op.getValue();
   } else {
-    auto value = constOp.getValue().cast<IntegerAttr>().getInt();
+    auto value = cast<IntegerAttr>(constOp.getValue()).getInt();
     this->scalar = builder.getIndexAttr(value);
   }
 
@@ -341,7 +336,7 @@ LogicalResult MaskState::parseMakeRange(triton::MakeRangeOp rangeOp,
                                         OpBuilder &builder) {
   assert(this->isEmpty());
 
-  auto shape = rangeOp.getType().cast<ShapedType>().getShape();
+  auto shape = cast<ShapedType>(rangeOp.getType()).getShape();
   auto start = rangeOp.getStart();
   auto end = rangeOp.getEnd();
   auto stride = (end - start + shape[0] - 1) / shape[0];
@@ -368,11 +363,11 @@ LogicalResult MaskState::parseBroadcast(triton::BroadcastOp broadcastOp,
 
   auto src = broadcastOp.getSrc();
   auto dst = broadcastOp.getResult();
-  assert(src.getType().isa<ShapedType>() &&
+  assert(isa<ShapedType>(src.getType()) &&
          "input to tt.broadcast should be a tensor");
 
-  auto srcShape = src.getType().cast<ShapedType>().getShape();
-  auto dstShape = dst.getType().cast<ShapedType>().getShape();
+  auto srcShape = cast<ShapedType>(src.getType()).getShape();
+  auto dstShape = cast<ShapedType>(dst.getType()).getShape();
   assert(srcShape.size() == dstShape.size() &&
          "rank of source and destination should match");
 
@@ -397,9 +392,9 @@ LogicalResult MaskState::parseSplat(triton::SplatOp splatOp, const Location loc,
 
   auto src = splatOp.getSrc();
   auto dst = splatOp.getResult();
-  auto dstShape = dst.getType().cast<ShapedType>().getShape();
+  auto dstShape = cast<ShapedType>(dst.getType()).getShape();
 
-  if (!src.getType().isa<IntegerType>()) {
+  if (!isa<IntegerType>(src.getType())) {
     InFlightDiagnostic diag =
         emitError(loc)
         << "splat source must be an integer scalar for load/store masks";
@@ -424,7 +419,7 @@ LogicalResult MaskState::parseExpandDims(triton::ExpandDimsOp expandDimsOp,
     return failure();
 
   auto dstShape =
-      expandDimsOp.getResult().getType().cast<ShapedType>().getShape();
+      cast<ShapedType>(expandDimsOp.getResult().getType()).getShape();
   auto axis = expandDimsOp.getAxis();
   assert(dstShape[axis] == 1 &&
          "expect changed dimension to be 1 in expand_dims");

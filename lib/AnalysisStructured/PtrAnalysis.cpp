@@ -57,10 +57,10 @@ static Value getScalarValue(Value operand, Location loc, OpBuilder &builder) {
   };
 
   while (true) {
-    if (!operand.getType().dyn_cast<ShapedType>()) {
+    if (!dyn_cast<ShapedType>(operand.getType())) {
       return reconstructScalarValue(operand);
     } else if (auto op = operand.getDefiningOp<arith::ConstantOp>()) {
-      if (auto attr = op.getValue().dyn_cast<DenseElementsAttr>()) {
+      if (auto attr = dyn_cast<DenseElementsAttr>(op.getValue())) {
         if (!attr.isSplat()) {
           InFlightDiagnostic diag = emitError(loc)
                                     << "other value used in masked load "
@@ -410,7 +410,7 @@ LogicalResult PtrAnalysis::visitOperandMakeRange(triton::MakeRangeOp rangeOp,
                                                  OpBuilder &builder) {
   assert(state.isEmpty());
 
-  auto shape = rangeOp.getType().cast<ShapedType>().getShape();
+  auto shape = cast<ShapedType>(rangeOp.getType()).getShape();
 
   auto start = rangeOp.getStart();
   auto end = rangeOp.getEnd();
@@ -436,7 +436,7 @@ PtrAnalysis::visitOperandExpandDims(triton::ExpandDimsOp expandDimsOp,
   }
 
   auto dstShape =
-      expandDimsOp.getResult().getType().cast<ShapedType>().getShape();
+      cast<ShapedType>(expandDimsOp.getResult().getType()).getShape();
   auto axis = expandDimsOp.getAxis();
 
   assert(dstShape[axis] == 1 &&
@@ -467,7 +467,7 @@ PtrAnalysis::visitOperandBroadcast(triton::BroadcastOp broadcastOp,
   auto src = broadcastOp.getSrc();
   auto dst = broadcastOp.getResult();
 
-  if (!src.getType().isa<ShapedType>()) {
+  if (!isa<ShapedType>(src.getType())) {
     broadcastOp->emitRemark("PtrAnalysis: Unsupported broadcast source type");
     return failure();
   }
@@ -502,13 +502,13 @@ LogicalResult PtrAnalysis::visitOperandSplat(triton::SplatOp splatOp,
 
   auto src = splatOp.getSrc();
   auto dst = splatOp.getResult();
-  auto dstShape = dst.getType().cast<ShapedType>().getShape();
+  auto dstShape = cast<ShapedType>(dst.getType()).getShape();
 
   if (visitOperand(src, state, loc, builder).failed()) {
     return failure();
   }
 
-  if (src.getType().isa<IntegerType, IndexType, triton::PointerType>()) {
+  if (isa<IntegerType, IndexType, triton::PointerType>(src.getType())) {
     for (auto s : dstShape) {
       state.offsets.push_back(builder.getIndexAttr(0));
       state.sizes.push_back(builder.getIndexAttr(s));
@@ -570,7 +570,7 @@ LogicalResult PtrAnalysis::visitOperandConstSplat(arith::ConstantOp op,
   // folded
   auto attr = cast<DenseElementsAttr>(op.getValue());
   auto elementType = attr.getElementType();
-  assert(attr.isSplat() && elementType.isa<IntegerType>());
+  assert(attr.isSplat() && isa<IntegerType>(elementType));
   auto values = attr.getValues<IntegerAttr>();
   auto value = values[0].getValue();
   auto constAttr = builder.getIndexAttr(value.getSExtValue());
@@ -662,21 +662,21 @@ LogicalResult PtrAnalysis::visitOperand(Value operand, PtrState &state,
     return success();
   }
 
-  if (operand.getType().isa<IntegerType>()) {
+  if (isa<IntegerType>(operand.getType())) {
     OpBuilder::InsertionGuard guard(builder);
-    if (!operand.isa<BlockArgument>() && operand.getDefiningOp()) {
+    if (!isa<BlockArgument>(operand) && operand.getDefiningOp()) {
       builder.setInsertionPointAfter(operand.getDefiningOp());
     }
     auto castOp = builder.create<arith::IndexCastOp>(
         loc, builder.getIndexType(), operand);
     state.scalar = castOp.getResult();
     return success();
-  } else if (operand.getType().isa<IndexType>()) {
+  } else if (isa<IndexType>(operand.getType())) {
     state.scalar = operand;
     return success();
   }
 
-  if (operand.getType().isa<triton::PointerType>()) {
+  if (isa<triton::PointerType>(operand.getType())) {
     // A scalar pointer can either be produced by AddPtrOp or a block
     // argument
     if (auto op = operand.getDefiningOp()) {
@@ -730,7 +730,7 @@ LogicalResult PtrAnalysis::rewriteAddptrOp(triton::AddPtrOp op) {
 
   knownPtrs[op.getResult()] = state;
 
-  if (op.getPtr().getType().isa<RankedTensorType>()) {
+  if (isa<RankedTensorType>(op.getPtr().getType())) {
     auto maketptrOp = state.createTTSMakeTensorPtrOp(builder, op.getLoc());
     ptrMap.map(op.getResult(), maketptrOp.getResult());
   } else {
@@ -835,7 +835,7 @@ LogicalResult PtrAnalysis::rewriteForOp(scf::ForOp op) {
         // We always use tt.addptr for scalar pointers. If the defininig op is
         // tt.addptr and we have a non-scalar pointer, something must have gone
         // wrong with the pass.
-        assert(!addptrOp.getResult().getType().isa<RankedTensorType>());
+        assert(!isa<RankedTensorType>(addptrOp.getResult().getType()));
         if (visitOperandAddptr(addptrOp, state, op.getLoc(), builder)
                 .succeeded()) {
           newInitArgs.push_back(mappedV);
@@ -1131,7 +1131,7 @@ LogicalResult PtrAnalysis::rewriteLoadOp(triton::LoadOp op) {
   }
 
   auto ptrType = dyn_cast<triton::PointerType>(ptr.getType());
-  if (ptrType && !ptrType.getPointeeType().isa<ShapedType>()) {
+  if (ptrType && !isa<ShapedType>(ptrType.getPointeeType())) {
     op->emitRemark("PtrAnalysis: scalar loadOp will not be rewritten");
     return failure();
   }
@@ -1187,7 +1187,7 @@ LogicalResult PtrAnalysis::rewriteStoreOp(triton::StoreOp op) {
   }
 
   auto ptrType = dyn_cast<triton::PointerType>(ptr.getType());
-  if (ptrType && !ptrType.getPointeeType().isa<ShapedType>()) {
+  if (ptrType && !isa<ShapedType>(ptrType.getPointeeType())) {
     op->emitRemark("PtrAnalysis: scalar storeOp will not be rewritten");
     return failure();
   }

@@ -624,7 +624,7 @@ private:
         auto shapei = rewriter.create<arith::ConstantOp>(
             loc, rewriter.getIndexAttr(shape[i]));
 
-        Value dimi = mixedDims[i].dyn_cast<Value>();
+        Value dimi = dyn_cast<Value>(mixedDims[i]);
         if (!dimi) {
           dimi = rewriter.create<arith::ConstantOp>(
               loc, rewriter.getIndexAttr(op.getStaticMaskDims()[i]));
@@ -698,7 +698,7 @@ private:
   static tensor::ExtractSliceOp
   getExtractSlice(int rank, ArrayRef<OpFoldResult> dims, Value source,
                   const Location loc, OpBuilder &b) {
-    auto sourceType = source.getType().cast<RankedTensorType>();
+    auto sourceType = cast<RankedTensorType>(source.getType());
     SmallVector<OpFoldResult> offsets(rank, b.getIndexAttr(0));
     SmallVector<OpFoldResult> strides(rank, b.getIndexAttr(1));
 
