@@ -80,6 +80,10 @@ triton.runtime.driver.set_active(CPUDriver())
 
 For more examples, please refer to `python/examples`.
 
+## Other resources
+
+[Internals](INTERNALS.md) of `triton-shared` which discusses our lowering strategy from `triton` IR.
+
 ## Contributing
 
 This project welcomes contributions and suggestions.  Most contributions require you to agree to a
