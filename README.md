@@ -82,7 +82,7 @@ For more examples, please refer to `python/examples`.
 
 ## Other resources
 
-[Internals](INTERNALS.md) of `triton-shared` which discusses our lowering strategy from `triton` IR.
+[Internals](INTERNALS.md) of `triton-shared` which discusses our lowering strategy from the `triton` IR.
 
 ## Contributing
 
