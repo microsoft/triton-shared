@@ -60,6 +60,7 @@ The resulting `triton-shared` binaries will be placed under `triton/python/build
 The middle layer can be used as a stand-alone component to convert Triton dialect to the middle layer dialects. This is intended for testing and validation purposes, but could potentially be used before sending the IR to another MLIR complier.
 
 Stand-alone example:
+
 ```
 triton-shared-opt --triton-to-linalg %file
 ```
