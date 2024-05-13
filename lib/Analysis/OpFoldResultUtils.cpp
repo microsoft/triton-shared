@@ -94,7 +94,7 @@ OpFoldResult addOFRs(const OpFoldResult lhs, const OpFoldResult rhs,
     assert(isa<IndexType>(lhsValue.getType()));
   }
 
-  auto rhsValue dyn_cast<Value>(= rhs);
+  auto rhsValue = dyn_cast<Value>(rhs);
   if (rhsIntAttr) {
     auto rhsOp =
         b.create<arith::ConstantOp>(loc, b.getIndexAttr(rhsIntAttr.value()));

@@ -654,7 +654,7 @@ void PtrAnalysis::visitOperand(
     return;
   }
 
-  if (isa<triton::operand.getType() PointerType>()) {
+  if (isa<triton::PointerType>(operand.getType())) {
     auto remappedPtr = rewriter.getRemappedValue(operand);
     assert(remappedPtr);
 
