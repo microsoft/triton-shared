@@ -79,24 +79,3 @@ bufferization.materialize_in_destination %extracted_slice in writable %subview
 + element-wise `arith` and `math` operators are converted to their corresponding `linalg.generic` version.
 + `tt.dot` becomes `linalg.matmul`.
 + `tt.reduce` becomes `linalg.reduce`; known limitation: only support `addf` and `maxf` reduction in the reduction body for now.
-
-### Testing
-
-The prototype was tested on the following triton kernel examples:
-
-1. [vector addition](./python/examples/test_vec_add.py)
-2. [fused softmax](./python/examples/test_softmax.py)
-3. [matrix multiplication](./python/examples/test_matmul.py)
-4. layer normalization
-5. fused attention
-
-The Python tests are setup to run with Pytest and you will need to set the following environment variables to run them:
-
-```
-export LLVM_BINARY_DIR=<path-to-your-llvm-binaries>
-export TRITON_SHARED_OPT_PATH=$TRITON_PLUGINS_DIR/triton/python/build/<your-cmake-directory>/third_party/triton_shared_opt/triton_shared-opt
-
-pytest <path-to-triton-shared>/python/examples
-```
-
-In addition to testing on the tutorial kernels, there are many lit tests covering various scenarios.
