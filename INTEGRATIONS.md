@@ -66,12 +66,13 @@ include_directories(${TRITON_SHARED_INCLUDE_DIR})
 
 ## 4. Build `triton-shared` with `triton`
 
-`triton-shared` comes with an optional sample CPU backend for `triton`.
+`triton-shared` comes with an optional sample CPU backend for `triton`. We support both building with and without the CPU backend.
+
+To prepare, first, set `TRITON_SHARED_SRC_ROOT` to point to the root directory of `triton-shared`.
 
 To build with the CPU backend, right after the call to `include_directories(${TRITON_SHARED_INCLUDE_DIR})` in step 4., put the following:
 
 ```cmake
-# `TRITON_SHARED_SRC_ROOT` points to the root directory of `triton-shared`
 set(TRITON_PLUGIN_DIRS ${TRITON_SHARED_SRC_ROOT})
 ```
 
@@ -79,13 +80,12 @@ To build *without* the CPU backend, right after the `triton-shared` include call
 
 ```cmake
 set(TRITON_SHARED_BUILD_CPU_BACKEND OFF)
-# `TRITON_SHARED_SRC_ROOT` points to the root directory of `triton-shared`
 add_subdirectory(${TRITON_SHARED_SRC_ROOT})
 ```
 
 ## 5. Test if `triton-shared` was built correctly
 
-If `triton-shared` is built correctly, you can run `ninja check-triton-shared-lit-tests` under `triton`'s root build folder.
+If `triton-shared` is built correctly, you can run `ninja check-triton-shared-lit-tests` under `triton`'s root build folder to check if the tests are passing.
 
 ## 6. Issues?
 
