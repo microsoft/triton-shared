@@ -50,7 +50,7 @@ module {
 // CHECK:             [[VAR_6_:%.+]] = arith.index_cast [[VAR_5_]] : index to i32
 // CHECK:             linalg.yield [[VAR_6_]] : i32
 // CHECK:           } -> tensor<256xi32>
-// CHECK-DAG:       [[VAR_expanded_:%.+]] = tensor.expand_shape [[VAR_1_]] {{.}}[0, 1]{{.}} : tensor<256xi32> into tensor<256x1xi32>
+// CHECK-DAG:       [[VAR_expanded_:%.+]] = tensor.expand_shape [[VAR_1_]] {{.}}[0, 1]{{.}} output_shape [256, 1] : tensor<256xi32> into tensor<256x1xi32>
 // CHECK-DAG:       [[VAR_2_:%.+]] = tensor.empty() : tensor<256x128xi32>
 // CHECK:           [[VAR_3_:%.+]] = linalg.generic {indexing_maps = [#map1, #map2], iterator_types = ["parallel", "parallel"]} ins([[VAR_expanded_]] : tensor<256x1xi32>) outs([[VAR_2_]] : tensor<256x128xi32>) attrs =  {broadcastDims = array<i64: 1>} {
 // CHECK:           ^bb0([[IN_1_:%.+]]: i32, [[IN_2_:%.+]]: i32):
