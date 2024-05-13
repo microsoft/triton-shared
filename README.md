@@ -18,7 +18,7 @@ The middle-layer uses MLIR's Linalg and Tensor Dialects for operations on Triton
 
 ## Usage
 
-This section describes how to build `triton-shared` as a standalone project. For integration with existing `triton` compiler, please refer to [here](#INTEGRATIONS.md).
+This section describes how to build `triton-shared` as a standalone project. For integration with existing `triton` compiler, please refer to the [integrations doc](INTEGRATIONS.md).
 
 This repo now includes `triton` as a submodule and builds as an out-of-tree backend.
 
