@@ -48,7 +48,7 @@ Next, we need to add `triton-shared` include directories to the `triton` builds.
 In your `triton/CMakeLists.txt` file, there is a section that specifies all the include directories when building `triton` (https://github.com/triton-lang/triton/blob/16e6390b5ee79f31fa8062d441fd203a34c8afbd/CMakeLists.txt#L112). Add the `triton-shared` include directory there:
 
 ```cmake
-...
+# ...
 
 include_directories(".")
 include_directories(${MLIR_INCLUDE_DIRS})
