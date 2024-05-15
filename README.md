@@ -104,13 +104,14 @@ The prototype was tested on the following triton kernel examples:
 4. layer normalization
 5. fused attention
 
-The Python tests are setup to run with Pytest and you will need to set the following environment variables to run them:
+The Python tests are setup to run with Pytest, and you will need to set the following environment variables to run them:
 
 ```
 export LLVM_BINARY_DIR=<path-to-your-llvm-binaries>
-export TRITON_SHARED_OPT_PATH=$(pwd)/build/$(ls $(pwd)/build | grep -i cmake)/third_party/triton_shared/tools/triton-shared-opt/triton-shared-opt
 
-pytest <path-to-triton-shared>/python/examples
+# Assume we're at the root triton-shared folder
+export TRITON_SHARED_OPT_PATH=$(pwd)/build/$(ls $(pwd)/build | grep -i cmake)/third_party/triton_shared/tools/triton-shared-opt/triton-shared-opt
+pytest python/examples
 ```
 
 In addition to testing on the tutorial kernels, there are many lit tests covering various scenarios.
