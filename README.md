@@ -18,20 +18,25 @@ The middle-layer uses MLIR's Linalg and Tensor Dialects for operations on Triton
 
 ## Usage
 
-This section describes how to build `triton-shared` as a standalone project. For integration with existing `triton` compiler, please refer to the [integrations doc](INTEGRATIONS.md).
+This section describes how to use `triton-shared` as either as a backend component or a standalone project.
 
-This repo now includes `triton` as a submodule and builds as an out-of-tree backend.
+### 1. Backend Component
 
-To build this repo, clone `triton-shared` to a folder called `triton_shared` (notice the **underscore**).
-`Triton` will use this folder name to create a module under `triton.runtime` for the reference CPU backend.
+The intended use of the Triton middle layer is to be used as a component in a Triton back-end. This can be accomplished by adding the cmake targets it produces and its headers files to that back-end. Please refer to the [integrations doc](INTEGRATIONS.md) for suggested integration paths.
 
-You need to set the `TRITON_PLUGINS_DIRS` environment variable to the location of your `triton-shared` directory for `triton` to find it.
+### 2. Stand-Alone
+
+Clone `triton-shared` with its `triton` submodule:
 
 ```
-export TRITON_PLUGIN_DIRS=$(pwd)/triton_shared
-
-git clone --recurse-submodules https://github.com/microsoft/triton-shared.git triton_shared
+git clone --recurse-submodules https://github.com/microsoft/triton-shared.git
 cd triton_shared/triton/python
+```
+
+Before building, the `TRITON_PLUGINS_DIRS` environment variable has to point to the location of your `triton-shared` directory:
+
+```
+export TRITON_PLUGIN_DIRS=$(pwd)/triton-shared
 ```
 
 To build with Clang:
@@ -54,21 +59,20 @@ pip3 install ninja cmake wheel pytest
 pip3 install -e python --no-build-isolation
 ```
 
-The resulting `triton-shared` binaries will be placed under `triton/python/build/{current_cmake_version}/third_party/triton_shared`
+The resulting `triton-shared` binaries will be placed under `triton/python/build/{current_cmake_version}/third_party/triton_shared`.
 
-### 1. Stand-Alone
+The most interesting binary is `triton-shared-opt` which is located at `triton/python/build/{current_cmake_version}/third_party/triton_shared/tools/triton-shared-opt/triton-shared-opt`.
+
 The middle layer can be used as a stand-alone component to convert Triton dialect to the middle layer dialects. This is intended for testing and validation purposes, but could potentially be used before sending the IR to another MLIR complier.
 
 Stand-alone example:
 
 ```
-triton-shared-opt --triton-to-linalg %file
+triton-shared-opt --triton-to-linalg-experimental %file
 ```
 
-### 2. Backend Component
-The intended use of the Triton middle layer is to be used as a component in a Triton back-end. This can be accomplished by adding the cmake targets it produces and its headers files to that back-end. An example back-end will be published at a later date.
-
 ### 3. Reference CPU backend
+
 We also include an experimental reference CPU backend that leverages all existing `mlir` passes. After building, the CPU backend can be used by setting `triton`'s active driver:
 
 ```python
