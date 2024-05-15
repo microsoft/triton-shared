@@ -87,6 +87,6 @@ add_subdirectory(${TRITON_SHARED_SRC_ROOT})
 
 If `triton-shared` is built correctly, you can run `ninja check-triton-shared-lit-tests` under `triton`'s root build folder to check if the tests are passing.
 
-## 6. Issues?
+## 6. Issues
 
 Please submit any build related issues to our GitHub repository with instructions on how to reproduce the errors. We appreciate any feedback and bug reports!
