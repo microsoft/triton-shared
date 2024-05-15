@@ -2,12 +2,12 @@
 
 A shared middle-layer for the Triton Compiler.
 
-Currently the middle layer is not complete but has enough functionality to demonstrate how it can work. The general idea is that Triton IR is lowered into an MLIR core dialect to allow it to be both shared across Triton targets as well as allow back-ends to be shared with other languages.
+Currently the middle-layer is not complete but has enough functionality to demonstrate how it can work. The general idea is that Triton IR is lowered into an MLIR core dialect to allow it to be both shared across Triton targets as well as allow back-ends to be shared with other languages.
 
 The basic intended architecture looks like this:
 
 ```
-[Triton IR] -> [Middle Layer] -> [HW specific IR]
+[Triton IR] -> [Middle-Layer] -> [HW specific IR]
 ```
 
 The middle-layer uses MLIR's Linalg and Tensor Dialects for operations on Triton block values. Operations on Triton pointers use the Memref Dialect.
@@ -22,7 +22,7 @@ This section describes how to use `triton-shared` as either as a backend compone
 
 ### 1. Backend Component
 
-The intended use of the Triton middle layer is to be used as a component in a Triton back-end. This can be accomplished by adding the cmake targets it produces and its headers files to that back-end. Please refer to the [integrations doc](INTEGRATIONS.md) for suggested integration paths.
+The intended use of the Triton middle-layer is to be used as a component in a Triton back-end. This can be accomplished by adding the cmake targets it produces and its headers files to that back-end. Please refer to the [integrations doc](INTEGRATIONS.md) for suggested integration paths.
 
 ### 2. Stand-Alone
 
@@ -63,7 +63,7 @@ The resulting `triton-shared` binaries will be placed under `triton/python/build
 
 The most interesting binary is `triton-shared-opt` which is located at `triton/python/build/{current_cmake_version}/third_party/triton_shared/tools/triton-shared-opt/triton-shared-opt`.
 
-The middle layer can be used as a stand-alone component to convert Triton dialect to the middle layer dialects. This is intended for testing and validation purposes, but could potentially be used before sending the IR to another MLIR complier.
+The middle-layer can be used as a stand-alone component to convert Triton dialect to the middle-layer dialects. This is intended for testing and validation purposes, but could potentially be used before sending the IR to another MLIR complier.
 
 Stand-alone example:
 
