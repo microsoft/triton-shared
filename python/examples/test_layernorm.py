@@ -1,5 +1,5 @@
 # This is the Layer Norm forward pass from the Triton tutorial found here:
-# https://github.com/openai/triton/blob/main/python/tutorials/05-layer-norm.py
+# https://github.com/triton-lang/triton/blob/main/python/tutorials/05-layer-norm.py
 
 # %%
 # Motivations
