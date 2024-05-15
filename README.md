@@ -89,6 +89,11 @@ For more examples, please refer to `python/examples`.
 
 [Internals](INTERNALS.md) of `triton-shared` which discusses our lowering strategy from the `triton` IR.
 
+## Roadmap
+
+The `triton-shared` project
+
+
 ## Testing
 
 The prototype was tested on the following triton kernel examples:
@@ -103,7 +108,7 @@ The Python tests are setup to run with Pytest and you will need to set the follo
 
 ```
 export LLVM_BINARY_DIR=<path-to-your-llvm-binaries>
-export TRITON_SHARED_OPT_PATH=$TRITON_PLUGINS_DIR/triton/python/build/<your-cmake-directory>/third_party/triton_shared_opt/triton_shared-opt
+export TRITON_SHARED_OPT_PATH=$(pwd)/build/$(ls $(pwd)/build | grep -i cmake)/third_party/triton_shared/tools/triton-shared-opt/triton-shared-opt
 
 pytest <path-to-triton-shared>/python/examples
 ```
