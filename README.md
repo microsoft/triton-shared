@@ -91,7 +91,7 @@ For more examples, please refer to `python/examples`.
 
 ## Roadmap
 
-The `triton-shared` project is under active development. Here are some areas that are interesting and:
+The `triton-shared` project is under active development. Here are some notable areas of improvements:
 
 ### 1. Support for non-structured memory accesses in `PtrAnalysis`.
 
