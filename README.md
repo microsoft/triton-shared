@@ -61,9 +61,7 @@ pip3 install -e python --no-build-isolation
 
 The resulting `triton-shared` binaries will be placed under `triton/python/build/{current_cmake_version}/third_party/triton_shared`.
 
-The most interesting binary is `triton-shared-opt` which is located at `triton/python/build/{current_cmake_version}/third_party/triton_shared/tools/triton-shared-opt/triton-shared-opt`.
-
-The middle-layer can be used as a stand-alone component to convert Triton dialect to the middle-layer dialects. This is intended for testing and validation purposes, but could potentially be used before sending the IR to another MLIR complier.
+`triton-shared-opt`, located at `triton/python/build/{current_cmake_version}/third_party/triton_shared/tools/triton-shared-opt/triton-shared-opt`, can be used to run analyses and passes exposed by the `triton-shared` project. This binary is mainly intended for testing and validation purposes but could potentially be used before sending the IR to another MLIR complier.
 
 Stand-alone example:
 
