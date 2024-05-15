@@ -91,7 +91,13 @@ For more examples, please refer to `python/examples`.
 
 ## Roadmap
 
-The `triton-shared` project
+The `triton-shared` project is under active development. Here are areas that are under our radar:
+
+1. Support for non-structured memory accesses in `PtrAnalysis`.
+
+`triton-shared` currently can only lower `triton` programs whose pointer access patterns can be mapped to strided memory access (similar to `triton`'s block pointers). Having a fallback option for such cases would significantly increase the number of `triton` programs that `triton-shared` can compile and resolve most of the reported bugs. The MTIA team at Meta is currently working on a prototype for this feature.
+
+2.
 
 
 ## Testing
