@@ -33,7 +33,7 @@ git clone --recurse-submodules https://github.com/microsoft/triton-shared.git
 cd triton_shared/triton/python
 ```
 
-Before building, the `TRITON_PLUGINS_DIRS` environment variable has to point to the location of your `triton-shared` directory:
+Before building, the `TRITON_PLUGIN_DIRS` environment variable has to point to the location of your `triton-shared` directory:
 
 ```
 export TRITON_PLUGIN_DIRS=$(pwd)/triton-shared
@@ -122,8 +122,8 @@ The Python tests are setup to run with Pytest, and you will need to set the foll
 ```
 export LLVM_BINARY_DIR=<path-to-your-llvm-binaries>
 
-# Assume we're at the root triton-shared folder
-export TRITON_SHARED_OPT_PATH=$(pwd)/build/$(ls $(pwd)/build | grep -i cmake)/third_party/triton_shared/tools/triton-shared-opt/triton-shared-opt
+# Assume `TRITON_PLUGIN_DIRS` is already set to point to your triton-shared directory
+export TRITON_SHARED_OPT_PATH=$TRITON_PLUGIN_DIRS/triton/python/build/<your-cmake-directory>/third_party/triton_shared/tools/triton-shared-opt/triton-shared-opt
 pytest python/examples
 ```
 
