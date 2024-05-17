@@ -170,7 +170,7 @@ The prototype was tested on the following triton kernel examples:
 The Python tests are setup to run with Pytest and you will need to set the following environment variables to run them:
 ```
 export LLVM_BINARY_DIR=<path-to-your-llvm-binaries>
-export TRITON_SHARED_OPT_PATH=$TRITON_PLUGINS_DIR/triton/python/build/<your-cmake-directory>/third_party/triton_shared_opt/triton_shared-opt
+export TRITON_SHARED_OPT_PATH=$TRITON_PLUGIN_DIRS/triton/python/build/<your-cmake-directory>/third_party/triton_shared_opt/triton_shared-opt
 
 pytest <path-to-triton-shared>/python/examples
 ```
