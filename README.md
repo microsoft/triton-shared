@@ -20,7 +20,7 @@ This repo now includes `triton` as a submodule and builds as an out-of-tree back
 To build this repo clone `triton-shared` to a folder called `triton_shared` (notice the **underscore**).
 `Triton` will use this folder name to create a module under `triton.runtime` for the reference CPU backend.
 
-You need to set the `TRITON_PLUGINS_DIRS` environment variable to the location of your `triton-shared` directory for `triton` to find it.
+You need to set the `TRITON_PLUGIN_DIRS` environment variable to the location of your `triton-shared` directory for `triton` to find it.
 
 ```
 export TRITON_PLUGIN_DIRS=$(pwd)/triton_shared
