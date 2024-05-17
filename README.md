@@ -20,7 +20,7 @@ This repo now includes `triton` as a submodule and builds as an out-of-tree back
 To build this repo clone `triton-shared` to a folder called `triton_shared` (notice the **underscore**).
 `Triton` will use this folder name to create a module under `triton.runtime` for the reference CPU backend.
 
-You need to set the `TRITON_PLUGINS_DIRS` environment variable to the location of your `triton-shared` directory for `triton` to find it.
+You need to set the `TRITON_PLUGIN_DIRS` environment variable to the location of your `triton-shared` directory for `triton` to find it.
 
 ```
 export TRITON_PLUGIN_DIRS=$(pwd)/triton_shared
@@ -170,7 +170,7 @@ The prototype was tested on the following triton kernel examples:
 The Python tests are setup to run with Pytest and you will need to set the following environment variables to run them:
 ```
 export LLVM_BINARY_DIR=<path-to-your-llvm-binaries>
-export TRITON_SHARED_OPT_PATH=$TRITON_PLUGINS_DIR/triton/python/build/<your-cmake-directory>/third_party/triton_shared_opt/triton_shared-opt
+export TRITON_SHARED_OPT_PATH=$TRITON_PLUGIN_DIRS/triton/python/build/<your-cmake-directory>/third_party/triton_shared_opt/triton_shared-opt
 
 pytest <path-to-triton-shared>/python/examples
 ```
