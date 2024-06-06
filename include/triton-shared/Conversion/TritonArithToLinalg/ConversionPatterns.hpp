@@ -365,10 +365,9 @@ public:
           auto block1 = memrefs[0];
           auto block2 = memrefs[1];
 
-          if (wrapType.getValue().equals(ModuloState::WraparoundSideBySide)) {
+          if (wrapType.getValue() == ModuloState::WraparoundSideBySide) {
             createSideBySideCopies(block1, block2, alloc, loc, rewriter);
-          } else if (wrapType.getValue().equals(
-                         ModuloState::WraparoundStacked)) {
+          } else if (wrapType.getValue() == ModuloState::WraparoundStacked) {
             createStackedCopies(block1, block2, alloc, loc, rewriter);
           } else {
             llvm_unreachable("unexpected wraparound type");
@@ -445,12 +444,12 @@ public:
         auto block1 = memrefs[0];
         auto block2 = memrefs[1];
 
-        if (wrapType.getValue().equals(ModuloState::WraparoundSideBySide)) {
+        if (wrapType.getValue() == ModuloState::WraparoundSideBySide) {
           auto [subview1, subview2] =
               mstate.getSideBySideSubviews(block1, block2, loc, rewriter);
 
           createSideBySideCopies(subview1, subview2, alloc, loc, rewriter);
-        } else if (wrapType.getValue().equals(ModuloState::WraparoundStacked)) {
+        } else if (wrapType.getValue() == ModuloState::WraparoundStacked) {
           auto [subview1, subview2] =
               mstate.getStackedSubviews(block1, block2, loc, rewriter);
 
