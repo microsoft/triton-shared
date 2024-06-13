@@ -126,7 +126,7 @@ public:
 
           bool operateOnTensors =
               llvm::all_of(op->getOperandTypes(), [](Type type) {
-                return type.isa<RankedTensorType>();
+                return isa<RankedTensorType>(type);
               });
 
           return !operateOnTensors;
@@ -138,7 +138,7 @@ public:
 
     if (addptrToLinalg) {
       target.addDynamicallyLegalOp<triton::AddPtrOp>([](triton::AddPtrOp op) {
-        return !op.getResult().getType().isa<ShapedType>();
+        return !isa<ShapedType>(op.getResult().getType());
       });
     }
 

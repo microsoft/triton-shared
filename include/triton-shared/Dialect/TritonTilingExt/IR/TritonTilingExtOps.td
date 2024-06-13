@@ -224,7 +224,7 @@ def TritonTilingExt_CumSumOp : TritonTilingExt_TilingOp<"cumsum"> {
 
   let extraClassDeclaration = baseClassDecls # [{
     int64_t getRank() {
-      return getInput().getType().cast<ShapedType>().getRank();
+      return cast<ShapedType>(getInput().getType()).getRank();
     }
 
     Value getInput() {

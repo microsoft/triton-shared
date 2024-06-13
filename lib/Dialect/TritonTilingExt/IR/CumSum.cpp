@@ -43,19 +43,19 @@ void ttx::CumSumOp::build(OpBuilder &odsBuilder, OperationState &odsState,
 
 mlir::LogicalResult ttx::CumSumOp::verify() {
   auto inputType = getInput().getType();
-  if (!inputType.isa<RankedTensorType>() && !inputType.isa<MemRefType>()) {
+  if (!isa<RankedTensorType>(inputType) && !isa<MemRefType>(inputType)) {
     return emitOpError(
         "CumSum op expects input to be either tensor or memref.");
   }
 
   auto outputType = getOutput().getType();
-  if (!outputType.isa<RankedTensorType>() && !outputType.isa<MemRefType>()) {
+  if (!isa<RankedTensorType>(outputType) && !isa<MemRefType>(outputType)) {
     return emitOpError(
         "CumSum op expects output to be either tensor or memref.");
   }
 
-  if (inputType.dyn_cast<ShapedType>().getShape() !=
-      outputType.dyn_cast<ShapedType>().getShape()) {
+  if (dyn_cast<ShapedType>(inputType).getShape() !=
+      dyn_cast<ShapedType>(outputType).getShape()) {
     return emitOpError("Input and output types must be the same.");
   }
 

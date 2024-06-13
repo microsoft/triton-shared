@@ -66,7 +66,7 @@ module {
 // CHECK:             [[VAR_14_:%.+]] = arith.index_cast [[VAR_13_]] : index to i32
 // CHECK:             linalg.yield [[VAR_14_]] : i32
 // CHECK:           } -> tensor<4xi32>
-// CHECK-DAG:       [[VAR_expanded_:%.+]] = tensor.expand_shape [[VAR_1_]] {{.}}[0, 1]{{.}} : tensor<4xi32> into tensor<1x4xi32>
+// CHECK-DAG:       [[VAR_expanded_:%.+]] = tensor.expand_shape [[VAR_1_]] {{.}}[0, 1]{{.}} output_shape [1, 4] : tensor<4xi32> into tensor<1x4xi32>
 // CHECK-DAG:       [[VAR_2_:%.+]] = arith.index_cast [[PARAM_2_]] : i32 to index
 // CHECK-DAG:       [[VAR_3_:%.+]] = arith.index_cast [[PARAM_3_]] : i32 to index
 // CHECK-NOT: separator of consecutive DAGs
@@ -174,7 +174,7 @@ module {
 // CHECK:             [[VAR_14_:%.+]] = arith.index_cast [[VAR_13_]] : index to i32
 // CHECK:             linalg.yield [[VAR_14_]] : i32
 // CHECK:           } -> tensor<4xi32>
-// CHECK-DAG:       [[VAR_expanded_:%.+]] = tensor.expand_shape [[VAR_1_]] {{.}}[0, 1]{{.}} : tensor<4xi32> into tensor<1x4xi32>
+// CHECK-DAG:       [[VAR_expanded_:%.+]] = tensor.expand_shape [[VAR_1_]] {{.}}[0, 1]{{.}} output_shape [1, 4] : tensor<4xi32> into tensor<1x4xi32>
 // CHECK-DAG:       [[VAR_2_:%.+]] = arith.index_cast [[PARAM_2_]] : i32 to index
 // CHECK-DAG:       [[VAR_3_:%.+]] = arith.index_cast [[PARAM_3_]] : i32 to index
 // CHECK-NOT: separator of consecutive DAGs

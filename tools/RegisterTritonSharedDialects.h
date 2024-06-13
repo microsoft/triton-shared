@@ -36,7 +36,7 @@ void registerTestMembarPass();
 inline void registerTritonSharedDialects(mlir::DialectRegistry &registry) {
   mlir::registerAllPasses();
   mlir::registerTritonPasses();
-  mlir::registerTritonGPUPasses();
+  mlir::triton::gpu::registerTritonGPUPasses();
   mlir::registerLinalgPasses();
   mlir::test::registerTestAliasPass();
   mlir::test::registerTestAlignmentPass();

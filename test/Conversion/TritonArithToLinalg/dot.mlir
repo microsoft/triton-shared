@@ -79,7 +79,7 @@ module {
 // CHECK:             [[VAR_49_1_:%.+]] = arith.muli [[in_]], [[in_1:.+]] : i32
 // CHECK:             linalg.yield [[VAR_49_1_]] : i32
 // CHECK:           } -> tensor<128xi32>
-// CHECK-DAG:       [[VAR_expanded_:%.+]] = tensor.expand_shape [[VAR_8_]] {{.}}[0, 1]{{.}} : tensor<128xi32> into tensor<128x1xi32>
+// CHECK-DAG:       [[VAR_expanded_:%.+]] = tensor.expand_shape [[VAR_8_]] {{.}}[0, 1]{{.}} output_shape [128, 1] : tensor<128xi32> into tensor<128x1xi32>
 // CHECK-DAG:       [[VAR_9_:%.+]] = tensor.empty() : tensor<128x64xi32>
 // CHECK:           [[VAR_10_:%.+]] = linalg.generic {indexing_maps = [#map1, #map2], iterator_types = ["parallel", "parallel"]} ins([[VAR_expanded_]] : tensor<128x1xi32>) outs([[VAR_9_]] : tensor<128x64xi32>) attrs =  {broadcastDims = array<i64: 1>} {
 // CHECK:           ^bb0([[in_:.+]]: i32, [[out_:.+]]: i32):
@@ -92,7 +92,7 @@ module {
 // CHECK:             [[VAR_50_1_:%.+]] = arith.index_cast [[VAR_49_2_]] : index to i32
 // CHECK:             linalg.yield [[VAR_50_1_]] : i32
 // CHECK:           } -> tensor<64xi32>
-// CHECK-DAG:       [[VAR_expanded_1_:%.+]] = tensor.expand_shape [[VAR_12_]] {{.}}[0, 1]{{.}} : tensor<64xi32> into tensor<1x64xi32>
+// CHECK-DAG:       [[VAR_expanded_1_:%.+]] = tensor.expand_shape [[VAR_12_]] {{.}}[0, 1]{{.}} output_shape [1, 64] : tensor<64xi32> into tensor<1x64xi32>
 // CHECK-DAG:       [[VAR_13_:%.+]] = tensor.empty() : tensor<128x64xi32>
 // CHECK:           [[VAR_14_:%.+]] = linalg.generic {indexing_maps = [#map3, #map2], iterator_types = ["parallel", "parallel"]} ins([[VAR_expanded_1_]] : tensor<1x64xi32>) outs([[VAR_13_]] : tensor<128x64xi32>) attrs =  {broadcastDims = array<i64: 0>} {
 // CHECK:           ^bb0([[in_:.+]]: i32, [[out_:.+]]: i32):
@@ -110,7 +110,7 @@ module {
 // CHECK:             [[VAR_50_2_:%.+]] = arith.index_cast [[VAR_49_4_]] : index to i32
 // CHECK:             linalg.yield [[VAR_50_2_]] : i32
 // CHECK:           } -> tensor<256xi32>
-// CHECK-DAG:       [[VAR_expanded_2_:%.+]] = tensor.expand_shape [[VAR_17_]] {{.}}[0, 1]{{.}} : tensor<256xi32> into tensor<256x1xi32>
+// CHECK-DAG:       [[VAR_expanded_2_:%.+]] = tensor.expand_shape [[VAR_17_]] {{.}}[0, 1]{{.}} output_shape [256, 1] : tensor<256xi32> into tensor<256x1xi32>
 // CHECK-DAG:       [[VAR_18_:%.+]] = tensor.empty() : tensor<256x64xi32>
 // CHECK:           [[VAR_19_:%.+]] = linalg.generic {indexing_maps = [#map1, #map2], iterator_types = ["parallel", "parallel"]} ins([[VAR_expanded_2_]] : tensor<256x1xi32>) outs([[VAR_18_]] : tensor<256x64xi32>) attrs =  {broadcastDims = array<i64: 1>} {
 // CHECK:           ^bb0([[in_:.+]]: i32, [[out_:.+]]: i32):
@@ -128,7 +128,7 @@ module {
 // CHECK:             [[VAR_49_6_:%.+]] = arith.muli [[in_]], [[in_1:.+]] : i32
 // CHECK:             linalg.yield [[VAR_49_6_]] : i32
 // CHECK:           } -> tensor<64xi32>
-// CHECK-DAG:       [[VAR_expanded_3_:%.+]] = tensor.expand_shape [[VAR_22_]] {{.}}[0, 1]{{.}} : tensor<64xi32> into tensor<1x64xi32>
+// CHECK-DAG:       [[VAR_expanded_3_:%.+]] = tensor.expand_shape [[VAR_22_]] {{.}}[0, 1]{{.}} output_shape [1, 64] : tensor<64xi32> into tensor<1x64xi32>
 // CHECK-DAG:       [[VAR_23_:%.+]] = tensor.empty() : tensor<256x64xi32>
 // CHECK:           [[VAR_24_:%.+]] = linalg.generic {indexing_maps = [#map3, #map2], iterator_types = ["parallel", "parallel"]} ins([[VAR_expanded_3_]] : tensor<1x64xi32>) outs([[VAR_23_]] : tensor<256x64xi32>) attrs =  {broadcastDims = array<i64: 0>} {
 // CHECK:           ^bb0([[in_:.+]]: i32, [[out_:.+]]: i32):
@@ -144,13 +144,13 @@ module {
 // CHECK:             [[VAR_49_8_:%.+]] = arith.muli [[in_]], [[in_1:.+]] : i32
 // CHECK:             linalg.yield [[VAR_49_8_]] : i32
 // CHECK:           } -> tensor<128xi32>
-// CHECK-DAG:       [[VAR_expanded_4_:%.+]] = tensor.expand_shape [[VAR_26_]] {{.}}[0, 1]{{.}} : tensor<128xi32> into tensor<128x1xi32>
+// CHECK-DAG:       [[VAR_expanded_4_:%.+]] = tensor.expand_shape [[VAR_26_]] {{.}}[0, 1]{{.}} output_shape [128, 1] : tensor<128xi32> into tensor<128x1xi32>
 // CHECK-DAG:       [[VAR_27_:%.+]] = tensor.empty() : tensor<128x256xi32>
 // CHECK:           [[VAR_28_:%.+]] = linalg.generic {indexing_maps = [#map1, #map2], iterator_types = ["parallel", "parallel"]} ins([[VAR_expanded_4_]] : tensor<128x1xi32>) outs([[VAR_27_]] : tensor<128x256xi32>) attrs =  {broadcastDims = array<i64: 1>} {
 // CHECK:           ^bb0([[in_:.+]]: i32, [[out_:.+]]: i32):
 // CHECK:             linalg.yield [[in_]] : i32
 // CHECK:           } -> tensor<128x256xi32>
-// CHECK-DAG:       [[VAR_expanded_5_:%.+]] = tensor.expand_shape [[VAR_17_]] {{.}}[0, 1]{{.}} : tensor<256xi32> into tensor<1x256xi32>
+// CHECK-DAG:       [[VAR_expanded_5_:%.+]] = tensor.expand_shape [[VAR_17_]] {{.}}[0, 1]{{.}} output_shape [1, 256] : tensor<256xi32> into tensor<1x256xi32>
 // CHECK-DAG:       [[VAR_29_:%.+]] = tensor.empty() : tensor<128x256xi32>
 // CHECK:           [[VAR_30_:%.+]] = linalg.generic {indexing_maps = [#map3, #map2], iterator_types = ["parallel", "parallel"]} ins([[VAR_expanded_5_]] : tensor<1x256xi32>) outs([[VAR_29_]] : tensor<128x256xi32>) attrs =  {broadcastDims = array<i64: 0>} {
 // CHECK:           ^bb0([[in_:.+]]: i32, [[out_:.+]]: i32):

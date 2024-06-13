@@ -41,7 +41,7 @@ public:
     });
     addConversion([](TensorType tensorType) -> Type {
       auto elemType = tensorType.getElementType();
-      if (auto ptrType = elemType.dyn_cast<triton::PointerType>()) {
+      if (auto ptrType = dyn_cast<triton::PointerType>(elemType)) {
         elemType = ptrType.getPointeeType();
       }
       return MemRefType::get(tensorType.getShape(), elemType);
@@ -169,7 +169,7 @@ public:
 
           bool operateOnTensors =
               llvm::all_of(op->getOperandTypes(), [](Type type) {
-                return type.isa<RankedTensorType>();
+                return isa<RankedTensorType>(type);
               });
 
           return !operateOnTensors;
