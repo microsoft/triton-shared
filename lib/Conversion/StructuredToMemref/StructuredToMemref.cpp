@@ -9,6 +9,7 @@
 #include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/SCF/IR/SCF.h"
 #include "mlir/IR/Builders.h"
+#include "mlir/IR/BuiltinAttributes.h"
 #include "mlir/IR/BuiltinOps.h"
 #include "mlir/IR/BuiltinTypeInterfaces.h"
 #include "mlir/IR/BuiltinTypes.h"
@@ -360,7 +361,8 @@ private:
 
   LogicalResult rewritePtr(ArrayRef<int64_t> resultShape,
                            tts::MakeTensorPtrOp op, OpAdaptor adaptor,
-                           ConversionPatternRewriter &rewriter) const {
+                           ConversionPatternRewriter &rewriter,
+                           bool isBlockPtr = false) const {
 
     auto mixedStrides = getMixedStridesForMemref(op, rewriter);
     SmallVector<int64_t> staticStrides;
@@ -377,9 +379,11 @@ private:
     // converted to memref<*> at this point, so get the base from adaptor
     auto ptr = adaptor.getBase();
 
+    auto cast = ptr.getDefiningOp<memref::ReinterpretCastOp>();
+    auto offset = cast.getOffsets()[0];
+
     auto castOp = rewriter.create<memref::ReinterpretCastOp>(
-        op.getLoc(), resultType, ptr, accumulateTargetOffset(op, rewriter),
-        op.getMixedSizes(), mixedStrides);
+        op.getLoc(), resultType, ptr, offset, op.getMixedSizes(), mixedStrides);
 
     rewriter.replaceOp(op, castOp);
 
@@ -402,7 +406,7 @@ private:
         cast<ShapedType>(
             cast<triton::PointerType>(op.getType()).getPointeeType())
             .getShape();
-    return rewritePtr(resultShape, op, adaptor, rewriter);
+    return rewritePtr(resultShape, op, adaptor, rewriter, true);
   }
 
 public:
