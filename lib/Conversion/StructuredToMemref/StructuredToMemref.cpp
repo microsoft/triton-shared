@@ -905,8 +905,7 @@ public:
 void mlir::triton::populateStructuredToMemrefConversionPatterns(
     RewritePatternSet &patterns, TypeConverter &typeConverter) {
   patterns.add<UnrealizedCastConverter>(typeConverter, patterns.getContext());
-  patterns
-      .add<MakeTensorPtrConverter, LoadConverter, StoreConverter,
-           ScalarAddptrConverter, ScalarLoadConverter, ScalarStoreConverter>(
-          patterns.getContext());
+  patterns.add<MakeTensorPtrConverter, LoadConverter, StoreConverter,
+               ScalarLoadConverter, ScalarStoreConverter>(
+      patterns.getContext());
 }

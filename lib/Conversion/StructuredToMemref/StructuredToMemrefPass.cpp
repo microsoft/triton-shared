@@ -253,6 +253,16 @@ public:
             return !isa<triton::PointerType>(resType);
           });
 
+      LoopTypeConverter loopTypeConverter(patterns.getContext());
+
+      triton::populateStructuredToMemrefConversionPatterns(patterns,
+                                                           loopTypeConverter);
+
+      if (failed(
+              applyPartialConversion(moduleOp, target, std::move(patterns)))) {
+        signalPassFailure();
+      }
+
       // Erase dead code and fold constants created during lowering
       PassManager pm(&getContext(), moduleOp.getOperationName());
       pm.addPass(createCanonicalizerPass());
