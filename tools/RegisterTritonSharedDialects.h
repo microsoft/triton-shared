@@ -1,4 +1,5 @@
 #pragma once
+#include "mlir/Dialect/Affine/IR/AffineOps.h"
 #include "mlir/Dialect/Bufferization/IR/Bufferization.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/Dialect/Linalg/IR/Linalg.h"
@@ -57,5 +58,5 @@ inline void registerTritonSharedDialects(mlir::DialectRegistry &registry) {
       mlir::arith::ArithDialect, mlir::scf::SCFDialect, mlir::gpu::GPUDialect,
       mlir::linalg::LinalgDialect, mlir::func::FuncDialect,
       mlir::tensor::TensorDialect, mlir::memref::MemRefDialect,
-      mlir::bufferization::BufferizationDialect>();
+      mlir::bufferization::BufferizationDialect, mlir::affine::AffineDialect>();
 }

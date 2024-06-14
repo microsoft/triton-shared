@@ -9,7 +9,9 @@
 #include "mlir/IR/BuiltinAttributes.h"
 #include "mlir/IR/BuiltinOps.h"
 #include "mlir/IR/BuiltinTypes.h"
+#include "mlir/IR/MLIRContext.h"
 #include "mlir/Support/LogicalResult.h"
+#include "mlir/Transforms/DialectConversion.h"
 #include "triton-shared/Conversion/StructuredToMemref/StructuredToMemref.h"
 #include "triton-shared/Dialect/TritonStructured/IR/TritonStructuredDialect.h"
 #include "triton-shared/Dialect/TritonTilingExt/IR/TritonTilingExtDialect.h"
@@ -20,6 +22,7 @@
 #include "mlir/Dialect/Linalg/IR/Linalg.h"
 #include "mlir/Dialect/SCF/Transforms/Patterns.h"
 #include "mlir/Pass/PassManager.h"
+#include "mlir/Transforms/OneToNTypeConversion.h"
 #include "mlir/Transforms/Passes.h"
 #include "triton/Dialect/Triton/IR/Types.h"
 
@@ -72,6 +75,64 @@ public:
       auto memrefType = MemRefType::get({1}, elemType, layout);
       return memrefType;
     });
+  }
+};
+
+class TupleTypeConverter : public TypeConverter {
+public:
+  TupleTypeConverter(MLIRContext *context) {
+    // The order of type conversion is important: later ones are tried earlier.
+    addConversion([](Type type) { return type; });
+    addConversion([context](MemRefType memrefType) -> std::optional<TupleType> {
+      if (memrefType.hasStaticShape() && memrefType.getRank() == 1) {
+        return TupleType::get(context, {memrefType, IndexType::get(context)});
+      }
+      return std::nullopt;
+    });
+  }
+};
+
+struct LegalizeArithConstantOpsByDecomposition
+    : public OpConversionPattern<memref::ReinterpretCastOp> {
+  using OpConversionPattern::OpConversionPattern;
+
+  LogicalResult
+  matchAndRewrite(memref::ReinterpretCastOp castOp, OpAdaptor adaptor,
+                  ConversionPatternRewriter &rewriter) const override {
+
+    const auto base = castOp.getSource();
+    const auto offset = castOp.getOffsets()[0];
+    SmallVector<Value> replacements{base, offset};
+    auto unrealizedOp =
+        rewriter
+            .create<UnrealizedConversionCastOp>(
+                castOp->getLoc(),
+                TupleType::get(rewriter.getContext(),
+                               {base.getType(), offset.getType()}),
+                replacements)
+            .getResult(0);
+    rewriter.replaceOp(castOp, unrealizedOp);
+
+    // auto vectorType = dyn_cast<VectorType>(constantOp.getType());
+    // auto denseAttr =
+    // dyn_cast<DenseElementsAttr>(constantOp.getValueAttr()); if
+    // (!vectorType || !denseAttr || !denseAttr.isSplat())
+    //   return failure();
+
+    // if (!isMultipleOfSMETileVectorType(vectorType))
+    //   return rewriter.notifyMatchFailure(constantOp,
+    //                                      kMatchFailureNotSMETileTypeMultiple);
+
+    // auto smeTileType =
+    // getSMETileTypeForElement(vectorType.getElementType()); auto tileCount
+    // = getNumberOfSMETilesForVectorType(vectorType); auto tileSplat =
+    // rewriter.create<arith::ConstantOp>(
+    //     constantOp.getLoc(), denseAttr.resizeSplat(smeTileType));
+    // rewriter.replaceOp(constantOp, SmallVector<Value>(tileCount,
+    // tileSplat),
+    //                    adaptor.getResultMapping());
+
+    return success();
   }
 };
 
@@ -148,6 +209,81 @@ public:
     if (failed(runPipeline(pm, getOperation()))) {
       signalPassFailure();
     }
+
+    {
+      MLIRContext *context = &getContext();
+      OneToNTypeConverter converter;
+      RewritePatternSet patterns(&getContext());
+      converter.addConversion([](Type type) { return type; });
+      converter.addConversion([context](MemRefType memrefType,
+                                        SmallVectorImpl<Type> &types)
+                                  -> std::optional<LogicalResult> {
+        if (memrefType.hasStaticShape() && memrefType.getRank() == 1) {
+          types = SmallVector<Type>{
+              TupleType::get(context, {memrefType, IndexType::get(context)})};
+          return success();
+        }
+
+        return std::nullopt;
+      });
+
+      // converter.addSourceMaterialization(
+      //     [&](OpBuilder &builder, Type resultType, ValueRange inputs,
+      //         Location loc) -> std::optional<Value> {
+      //       return builder
+      //           .create<UnrealizedConversionCastOp>(loc, resultType, inputs)
+      //           .getResult(0);
+      //     });
+
+      // converter.addArgumentMaterialization(
+      //     [&](OpBuilder &builder, TupleType resultType, ValueRange inputs,
+      //         Location loc) {
+      //       return builder
+      //           .create<UnrealizedConversionCastOp>(loc, resultType, inputs)
+      //           .getResult(0);
+      //     });
+
+      // converter.addTargetMaterialization(
+      //     [&](OpBuilder &builder, TypeRange resultTypes, Value input,
+      //         Location loc) -> std::optional<SmallVector<Value>> {
+      //       return SmallVector<Value>{
+      //           builder
+      //               .create<UnrealizedConversionCastOp>(loc, resultTypes,
+      //               input) .getResult(0)};
+      //     });
+      // ConversionTarget target(getContext());
+
+      scf::populateSCFStructuralOneToNTypeConversions(converter, patterns);
+      // patterns.add<LegalizeArithConstantOpsByDecomposition>(converter,
+      // context);
+      if (failed(applyPartialOneToNConversion(moduleOp, converter,
+                                              std::move(patterns)))) {
+        signalPassFailure();
+      }
+    }
+
+    // {
+    //   MLIRContext *context = &getContext();
+    //   OneToNTypeConverter converter;
+    //   RewritePatternSet patterns(&getContext());
+    //   converter.addConversion([](Type type) { return type; });
+    //   converter.addConversion(
+    //       [context](MemRefType memrefType, SmallVectorImpl<Type> &types)
+    //           -> std::optional<LogicalResult> {
+    //         if (memrefType.hasStaticShape() && memrefType.getRank() == 1) {
+    //           types = SmallVector<Type>{memrefType, IndexType::get(context)};
+    //           return success();
+    //         }
+    //         return std::nullopt;
+    //       });
+
+    //   scf::populateSCFStructuralOneToNTypeConversions(converter, patterns);
+    //   patterns.add<LegalizeArithConstantOpsByDecomposition>(converter,
+    //   context); if (failed(applyPartialOneToNConversion(getOperation(),
+    //   converter,
+    //                                           std::move(patterns))))
+    //     return signalPassFailure();
+    // }
   }
 };
 } // namespace

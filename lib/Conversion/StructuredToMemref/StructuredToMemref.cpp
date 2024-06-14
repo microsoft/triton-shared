@@ -361,8 +361,7 @@ private:
 
   LogicalResult rewritePtr(ArrayRef<int64_t> resultShape,
                            tts::MakeTensorPtrOp op, OpAdaptor adaptor,
-                           ConversionPatternRewriter &rewriter,
-                           bool isBlockPtr = false) const {
+                           ConversionPatternRewriter &rewriter) const {
 
     auto mixedStrides = getMixedStridesForMemref(op, rewriter);
     SmallVector<int64_t> staticStrides;
@@ -378,12 +377,22 @@ private:
     // The base ptr, which is from one of the args, would have already been
     // converted to memref<*> at this point, so get the base from adaptor
     auto ptr = adaptor.getBase();
+    auto loc = op->getLoc();
 
-    auto cast = ptr.getDefiningOp<memref::ReinterpretCastOp>();
-    auto offset = cast.getOffsets()[0];
+    auto extractMetadataOp =
+        rewriter.create<memref::ExtractStridedMetadataOp>(loc, ptr);
+    auto base = extractMetadataOp.getBaseBuffer();
+    auto offset = extractMetadataOp.getOffset();
+
+    // auto newOffset = rewriter.create<arith::AddIOp>(loc, offset,
+    // targetOffset);
+
+    ptr.dump();
 
     auto castOp = rewriter.create<memref::ReinterpretCastOp>(
         op.getLoc(), resultType, ptr, offset, op.getMixedSizes(), mixedStrides);
+
+    castOp->setAttr("make_tensor_ptr", UnitAttr::get(rewriter.getContext()));
 
     rewriter.replaceOp(op, castOp);
 
@@ -406,7 +415,7 @@ private:
         cast<ShapedType>(
             cast<triton::PointerType>(op.getType()).getPointeeType())
             .getShape();
-    return rewritePtr(resultShape, op, adaptor, rewriter, true);
+    return rewritePtr(resultShape, op, adaptor, rewriter);
   }
 
 public:

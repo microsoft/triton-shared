@@ -148,6 +148,8 @@ LogicalResult PtrState::addState(const PtrState &lhsState,
         builder.create<arith::AddIOp>(loc, lhsState.scalar, rhsState.scalar);
     scalar = addOp.getResult();
   } else if (lhsState.getRank() == 0) { // both lhs and rhs are scalars
+    // op->dump();
+    // assert(0);
     scalar = lhsState.scalar ? lhsState.scalar : rhsState.scalar;
   }
 
@@ -616,6 +618,14 @@ PtrAnalysis::visitOperandMakeTensorPtr(triton::MakeTensorPtrOp makeTPtrOp,
                                        PtrState &state, const Location loc,
                                        OpBuilder &builder) {
   assert(state.isEmpty());
+
+  // PtrState basePtrState;
+  // if (visitOperand(makeTPtrOp.getBase(), basePtrState, loc,
+  // builder).failed()) {
+  //   return failure();
+  // }
+
+  // state.
   state.source = makeTPtrOp.getBase();
 
   if (makeTPtrOp.getOrder().empty()) {
@@ -832,7 +842,7 @@ LogicalResult PtrAnalysis::rewriteForOp(scf::ForOp op) {
           continue;
         }
       } else if (auto addptrOp = mappedV.getDefiningOp<triton::AddPtrOp>()) {
-        // We always use tt.addptr for scalar pointers. If the defininig op is
+        // We always use tt.addptr for scalar pointers. If the defining op is
         // tt.addptr and we have a non-scalar pointer, something must have gone
         // wrong with the pass.
         assert(!isa<RankedTensorType>(addptrOp.getResult().getType()));
