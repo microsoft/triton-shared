@@ -150,7 +150,7 @@ buildGetTupleElementOps(OpBuilder &builder, TypeRange resultTypes, Value input,
   auto memrefType = MemRefType::get({1}, bufferType.getElementType(), layout);
 
   auto cast = builder.create<memref::ReinterpretCastOp>(
-      loc, memrefType, buffer, 0 /*offset*/, SmallVector<int64_t>{1} /*sizes*/,
+      loc, memrefType, buffer, 10 /*offset*/, SmallVector<int64_t>{1} /*sizes*/,
       SmallVector<int64_t>{1} /*strides*/);
 
   res.push_back(cast);
@@ -230,6 +230,7 @@ public:
         });
 
     converter.addArgumentMaterialization(buildMakeTupleOp);
+    converter.addSourceMaterialization(buildMakeTupleOp);
     converter.addTargetMaterialization(buildGetTupleElementOps);
 
     patterns.add<ScalarAddptrConverter>(converter, context);

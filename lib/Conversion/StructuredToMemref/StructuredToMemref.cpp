@@ -376,10 +376,19 @@ private:
     // The base ptr, which is from one of the args, would have already been
     // converted to memref<*> at this point, so get the base from adaptor
     auto ptr = adaptor.getBase();
+    if (auto reinterpretCast = ptr.getDefiningOp<memref::ReinterpretCastOp>()) {
+      targetOffset =
+          rewriter
+              .create<arith::AddIOp>(
+                  op->getLoc(),
+                  ofrToIndexValue(targetOffset, op.getLoc(), rewriter),
+                  reinterpretCast.getOffsets()[0])
+              .getResult();
+    }
 
     auto castOp = rewriter.create<memref::ReinterpretCastOp>(
-        op.getLoc(), resultType, ptr, accumulateTargetOffset(op, rewriter),
-        op.getMixedSizes(), mixedStrides);
+        op.getLoc(), resultType, ptr, targetOffset, op.getMixedSizes(),
+        mixedStrides);
 
     rewriter.replaceOp(op, castOp);
 
