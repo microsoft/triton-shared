@@ -140,7 +140,20 @@ buildGetTupleElementOps(OpBuilder &builder, TypeRange resultTypes, Value input,
                         Location loc) {
   SmallVector<Value> res;
   auto castOp = input.getDefiningOp<UnrealizedConversionCastOp>();
-  res.push_back(castOp->getOperand(0));
+
+  auto buffer = castOp.getOperand(0);
+  auto bufferType = cast<UnrankedMemRefType>(buffer.getType());
+
+  auto layout =
+      StridedLayoutAttr::get(builder.getContext(), ShapedType::kDynamic, {1});
+
+  auto memrefType = MemRefType::get({1}, bufferType.getElementType(), layout);
+
+  auto cast = builder.create<memref::ReinterpretCastOp>(
+      loc, memrefType, buffer, 0 /*offset*/, SmallVector<int64_t>{1} /*sizes*/,
+      SmallVector<int64_t>{1} /*strides*/);
+
+  res.push_back(cast);
   res.push_back(
       builder.create<arith::ConstantOp>(loc, builder.getIndexAttr(0)));
   for (auto t : resultTypes) {
@@ -254,6 +267,9 @@ public:
           });
 
       LoopTypeConverter loopTypeConverter(patterns.getContext());
+
+      mlir::scf::populateSCFStructuralTypeConversionsAndLegality(
+          loopTypeConverter, patterns, target);
 
       triton::populateStructuredToMemrefConversionPatterns(patterns,
                                                            loopTypeConverter);
