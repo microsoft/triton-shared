@@ -382,7 +382,8 @@ private:
               .create<arith::AddIOp>(
                   op->getLoc(),
                   ofrToIndexValue(targetOffset, op.getLoc(), rewriter),
-                  reinterpretCast.getOffsets()[0])
+                  ofrToIndexValue(reinterpretCast.getMixedOffsets()[0],
+                                  op.getLoc(), rewriter))
               .getResult();
     }
 
