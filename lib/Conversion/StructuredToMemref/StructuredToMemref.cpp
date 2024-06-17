@@ -896,10 +896,20 @@ public:
   LogicalResult
   matchAndRewrite(UnrealizedConversionCastOp op, OpAdaptor adaptor,
                   ConversionPatternRewriter &rewriter) const override {
-
     auto resType = op->getResultTypes()[0];
-    if (auto ptrType = dyn_cast<triton::PointerType>(resType)) {
+    auto input = op.getInputs()[0];
+    auto inputType = input.getType();
 
+    if (!isa<triton::PointerType>(resType) ||
+        !isa<MemRefType, UnrankedMemRefType>(inputType)) {
+      return failure();
+    }
+
+    if (auto reinterpretCast =
+            input.getDefiningOp<memref::ReinterpretCastOp>()) {
+      rewriter.replaceOp(op, reinterpretCast);
+    } else {
+      auto ptrType = cast<triton::PointerType>(resType);
       auto memrefType =
           cast<MemRefType>(getTypeConverter()->convertType(ptrType));
 
@@ -909,9 +919,9 @@ public:
           SmallVector<int64_t>{1} /*strides*/);
 
       rewriter.replaceOp(op, cast);
-      return success();
     }
-    return failure();
+
+    return success();
   }
 };
 

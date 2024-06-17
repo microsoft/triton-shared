@@ -127,14 +127,8 @@ struct ScalarAddptrConverter
 };
 
 static std::optional<SmallVector<Value>>
-buildGetTupleElementOps(OpBuilder &builder, TypeRange resultTypes, Value input,
-                        Location loc) {
-  llvm::dbgs() << "hook:\n";
-  input.dump();
-  for (auto t : resultTypes) {
-    t.dump();
-  }
-  llvm::dbgs() << "---\n";
+buildCastAndOffsetOps(OpBuilder &builder, TypeRange resultTypes, Value input,
+                      Location loc) {
   SmallVector<Value> res;
   auto castOp = input.getDefiningOp<UnrealizedConversionCastOp>();
 
@@ -159,8 +153,11 @@ buildGetTupleElementOps(OpBuilder &builder, TypeRange resultTypes, Value input,
 static std::optional<Value> buildMakeTupleOp(OpBuilder &builder,
                                              Type resultType, ValueRange inputs,
                                              Location loc) {
-  assert(inputs.size() == 2);
-  return inputs[0];
+  assert(isa<triton::PointerType>(resultType));
+  assert(inputs.size() && isa<MemRefType>(inputs[0].getType()) &&
+         isa<IndexType>(inputs[1].getType()));
+  return builder.create<UnrealizedConversionCastOp>(loc, resultType, inputs[0])
+      .getResult(0);
 }
 
 class StructuredToMemrefPass
@@ -216,7 +213,7 @@ public:
 
     converter.addArgumentMaterialization(buildMakeTupleOp);
     converter.addSourceMaterialization(buildMakeTupleOp);
-    converter.addTargetMaterialization(buildGetTupleElementOps);
+    converter.addTargetMaterialization(buildCastAndOffsetOps);
 
     patterns.add<ScalarAddptrConverter>(converter, context);
 
@@ -225,6 +222,13 @@ public:
     if (failed(applyPartialOneToNConversion(getOperation(), converter,
                                             std::move(patterns))))
       return signalPassFailure();
+
+    PassManager pm(&getContext(), moduleOp.getOperationName());
+    pm.addPass(createCanonicalizerPass());
+    if (failed(runPipeline(pm, getOperation()))) {
+      signalPassFailure();
+    }
+    moduleOp->dump();
 
     {
       RewritePatternSet patterns(&getContext());
