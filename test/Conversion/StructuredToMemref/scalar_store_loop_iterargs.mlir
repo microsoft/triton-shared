@@ -28,15 +28,14 @@ module {
 // CHECK-NOT: separator of consecutive DAGs
 // CHECK-DAG:       [[VAR_reinterpret_cast_:%.+]] = memref.reinterpret_cast [[PARAM_1_]] to offset: {{.}}[[VAR_0_]]{{.}}, sizes: [1], strides: [1] : memref<*xf32> to memref<1xf32, strided<[1], offset: ?>>
 // CHECK-DAG:       [[VAR_1_:%.+]] = arith.sitofp [[PARAM_7_]] : i32 to f32
-// CHECK:           [[VAR_2_:%.+]]:3 = scf.for [[VAR_arg10_:%.+]] = [[CST_0_]] to [[CST_5_]] step [[CST_1_]] iter_args([[VAR_arg11_:%.+]] = [[VAR_reinterpret_cast_]], [[VAR_arg12_:%.+]] = [[VAR_0_]], [[VAR_arg13_:%.+]] = [[VAR_0_]]) -> (memref<1xf32, strided<[1], offset: ?>>, index, index)  : i32 {
+// CHECK:           [[VAR_2_:%.+]]:4 = scf.for [[VAR_arg10_:%.+]] = [[CST_0_]] to [[CST_5_]] step [[CST_1_]] iter_args([[VAR_arg11_:%.+]] = [[VAR_reinterpret_cast_]], [[VAR_arg12_:%.+]] = [[VAR_0_]], [[VAR_arg13_:%.+]] = [[VAR_0_]], [[VAR_arg14_:%.+]] = [[VAR_0_]]) -> (memref<1xf32, strided<[1], offset: ?>>, index, index, index)  : i32 {
 // CHECK:             affine.store [[VAR_1_]], [[VAR_arg11_]][0] : memref<1xf32, strided<[1], offset: ?>>
 // CHECK:             [[VAR_3_:%.+]] = arith.index_cast [[VAR_arg10_]] : i32 to index
-// CHECK:             [[base_buffer_:%.+]], [[offset_:%.+]], [[sizes_:%.+]], [[VAR_strides_:%.+]] = memref.extract_strided_metadata [[VAR_arg11_]] : memref<1xf32, strided<[1], offset: ?>> -> memref<f32>, index, index, index
-// CHECK:             [[VAR_4_:%.+]] = arith.addi [[offset_]], [[VAR_3_]] : index
-// CHECK-DAG:         [[VAR_reinterpret_cast_0_:%.+]] = memref.reinterpret_cast [[base_buffer_]] to offset: {{.}}[[VAR_4_]]{{.}}, sizes: [1], strides: [1] : memref<f32> to memref<1xf32, strided<[1], offset: ?>>
-// CHECK-DAG:         [[VAR_5_:%.+]] = arith.addi [[VAR_arg12_]], [[VAR_3_]] : index
-// CHECK-DAG:         [[VAR_6_:%.+]] = arith.addi [[VAR_arg13_]], [[VAR_3_]] : index
-// CHECK:             scf.yield [[VAR_reinterpret_cast_0_]], [[VAR_5_]], [[VAR_6_]] : memref<1xf32, strided<[1], offset: ?>>, index, index
+// CHECK:             [[VAR_4_:%.+]] = arith.addi [[VAR_arg12_]], [[VAR_3_]] : index
+// CHECK-DAG:         [[VAR_reinterpret_cast_0_:%.+]] = memref.reinterpret_cast [[VAR_arg11_]] to offset: {{.}}[[VAR_4_]]{{.}}, sizes: [1], strides: [1] : memref<1xf32, strided<[1], offset: ?>> to memref<1xf32, strided<[1], offset: ?>>
+// CHECK-DAG:         [[VAR_5_:%.+]] = arith.addi [[VAR_arg13_]], [[VAR_3_]] : index
+// CHECK-DAG:         [[VAR_6_:%.+]] = arith.addi [[VAR_arg14_]], [[VAR_3_]] : index
+// CHECK:             scf.yield [[VAR_reinterpret_cast_0_]], [[VAR_4_]], [[VAR_5_]], [[VAR_6_]] : memref<1xf32, strided<[1], offset: ?>>, index, index, index
 // CHECK:           }
 // CHECK:           return
 // CHECK:         }
