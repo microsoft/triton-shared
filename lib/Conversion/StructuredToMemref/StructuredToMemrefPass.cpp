@@ -245,6 +245,12 @@ public:
                                             std::move(patterns))))
       return signalPassFailure();
 
+    // PassManager pm(&getContext(), moduleOp.getOperationName());
+    // pm.addPass(createCanonicalizerPass());
+    // if (failed(runPipeline(pm, getOperation()))) {
+    //   signalPassFailure();
+    // }
+
     // moduleOp->dump();
     // return;
 

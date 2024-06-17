@@ -54,3 +54,28 @@ module {
 // CHECK:           bufferization.materialize_in_destination [[VAR_reduced_]] in writable [[VAR_reinterpret_cast_0_]] : (tensor<512xbf16>, memref<512xbf16, strided<[1]>>) -> ()
 // CHECK:           return
 // CHECK:         }
+// mlir2FileCheck.py
+// CHECK-LABEL:  func.func @kernel
+// CHECK-SAME:   ([[PARAM_0_:%.+]]: memref<*xbf16>, [[PARAM_1_:%.+]]: memref<*xbf16>, [[PARAM_2_:%.+]]: i32, [[PARAM_3_:%.+]]: i32, [[PARAM_4_:%.+]]: i32, [[PARAM_5_:%.+]]: i32, [[PARAM_6_:%.+]]: i32, [[PARAM_7_:%.+]]: i32) {
+// CHECK-DAG:       [[CST_0_:%.+]] = arith.constant 0 : index
+// CHECK-DAG:       [[CST_0_dot_000000_:%.+]] = arith.constant 0.000000e+00 : bf16
+// CHECK-DAG:       [[CST_256_:%.+]] = arith.constant 256 : index
+// CHECK-NOT: separator of consecutive DAGs
+// CHECK-DAG:       [[VAR_reinterpret_cast_:%.+]] = memref.reinterpret_cast [[PARAM_0_]] to offset: {{.}}[[CST_0_]]{{.}}, sizes: [512, 256], strides: {{.}}[[CST_256_]], 1] : memref<*xbf16> to memref<512x256xbf16, strided<[?, 1]>>
+// CHECK-DAG:       [[VAR_reinterpret_cast_0_:%.+]] = memref.reinterpret_cast [[PARAM_1_]] to offset: {{.}}[[CST_0_]]{{.}}, sizes: [512], strides: [1] : memref<*xbf16> to memref<512xbf16, strided<[1]>>
+// CHECK-DAG:       [[RES_:%.+]] = memref.alloc() : memref<512x256xbf16>
+// CHECK:           memref.copy [[VAR_reinterpret_cast_]], [[RES_]] : memref<512x256xbf16, strided<[?, 1]>> to memref<512x256xbf16>
+// CHECK-DAG:       [[VAR_0_:%.+]] = bufferization.to_tensor [[RES_]] restrict writable : memref<512x256xbf16>
+// CHECK-DAG:       [[VAR_1_:%.+]] = tensor.empty() : tensor<256x512xbf16>
+// CHECK-NOT: separator of consecutive DAGs
+// CHECK-DAG:       [[VAR_transposed_:%.+]] = linalg.transpose ins([[VAR_0_]] : tensor<512x256xbf16>) outs([[VAR_1_]] : tensor<256x512xbf16>) permutation = [1, 0]
+// CHECK-DAG:       [[VAR_2_:%.+]] = tensor.empty() : tensor<512xbf16>
+// CHECK:           [[VAR_3_:%.+]] = linalg.fill ins([[CST_0_dot_000000_]] : bf16) outs([[VAR_2_]] : tensor<512xbf16>) -> tensor<512xbf16>
+// CHECK:           [[VAR_reduced_:%.+]] = linalg.reduce ins([[VAR_transposed_]] : tensor<256x512xbf16>) outs([[VAR_3_]] : tensor<512xbf16>) dimensions = [0]
+// CHECK:             ([[in_]]: bf16, [[init_]]: bf16) {
+// CHECK:               [[VAR_4_:%.+]] = arith.addf [[in_]], [[init_]] : bf16
+// CHECK:               linalg.yield [[VAR_4_]] : bf16
+// CHECK:             }
+// CHECK:           bufferization.materialize_in_destination [[VAR_reduced_]] in writable [[VAR_reinterpret_cast_0_]] : (tensor<512xbf16>, memref<512xbf16, strided<[1]>>) -> ()
+// CHECK:           return
+// CHECK:         }

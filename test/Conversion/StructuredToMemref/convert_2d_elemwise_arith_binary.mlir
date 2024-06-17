@@ -55,3 +55,30 @@ module {
 // CHECK:           tt.store [[PARAM_3_]], [[VAR_3_]] : tensor<128x128x!tt.ptr<f32>>
 // CHECK:           return
 // CHECK:         }
+// mlir2FileCheck.py
+// CHECK-DAG:   [[MAP_0_:#.+]] = affine_map<(d0, d1) -> (d0, d1)>
+// CHECK-LABEL:  func.func @kernel
+// CHECK-SAME:   ([[PARAM_0_:%.+]]: memref<*xf32>, [[PARAM_1_:%.+]]: memref<*xf32>, [[PARAM_2_:%.+]]: tensor<128x128x!tt.ptr<f32>>, [[PARAM_3_:%.+]]: tensor<128x128x!tt.ptr<f32>>, [[PARAM_4_:%.+]]: i32, [[PARAM_5_:%.+]]: i32, [[PARAM_6_:%.+]]: i32, [[PARAM_7_:%.+]]: i32, [[PARAM_8_:%.+]]: i32, [[PARAM_9_:%.+]]: i32) {
+// CHECK:           [[CST_0_:%.+]] = arith.constant 0 : index
+// CHECK-DAG:       [[VAR_reinterpret_cast_:%.+]] = memref.reinterpret_cast [[PARAM_0_]] to offset: {{.}}[[CST_0_]]{{.}}, sizes: [128, 128], strides: [1, 1] : memref<*xf32> to memref<128x128xf32, strided<[1, 1]>>
+// CHECK-DAG:       [[VAR_reinterpret_cast_0_:%.+]] = memref.reinterpret_cast [[PARAM_1_]] to offset: {{.}}[[CST_0_]]{{.}}, sizes: [128, 128], strides: [1, 1] : memref<*xf32> to memref<128x128xf32, strided<[1, 1]>>
+// CHECK-DAG:       [[RES_:%.+]] = memref.alloc() : memref<128x128xf32>
+// CHECK:           memref.copy [[VAR_reinterpret_cast_]], [[RES_]] : memref<128x128xf32, strided<[1, 1]>> to memref<128x128xf32>
+// CHECK-DAG:       [[VAR_0_:%.+]] = bufferization.to_tensor [[RES_]] restrict writable : memref<128x128xf32>
+// CHECK-DAG:       [[RES_1_:%.+]] = memref.alloc() : memref<128x128xf32>
+// CHECK:           memref.copy [[VAR_reinterpret_cast_0_]], [[RES_1_]] : memref<128x128xf32, strided<[1, 1]>> to memref<128x128xf32>
+// CHECK:           [[VAR_1_:%.+]] = bufferization.to_tensor [[RES_1_]] restrict writable : memref<128x128xf32>
+// CHECK:           [[VAR_2_:%.+]] = linalg.generic {indexing_maps = [#map, #map, #map], iterator_types = ["parallel", "parallel"]} ins([[VAR_0_]], [[VAR_1_]] : tensor<128x128xf32>, tensor<128x128xf32>) outs([[VAR_0_]] : tensor<128x128xf32>) {
+// CHECK:           ^bb0([[IN_0_:%.+]]: f32, [[IN_1_:%.+]]: f32, [[IN_2_:%.+]]: f32):
+// CHECK:             [[VAR_4_:%.+]] = arith.addf [[IN_0_]], [[IN_1_]] : f32
+// CHECK:             linalg.yield [[VAR_4_]] : f32
+// CHECK:           } -> tensor<128x128xf32>
+// CHECK:           [[VAR_3_:%.+]] = linalg.generic {indexing_maps = [#map, #map, #map], iterator_types = ["parallel", "parallel"]} ins([[VAR_0_]], [[VAR_1_]] : tensor<128x128xf32>, tensor<128x128xf32>) outs([[VAR_0_]] : tensor<128x128xf32>) {
+// CHECK:           ^bb0([[IN_3_:%.+]]: f32, [[IN_4_:%.+]]: f32, [[IN_5_:%.+]]: f32):
+// CHECK:             [[VAR_4_1_:%.+]] = arith.subf [[IN_3_]], [[IN_4_]] : f32
+// CHECK:             linalg.yield [[VAR_4_1_]] : f32
+// CHECK:           } -> tensor<128x128xf32>
+// CHECK:           tt.store [[PARAM_2_]], [[VAR_2_]] : tensor<128x128x!tt.ptr<f32>>
+// CHECK:           tt.store [[PARAM_3_]], [[VAR_3_]] : tensor<128x128x!tt.ptr<f32>>
+// CHECK:           return
+// CHECK:         }
