@@ -377,14 +377,8 @@ private:
     // converted to memref<*> at this point, so get the base from adaptor
     auto ptr = adaptor.getBase();
     if (auto reinterpretCast = ptr.getDefiningOp<memref::ReinterpretCastOp>()) {
-      targetOffset =
-          rewriter
-              .create<arith::AddIOp>(
-                  op->getLoc(),
-                  ofrToIndexValue(targetOffset, op.getLoc(), rewriter),
-                  ofrToIndexValue(reinterpretCast.getMixedOffsets()[0],
-                                  op.getLoc(), rewriter))
-              .getResult();
+      targetOffset = addOFRs(targetOffset, reinterpretCast.getMixedOffsets()[0],
+                             op->getLoc(), rewriter);
     }
 
     auto castOp = rewriter.create<memref::ReinterpretCastOp>(

@@ -245,9 +245,6 @@ public:
                                             std::move(patterns))))
       return signalPassFailure();
 
-    // moduleOp->dump();
-    // return;
-
     // auto moduleOp = getOperation();
     {
       RewritePatternSet patterns(&getContext());
