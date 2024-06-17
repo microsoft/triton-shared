@@ -17,8 +17,8 @@ module {
 
 // CHECK: module {
 // CHECK:   func.func @fused_attention_fwd_kernel(%arg0: memref<*xbf16>, %arg1: memref<*xbf16>, %arg2: i64, %arg3: i32, %arg4: i32, %arg5: i32, %arg6: i32, %arg7: i32, %arg8: i32, %arg9: i32) -> tensor<128x128xbf16> {
-// CHECK:     %c128 = arith.constant 128 : index
-// CHECK:     %c1 = arith.constant 1 : index
+// CHECK-DAG:     %c128 = arith.constant 128 : index
+// CHECK-DAG:     %c1 = arith.constant 1 : index
 // CHECK:     %0 = arith.remsi %arg8, %arg3 : i32
 // CHECK:     %1 = arith.extsi %0 : i32 to i64
 // CHECK:     %2 = arith.muli %1, %arg2 : i64
