@@ -12,6 +12,7 @@
 #include "mlir/IR/BuiltinAttributes.h"
 #include "mlir/IR/BuiltinOps.h"
 #include "mlir/IR/BuiltinTypes.h"
+#include "mlir/IR/MLIRContext.h"
 #include "mlir/Support/LogicalResult.h"
 #include "triton-shared/Conversion/StructuredToMemref/StructuredToMemref.h"
 #include "triton-shared/Dialect/TritonStructured/IR/TritonStructuredDialect.h"
@@ -27,7 +28,9 @@
 #include "mlir/Pass/PassManager.h"
 #include "mlir/Transforms/Passes.h"
 #include "triton/Dialect/Triton/IR/Types.h"
+#include "llvm/Support/Debug.h"
 
+#include <cassert>
 #include <optional>
 
 #define DEBUG_TYPE "structured-to-memref"
@@ -43,6 +46,16 @@ namespace triton {
 } // namespace mlir
 
 namespace {
+
+static MemRefType getMemrefTypeForScalarPtr(triton::PointerType ptrType,
+                                            MLIRContext *context) {
+  SmallVector<int64_t> strides{1};
+  auto layout = StridedLayoutAttr::get(context, ShapedType::kDynamic, strides);
+
+  auto elemType = ptrType.getPointeeType();
+  auto memrefType = MemRefType::get({1}, elemType, layout);
+  return memrefType;
+}
 
 class TritonFunctionSignatureConverter : public TypeConverter {
 public:
@@ -69,13 +82,7 @@ public:
     // The order of type conversion is important: later ones are tried earlier.
     addConversion([](Type type) { return type; });
     addConversion([context](triton::PointerType ptrType) {
-      SmallVector<int64_t> strides{1};
-      auto layout =
-          StridedLayoutAttr::get(context, ShapedType::kDynamic, strides);
-
-      auto elemType = ptrType.getPointeeType();
-      auto memrefType = MemRefType::get({1}, elemType, layout);
-      return memrefType;
+      return getMemrefTypeForScalarPtr(ptrType, context);
     });
   }
 };
@@ -96,41 +103,24 @@ struct ScalarAddptrConverter
     auto offsetIndex = rewriter.create<arith::IndexCastOp>(
         loc, rewriter.getIndexType(), op.getOffset());
 
-    auto layout =
-        StridedLayoutAttr::get(op.getContext(), ShapedType::kDynamic, {1});
-
-    auto elemType =
-        cast<triton::PointerType>(op.getPtr().getType()).getPointeeType();
-    auto memrefType = MemRefType::get({1}, elemType, layout);
-
     auto ptrInfo = adaptor.getPtr();
+    assert(ptrInfo.size() == 2);
+    auto ptr = ptrInfo[0];
+    auto offset = ptrInfo[1];
 
-    if (ptrInfo.size() == 1) {
+    auto newOffset = rewriter.create<arith::AddIOp>(loc, offset, offsetIndex);
 
-      auto castOp = rewriter.create<memref::ReinterpretCastOp>(
-          loc, memrefType, ptrInfo[0],
-          getAsOpFoldResult(offsetIndex) /*offset*/,
-          ArrayRef<OpFoldResult>{rewriter.getIndexAttr(1)} /*sizes*/,
-          ArrayRef<OpFoldResult>{rewriter.getIndexAttr(1)} /*strides*/);
+    auto castOp = rewriter.create<memref::ReinterpretCastOp>(
+        loc,
+        getMemrefTypeForScalarPtr(
+            cast<triton::PointerType>(op.getPtr().getType()),
+            rewriter.getContext()),
+        ptr, getAsOpFoldResult(newOffset) /*offset*/,
+        ArrayRef<OpFoldResult>{rewriter.getIndexAttr(1)} /*sizes*/,
+        ArrayRef<OpFoldResult>{rewriter.getIndexAttr(1)} /*strides*/);
 
-      rewriter.replaceOp(op,
-                         SmallVector<Value>{castOp.getResult(), offsetIndex},
-                         adaptor.getResultMapping());
-
-    } else {
-      auto ptr = ptrInfo[0];
-      auto offset = ptrInfo[1];
-
-      auto newOffset = rewriter.create<arith::AddIOp>(loc, offset, offsetIndex);
-
-      auto castOp = rewriter.create<memref::ReinterpretCastOp>(
-          loc, memrefType, ptr, getAsOpFoldResult(newOffset) /*offset*/,
-          ArrayRef<OpFoldResult>{rewriter.getIndexAttr(1)} /*sizes*/,
-          ArrayRef<OpFoldResult>{rewriter.getIndexAttr(1)} /*strides*/);
-
-      rewriter.replaceOp(op, SmallVector<Value>{castOp.getResult(), newOffset},
-                         adaptor.getResultMapping());
-    }
+    rewriter.replaceOp(op, SmallVector<Value>{castOp.getResult(), newOffset},
+                       adaptor.getResultMapping());
 
     return success();
   }
@@ -139,6 +129,12 @@ struct ScalarAddptrConverter
 static std::optional<SmallVector<Value>>
 buildGetTupleElementOps(OpBuilder &builder, TypeRange resultTypes, Value input,
                         Location loc) {
+  llvm::dbgs() << "hook:\n";
+  input.dump();
+  for (auto t : resultTypes) {
+    t.dump();
+  }
+  llvm::dbgs() << "---\n";
   SmallVector<Value> res;
   auto castOp = input.getDefiningOp<UnrealizedConversionCastOp>();
 
@@ -151,25 +147,19 @@ buildGetTupleElementOps(OpBuilder &builder, TypeRange resultTypes, Value input,
   auto memrefType = MemRefType::get({1}, bufferType.getElementType(), layout);
   auto zero = builder.create<arith::ConstantOp>(loc, builder.getIndexAttr(0));
   auto cast = builder.create<memref::ReinterpretCastOp>(
-      loc, memrefType, buffer, getAsOpFoldResult(zero) /*offset*/,
-      ArrayRef<OpFoldResult>{builder.getIndexAttr(1)} /*sizes*/,
-      ArrayRef<OpFoldResult>{builder.getIndexAttr(1)} /*strides*/);
+      loc, memrefType, buffer, 0 /*offset*/, ArrayRef<int64_t>{(1)} /*sizes*/,
+      ArrayRef<int64_t>{(1)} /*strides*/);
 
   res.push_back(cast);
   res.push_back(zero);
-  for (auto t : resultTypes) {
-    // t.dump();
-  }
+
   return res;
 }
 
 static std::optional<Value> buildMakeTupleOp(OpBuilder &builder,
                                              Type resultType, ValueRange inputs,
                                              Location loc) {
-  // resultType.dump();
-  for (auto i : inputs) {
-    // i.dump();
-  }
+  assert(inputs.size() == 2);
   return inputs[0];
 }
 
@@ -219,14 +209,8 @@ public:
     converter.addConversion(
         [context](triton::PointerType ptrType, SmallVectorImpl<Type> &types)
             -> std::optional<LogicalResult> {
-          SmallVector<int64_t> strides{1};
-          auto layout =
-              StridedLayoutAttr::get(context, ShapedType::kDynamic, strides);
-
-          auto elemType = ptrType.getPointeeType();
-          auto memrefType = MemRefType::get({1}, elemType, layout);
-
-          types = SmallVector<Type>{memrefType, IndexType::get(context)};
+          types = SmallVector<Type>{getMemrefTypeForScalarPtr(ptrType, context),
+                                    IndexType::get(context)};
           return success();
         });
 
@@ -238,14 +222,10 @@ public:
 
     scf::populateSCFStructuralOneToNTypeConversions(converter, patterns);
 
-    // triton::populateStructuredToMemrefConversionPatterns(patterns,
-    // converter);
-
     if (failed(applyPartialOneToNConversion(getOperation(), converter,
                                             std::move(patterns))))
       return signalPassFailure();
 
-    // auto moduleOp = getOperation();
     {
       RewritePatternSet patterns(&getContext());
       ConversionTarget target(getContext());
