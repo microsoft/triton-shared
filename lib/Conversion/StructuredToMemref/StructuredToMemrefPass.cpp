@@ -7,6 +7,7 @@
 
 #include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/MemRef/IR/MemRef.h"
+#include "mlir/Dialect/Utils/StaticValueUtils.h"
 #include "mlir/IR/Builders.h"
 #include "mlir/IR/BuiltinAttributes.h"
 #include "mlir/IR/BuiltinOps.h"
@@ -148,16 +149,16 @@ buildGetTupleElementOps(OpBuilder &builder, TypeRange resultTypes, Value input,
       StridedLayoutAttr::get(builder.getContext(), ShapedType::kDynamic, {1});
 
   auto memrefType = MemRefType::get({1}, bufferType.getElementType(), layout);
-
+  auto zero = builder.create<arith::ConstantOp>(loc, builder.getIndexAttr(0));
   auto cast = builder.create<memref::ReinterpretCastOp>(
-      loc, memrefType, buffer, 0 /*offset*/, SmallVector<int64_t>{1} /*sizes*/,
-      SmallVector<int64_t>{1} /*strides*/);
+      loc, memrefType, buffer, getAsOpFoldResult(zero) /*offset*/,
+      ArrayRef<OpFoldResult>{builder.getIndexAttr(1)} /*sizes*/,
+      ArrayRef<OpFoldResult>{builder.getIndexAttr(1)} /*strides*/);
 
   res.push_back(cast);
-  res.push_back(
-      builder.create<arith::ConstantOp>(loc, builder.getIndexAttr(0)));
+  res.push_back(zero);
   for (auto t : resultTypes) {
-    t.dump();
+    // t.dump();
   }
   return res;
 }
@@ -165,9 +166,9 @@ buildGetTupleElementOps(OpBuilder &builder, TypeRange resultTypes, Value input,
 static std::optional<Value> buildMakeTupleOp(OpBuilder &builder,
                                              Type resultType, ValueRange inputs,
                                              Location loc) {
-  resultType.dump();
+  // resultType.dump();
   for (auto i : inputs) {
-    i.dump();
+    // i.dump();
   }
   return inputs[0];
 }
@@ -244,7 +245,7 @@ public:
                                             std::move(patterns))))
       return signalPassFailure();
 
-    moduleOp->dump();
+    // moduleOp->dump();
     // return;
 
     // auto moduleOp = getOperation();
