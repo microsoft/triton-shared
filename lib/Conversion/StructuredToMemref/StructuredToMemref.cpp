@@ -358,7 +358,7 @@ private:
     return success();
   }
 
-  LogicalResult rewritePtr(ArrayRef<int64_t> resultShape,
+  LogicalResult rewritePtr(ArrayRef<int64_t> resultShape, bool isBlockPtr,
                            tts::MakeTensorPtrOp op, OpAdaptor adaptor,
                            ConversionPatternRewriter &rewriter) const {
 
@@ -374,9 +374,20 @@ private:
         resultShape);
 
     // The base ptr, which is from one of the args, would have already been
-    // converted to memref<*> at this point, so get the base from adaptor
+    // converted to memref<*> at this point, so get the base from adaptor.
+    //
+    // For block pointers, the base could come from a sequence of `tt.addptr`,
+    // which at this point has already been lowered to a sequence of
+    // `memref.reinterpret_cast` ops. The offset in such cases are dynamic.
+    // (see test/Conversion/StructuredToMemref/block_ptr_complex_offset.mlir)
+    //
+    // For non-block pointer cases, the base is the reinterpret_cast of a
+    // function argument. Assert that the offset is a constant 0 in such cases.
     auto ptr = adaptor.getBase();
     if (auto reinterpretCast = ptr.getDefiningOp<memref::ReinterpretCastOp>()) {
+      auto offset = reinterpretCast.getMixedOffsets()[0];
+      auto intAttr = getIntAttr(offset);
+      assert(isBlockPtr || (intAttr.has_value() && intAttr.value() == 0));
       targetOffset = addOFRs(targetOffset, reinterpretCast.getMixedOffsets()[0],
                              op->getLoc(), rewriter);
     }
@@ -394,7 +405,7 @@ private:
   rewriteStructuredPtr(tts::MakeTensorPtrOp op, OpAdaptor adaptor,
                        ConversionPatternRewriter &rewriter) const {
     ArrayRef<int64_t> resultShape = cast<ShapedType>(op.getType()).getShape();
-    return rewritePtr(resultShape, op, adaptor, rewriter);
+    return rewritePtr(resultShape, false, op, adaptor, rewriter);
   }
 
   LogicalResult rewriteBlockPtr(tts::MakeTensorPtrOp op, OpAdaptor adaptor,
@@ -406,7 +417,7 @@ private:
         cast<ShapedType>(
             cast<triton::PointerType>(op.getType()).getPointeeType())
             .getShape();
-    return rewritePtr(resultShape, op, adaptor, rewriter);
+    return rewritePtr(resultShape, true, op, adaptor, rewriter);
   }
 
 public:
