@@ -198,37 +198,39 @@ public:
       signalPassFailure();
       return;
     }
-    RewritePatternSet patterns(&getContext());
 
-    auto context = &getContext();
-    OneToNTypeConverter converter;
-    converter.addConversion([](Type type) { return type; });
-    converter.addConversion(
-        [context](triton::PointerType ptrType, SmallVectorImpl<Type> &types)
-            -> std::optional<LogicalResult> {
-          types = SmallVector<Type>{getMemrefTypeForScalarPtr(ptrType, context),
-                                    IndexType::get(context)};
-          return success();
-        });
+    {
+      RewritePatternSet patterns(&getContext());
 
-    converter.addArgumentMaterialization(buildMakeTupleOp);
-    converter.addSourceMaterialization(buildMakeTupleOp);
-    converter.addTargetMaterialization(buildCastAndOffsetOps);
+      auto context = &getContext();
+      OneToNTypeConverter converter;
+      converter.addConversion([](Type type) { return type; });
+      converter.addConversion([context](triton::PointerType ptrType,
+                                        SmallVectorImpl<Type> &types)
+                                  -> std::optional<LogicalResult> {
+        types = SmallVector<Type>{getMemrefTypeForScalarPtr(ptrType, context),
+                                  IndexType::get(context)};
+        return success();
+      });
 
-    patterns.add<ScalarAddptrConverter>(converter, context);
+      converter.addArgumentMaterialization(buildMakeTupleOp);
+      converter.addSourceMaterialization(buildMakeTupleOp);
+      converter.addTargetMaterialization(buildCastAndOffsetOps);
 
-    scf::populateSCFStructuralOneToNTypeConversions(converter, patterns);
+      patterns.add<ScalarAddptrConverter>(converter, context);
 
-    if (failed(applyPartialOneToNConversion(getOperation(), converter,
-                                            std::move(patterns))))
-      return signalPassFailure();
+      scf::populateSCFStructuralOneToNTypeConversions(converter, patterns);
 
-    PassManager pm(&getContext(), moduleOp.getOperationName());
-    pm.addPass(createCanonicalizerPass());
-    if (failed(runPipeline(pm, getOperation()))) {
-      signalPassFailure();
+      if (failed(applyPartialOneToNConversion(getOperation(), converter,
+                                              std::move(patterns))))
+        return signalPassFailure();
+
+      PassManager pm(&getContext(), moduleOp.getOperationName());
+      pm.addPass(createCanonicalizerPass());
+      if (failed(runPipeline(pm, getOperation()))) {
+        signalPassFailure();
+      }
     }
-    moduleOp->dump();
 
     {
       RewritePatternSet patterns(&getContext());
