@@ -358,7 +358,7 @@ private:
     return success();
   }
 
-  LogicalResult rewritePtr(ArrayRef<int64_t> resultShape,
+  LogicalResult rewritePtr(ArrayRef<int64_t> resultShape, bool isBlockPtr,
                            tts::MakeTensorPtrOp op, OpAdaptor adaptor,
                            ConversionPatternRewriter &rewriter) const {
 
@@ -374,12 +374,27 @@ private:
         resultShape);
 
     // The base ptr, which is from one of the args, would have already been
-    // converted to memref<*> at this point, so get the base from adaptor
+    // converted to memref<*> at this point, so get the base from adaptor.
+    //
+    // For block pointers, the base could come from a sequence of `tt.addptr`,
+    // which at this point has already been lowered to a sequence of
+    // `memref.reinterpret_cast` ops. The offset in such cases are dynamic.
+    // (see test/Conversion/StructuredToMemref/block_ptr_complex_offset.mlir)
+    //
+    // For non-block pointer cases, the base is the reinterpret_cast of a
+    // function argument. Assert that the offset is a constant 0 in such cases.
     auto ptr = adaptor.getBase();
+    if (auto reinterpretCast = ptr.getDefiningOp<memref::ReinterpretCastOp>()) {
+      auto offset = reinterpretCast.getMixedOffsets()[0];
+      auto intAttr = getIntAttr(offset);
+      assert(isBlockPtr || (intAttr.has_value() && intAttr.value() == 0));
+      targetOffset = addOFRs(targetOffset, reinterpretCast.getMixedOffsets()[0],
+                             op->getLoc(), rewriter);
+    }
 
     auto castOp = rewriter.create<memref::ReinterpretCastOp>(
-        op.getLoc(), resultType, ptr, accumulateTargetOffset(op, rewriter),
-        op.getMixedSizes(), mixedStrides);
+        op.getLoc(), resultType, ptr, targetOffset, op.getMixedSizes(),
+        mixedStrides);
 
     rewriter.replaceOp(op, castOp);
 
@@ -390,7 +405,7 @@ private:
   rewriteStructuredPtr(tts::MakeTensorPtrOp op, OpAdaptor adaptor,
                        ConversionPatternRewriter &rewriter) const {
     ArrayRef<int64_t> resultShape = cast<ShapedType>(op.getType()).getShape();
-    return rewritePtr(resultShape, op, adaptor, rewriter);
+    return rewritePtr(resultShape, false, op, adaptor, rewriter);
   }
 
   LogicalResult rewriteBlockPtr(tts::MakeTensorPtrOp op, OpAdaptor adaptor,
@@ -402,7 +417,7 @@ private:
         cast<ShapedType>(
             cast<triton::PointerType>(op.getType()).getPointeeType())
             .getShape();
-    return rewritePtr(resultShape, op, adaptor, rewriter);
+    return rewritePtr(resultShape, true, op, adaptor, rewriter);
   }
 
 public:
@@ -881,10 +896,20 @@ public:
   LogicalResult
   matchAndRewrite(UnrealizedConversionCastOp op, OpAdaptor adaptor,
                   ConversionPatternRewriter &rewriter) const override {
-
     auto resType = op->getResultTypes()[0];
-    if (auto ptrType = dyn_cast<triton::PointerType>(resType)) {
+    auto input = op.getInputs()[0];
+    auto inputType = input.getType();
 
+    if (!isa<triton::PointerType>(resType) ||
+        !isa<MemRefType, UnrankedMemRefType>(inputType)) {
+      return failure();
+    }
+
+    if (auto reinterpretCast =
+            input.getDefiningOp<memref::ReinterpretCastOp>()) {
+      rewriter.replaceOp(op, reinterpretCast);
+    } else {
+      auto ptrType = cast<triton::PointerType>(resType);
       auto memrefType =
           cast<MemRefType>(getTypeConverter()->convertType(ptrType));
 
@@ -894,9 +919,9 @@ public:
           SmallVector<int64_t>{1} /*strides*/);
 
       rewriter.replaceOp(op, cast);
-      return success();
     }
-    return failure();
+
+    return success();
   }
 };
 
@@ -905,8 +930,7 @@ public:
 void mlir::triton::populateStructuredToMemrefConversionPatterns(
     RewritePatternSet &patterns, TypeConverter &typeConverter) {
   patterns.add<UnrealizedCastConverter>(typeConverter, patterns.getContext());
-  patterns
-      .add<MakeTensorPtrConverter, LoadConverter, StoreConverter,
-           ScalarAddptrConverter, ScalarLoadConverter, ScalarStoreConverter>(
-          patterns.getContext());
+  patterns.add<MakeTensorPtrConverter, LoadConverter, StoreConverter,
+               ScalarLoadConverter, ScalarStoreConverter>(
+      patterns.getContext());
 }
