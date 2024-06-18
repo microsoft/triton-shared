@@ -44,3 +44,5 @@ def test():
     )
     print(ret.asm["ttir"])
     print('Pass')
+
+test()

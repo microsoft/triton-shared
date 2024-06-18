@@ -129,30 +129,39 @@ struct ScalarAddptrConverter
 static std::optional<SmallVector<Value>>
 buildCastAndOffsetOps(OpBuilder &builder, TypeRange resultTypes, Value input,
                       Location loc) {
-  SmallVector<Value> res;
-  auto castOp = input.getDefiningOp<UnrealizedConversionCastOp>();
+  assert(resultTypes.size() == 2 && isa<MemRefType>(resultTypes[0]) &&
+         isa<IndexType>(resultTypes[1]) &&
+         "Unexpected result types when converting addptr");
+  assert(isa<triton::PointerType>(input.getType()) &&
+         "Unexpected input type when converting addptr");
 
+  // There are only two types of ops that can produce a result of type tt.ptr
+  // 1) tt.addptr, this is already handled by ScalarAddptrConverter
+  // 2) unrealized_conversion_cast, which are inserted during the conversion
+  //    of function arguments.
+  //    We assert that there can only be input that comes from
+  //    unrealized_conversion_cast.
+  auto castOp = input.getDefiningOp<UnrealizedConversionCastOp>();
+  assert(castOp && "Unexpected defining op for input of type tt.ptr");
+
+  // Compute the memref type
   auto buffer = castOp.getOperand(0);
   auto bufferType = cast<UnrankedMemRefType>(buffer.getType());
-
   auto layout =
       StridedLayoutAttr::get(builder.getContext(), ShapedType::kDynamic, {1});
-
   auto memrefType = MemRefType::get({1}, bufferType.getElementType(), layout);
-  auto zero = builder.create<arith::ConstantOp>(loc, builder.getIndexAttr(0));
+
+  // Create ops to convert the triton input type to a pair of {memref, index}
   auto cast = builder.create<memref::ReinterpretCastOp>(
       loc, memrefType, buffer, 0 /*offset*/, ArrayRef<int64_t>{(1)} /*sizes*/,
       ArrayRef<int64_t>{(1)} /*strides*/);
+  auto zero = builder.create<arith::ConstantOp>(loc, builder.getIndexAttr(0));
 
-  res.push_back(cast);
-  res.push_back(zero);
-
-  return res;
+  return SmallVector<Value>{cast, zero};
 }
 
-static std::optional<Value> buildMakeTupleOp(OpBuilder &builder,
-                                             Type resultType, ValueRange inputs,
-                                             Location loc) {
+static std::optional<Value> buildCastOp(OpBuilder &builder, Type resultType,
+                                        ValueRange inputs, Location loc) {
   assert(isa<triton::PointerType>(resultType));
   assert(inputs.size() && isa<MemRefType>(inputs[0].getType()) &&
          isa<IndexType>(inputs[1].getType()));
@@ -191,6 +200,115 @@ public:
     return applyPartialConversion(moduleOp, target, std::move(patterns));
   }
 
+  // We leverage the 1->N conversion infrastructure to convert tt.addptr for
+  // scalar to memref.reinterpret_cast.
+  //
+  // A tt.addptr has the following form:
+  //
+  // %new_ptr = tt.addptr %ptr %offset
+  //
+  // where %new_ptr and %ptr have tt.ptr type, and %offset is of index type.
+  //
+  // With this form, there can be a chain of tt.addptr where we keep adding
+  // offsets to an existing pointer:
+  //
+  // %ptr_1 = tt.addptr %ptr_0 %offset
+  // %ptr_2 = tt.addptr %ptr_1 %offset
+  // %ptr_3 = tt.addptr %ptr_2 %offset
+  //
+  // Now, we want to lower each tt.addptr to a memref.reinterpret_cast so that
+  // the pointers can be used by affine.load and affine.store (lowered from
+  // tt.load and tt.store).
+  //
+  // A memref.reinterpret_cast op also takes an offset and returns a memref in a
+  // similar fashion to tt.addptr:
+  //
+  //  %reinterpret_cast = memref.reinterpret_cast %arg0 to offset: [0], sizes:
+  //  [1], strides: [1] : memref<*xf32> to memref<1xf32, strided<[1], offset:
+  //  ?>>
+  //
+  // However, since the semantic of memref.reinterpret_cast is different,
+  // the following lowering would be incorrect for the sequence of tt.addptr
+  // above:
+  //
+  //  %cast_1 = memref.reinterpret_cast %arg0 to offset [%offset]
+  //  %cast_2 = memref.reinterpret_cast %cast_1 to offset [%offset]
+  //  %cast_3 = memref.reinterpret_cast %cast_2 to offset [%offset]
+  //
+  // The above sequence is equivalent to:
+  //
+  //  %cast_1 = memref.reinterpret_cast %arg0 to offset [%offset]
+  //  %cast_2 = memref.reinterpret_cast %arg0 to offset [%offset]
+  //  %cast_3 = memref.reinterpret_cast %arg0 to offset [%offset]
+  //
+  // In other word, memref.reinterpret_cast ignores the current offset of the
+  // input buffer.
+  //
+  // Therefore, we have to manually track the offset for each addptr by lowering
+  // to the following form:
+  //
+  // %offset_1 = arith.addi %cst_0 %offset
+  // %cast_1 = memref.reinterpret_cast %arg0 to offset [%offset_1]
+  //
+  // %offset_2 = arith.addi %offset_1 %offset
+  // %cast_2 = memref.reinterpret_cast %arg0 to offset [%offset_2]
+  //
+  // %offset_3 = arith.addi %offset_2 %offset
+  // %cast_3 = memref.reinterpret_cast %arg0 to offset [%offset_3]
+  //
+  // Each tt.addptr is lowered to a pair of arith.addi that accumulates the
+  // current offset before using that offset to the reinterpret_cast.
+  LogicalResult convertAddPtrToReinterpretCast() {
+    auto moduleOp = getOperation();
+
+    RewritePatternSet patterns(&getContext());
+
+    auto context = &getContext();
+    OneToNTypeConverter converter;
+    converter.addConversion([](Type type) { return type; });
+
+    // We are doing a 1->2 type conversion here, where a triton pointer type
+    // maps to a pair of {memref, index} type for the the buffer and offset.
+    converter.addConversion(
+        [context](triton::PointerType ptrType, SmallVectorImpl<Type> &types)
+            -> std::optional<LogicalResult> {
+          types = SmallVector<Type>{getMemrefTypeForScalarPtr(ptrType, context),
+                                    IndexType::get(context)};
+          return success();
+        });
+
+    // Hooks to compute the correct materialization, "argument" and "source"
+    // materialization are used when we need to convert a pair of {memref,
+    // index} type back to the original triton pointer type.
+    // These are used when there are ops that still need to use the original
+    // pointer type. For instance, we convert the result of tt.addptr from
+    // tt.ptr type to a pair of {memref, index}, but the original ptr result is
+    // still being used by another tt.load or tt.store.
+    converter.addArgumentMaterialization(buildCastOp);
+    converter.addSourceMaterialization(buildCastOp);
+
+    // Compute the target materialization, given a value with the pointer type,
+    // convert that value to a pair of {memref, index} type.
+    converter.addTargetMaterialization(buildCastAndOffsetOps);
+
+    patterns.add<ScalarAddptrConverter>(converter, context);
+
+    scf::populateSCFStructuralOneToNTypeConversions(converter, patterns);
+
+    if (failed(applyPartialOneToNConversion(getOperation(), converter,
+                                            std::move(patterns)))) {
+      return failure();
+    }
+
+    PassManager pm(&getContext(), moduleOp.getOperationName());
+    pm.addPass(createCanonicalizerPass());
+    if (failed(runPipeline(pm, getOperation()))) {
+      return failure();
+    }
+
+    return success();
+  }
+
   void runOnOperation() override {
     auto moduleOp = getOperation();
 
@@ -199,77 +317,45 @@ public:
       return;
     }
 
-    {
-      RewritePatternSet patterns(&getContext());
-
-      auto context = &getContext();
-      OneToNTypeConverter converter;
-      converter.addConversion([](Type type) { return type; });
-      converter.addConversion([context](triton::PointerType ptrType,
-                                        SmallVectorImpl<Type> &types)
-                                  -> std::optional<LogicalResult> {
-        types = SmallVector<Type>{getMemrefTypeForScalarPtr(ptrType, context),
-                                  IndexType::get(context)};
-        return success();
-      });
-
-      converter.addArgumentMaterialization(buildMakeTupleOp);
-      converter.addSourceMaterialization(buildMakeTupleOp);
-      converter.addTargetMaterialization(buildCastAndOffsetOps);
-
-      patterns.add<ScalarAddptrConverter>(converter, context);
-
-      scf::populateSCFStructuralOneToNTypeConversions(converter, patterns);
-
-      if (failed(applyPartialOneToNConversion(getOperation(), converter,
-                                              std::move(patterns))))
-        return signalPassFailure();
-
-      PassManager pm(&getContext(), moduleOp.getOperationName());
-      pm.addPass(createCanonicalizerPass());
-      if (failed(runPipeline(pm, getOperation()))) {
-        signalPassFailure();
-      }
+    if (failed(convertAddPtrToReinterpretCast())) {
+      signalPassFailure();
+      return;
     }
 
-    {
-      RewritePatternSet patterns(&getContext());
-      ConversionTarget target(getContext());
+    RewritePatternSet patterns(&getContext());
+    ConversionTarget target(getContext());
 
-      target.addLegalDialect<
-          func::FuncDialect, arith::ArithDialect, math::MathDialect,
-          linalg::LinalgDialect, affine::AffineDialect, scf::SCFDialect,
-          cf::ControlFlowDialect, tensor::TensorDialect,
-          bufferization::BufferizationDialect, ttx::TritonTilingExtDialect,
-          memref::MemRefDialect>();
+    target.addLegalDialect<
+        func::FuncDialect, arith::ArithDialect, math::MathDialect,
+        linalg::LinalgDialect, affine::AffineDialect, scf::SCFDialect,
+        cf::ControlFlowDialect, tensor::TensorDialect,
+        bufferization::BufferizationDialect, ttx::TritonTilingExtDialect,
+        memref::MemRefDialect>();
 
-      target.addIllegalDialect<tts::TritonStructuredDialect>();
+    target.addIllegalDialect<tts::TritonStructuredDialect>();
 
-      target.addDynamicallyLegalOp<UnrealizedConversionCastOp>(
-          [](Operation *op) {
-            auto resType = op->getResultTypes()[0];
-            return !isa<triton::PointerType>(resType);
-          });
+    target.addDynamicallyLegalOp<UnrealizedConversionCastOp>([](Operation *op) {
+      auto resType = op->getResultTypes()[0];
+      return !isa<triton::PointerType>(resType);
+    });
 
-      LoopTypeConverter loopTypeConverter(patterns.getContext());
+    LoopTypeConverter loopTypeConverter(patterns.getContext());
 
-      mlir::scf::populateSCFStructuralTypeConversionsAndLegality(
-          loopTypeConverter, patterns, target);
+    mlir::scf::populateSCFStructuralTypeConversionsAndLegality(
+        loopTypeConverter, patterns, target);
 
-      triton::populateStructuredToMemrefConversionPatterns(patterns,
-                                                           loopTypeConverter);
+    triton::populateStructuredToMemrefConversionPatterns(patterns,
+                                                         loopTypeConverter);
 
-      if (failed(
-              applyPartialConversion(moduleOp, target, std::move(patterns)))) {
-        signalPassFailure();
-      }
+    if (failed(applyPartialConversion(moduleOp, target, std::move(patterns)))) {
+      signalPassFailure();
+    }
 
-      // Erase dead code and fold constants created during lowering
-      PassManager pm(&getContext(), moduleOp.getOperationName());
-      pm.addPass(createCanonicalizerPass());
-      if (failed(runPipeline(pm, getOperation()))) {
-        signalPassFailure();
-      }
+    // Erase dead code and fold constants created during lowering
+    PassManager pm(&getContext(), moduleOp.getOperationName());
+    pm.addPass(createCanonicalizerPass());
+    if (failed(runPipeline(pm, getOperation()))) {
+      signalPassFailure();
     }
   }
 };
