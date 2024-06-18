@@ -38,7 +38,7 @@ def test():
     x = torch.rand([n_cols, n_rows], device="cpu", dtype=torch.float32)
     output = torch.empty([n_cols], device=x.device, dtype=x.dtype)
     BLOCK_SIZE = n_rows
-    grid = lambda meta: (n_cols,)0
+    grid = lambda meta: (n_cols,)
 
     reduce_kernel_2d[grid](x, output, x.stride(0), n_rows, BLOCK_SIZE=BLOCK_SIZE)
     ans = torch.sum(x, dim=1)
