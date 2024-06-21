@@ -243,9 +243,7 @@ struct OuterProductVectorizationPass
   std::unique_ptr<Pass> createOuterProductVectorizationPass() {
     return std::make_unique<OuterProductVectorizationPass>();
   }
-  std::unique_ptr<Pass> createPrefetchPass() {
-    return std::make_unique<PrefetchingPass>();
-  }
+
   std::unique_ptr<Pass> createMatmulTileConversionPass(bool enableSME) {
     return std::make_unique<MatmulTileConversionPass>(enableSME);
   }
