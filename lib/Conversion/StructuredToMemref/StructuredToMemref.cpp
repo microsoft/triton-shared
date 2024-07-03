@@ -424,6 +424,11 @@ public:
   LogicalResult
   matchAndRewrite(tts::MakeTensorPtrOp op, OpAdaptor adaptor,
                   ConversionPatternRewriter &rewriter) const override {
+    if (!llvm::is_sorted(op.getOrder(), std::greater<>())) {
+      emitError(op.getLoc()) << "non-decreasing dimension order on tensor "
+                                "pointers are not yet supported";
+      return failure();
+    }
 
     if (op.isBlockPtr()) {
       return rewriteBlockPtr(op, adaptor, rewriter);
