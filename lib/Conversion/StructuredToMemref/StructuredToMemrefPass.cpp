@@ -212,7 +212,7 @@ public:
   // With this form, there can be a chain of tt.addptr where we keep adding
   // offsets to an existing pointer:
   //
-  // %ptr_1 = tt.addptr %ptr_0 %offset
+  // %ptr_1 = tt.addptr %arg0 %offset
   // %ptr_2 = tt.addptr %ptr_1 %offset
   // %ptr_3 = tt.addptr %ptr_2 %offset
   //
