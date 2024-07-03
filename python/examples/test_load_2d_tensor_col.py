@@ -35,7 +35,7 @@ def kernel(
         strides=[BLOCK_SIZE_COL, 1],
         offsets=[0, pid0],
         block_shape=[BLOCK_SIZE_ROW, 1],
-        order=[0, 1],
+        order=[1, 0],
     )
     x = tl.load(input_ptr)
     output_ptr = tl.make_block_ptr(
@@ -44,7 +44,7 @@ def kernel(
         strides=[BLOCK_SIZE_COL, 1],
         offsets=[0, pid0],
         block_shape=[BLOCK_SIZE_ROW, 1],
-        order=[0, 1],
+        order=[1, 0],
     )
     tl.store(output_ptr, x)
 
