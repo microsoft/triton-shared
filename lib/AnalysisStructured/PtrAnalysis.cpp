@@ -6,6 +6,8 @@
 //===----------------------------------------------------------------------===//
 
 #include "triton-shared/AnalysisStructured/PtrAnalysis.h"
+#include "mlir/IR/BuiltinOps.h"
+#include "mlir/Support/LogicalResult.h"
 #include "triton-shared/Analysis/MaskAnalysis.h"
 #include "triton-shared/Analysis/OpFoldResultUtils.h"
 
@@ -797,6 +799,79 @@ LogicalResult PtrAnalysis::rewriteAdvanceOp(triton::AdvanceOp op) {
   return success();
 }
 
+static Value getActualPtr(Value iterArg) {
+  assert(iterArg.hasOneUse());
+  auto unrealizedCast =
+      cast<UnrealizedConversionCastOp>(*iterArg.getUsers().begin());
+  return unrealizedCast->getResult(0);
+}
+
+LogicalResult PtrAnalysis::rewriteForOpNew(scf::ForOp op) {
+  OpBuilder builder(op);
+
+  for (auto [i, arg] : llvm::enumerate(op.getInitArgs())) {
+    Value mappedV = nullptr;
+    if (auto unrealizedCast = arg.getDefiningOp<UnrealizedConversionCastOp>()) {
+      mappedV = ptrMap.lookupOrNull(unrealizedCast.getInputs()[0]);
+    }
+
+    if (!mappedV) {
+      continue;
+    }
+
+    // I'm trying to connect the pointer state of the iterargs to their initargs
+    // - the pointer in iterargs always come from unrealized_cast ops
+    // (state_placeholder)
+    // - the pointer from init-args always produced by
+    // realized_cast ops (make_state)
+    //
+    //
+    // tt.load takes in the pointer from unrealized_cast (state_placeholder)
+    // knownPtrs maps from the ptr to its state
+    // ptrMap records which ptr we have processed and what the new ptr value is
+    //
+    // i want the tts.load to take in the state_placeholder
+    // which means the ptrMap should record the unrealized_cast placeholder
+    // so the ptrMap entries for these can just map to themselves
+    //
+    PtrState state;
+    if (auto makeTPtrOp = mappedV.getDefiningOp<tts::MakeTensorPtrOp>()) {
+
+      if (visitOperandMakeTPtr(makeTPtrOp, state, op.getLoc(), builder)
+              .succeeded()) {
+        auto p = getActualPtr(op.getRegionIterArg(i));
+        p.dump();
+        knownPtrs[p] = state;
+        ptrMap.map(p, maketptrOp.getResult());
+        continue;
+      }
+    } else if (auto makeTensorPtrOp =
+                   mappedV.getDefiningOp<triton::MakeTensorPtrOp>()) {
+      assert(false && "Todo");
+
+      if (visitOperandMakeTensorPtr(makeTensorPtrOp, state, op.getLoc(),
+                                    builder)
+              .succeeded()) {
+        auto p = getActualPtr(op.getRegionIterArg(i));
+        knownPtrs[p] = state;
+        ptrMap.map(p, maketptrOp.getResult());
+        continue;
+      }
+    } else if (auto addptrOp = mappedV.getDefiningOp<triton::AddPtrOp>()) {
+      assert(false && "Todo");
+    }
+  }
+
+  if (rewriteOp(op).failed()) {
+    op->erase();
+    op->emitRemark(
+        "PtrAnalysis: update loop body failed when rewriting for op");
+    return failure();
+  }
+
+  return success();
+}
+
 LogicalResult PtrAnalysis::rewriteForOp(scf::ForOp op) {
   SmallVector<Value> newInitArgs;
 
@@ -1127,6 +1202,8 @@ LogicalResult PtrAnalysis::rewriteLoadOp(triton::LoadOp op) {
   if (!ptr) {
     op->emitRemark("PtrAnalysis: pointer is not replace with tts.make_tptr so "
                    "loadOp cannot be rewritten");
+    llvm::dbgs() << "ptr in load\n";
+    op.getPtr().dump();
     return failure();
   }
 
@@ -1263,7 +1340,7 @@ LogicalResult PtrAnalysis::rewriteOp(Operation *rootOp) {
           return WalkResult::skip();
         })
         .Case<scf::ForOp>([&](auto forOp) {
-          if (rewriteForOp(forOp).failed()) {
+          if (rewriteForOpNew(forOp).failed()) {
             forOp->emitRemark("PtrAnalysis: Failed to rewrite ForOp");
             return WalkResult::advance();
           }

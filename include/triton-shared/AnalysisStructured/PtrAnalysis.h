@@ -77,6 +77,8 @@ struct PtrAnalysis {
 
   IRMapping ptrMap;
 
+  LogicalResult rewriteForOpNew(scf::ForOp op);
+
   // Recursively parse a Value; call the corresponding
   // function based on the defining operation and argument type.
   LogicalResult visitOperand(Value operand, PtrState &state, const Location loc,

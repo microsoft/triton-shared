@@ -113,12 +113,12 @@ buildCastAndOffsetOps(OpBuilder &builder, TypeRange resultTypes, Value input,
 
 static std::optional<Value> buildCastOp(OpBuilder &builder, Type resultType,
                                         ValueRange inputs, Location loc) {
-  llvm::dbgs() << "build cast op\n";
-  llvm::dbgs() << "result type\n";
-  resultType.dump();
-  llvm::dbgs() << "inputs:\n";
+  // llvm::dbgs() << "build cast op\n";
+  // llvm::dbgs() << "result type\n";
+  // resultType.dump();
+  // llvm::dbgs() << "inputs:\n";
   for (auto v : inputs) {
-    v.dump();
+    // v.dump();
   }
   auto op =
       builder.create<UnrealizedConversionCastOp>(loc, resultType, inputs[0]);
@@ -253,7 +253,7 @@ public:
 
   void runOnOperation() override {
     (void)test();
-    return;
+    // return;
 
     auto moduleOp = getOperation();
 
