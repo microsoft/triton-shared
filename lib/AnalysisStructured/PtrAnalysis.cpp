@@ -842,7 +842,7 @@ LogicalResult PtrAnalysis::rewriteForOpNew(scf::ForOp op) {
         auto p = getActualPtr(op.getRegionIterArg(i));
         p.dump();
         knownPtrs[p] = state;
-        ptrMap.map(p, maketptrOp.getResult());
+        // ptrMap.map(p, maketptrOp.getResult());
         continue;
       }
     } else if (auto makeTensorPtrOp =
@@ -854,7 +854,7 @@ LogicalResult PtrAnalysis::rewriteForOpNew(scf::ForOp op) {
               .succeeded()) {
         auto p = getActualPtr(op.getRegionIterArg(i));
         knownPtrs[p] = state;
-        ptrMap.map(p, maketptrOp.getResult());
+        // ptrMap.map(p, maketptrOp.getResult());
         continue;
       }
     } else if (auto addptrOp = mappedV.getDefiningOp<triton::AddPtrOp>()) {
