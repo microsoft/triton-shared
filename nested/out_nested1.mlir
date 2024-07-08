@@ -39,8 +39,12 @@ module {
     %29 = arith.index_cast %28 : i32 to index
     %30 = arith.index_cast %28 : i32 to index
     %31 = tt.splat %28 : i32 -> tensor<2x2xi32>
-    %32 = builtin.unrealized_conversion_cast %14 : tensor<2x2x!tt.ptr<f32>> to tuple<tensor<2x2x!tt.ptr<f32>>, tuple<index, index>, tuple<index, index>> {make_state}
-    %33 = builtin.unrealized_conversion_cast %27 : tensor<2x2x!tt.ptr<f32>> to tuple<tensor<2x2x!tt.ptr<f32>>, tuple<index, index>, tuple<index, index>> {make_state}
+    %c0 = arith.constant 0 : index
+    %c0_0 = arith.constant 0 : index
+    %32 = builtin.unrealized_conversion_cast %c0, %c0_0, %11, %12 : index, index, index, index to tuple<tensor<2x2x!tt.ptr<f32>>, tuple<index, index>, tuple<index, index>>
+    %c0_1 = arith.constant 0 : index
+    %c0_2 = arith.constant 0 : index
+    %33 = builtin.unrealized_conversion_cast %c0_1, %c0_2, %18, %25 : index, index, index, index to tuple<tensor<2x2x!tt.ptr<f32>>, tuple<index, index>, tuple<index, index>>
     %34:2 = scf.for %arg8 = %c0_i32 to %c2_i32 step %c1_i32 iter_args(%arg9 = %32, %arg10 = %33) -> (tuple<tensor<2x2x!tt.ptr<f32>>, tuple<index, index>, tuple<index, index>>, tuple<tensor<2x2x!tt.ptr<f32>>, tuple<index, index>, tuple<index, index>>)  : i32 {
       %35 = builtin.unrealized_conversion_cast %arg10 : tuple<tensor<2x2x!tt.ptr<f32>>, tuple<index, index>, tuple<index, index>> to tensor<2x2x!tt.ptr<f32>> {state_placeholder}
       %36 = builtin.unrealized_conversion_cast %arg9 : tuple<tensor<2x2x!tt.ptr<f32>>, tuple<index, index>, tuple<index, index>> to tensor<2x2x!tt.ptr<f32>> {state_placeholder}
@@ -50,8 +54,10 @@ module {
       %39 = tt.addptr %36, %31 : tensor<2x2x!tt.ptr<f32>>, tensor<2x2xi32>
       %40 = tts.make_tptr %arg1 to sizes: [2, 2], strides: [%18, %25], offsets: [%29, 0], shape: [0, 0], order: [] : <f32> to tensor<2x2x!tt.ptr<f32>>
       %41 = tt.addptr %35, %31 : tensor<2x2x!tt.ptr<f32>>, tensor<2x2xi32>
-      %42 = builtin.unrealized_conversion_cast %39 : tensor<2x2x!tt.ptr<f32>> to tuple<tensor<2x2x!tt.ptr<f32>>, tuple<index, index>, tuple<index, index>> {make_state}
-      %43 = builtin.unrealized_conversion_cast %41 : tensor<2x2x!tt.ptr<f32>> to tuple<tensor<2x2x!tt.ptr<f32>>, tuple<index, index>, tuple<index, index>> {make_state}
+      %c0_3 = arith.constant 0 : index
+      %42 = builtin.unrealized_conversion_cast %30, %c0_3, %11, %12 : index, index, index, index to tuple<tensor<2x2x!tt.ptr<f32>>, tuple<index, index>, tuple<index, index>>
+      %c0_4 = arith.constant 0 : index
+      %43 = builtin.unrealized_conversion_cast %29, %c0_4, %18, %25 : index, index, index, index to tuple<tensor<2x2x!tt.ptr<f32>>, tuple<index, index>, tuple<index, index>>
       scf.yield %42, %43 : tuple<tensor<2x2x!tt.ptr<f32>>, tuple<index, index>, tuple<index, index>>, tuple<tensor<2x2x!tt.ptr<f32>>, tuple<index, index>, tuple<index, index>>
     }
     tt.return

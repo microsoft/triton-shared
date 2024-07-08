@@ -7,6 +7,7 @@
 
 #include "triton-shared/AnalysisStructured/PtrAnalysis.h"
 #include "mlir/IR/BuiltinOps.h"
+#include "mlir/IR/BuiltinTypes.h"
 #include "mlir/Support/LogicalResult.h"
 #include "triton-shared/Analysis/MaskAnalysis.h"
 #include "triton-shared/Analysis/OpFoldResultUtils.h"
@@ -17,6 +18,7 @@
 #include "triton/Dialect/Triton/IR/Dialect.h"
 
 #include "llvm/ADT/TypeSwitch.h"
+#include "llvm/Support/Casting.h"
 #include "llvm/Support/Debug.h"
 #include <cassert>
 
@@ -799,6 +801,7 @@ LogicalResult PtrAnalysis::rewriteAdvanceOp(triton::AdvanceOp op) {
   return success();
 }
 
+// The ptr produced the unrealized_conversion_cast {state_placeholder}
 static Value getActualPtr(Value iterArg) {
   assert(iterArg.hasOneUse());
   auto unrealizedCast =
@@ -807,60 +810,106 @@ static Value getActualPtr(Value iterArg) {
 }
 
 LogicalResult PtrAnalysis::rewriteForOpNew(scf::ForOp op) {
-  OpBuilder builder(op);
+  OpBuilder builder(op.getRegion());
 
-  for (auto [i, arg] : llvm::enumerate(op.getInitArgs())) {
-    Value mappedV = nullptr;
-    if (auto unrealizedCast = arg.getDefiningOp<UnrealizedConversionCastOp>()) {
-      mappedV = ptrMap.lookupOrNull(unrealizedCast.getInputs()[0]);
-    }
-
-    if (!mappedV) {
+  for (auto [i, arg] : llvm::enumerate(op.getRegionIterArgs())) {
+    auto tupleType = llvm::dyn_cast<TupleType>(arg.getType());
+    if (!tupleType) {
       continue;
     }
 
-    // I'm trying to connect the pointer state of the iterargs to their initargs
-    // - the pointer in iterargs always come from unrealized_cast ops
-    // (state_placeholder)
-    // - the pointer from init-args always produced by
-    // realized_cast ops (make_state)
-    //
-    //
-    // tt.load takes in the pointer from unrealized_cast (state_placeholder)
-    // knownPtrs maps from the ptr to its state
-    // ptrMap records which ptr we have processed and what the new ptr value is
-    //
-    // i want the tts.load to take in the state_placeholder
-    // which means the ptrMap should record the unrealized_cast placeholder
-    // so the ptrMap entries for these can just map to themselves
-    //
+    // ok how do i even do this?
+    // i need to set this up in the way that 1->N conversion can work later
+    // what do i want 1->N conversion to do?
+    // or rather, what can it do?
     PtrState state;
-    if (auto makeTPtrOp = mappedV.getDefiningOp<tts::MakeTensorPtrOp>()) {
-
-      if (visitOperandMakeTPtr(makeTPtrOp, state, op.getLoc(), builder)
-              .succeeded()) {
-        auto p = getActualPtr(op.getRegionIterArg(i));
-        p.dump();
-        knownPtrs[p] = state;
-        ptrMap.map(p, p);
-        continue;
-      }
-    } else if (auto makeTensorPtrOp =
-                   mappedV.getDefiningOp<triton::MakeTensorPtrOp>()) {
-      assert(false && "Todo");
-
-      if (visitOperandMakeTensorPtr(makeTensorPtrOp, state, op.getLoc(),
-                                    builder)
-              .succeeded()) {
-        auto p = getActualPtr(op.getRegionIterArg(i));
-        knownPtrs[p] = state;
-        ptrMap.map(p, p);
-        continue;
-      }
-    } else if (auto addptrOp = mappedV.getDefiningOp<triton::AddPtrOp>()) {
-      assert(false && "Todo");
+    for (auto i = 0; i < tupleType.getTypes().size(); i++) {
+      
     }
+
+    auto p = getActualPtr(op.getRegionIterArg(i));
+    p.dump();
+    knownPtrs[p] = state;
+    ptrMap.map(p, p);
+    continue;
   }
+
+  // for (auto [i, arg] : llvm::enumerate(op.getInitArgs())) {
+  //   Value mappedV = nullptr;
+  //   if (auto unrealizedCast =
+  //   arg.getDefiningOp<UnrealizedConversionCastOp>()) {
+  //     mappedV = ptrMap.lookupOrNull(unrealizedCast.getInputs()[0]);
+  //   }
+
+  //   if (!mappedV) {
+  //     continue;
+  //   }
+
+  //   // I'm trying to connect the pointer state of the iterargs to their
+  //   initargs
+  //   // - the pointer in iterargs always come from unrealized_cast ops
+  //   // (state_placeholder)
+  //   // - the pointer from init-args always produced by
+  //   // realized_cast ops (make_state)
+  //   //
+  //   //
+  //   // tt.load takes in the pointer from unrealized_cast (state_placeholder)
+  //   // knownPtrs maps from the ptr to its state
+  //   // ptrMap records which ptr we have processed and what the new ptr value
+  //   is
+  //   //
+  //   // i want the tts.load to take in the state_placeholder
+  //   // which means the ptrMap should record the unrealized_cast placeholder
+  //   // so the ptrMap entries for these can just map to themselves
+  //   //
+  //   //
+  //   // ok so now i need to convert the unrealized cast back to the
+  //   // tts.make_tensor_ptr
+  //   //
+  //   // 1. for each state_placeholder, i need to get the state from iterargs
+  //   // 2. for each make_state, i need to:
+  //   //     - create strides / offsets ops
+  //   //     - pass those to the scf fors
+  //   //
+  //   // this state is the state coming into the scf for
+  //   // i need the state that uses the iterargs, not the init args
+  //   // the state for iter args is always an "empty" state that points to the
+  //   // iterargs
+  //   // because the other ops depend on this, i need to create this empty
+  //   state
+  //   // before calling rewriteOp on the scf for
+  //   // so what instructions do i use to describe this?
+  //   // i need an instruction that "decomposes" the tuple back into individual
+  //   // element then at this point might as well just use the
+  //   // state.make_tensor_ptr something
+
+  //   PtrState state;
+  //   if (auto makeTPtrOp = mappedV.getDefiningOp<tts::MakeTensorPtrOp>()) {
+
+  //     if (visitOperandMakeTPtr(makeTPtrOp, state, op.getLoc(), builder)
+  //             .succeeded()) {
+  //       auto p = getActualPtr(op.getRegionIterArg(i));
+  //       p.dump();
+  //       knownPtrs[p] = state;
+  //       ptrMap.map(p, p);
+  //       continue;
+  //     }
+  //   } else if (auto makeTensorPtrOp =
+  //                  mappedV.getDefiningOp<triton::MakeTensorPtrOp>()) {
+  //     assert(false && "Todo");
+
+  //     if (visitOperandMakeTensorPtr(makeTensorPtrOp, state, op.getLoc(),
+  //                                   builder)
+  //             .succeeded()) {
+  //       auto p = getActualPtr(op.getRegionIterArg(i));
+  //       knownPtrs[p] = state;
+  //       ptrMap.map(p, p);
+  //       continue;
+  //     }
+  //   } else if (auto addptrOp = mappedV.getDefiningOp<triton::AddPtrOp>()) {
+  //     assert(false && "Todo");
+  //   }
+  // }
 
   if (rewriteOp(op).failed()) {
     op->erase();
@@ -873,6 +922,7 @@ LogicalResult PtrAnalysis::rewriteForOpNew(scf::ForOp op) {
 }
 
 LogicalResult PtrAnalysis::rewriteForOp(scf::ForOp op) {
+  assert(0);
   SmallVector<Value> newInitArgs;
 
   SmallVector<std::pair<int, PtrState>, 5> initArgIndexState;
@@ -938,6 +988,7 @@ LogicalResult PtrAnalysis::rewriteForOp(scf::ForOp op) {
         auto constOp = builder.create<arith::ConstantOp>(
             op.getLoc(), builder.getIndexAttr(sIntAttr.value()));
         newInitArgs.push_back(constOp.getResult());
+        // TODO Nhat: I think this is not needed
         state.offsets[j] = constOp.getResult();
       } else {
         newInitArgs.push_back(s.get<Value>());
@@ -950,6 +1001,9 @@ LogicalResult PtrAnalysis::rewriteForOp(scf::ForOp op) {
         auto constOp = builder.create<arith::ConstantOp>(
             op.getLoc(), builder.getIndexAttr(sIntAttr.value()));
         newInitArgs.push_back(constOp.getResult());
+        // TODO Nhat: I think this is not needed
+        // because state is a copy, and state is pushed to knownPtrsTmp.
+        // but knownPtrsTmp overwrites these values with the iterargs anyway
         state.strides[j] = constOp.getResult();
       } else {
         newInitArgs.push_back(s.get<Value>());

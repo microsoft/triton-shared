@@ -13,6 +13,7 @@
 #include "mlir/IR/TypeRange.h"
 #include "mlir/IR/Types.h"
 #include "mlir/Support/LogicalResult.h"
+#include "triton-shared/Analysis/OpFoldResultUtils.h"
 #include "triton-shared/AnalysisStructured/PtrAnalysis.h"
 #include "triton-shared/Conversion/TritonToStructured/TritonToStructured.h"
 #include "triton-shared/Dialect/TritonStructured/IR/TritonStructuredDialect.h"
@@ -120,8 +121,7 @@ static std::optional<Value> buildCastOp(OpBuilder &builder, Type resultType,
   for (auto v : inputs) {
     // v.dump();
   }
-  auto op =
-      builder.create<UnrealizedConversionCastOp>(loc, resultType, inputs[0]);
+  auto op = builder.create<UnrealizedConversionCastOp>(loc, resultType, inputs);
   op->setAttr("state_placeholder", UnitAttr::get(builder.getContext()));
   return op.getResult(0);
 }
@@ -251,6 +251,23 @@ public:
     return success();
   }
 
+  LogicalResult decomposeMakeStateOp() {
+    auto moduleOp = getOperation();
+
+    RewritePatternSet patterns(&getContext());
+    ConversionTarget target(getContext());
+
+    target.addIllegalDialect<tts::TritonStructuredDialect>();
+
+    target.addDynamicallyLegalOp<UnrealizedConversionCastOp>(
+        [](Operation *op) { return !op->hasAttr("make_state"); });
+
+    if (failed(applyPartialConversion(moduleOp, target, std::move(patterns)))) {
+      signalPassFailure();
+    }
+    return success();
+  }
+
   void runOnOperation() override {
     (void)test();
     // return;
@@ -261,6 +278,42 @@ public:
     if (ptrAnalysis.rewriteOp(moduleOp).failed()) {
       moduleOp->emitWarning("PtrAnalysis failed");
     }
+
+    moduleOp.walk([&ptrAnalysis](UnrealizedConversionCastOp op) {
+      OpBuilder builder(op);
+      SmallVector<Value> inputs;
+      if (op->hasAttr("make_state")) {
+        assert(ptrAnalysis.knownPtrs.contains(op.getInputs()[0]));
+        tts::PtrState state = ptrAnalysis.knownPtrs[op.getInputs()[0]];
+
+        for (auto [j, s] : llvm::enumerate(state.offsets)) {
+          auto sIntAttr = getIntAttr(s);
+          if (sIntAttr) {
+            auto constOp = builder.create<arith::ConstantOp>(
+                op.getLoc(), builder.getIndexAttr(sIntAttr.value()));
+            inputs.push_back(constOp.getResult());
+          } else {
+            inputs.push_back(s.get<Value>());
+          }
+        }
+
+        for (auto [j, s] : llvm::enumerate(state.strides)) {
+          auto sIntAttr = getIntAttr(s);
+          if (sIntAttr) {
+            auto constOp = builder.create<arith::ConstantOp>(
+                op.getLoc(), builder.getIndexAttr(sIntAttr.value()));
+            inputs.push_back(constOp.getResult());
+          } else {
+            inputs.push_back(s.get<Value>());
+          }
+        }
+
+        auto newOp = builder.create<UnrealizedConversionCastOp>(
+            op->getLoc(), op->getResultTypes(), inputs);
+        op.replaceAllUsesWith(newOp);
+        op->erase();
+      }
+    });
   }
 };
 } // namespace
