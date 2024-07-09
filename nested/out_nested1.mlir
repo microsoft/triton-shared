@@ -1,6 +1,3 @@
-tuple<tensor<2x2x!tt.ptr<f32>>, tuple<index, index>, tuple<index, index>>
-%34 = unrealized_conversion_cast %arg9 : tuple<tensor<2x2x!tt.ptr<f32>>, tuple<index, index>, tuple<index, index>> to tensor<2x2x!tt.ptr<f32>> {state_placeholder}
-%33 = unrealized_conversion_cast %arg10 : tuple<tensor<2x2x!tt.ptr<f32>>, tuple<index, index>, tuple<index, index>> to tensor<2x2x!tt.ptr<f32>> {state_placeholder}
 module {
   tt.func public @nested1(%arg0: !tt.ptr<f32>, %arg1: !tt.ptr<f32>, %arg2: i32, %arg3: i32, %arg4: i32, %arg5: i32, %arg6: i32, %arg7: i32) attributes {noinline = false} {
     %c1_i32 = arith.constant 1 : i32
@@ -18,47 +15,30 @@ module {
     %8 = tt.broadcast %6 : tensor<1x2xi32> -> tensor<2x2xi32>
     %9 = arith.addi %7, %8 : tensor<2x2xi32>
     %10 = tt.splat %arg0 : !tt.ptr<f32> -> tensor<2x2x!tt.ptr<f32>>
-    %11 = arith.index_cast %arg4 : i32 to index
-    %12 = arith.index_cast %arg5 : i32 to index
-    %13 = tts.make_tptr %arg0 to sizes: [2, 2], strides: [%11, %12], offsets: [0, 0], shape: [0, 0], order: [] : <f32> to tensor<2x2x!tt.ptr<f32>>
-    %14 = tt.addptr %10, %9 : tensor<2x2x!tt.ptr<f32>>, tensor<2x2xi32>
-    %15 = tt.splat %arg6 : i32 -> tensor<2x1xi32>
-    %16 = arith.muli %15, %1 : tensor<2x1xi32>
-    %17 = tt.splat %arg1 : !tt.ptr<f32> -> tensor<2x1x!tt.ptr<f32>>
-    %18 = arith.index_cast %arg6 : i32 to index
-    %19 = tts.make_tptr %arg1 to sizes: [2, 1], strides: [%18, 0], offsets: [0, 0], shape: [0, 0], order: [] : <f32> to tensor<2x1x!tt.ptr<f32>>
-    %20 = tt.addptr %17, %16 : tensor<2x1x!tt.ptr<f32>>, tensor<2x1xi32>
-    %21 = tt.splat %arg7 : i32 -> tensor<1x2xi32>
-    %22 = arith.muli %21, %4 : tensor<1x2xi32>
-    %23 = tt.broadcast %20 : tensor<2x1x!tt.ptr<f32>> -> tensor<2x2x!tt.ptr<f32>>
-    %24 = tt.broadcast %22 : tensor<1x2xi32> -> tensor<2x2xi32>
-    %25 = arith.index_cast %arg7 : i32 to index
-    %26 = tts.make_tptr %arg1 to sizes: [2, 2], strides: [%18, %25], offsets: [0, 0], shape: [0, 0], order: [] : <f32> to tensor<2x2x!tt.ptr<f32>>
-    %27 = tt.addptr %23, %24 : tensor<2x2x!tt.ptr<f32>>, tensor<2x2xi32>
-    %28 = arith.muli %arg5, %c32_i32 : i32
-    %29 = arith.index_cast %28 : i32 to index
-    %30 = arith.index_cast %28 : i32 to index
-    %31 = tt.splat %28 : i32 -> tensor<2x2xi32>
-    %c0 = arith.constant 0 : index
-    %c0_0 = arith.constant 0 : index
-    %32 = builtin.unrealized_conversion_cast %c0, %c0_0, %11, %12 : index, index, index, index to tuple<tensor<2x2x!tt.ptr<f32>>, tuple<index, index>, tuple<index, index>>
-    %c0_1 = arith.constant 0 : index
-    %c0_2 = arith.constant 0 : index
-    %33 = builtin.unrealized_conversion_cast %c0_1, %c0_2, %18, %25 : index, index, index, index to tuple<tensor<2x2x!tt.ptr<f32>>, tuple<index, index>, tuple<index, index>>
-    %34:2 = scf.for %arg8 = %c0_i32 to %c2_i32 step %c1_i32 iter_args(%arg9 = %32, %arg10 = %33) -> (tuple<tensor<2x2x!tt.ptr<f32>>, tuple<index, index>, tuple<index, index>>, tuple<tensor<2x2x!tt.ptr<f32>>, tuple<index, index>, tuple<index, index>>)  : i32 {
-      %35 = builtin.unrealized_conversion_cast %arg10 : tuple<tensor<2x2x!tt.ptr<f32>>, tuple<index, index>, tuple<index, index>> to tensor<2x2x!tt.ptr<f32>> {state_placeholder}
-      %36 = builtin.unrealized_conversion_cast %arg9 : tuple<tensor<2x2x!tt.ptr<f32>>, tuple<index, index>, tuple<index, index>> to tensor<2x2x!tt.ptr<f32>> {state_placeholder}
-      %37 = "tts.load"(%36) <{operandSegmentSizes = array<i32: 1, 0, 0>, static_mask_dims = array<i64>}> : (tensor<2x2x!tt.ptr<f32>>) -> tensor<2x2xf32>
-      "tts.store"(%35, %37) <{static_mask_dims = array<i64>}> : (tensor<2x2x!tt.ptr<f32>>, tensor<2x2xf32>) -> ()
-      %38 = tts.make_tptr %arg0 to sizes: [2, 2], strides: [%11, %12], offsets: [%30, 0], shape: [0, 0], order: [] : <f32> to tensor<2x2x!tt.ptr<f32>>
-      %39 = tt.addptr %36, %31 : tensor<2x2x!tt.ptr<f32>>, tensor<2x2xi32>
-      %40 = tts.make_tptr %arg1 to sizes: [2, 2], strides: [%18, %25], offsets: [%29, 0], shape: [0, 0], order: [] : <f32> to tensor<2x2x!tt.ptr<f32>>
-      %41 = tt.addptr %35, %31 : tensor<2x2x!tt.ptr<f32>>, tensor<2x2xi32>
-      %c0_3 = arith.constant 0 : index
-      %42 = builtin.unrealized_conversion_cast %30, %c0_3, %11, %12 : index, index, index, index to tuple<tensor<2x2x!tt.ptr<f32>>, tuple<index, index>, tuple<index, index>>
-      %c0_4 = arith.constant 0 : index
-      %43 = builtin.unrealized_conversion_cast %29, %c0_4, %18, %25 : index, index, index, index to tuple<tensor<2x2x!tt.ptr<f32>>, tuple<index, index>, tuple<index, index>>
-      scf.yield %42, %43 : tuple<tensor<2x2x!tt.ptr<f32>>, tuple<index, index>, tuple<index, index>>, tuple<tensor<2x2x!tt.ptr<f32>>, tuple<index, index>, tuple<index, index>>
+    %11 = tt.addptr %10, %9 : tensor<2x2x!tt.ptr<f32>>, tensor<2x2xi32>
+    %12 = tt.splat %arg6 : i32 -> tensor<2x1xi32>
+    %13 = arith.muli %12, %1 : tensor<2x1xi32>
+    %14 = tt.splat %arg1 : !tt.ptr<f32> -> tensor<2x1x!tt.ptr<f32>>
+    %15 = tt.addptr %14, %13 : tensor<2x1x!tt.ptr<f32>>, tensor<2x1xi32>
+    %16 = tt.splat %arg7 : i32 -> tensor<1x2xi32>
+    %17 = arith.muli %16, %4 : tensor<1x2xi32>
+    %18 = tt.broadcast %15 : tensor<2x1x!tt.ptr<f32>> -> tensor<2x2x!tt.ptr<f32>>
+    %19 = tt.broadcast %17 : tensor<1x2xi32> -> tensor<2x2xi32>
+    %20 = tt.addptr %18, %19 : tensor<2x2x!tt.ptr<f32>>, tensor<2x2xi32>
+    %21 = arith.muli %arg5, %c32_i32 : i32
+    %22 = tt.splat %21 : i32 -> tensor<2x2xi32>
+    %23 = builtin.unrealized_conversion_cast %11 : tensor<2x2x!tt.ptr<f32>> to tuple<tensor<2x2x!tt.ptr<f32>>, tuple<index, index, index, index>> {make_state}
+    %24 = builtin.unrealized_conversion_cast %20 : tensor<2x2x!tt.ptr<f32>> to tuple<tensor<2x2x!tt.ptr<f32>>, tuple<index, index, index, index>> {make_state}
+    %25:2 = scf.for %arg8 = %c0_i32 to %c2_i32 step %c1_i32 iter_args(%arg9 = %23, %arg10 = %24) -> (tuple<tensor<2x2x!tt.ptr<f32>>, tuple<index, index, index, index>>, tuple<tensor<2x2x!tt.ptr<f32>>, tuple<index, index, index, index>>)  : i32 {
+      %26 = builtin.unrealized_conversion_cast %arg10 : tuple<tensor<2x2x!tt.ptr<f32>>, tuple<index, index, index, index>> to tensor<2x2x!tt.ptr<f32>> {state_placeholder}
+      %27 = builtin.unrealized_conversion_cast %arg9 : tuple<tensor<2x2x!tt.ptr<f32>>, tuple<index, index, index, index>> to tensor<2x2x!tt.ptr<f32>> {state_placeholder}
+      %28 = tt.load %27 : tensor<2x2x!tt.ptr<f32>>
+      tt.store %26, %28 : tensor<2x2x!tt.ptr<f32>>
+      %29 = tt.addptr %27, %22 : tensor<2x2x!tt.ptr<f32>>, tensor<2x2xi32>
+      %30 = tt.addptr %26, %22 : tensor<2x2x!tt.ptr<f32>>, tensor<2x2xi32>
+      %31 = builtin.unrealized_conversion_cast %29 : tensor<2x2x!tt.ptr<f32>> to tuple<tensor<2x2x!tt.ptr<f32>>, tuple<index, index, index, index>> {make_state}
+      %32 = builtin.unrealized_conversion_cast %30 : tensor<2x2x!tt.ptr<f32>> to tuple<tensor<2x2x!tt.ptr<f32>>, tuple<index, index, index, index>> {make_state}
+      scf.yield %31, %32 : tuple<tensor<2x2x!tt.ptr<f32>>, tuple<index, index, index, index>>, tuple<tensor<2x2x!tt.ptr<f32>>, tuple<index, index, index, index>>
     }
     tt.return
   }

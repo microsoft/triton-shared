@@ -112,6 +112,16 @@ buildCastAndOffsetOps(OpBuilder &builder, TypeRange resultTypes, Value input,
   return SmallVector<Value>{cast->getResult(0)};
 }
 
+static std::optional<SmallVector<Value>>
+buildCastAndOffsetOps2(OpBuilder &builder, TypeRange resultTypes, Value input,
+                       Location loc) {
+  assert(0);
+  auto cast =
+      builder.create<UnrealizedConversionCastOp>(loc, resultTypes, input);
+  cast->setAttr("zz", UnitAttr::get(builder.getContext()));
+  return SmallVector<Value>{cast->getResult(0)};
+}
+
 static std::optional<Value> buildCastOp(OpBuilder &builder, Type resultType,
                                         ValueRange inputs, Location loc) {
   // llvm::dbgs() << "build cast op\n";
@@ -148,32 +158,44 @@ struct UnrealizedCastConverter : public OpConversionPattern<triton::AddPtrOp> {
   }
 };
 
-struct ScalarAddptrConverter
-    : public OneToNOpConversionPattern<triton::AddPtrOp> {
+struct UnrealizedConverter
+    : public OneToNOpConversionPattern<UnrealizedConversionCastOp> {
   using OneToNOpConversionPattern::OneToNOpConversionPattern;
 
-  ScalarAddptrConverter(TypeConverter &typeConverter, MLIRContext *context)
-      : OneToNOpConversionPattern<triton::AddPtrOp>(typeConverter, context) {}
+  UnrealizedConverter(TypeConverter &typeConverter, MLIRContext *context)
+      : OneToNOpConversionPattern<UnrealizedConversionCastOp>(typeConverter,
+                                                              context) {}
 
   LogicalResult
-  matchAndRewrite(triton::AddPtrOp op, OpAdaptor adaptor,
+  matchAndRewrite(UnrealizedConversionCastOp op, OpAdaptor adaptor,
                   OneToNPatternRewriter &rewriter) const override {
-    if (!isa<ShapedType>(op.getType())) {
-      return failure();
-    }
 
     auto loc = op->getLoc();
-    auto origType = op.getResult().getType();
 
-    auto newType = getTypeConverter()->convertType(origType);
-    auto cast = rewriter.create<UnrealizedConversionCastOp>(
-        op->getLoc(), newType, op.getResult());
-    cast->setAttr("make_state", UnitAttr::get(rewriter.getContext()));
+    if (op->hasAttr("make_state")) {
 
-    rewriter.replaceOp(op, SmallVector<Value>{cast.getResult(0)},
-                       adaptor.getResultMapping());
+      auto tupleType = cast<TupleType>(op.getResult(0).getType());
+      SmallVector<Type> resTypes;
+      tupleType.getFlattenedTypes(resTypes);
 
-    return success();
+      auto cast = rewriter.create<UnrealizedConversionCastOp>(
+          op->getLoc(), resTypes, op.getInputs());
+      cast->setAttr("make_state_new", UnitAttr::get(rewriter.getContext()));
+
+      rewriter.replaceOp(op, cast->getResults(), adaptor.getResultMapping());
+      return success();
+
+    } else if (op->hasAttr("state_placeholder")) {
+      auto input = op.getInputs()[0];
+      // auto argCast = input.getDefiningOp();
+      // argCast->dump();
+      // op->dump();
+      // input.dump();
+      // argCast->getOperands()[0].dump();
+      rewriter.replaceOp(op, input);
+      return success();
+    }
+    return failure();
   }
 };
 
@@ -199,25 +221,22 @@ public:
 
     // We are doing a 1->1 type conversion here, where a triton pointer type
     // maps to a pair of {memref, index} type for the the buffer and offset.
-    converter.addConversion([context](RankedTensorType tensorType,
-                                      SmallVectorImpl<Type> &types)
-                                -> std::optional<LogicalResult> {
-      if (auto ptrType =
-              dyn_cast<triton::PointerType>(tensorType.getElementType())) {
-        auto rank = tensorType.getRank();
-        auto offsetTuple = TupleType::get(
-            context, SmallVector<Type>(rank, IndexType::get(context)));
-        auto strideTuple = TupleType::get(
-            context, SmallVector<Type>(rank, IndexType::get(context)));
-        auto tupleType = TupleType::get(
-            context, SmallVector<Type>{tensorType, offsetTuple, strideTuple});
-        tupleType.dump();
-        types = SmallVector<Type>{tupleType};
-        return success();
-      }
+    converter.addConversion(
+        [context](RankedTensorType tensorType, SmallVectorImpl<Type> &types)
+            -> std::optional<LogicalResult> {
+          if (auto ptrType =
+                  dyn_cast<triton::PointerType>(tensorType.getElementType())) {
+            auto rank = tensorType.getRank();
+            auto offsetAndStrideTuple = TupleType::get(
+                context, SmallVector<Type>(rank * 2, IndexType::get(context)));
+            auto tupleType = TupleType::get(
+                context, SmallVector<Type>{tensorType, offsetAndStrideTuple});
+            types = SmallVector<Type>{tupleType};
+            return success();
+          }
 
-      return failure();
-    });
+          return failure();
+        });
 
     // Hooks to compute the correct materialization, "argument" and "source"
     // materialization are used when we need to convert a pair of {memref,
@@ -251,6 +270,69 @@ public:
     return success();
   }
 
+  static std::optional<Value> buildCastOp2(OpBuilder &builder, Type resultType,
+                                           ValueRange inputs, Location loc) {
+    // assert(0);
+    llvm::dbgs() << "build cast op2\n";
+    llvm::dbgs() << "result type\n";
+    resultType.dump();
+    llvm::dbgs() << "inputs:\n";
+    for (auto v : inputs) {
+      v.dump();
+    }
+    return inputs[0];
+  }
+
+  LogicalResult test2() {
+    auto moduleOp = getOperation();
+
+    RewritePatternSet patterns(&getContext());
+
+    auto context = &getContext();
+    OneToNTypeConverter converter;
+    converter.addConversion([](Type type) { return type; });
+
+    // We are doing a 1->1 type conversion here, where a triton pointer type
+    // maps to a pair of {memref, index} type for the the buffer and offset.
+    converter.addConversion(
+        [context](TupleType tupleType, SmallVectorImpl<Type> &types)
+            -> std::optional<LogicalResult> {
+          tupleType.getFlattenedTypes(types);
+          return success();
+        });
+
+    // Hooks to compute the correct materialization, "argument" and "source"
+    // materialization are used when we need to convert a pair of {memref,
+    // index} type back to the original triton pointer type.
+    // These are used when there are ops that still need to use the original
+    // pointer type. For instance, we convert the result of tt.addptr from
+    // tt.ptr type to a pair of {memref, index}, but the original ptr result is
+    // still being used by another tt.load or tt.store.
+    converter.addArgumentMaterialization(buildCastOp2);
+    // converter.addSourceMaterialization(buildCastOp2);
+
+    // Compute the target materialization, given a value with the pointer type,
+    // convert that value to a pair of {memref, index} type.
+    converter.addTargetMaterialization(buildCastAndOffsetOps2);
+
+    patterns.add<UnrealizedConverter>(converter, context);
+
+    scf::populateSCFStructuralOneToNTypeConversions(converter, patterns);
+
+    if (failed(applyPartialOneToNConversion(getOperation(), converter,
+                                            std::move(patterns)))) {
+      return failure();
+    }
+
+    // PassManager pm(&getContext(), moduleOp.getOperationName());
+    // pm.addPass(createCanonicalizerPass());
+    // if (failed(runPipeline(pm, getOperation()))) {
+    //   return failure();
+    // }
+
+    return success();
+  }
+
   LogicalResult decomposeMakeStateOp() {
     auto moduleOp = getOperation();
 
@@ -270,7 +352,9 @@ public:
 
   void runOnOperation() override {
     (void)test();
-    // return;
+    // assert(0);
+    (void)test2();
+    return;
 
     auto moduleOp = getOperation();
 

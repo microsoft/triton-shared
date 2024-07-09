@@ -811,6 +811,9 @@ static Value getActualPtr(Value iterArg) {
 
 LogicalResult PtrAnalysis::rewriteForOpNew(scf::ForOp op) {
   OpBuilder builder(op.getRegion());
+  RankedTensorType t;
+  Type tt;
+  // tt.
 
   for (auto [i, arg] : llvm::enumerate(op.getRegionIterArgs())) {
     auto tupleType = llvm::dyn_cast<TupleType>(arg.getType());
@@ -824,7 +827,6 @@ LogicalResult PtrAnalysis::rewriteForOpNew(scf::ForOp op) {
     // or rather, what can it do?
     PtrState state;
     for (auto i = 0; i < tupleType.getTypes().size(); i++) {
-      
     }
 
     auto p = getActualPtr(op.getRegionIterArg(i));
