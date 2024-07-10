@@ -365,19 +365,22 @@ public:
 
     moduleOp.walk([&ptrAnalysis](UnrealizedConversionCastOp op) {
       OpBuilder builder(op);
-      SmallVector<Value> inputs;
-      if (op->hasAttr("make_state")) {
-        assert(ptrAnalysis.knownPtrs.contains(op.getInputs()[0]));
-        tts::PtrState state = ptrAnalysis.knownPtrs[op.getInputs()[0]];
+      SmallVector<Value> replacements;
+      if (op->hasAttr("make_state_new")) {
+        auto origPtr = op.getInputs()[0];
+        assert(ptrAnalysis.knownPtrs.contains(origPtr));
+        tts::PtrState state = ptrAnalysis.knownPtrs[origPtr];
+
+        replacements.push_back(origPtr);
 
         for (auto [j, s] : llvm::enumerate(state.offsets)) {
           auto sIntAttr = getIntAttr(s);
           if (sIntAttr) {
             auto constOp = builder.create<arith::ConstantOp>(
                 op.getLoc(), builder.getIndexAttr(sIntAttr.value()));
-            inputs.push_back(constOp.getResult());
+            replacements.push_back(constOp.getResult());
           } else {
-            inputs.push_back(s.get<Value>());
+            replacements.push_back(s.get<Value>());
           }
         }
 
@@ -386,15 +389,13 @@ public:
           if (sIntAttr) {
             auto constOp = builder.create<arith::ConstantOp>(
                 op.getLoc(), builder.getIndexAttr(sIntAttr.value()));
-            inputs.push_back(constOp.getResult());
+            replacements.push_back(constOp.getResult());
           } else {
-            inputs.push_back(s.get<Value>());
+            replacements.push_back(s.get<Value>());
           }
         }
 
-        auto newOp = builder.create<UnrealizedConversionCastOp>(
-            op->getLoc(), op->getResultTypes(), inputs);
-        op.replaceAllUsesWith(newOp);
+        op->replaceAllUsesWith(replacements);
         op->erase();
       }
     });

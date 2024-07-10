@@ -831,7 +831,7 @@ LogicalResult PtrAnalysis::rewriteForOpNew(scf::ForOp op) {
     Value origPtr = nullptr;
 
     if (auto unrealizedCast = arg.getDefiningOp<UnrealizedConversionCastOp>()) {
-      unrealizedCast->dump();
+      // unrealizedCast->dump();
       origPtr = unrealizedCast.getInputs()[0];
     }
 
@@ -844,16 +844,17 @@ LogicalResult PtrAnalysis::rewriteForOpNew(scf::ForOp op) {
     PtrState state = knownPtrs[origPtr];
 
     // modify the state to point to iter args
-    llvm::dbgs() << "current index " << i << "\n";
-    arg.dump();
+    // llvm::dbgs() << "current index " << i << "\n";
+
+    // arg.dump();
     int cnt = i + 1;
     for (auto it = state.offsets.begin(); it != state.offsets.end(); it++) {
-      llvm::dbgs() << "setting offset to iterarg index " << (cnt) << "\n";
+      // llvm::dbgs() << "setting offset to iterarg index " << (cnt) << "\n";
       *it = op.getRegionIterArgs()[cnt++];
     }
 
     for (auto it = state.strides.begin(); it != state.strides.end(); it++) {
-      llvm::dbgs() << "setting stride to iterarg index " << (cnt) << "\n";
+      // llvm::dbgs() << "setting stride to iterarg index " << (cnt) << "\n";
       *it = op.getRegionIterArgs()[cnt++];
     }
 
@@ -879,7 +880,7 @@ LogicalResult PtrAnalysis::rewriteForOpNew(scf::ForOp op) {
 }
 
 LogicalResult PtrAnalysis::rewriteForOp(scf::ForOp op) {
-  assert(0);
+  // assert(0);
   SmallVector<Value> newInitArgs;
 
   SmallVector<std::pair<int, PtrState>, 5> initArgIndexState;
