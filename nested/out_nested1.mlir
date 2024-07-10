@@ -1,3 +1,21 @@
+build cast op2
+result type
+tuple<tensor<2x2x!tt.ptr<f32>>, tuple<index, index, index, index>>
+inputs:
+<block argument> of type 'tensor<2x2x!tt.ptr<f32>>' at index: 6
+<block argument> of type 'index' at index: 7
+<block argument> of type 'index' at index: 8
+<block argument> of type 'index' at index: 9
+<block argument> of type 'index' at index: 10
+build cast op2
+result type
+tuple<tensor<2x2x!tt.ptr<f32>>, tuple<index, index, index, index>>
+inputs:
+<block argument> of type 'tensor<2x2x!tt.ptr<f32>>' at index: 1
+<block argument> of type 'index' at index: 2
+<block argument> of type 'index' at index: 3
+<block argument> of type 'index' at index: 4
+<block argument> of type 'index' at index: 5
 module {
   tt.func public @nested1(%arg0: !tt.ptr<f32>, %arg1: !tt.ptr<f32>, %arg2: i32, %arg3: i32, %arg4: i32, %arg5: i32, %arg6: i32, %arg7: i32) attributes {noinline = false} {
     %c1_i32 = arith.constant 1 : i32
@@ -27,18 +45,16 @@ module {
     %20 = tt.addptr %18, %19 : tensor<2x2x!tt.ptr<f32>>, tensor<2x2xi32>
     %21 = arith.muli %arg5, %c32_i32 : i32
     %22 = tt.splat %21 : i32 -> tensor<2x2xi32>
-    %23 = builtin.unrealized_conversion_cast %11 : tensor<2x2x!tt.ptr<f32>> to tuple<tensor<2x2x!tt.ptr<f32>>, tuple<index, index, index, index>> {make_state}
-    %24 = builtin.unrealized_conversion_cast %20 : tensor<2x2x!tt.ptr<f32>> to tuple<tensor<2x2x!tt.ptr<f32>>, tuple<index, index, index, index>> {make_state}
-    %25:2 = scf.for %arg8 = %c0_i32 to %c2_i32 step %c1_i32 iter_args(%arg9 = %23, %arg10 = %24) -> (tuple<tensor<2x2x!tt.ptr<f32>>, tuple<index, index, index, index>>, tuple<tensor<2x2x!tt.ptr<f32>>, tuple<index, index, index, index>>)  : i32 {
-      %26 = builtin.unrealized_conversion_cast %arg10 : tuple<tensor<2x2x!tt.ptr<f32>>, tuple<index, index, index, index>> to tensor<2x2x!tt.ptr<f32>> {state_placeholder}
-      %27 = builtin.unrealized_conversion_cast %arg9 : tuple<tensor<2x2x!tt.ptr<f32>>, tuple<index, index, index, index>> to tensor<2x2x!tt.ptr<f32>> {state_placeholder}
-      %28 = tt.load %27 : tensor<2x2x!tt.ptr<f32>>
-      tt.store %26, %28 : tensor<2x2x!tt.ptr<f32>>
-      %29 = tt.addptr %27, %22 : tensor<2x2x!tt.ptr<f32>>, tensor<2x2xi32>
-      %30 = tt.addptr %26, %22 : tensor<2x2x!tt.ptr<f32>>, tensor<2x2xi32>
-      %31 = builtin.unrealized_conversion_cast %29 : tensor<2x2x!tt.ptr<f32>> to tuple<tensor<2x2x!tt.ptr<f32>>, tuple<index, index, index, index>> {make_state}
-      %32 = builtin.unrealized_conversion_cast %30 : tensor<2x2x!tt.ptr<f32>> to tuple<tensor<2x2x!tt.ptr<f32>>, tuple<index, index, index, index>> {make_state}
-      scf.yield %31, %32 : tuple<tensor<2x2x!tt.ptr<f32>>, tuple<index, index, index, index>>, tuple<tensor<2x2x!tt.ptr<f32>>, tuple<index, index, index, index>>
+    %23:5 = builtin.unrealized_conversion_cast %11 : tensor<2x2x!tt.ptr<f32>> to tensor<2x2x!tt.ptr<f32>>, index, index, index, index {make_state_new}
+    %24:5 = builtin.unrealized_conversion_cast %20 : tensor<2x2x!tt.ptr<f32>> to tensor<2x2x!tt.ptr<f32>>, index, index, index, index {make_state_new}
+    %25:10 = scf.for %arg8 = %c0_i32 to %c2_i32 step %c1_i32 iter_args(%arg9 = %23#0, %arg10 = %23#1, %arg11 = %23#2, %arg12 = %23#3, %arg13 = %23#4, %arg14 = %24#0, %arg15 = %24#1, %arg16 = %24#2, %arg17 = %24#3, %arg18 = %24#4) -> (tensor<2x2x!tt.ptr<f32>>, index, index, index, index, tensor<2x2x!tt.ptr<f32>>, index, index, index, index)  : i32 {
+      %26 = tt.load %arg9 : tensor<2x2x!tt.ptr<f32>>
+      tt.store %arg14, %26 : tensor<2x2x!tt.ptr<f32>>
+      %27 = tt.addptr %arg9, %22 : tensor<2x2x!tt.ptr<f32>>, tensor<2x2xi32>
+      %28 = tt.addptr %arg14, %22 : tensor<2x2x!tt.ptr<f32>>, tensor<2x2xi32>
+      %29:5 = builtin.unrealized_conversion_cast %27 : tensor<2x2x!tt.ptr<f32>> to tensor<2x2x!tt.ptr<f32>>, index, index, index, index {make_state_new}
+      %30:5 = builtin.unrealized_conversion_cast %28 : tensor<2x2x!tt.ptr<f32>> to tensor<2x2x!tt.ptr<f32>>, index, index, index, index {make_state_new}
+      scf.yield %29#0, %29#1, %29#2, %29#3, %29#4, %30#0, %30#1, %30#2, %30#3, %30#4 : tensor<2x2x!tt.ptr<f32>>, index, index, index, index, tensor<2x2x!tt.ptr<f32>>, index, index, index, index
     }
     tt.return
   }

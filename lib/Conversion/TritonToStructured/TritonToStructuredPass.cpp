@@ -273,13 +273,13 @@ public:
   static std::optional<Value> buildCastOp2(OpBuilder &builder, Type resultType,
                                            ValueRange inputs, Location loc) {
     // assert(0);
-    llvm::dbgs() << "build cast op2\n";
-    llvm::dbgs() << "result type\n";
-    resultType.dump();
-    llvm::dbgs() << "inputs:\n";
-    for (auto v : inputs) {
-      v.dump();
-    }
+    // llvm::dbgs() << "build cast op2\n";
+    // llvm::dbgs() << "result type\n";
+    // resultType.dump();
+    // llvm::dbgs() << "inputs:\n";
+    // for (auto v : inputs) {
+    //   v.dump();
+    // }
     return inputs[0];
   }
 
@@ -354,7 +354,7 @@ public:
     (void)test();
     // assert(0);
     (void)test2();
-    return;
+    // return;
 
     auto moduleOp = getOperation();
 

@@ -16,6 +16,7 @@
 #include "mlir/Transforms/DialectConversion.h"
 #include "triton-shared/Dialect/TritonStructured/IR/TritonStructuredDialect.h"
 #include "triton/Dialect/Triton/IR/Dialect.h"
+#include "triton/Dialect/Triton/IR/Types.h"
 
 #include "llvm/ADT/TypeSwitch.h"
 #include "llvm/Support/Casting.h"
@@ -809,109 +810,63 @@ static Value getActualPtr(Value iterArg) {
   return unrealizedCast->getResult(0);
 }
 
+static bool isPtr(Type t) {
+  if (auto tensor = llvm::dyn_cast<RankedTensorType>(t)) {
+    return isa<triton::PointerType>(tensor.getElementType());
+  }
+  return isa<triton::PointerType>(t);
+}
+
 LogicalResult PtrAnalysis::rewriteForOpNew(scf::ForOp op) {
   OpBuilder builder(op.getRegion());
   RankedTensorType t;
   Type tt;
   // tt.
 
-  for (auto [i, arg] : llvm::enumerate(op.getRegionIterArgs())) {
-    auto tupleType = llvm::dyn_cast<TupleType>(arg.getType());
-    if (!tupleType) {
+  for (auto [i, arg] : llvm::enumerate(op.getInitArgs())) {
+    if (!isPtr(arg.getType())) {
       continue;
     }
 
-    // ok how do i even do this?
-    // i need to set this up in the way that 1->N conversion can work later
-    // what do i want 1->N conversion to do?
-    // or rather, what can it do?
-    PtrState state;
-    for (auto i = 0; i < tupleType.getTypes().size(); i++) {
+    Value origPtr = nullptr;
+
+    if (auto unrealizedCast = arg.getDefiningOp<UnrealizedConversionCastOp>()) {
+      unrealizedCast->dump();
+      origPtr = unrealizedCast.getInputs()[0];
     }
 
-    auto p = getActualPtr(op.getRegionIterArg(i));
-    p.dump();
-    knownPtrs[p] = state;
-    ptrMap.map(p, p);
-    continue;
+    if (!origPtr) {
+      continue;
+    }
+
+    // if i need to get the state, just need to do knownPtrs[ptr]
+    assert(knownPtrs.count(origPtr));
+    PtrState state = knownPtrs[origPtr];
+
+    // modify the state to point to iter args
+    llvm::dbgs() << "current index " << i << "\n";
+    arg.dump();
+    int cnt = i + 1;
+    for (auto it = state.offsets.begin(); it != state.offsets.end(); it++) {
+      llvm::dbgs() << "setting offset to iterarg index " << (cnt) << "\n";
+      *it = op.getRegionIterArgs()[cnt++];
+    }
+
+    for (auto it = state.strides.begin(); it != state.strides.end(); it++) {
+      llvm::dbgs() << "setting stride to iterarg index " << (cnt) << "\n";
+      *it = op.getRegionIterArgs()[cnt++];
+    }
+
+    auto key = op.getRegionIterArgs()[i];
+    knownPtrs[key] = state;
+
+    if (state.getRank() != 0) {
+      OpBuilder::InsertionGuard guard(builder);
+      builder.setInsertionPointToStart(&op.getRegion().front());
+      auto maketptrOp = state.createTTSMakeTensorPtrOp(builder, op.getLoc());
+      ptrMap.map(key, maketptrOp.getResult());
+    }
   }
-
-  // for (auto [i, arg] : llvm::enumerate(op.getInitArgs())) {
-  //   Value mappedV = nullptr;
-  //   if (auto unrealizedCast =
-  //   arg.getDefiningOp<UnrealizedConversionCastOp>()) {
-  //     mappedV = ptrMap.lookupOrNull(unrealizedCast.getInputs()[0]);
-  //   }
-
-  //   if (!mappedV) {
-  //     continue;
-  //   }
-
-  //   // I'm trying to connect the pointer state of the iterargs to their
-  //   initargs
-  //   // - the pointer in iterargs always come from unrealized_cast ops
-  //   // (state_placeholder)
-  //   // - the pointer from init-args always produced by
-  //   // realized_cast ops (make_state)
-  //   //
-  //   //
-  //   // tt.load takes in the pointer from unrealized_cast (state_placeholder)
-  //   // knownPtrs maps from the ptr to its state
-  //   // ptrMap records which ptr we have processed and what the new ptr value
-  //   is
-  //   //
-  //   // i want the tts.load to take in the state_placeholder
-  //   // which means the ptrMap should record the unrealized_cast placeholder
-  //   // so the ptrMap entries for these can just map to themselves
-  //   //
-  //   //
-  //   // ok so now i need to convert the unrealized cast back to the
-  //   // tts.make_tensor_ptr
-  //   //
-  //   // 1. for each state_placeholder, i need to get the state from iterargs
-  //   // 2. for each make_state, i need to:
-  //   //     - create strides / offsets ops
-  //   //     - pass those to the scf fors
-  //   //
-  //   // this state is the state coming into the scf for
-  //   // i need the state that uses the iterargs, not the init args
-  //   // the state for iter args is always an "empty" state that points to the
-  //   // iterargs
-  //   // because the other ops depend on this, i need to create this empty
-  //   state
-  //   // before calling rewriteOp on the scf for
-  //   // so what instructions do i use to describe this?
-  //   // i need an instruction that "decomposes" the tuple back into individual
-  //   // element then at this point might as well just use the
-  //   // state.make_tensor_ptr something
-
-  //   PtrState state;
-  //   if (auto makeTPtrOp = mappedV.getDefiningOp<tts::MakeTensorPtrOp>()) {
-
-  //     if (visitOperandMakeTPtr(makeTPtrOp, state, op.getLoc(), builder)
-  //             .succeeded()) {
-  //       auto p = getActualPtr(op.getRegionIterArg(i));
-  //       p.dump();
-  //       knownPtrs[p] = state;
-  //       ptrMap.map(p, p);
-  //       continue;
-  //     }
-  //   } else if (auto makeTensorPtrOp =
-  //                  mappedV.getDefiningOp<triton::MakeTensorPtrOp>()) {
-  //     assert(false && "Todo");
-
-  //     if (visitOperandMakeTensorPtr(makeTensorPtrOp, state, op.getLoc(),
-  //                                   builder)
-  //             .succeeded()) {
-  //       auto p = getActualPtr(op.getRegionIterArg(i));
-  //       knownPtrs[p] = state;
-  //       ptrMap.map(p, p);
-  //       continue;
-  //     }
-  //   } else if (auto addptrOp = mappedV.getDefiningOp<triton::AddPtrOp>()) {
-  //     assert(false && "Todo");
-  //   }
-  // }
 
   if (rewriteOp(op).failed()) {
     op->erase();
@@ -960,8 +915,8 @@ LogicalResult PtrAnalysis::rewriteForOp(scf::ForOp op) {
         }
       } else if (auto addptrOp = mappedV.getDefiningOp<triton::AddPtrOp>()) {
         // We always use tt.addptr for scalar pointers. If the defininig op is
-        // tt.addptr and we have a non-scalar pointer, something must have gone
-        // wrong with the pass.
+        // tt.addptr and we have a non-scalar pointer, something must have
+        // gone wrong with the pass.
         assert(!isa<RankedTensorType>(addptrOp.getResult().getType()));
         if (visitOperandAddptr(addptrOp, state, op.getLoc(), builder)
                 .succeeded()) {
@@ -977,9 +932,9 @@ LogicalResult PtrAnalysis::rewriteForOp(scf::ForOp op) {
     newInitArgs.push_back(arg);
   }
 
-  // For each of the PtrState recorded in the last step, insert new instructions
-  // to describe offset and stride for each dimension and append them to init
-  // args
+  // For each of the PtrState recorded in the last step, insert new
+  // instructions to describe offset and stride for each dimension and append
+  // them to init args
   for (auto [i, state] : initArgIndexState) {
     // For each dimension, if the corresponding offset and stride is an
     // integer attribute, create a constant value and append them at the
@@ -1043,8 +998,8 @@ LogicalResult PtrAnalysis::rewriteForOp(scf::ForOp op) {
 
   // Convert the book-keeping data structure to use the correct key and value.
   // Key is converted from init arg index to newly created block arg, and
-  // Value's PtrState fields are converted from init arg to newly created block
-  // arg
+  // Value's PtrState fields are converted from init arg to newly created
+  // block arg
   int cnt = op.getRegionIterArgs().size();
   for (auto [i, state] : knownPtrsTmp) {
     for (auto it = state.offsets.begin(); it != state.offsets.end(); it++) {
@@ -1084,7 +1039,8 @@ LogicalResult PtrAnalysis::rewriteForOp(scf::ForOp op) {
     //   // more operations to update %offset
     // }
     // If %tensor_of_ptr is not used (i.e., %tensor_of_ptr is updated before
-    // used in the original IR), it will simply be removed by canonicalization.
+    // used in the original IR), it will simply be removed by
+    // canonicalization.
 
     // For scalar pointers, there is no need to create a tts.addptr at the
     // beginning of the loop body. We don't lower tt.load and tt.store on
@@ -1154,8 +1110,8 @@ PtrAnalysis::rewriteYieldOp(scf::YieldOp op,
   OpBuilder builder(op);
 
   // For each of the init arg that we added additional Values in for loop, we
-  // need to add corresponding Values as yield operands. The loop below gathers
-  // PtrState for those values.
+  // need to add corresponding Values as yield operands. The loop below
+  // gathers PtrState for those values.
   SmallVector<PtrState, 5> initArgState;
   for (auto [i, v] : llvm::enumerate(op->getOperands())) {
     // If this operand is not rewritten by forOp, skip
