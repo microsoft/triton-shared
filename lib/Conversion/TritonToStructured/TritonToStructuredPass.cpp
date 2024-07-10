@@ -371,7 +371,7 @@ public:
         assert(ptrAnalysis.knownPtrs.contains(origPtr));
         tts::PtrState state = ptrAnalysis.knownPtrs[origPtr];
 
-        replacements.push_back(origPtr);
+        replacements.push_back(ptrAnalysis.ptrMap.lookup(origPtr));
 
         for (auto [j, s] : llvm::enumerate(state.offsets)) {
           auto sIntAttr = getIntAttr(s);

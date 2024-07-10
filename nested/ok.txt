@@ -1,0 +1,1613 @@
+** Replace : 'arith.constant'(0x563b3c5b15c0)
+** Modified: 'scf.for'(0x563b3c528d00)
+** Erase   : 'arith.constant'(0x563b3c5b15c0)
+** Replace : 'arith.constant'(0x563b3c5b1690)
+** Modified: 'scf.for'(0x563b3c528d00)
+** Erase   : 'arith.constant'(0x563b3c5b1690)
+** Replace : 'arith.constant'(0x563b3c5b1760)
+** Modified: 'scf.for'(0x563b3c528d00)
+** Erase   : 'arith.constant'(0x563b3c5b1760)
+
+//===-------------------------------------------===//
+Processing operation : 'tt.func'(0x563b3c5b0e10) {
+} -> failure : pattern failed to match
+//===-------------------------------------------===//
+
+//===-------------------------------------------===//
+Processing operation : 'arith.constant'(0x563b3c5a8dc0) {
+  %1 = "arith.constant"() <{value = 1 : i32}> : () -> i32
+
+} -> failure : pattern failed to match
+//===-------------------------------------------===//
+
+//===-------------------------------------------===//
+Processing operation : 'arith.constant'(0x563b3c5a8e90) {
+  %2 = "arith.constant"() <{value = 2 : i32}> : () -> i32
+
+} -> failure : pattern failed to match
+//===-------------------------------------------===//
+
+//===-------------------------------------------===//
+Processing operation : 'arith.constant'(0x563b3c5a93e0) {
+  %3 = "arith.constant"() <{value = 0 : i32}> : () -> i32
+
+} -> failure : pattern failed to match
+//===-------------------------------------------===//
+
+//===-------------------------------------------===//
+Processing operation : 'arith.constant'(0x563b3c5a9930) {
+  %4 = "arith.constant"() <{value = 32 : i32}> : () -> i32
+
+} -> failure : pattern failed to match
+//===-------------------------------------------===//
+
+//===-------------------------------------------===//
+Processing operation : 'tt.make_range'(0x563b3c5aa2e0) {
+  %5 = "tt.make_range"() <{end = 2 : i32, start = 0 : i32}> : () -> tensor<2xi32>
+
+} -> failure : pattern failed to match
+//===-------------------------------------------===//
+
+//===-------------------------------------------===//
+Processing operation : 'tt.expand_dims'(0x563b3c5aaef0) {
+  %6 = "tt.expand_dims"(%5) <{axis = 1 : i32}> : (tensor<2xi32>) -> tensor<2x1xi32>
+
+
+  * Pattern  : 'tt.expand_dims -> ()' {
+  } -> failure : pattern failed to match
+} -> failure : pattern failed to match
+//===-------------------------------------------===//
+
+//===-------------------------------------------===//
+Processing operation : 'tt.splat'(0x563b3c5aaf80) {
+  %7 = "tt.splat"(%arg4) : (i32) -> tensor<2x1xi32>
+
+} -> failure : pattern failed to match
+//===-------------------------------------------===//
+
+//===-------------------------------------------===//
+Processing operation : 'arith.muli'(0x563b3c5ab030) {
+  %8 = "arith.muli"(%6, %7) <{overflowFlags = #arith.overflow<none>}> : (tensor<2x1xi32>, tensor<2x1xi32>) -> tensor<2x1xi32>
+
+
+  * Pattern (anonymous namespace)::MulIMulIConstant : 'arith.muli -> (arith.constant, arith.muli)' {
+    ** Match Failure : castedOp1 is not ::mlir::arith::MulIOp type
+  } -> failure : pattern failed to match
+} -> failure : pattern failed to match
+//===-------------------------------------------===//
+
+//===-------------------------------------------===//
+Processing operation : 'tt.expand_dims'(0x563b3c5abec0) {
+  %9 = "tt.expand_dims"(%5) <{axis = 0 : i32}> : (tensor<2xi32>) -> tensor<1x2xi32>
+
+
+  * Pattern  : 'tt.expand_dims -> ()' {
+  } -> failure : pattern failed to match
+} -> failure : pattern failed to match
+//===-------------------------------------------===//
+
+//===-------------------------------------------===//
+Processing operation : 'tt.splat'(0x563b3c5abfb0) {
+  %10 = "tt.splat"(%arg5) : (i32) -> tensor<1x2xi32>
+
+} -> failure : pattern failed to match
+//===-------------------------------------------===//
+
+//===-------------------------------------------===//
+Processing operation : 'arith.muli'(0x563b3c5ac0a0) {
+  %11 = "arith.muli"(%9, %10) <{overflowFlags = #arith.overflow<none>}> : (tensor<1x2xi32>, tensor<1x2xi32>) -> tensor<1x2xi32>
+
+
+  * Pattern (anonymous namespace)::MulIMulIConstant : 'arith.muli -> (arith.constant, arith.muli)' {
+    ** Match Failure : castedOp1 is not ::mlir::arith::MulIOp type
+  } -> failure : pattern failed to match
+} -> failure : pattern failed to match
+//===-------------------------------------------===//
+
+//===-------------------------------------------===//
+Processing operation : 'tt.broadcast'(0x563b3c5ac1b0) {
+  %12 = "tt.broadcast"(%8) : (tensor<2x1xi32>) -> tensor<2x2xi32>
+
+
+  * Pattern  : 'tt.broadcast -> ()' {
+  } -> failure : pattern failed to match
+} -> failure : pattern failed to match
+//===-------------------------------------------===//
+
+//===-------------------------------------------===//
+Processing operation : 'tt.broadcast'(0x563b3c5ac720) {
+  %13 = "tt.broadcast"(%11) : (tensor<1x2xi32>) -> tensor<2x2xi32>
+
+
+  * Pattern  : 'tt.broadcast -> ()' {
+  } -> failure : pattern failed to match
+} -> failure : pattern failed to match
+//===-------------------------------------------===//
+
+//===-------------------------------------------===//
+Processing operation : 'arith.addi'(0x563b3c5ac810) {
+  %14 = "arith.addi"(%12, %13) <{overflowFlags = #arith.overflow<none>}> : (tensor<2x2xi32>, tensor<2x2xi32>) -> tensor<2x2xi32>
+
+
+  * Pattern (anonymous namespace)::AddIAddConstant : 'arith.addi -> (arith.addi, arith.constant)' {
+    ** Match Failure : castedOp1 is not ::mlir::arith::AddIOp type
+  } -> failure : pattern failed to match
+
+  * Pattern (anonymous namespace)::AddISubConstantRHS : 'arith.addi -> (arith.addi, arith.constant)' {
+    ** Match Failure : castedOp1 is not ::mlir::arith::SubIOp type
+  } -> failure : pattern failed to match
+
+  * Pattern (anonymous namespace)::AddISubConstantLHS : 'arith.addi -> (arith.constant, arith.subi)' {
+    ** Match Failure : castedOp1 is not ::mlir::arith::SubIOp type
+  } -> failure : pattern failed to match
+
+  * Pattern (anonymous namespace)::AddIMulNegativeOneRhs : 'arith.addi -> (arith.subi)' {
+    ** Match Failure : castedOp1 is not ::mlir::arith::MulIOp type
+  } -> failure : pattern failed to match
+
+  * Pattern (anonymous namespace)::AddIMulNegativeOneLhs : 'arith.addi -> (arith.subi)' {
+    ** Match Failure : castedOp1 is not ::mlir::arith::MulIOp type
+  } -> failure : pattern failed to match
+} -> failure : pattern failed to match
+//===-------------------------------------------===//
+
+//===-------------------------------------------===//
+Processing operation : 'tt.splat'(0x563b3c5acda0) {
+  %15 = "tt.splat"(%arg0) : (!tt.ptr<f32>) -> tensor<2x2x!tt.ptr<f32>>
+
+} -> failure : pattern failed to match
+//===-------------------------------------------===//
+
+//===-------------------------------------------===//
+Processing operation : 'arith.index_cast'(0x563b3c5ace90) {
+  %16 = "arith.index_cast"(%arg4) : (i32) -> index
+
+
+  * Pattern (anonymous namespace)::IndexCastOfIndexCast : 'arith.index_cast -> ()' {
+    ** Match Failure : There's no operation that defines operand 0 of castedOp0
+  } -> failure : pattern failed to match
+
+  * Pattern (anonymous namespace)::IndexCastOfExtSI : 'arith.index_cast -> (arith.index_cast)' {
+    ** Match Failure : There's no operation that defines operand 0 of castedOp0
+  } -> failure : pattern failed to match
+} -> failure : pattern failed to match
+//===-------------------------------------------===//
+
+//===-------------------------------------------===//
+Processing operation : 'arith.index_cast'(0x563b3c5acf80) {
+  %17 = "arith.index_cast"(%arg5) : (i32) -> index
+
+
+  * Pattern (anonymous namespace)::IndexCastOfIndexCast : 'arith.index_cast -> ()' {
+    ** Match Failure : There's no operation that defines operand 0 of castedOp0
+  } -> failure : pattern failed to match
+
+  * Pattern (anonymous namespace)::IndexCastOfExtSI : 'arith.index_cast -> (arith.index_cast)' {
+    ** Match Failure : There's no operation that defines operand 0 of castedOp0
+  } -> failure : pattern failed to match
+} -> failure : pattern failed to match
+//===-------------------------------------------===//
+
+//===-------------------------------------------===//
+Processing operation : 'tts.make_tptr'(0x563b3c58ce00) {
+  %18 = "tts.make_tptr"(%arg0, %16, %17) <{operandSegmentSizes = array<i32: 1, 2, 0, 0>, order = array<i32>, sizes = array<i64: 2, 2>, static_offsets = array<i64: 0, 0>, static_shape = array<i64: 0, 0>, static_strides = array<i64: -9223372036854775808, -9223372036854775808>}> : (!tt.ptr<f32>, index, index) -> tensor<2x2x!tt.ptr<f32>>
+
+} -> failure : pattern failed to match
+//===-------------------------------------------===//
+
+//===-------------------------------------------===//
+Processing operation : 'tt.addptr'(0x563b3c5afa50) {
+  %19 = "tt.addptr"(%15, %14) : (tensor<2x2x!tt.ptr<f32>>, tensor<2x2xi32>) -> tensor<2x2x!tt.ptr<f32>>
+
+  ** Erase   : 'tt.addptr'(0x563b3c5afa50)
+} -> success : operation is trivially dead
+//===-------------------------------------------===//
+
+//===-------------------------------------------===//
+Processing operation : 'arith.addi'(0x563b3c5ac810) {
+  %14 = "arith.addi"(%12, %13) <{overflowFlags = #arith.overflow<none>}> : (tensor<2x2xi32>, tensor<2x2xi32>) -> tensor<2x2xi32>
+
+  ** Erase   : 'arith.addi'(0x563b3c5ac810)
+} -> success : operation is trivially dead
+//===-------------------------------------------===//
+
+//===-------------------------------------------===//
+Processing operation : 'tt.broadcast'(0x563b3c5ac720) {
+  %13 = "tt.broadcast"(%11) : (tensor<1x2xi32>) -> tensor<2x2xi32>
+
+  ** Erase   : 'tt.broadcast'(0x563b3c5ac720)
+} -> success : operation is trivially dead
+//===-------------------------------------------===//
+
+//===-------------------------------------------===//
+Processing operation : 'arith.muli'(0x563b3c5ac0a0) {
+  %11 = "arith.muli"(%9, %10) <{overflowFlags = #arith.overflow<none>}> : (tensor<1x2xi32>, tensor<1x2xi32>) -> tensor<1x2xi32>
+
+  ** Erase   : 'arith.muli'(0x563b3c5ac0a0)
+} -> success : operation is trivially dead
+//===-------------------------------------------===//
+
+//===-------------------------------------------===//
+Processing operation : 'tt.splat'(0x563b3c5abfb0) {
+  %10 = "tt.splat"(%arg5) : (i32) -> tensor<1x2xi32>
+
+  ** Erase   : 'tt.splat'(0x563b3c5abfb0)
+} -> success : operation is trivially dead
+//===-------------------------------------------===//
+
+//===-------------------------------------------===//
+Processing operation : 'tt.expand_dims'(0x563b3c5abec0) {
+  %9 = "tt.expand_dims"(%5) <{axis = 0 : i32}> : (tensor<2xi32>) -> tensor<1x2xi32>
+
+
+  * Pattern  : 'tt.expand_dims -> ()' {
+  } -> failure : pattern failed to match
+} -> failure : pattern failed to match
+//===-------------------------------------------===//
+
+//===-------------------------------------------===//
+Processing operation : 'tt.broadcast'(0x563b3c5ac1b0) {
+  %10 = "tt.broadcast"(%8) : (tensor<2x1xi32>) -> tensor<2x2xi32>
+
+  ** Erase   : 'tt.broadcast'(0x563b3c5ac1b0)
+} -> success : operation is trivially dead
+//===-------------------------------------------===//
+
+//===-------------------------------------------===//
+Processing operation : 'arith.muli'(0x563b3c5ab030) {
+  %8 = "arith.muli"(%6, %7) <{overflowFlags = #arith.overflow<none>}> : (tensor<2x1xi32>, tensor<2x1xi32>) -> tensor<2x1xi32>
+
+  ** Erase   : 'arith.muli'(0x563b3c5ab030)
+} -> success : operation is trivially dead
+//===-------------------------------------------===//
+
+//===-------------------------------------------===//
+Processing operation : 'tt.splat'(0x563b3c5aaf80) {
+  %7 = "tt.splat"(%arg4) : (i32) -> tensor<2x1xi32>
+
+  ** Erase   : 'tt.splat'(0x563b3c5aaf80)
+} -> success : operation is trivially dead
+//===-------------------------------------------===//
+
+//===-------------------------------------------===//
+Processing operation : 'tt.expand_dims'(0x563b3c5aaef0) {
+  %6 = "tt.expand_dims"(%5) <{axis = 1 : i32}> : (tensor<2xi32>) -> tensor<2x1xi32>
+
+
+  * Pattern  : 'tt.expand_dims -> ()' {
+  } -> failure : pattern failed to match
+} -> failure : pattern failed to match
+//===-------------------------------------------===//
+
+//===-------------------------------------------===//
+Processing operation : 'tt.func'(0x563b3c5b0e10) {
+} -> failure : pattern failed to match
+//===-------------------------------------------===//
+
+//===-------------------------------------------===//
+Processing operation : 'tt.splat'(0x563b3c5acda0) {
+  %8 = "tt.splat"(%arg0) : (!tt.ptr<f32>) -> tensor<2x2x!tt.ptr<f32>>
+
+  ** Erase   : 'tt.splat'(0x563b3c5acda0)
+} -> success : operation is trivially dead
+//===-------------------------------------------===//
+
+//===-------------------------------------------===//
+Processing operation : 'tt.splat'(0x563b3c5afb60) {
+  %11 = "tt.splat"(%arg6) : (i32) -> tensor<2x1xi32>
+
+} -> failure : pattern failed to match
+//===-------------------------------------------===//
+
+//===-------------------------------------------===//
+Processing operation : 'arith.muli'(0x563b3c5afc50) {
+  %12 = "arith.muli"(%11, %6) <{overflowFlags = #arith.overflow<none>}> : (tensor<2x1xi32>, tensor<2x1xi32>) -> tensor<2x1xi32>
+
+
+  * Pattern (anonymous namespace)::MulIMulIConstant : 'arith.muli -> (arith.constant, arith.muli)' {
+    ** Match Failure : castedOp1 is not ::mlir::arith::MulIOp type
+  } -> failure : pattern failed to match
+} -> failure : pattern failed to match
+//===-------------------------------------------===//
+
+//===-------------------------------------------===//
+Processing operation : 'tt.splat'(0x563b3c5b01e0) {
+  %13 = "tt.splat"(%arg1) : (!tt.ptr<f32>) -> tensor<2x1x!tt.ptr<f32>>
+
+} -> failure : pattern failed to match
+//===-------------------------------------------===//
+
+//===-------------------------------------------===//
+Processing operation : 'arith.index_cast'(0x563b3c5b02d0) {
+  %14 = "arith.index_cast"(%arg6) : (i32) -> index
+
+
+  * Pattern (anonymous namespace)::IndexCastOfIndexCast : 'arith.index_cast -> ()' {
+    ** Match Failure : There's no operation that defines operand 0 of castedOp0
+  } -> failure : pattern failed to match
+
+  * Pattern (anonymous namespace)::IndexCastOfExtSI : 'arith.index_cast -> (arith.index_cast)' {
+    ** Match Failure : There's no operation that defines operand 0 of castedOp0
+  } -> failure : pattern failed to match
+} -> failure : pattern failed to match
+//===-------------------------------------------===//
+
+//===-------------------------------------------===//
+Processing operation : 'tts.make_tptr'(0x563b3c58ccc0) {
+  %15 = "tts.make_tptr"(%arg1, %14) <{operandSegmentSizes = array<i32: 1, 1, 0, 0>, order = array<i32>, sizes = array<i64: 2, 1>, static_offsets = array<i64: 0, 0>, static_shape = array<i64: 0, 0>, static_strides = array<i64: -9223372036854775808, 0>}> : (!tt.ptr<f32>, index) -> tensor<2x1x!tt.ptr<f32>>
+
+  ** Erase   : 'tts.make_tptr'(0x563b3c58ccc0)
+} -> success : operation is trivially dead
+//===-------------------------------------------===//
+
+//===-------------------------------------------===//
+Processing operation : 'tt.addptr'(0x563b3c5b08a0) {
+  %15 = "tt.addptr"(%13, %12) : (tensor<2x1x!tt.ptr<f32>>, tensor<2x1xi32>) -> tensor<2x1x!tt.ptr<f32>>
+
+} -> failure : pattern failed to match
+//===-------------------------------------------===//
+
+//===-------------------------------------------===//
+Processing operation : 'tt.splat'(0x563b3c5b09b0) {
+  %16 = "tt.splat"(%arg7) : (i32) -> tensor<1x2xi32>
+
+} -> failure : pattern failed to match
+//===-------------------------------------------===//
+
+//===-------------------------------------------===//
+Processing operation : 'arith.muli'(0x563b3c5b0aa0) {
+  %17 = "arith.muli"(%16, %7) <{overflowFlags = #arith.overflow<none>}> : (tensor<1x2xi32>, tensor<1x2xi32>) -> tensor<1x2xi32>
+
+
+  * Pattern (anonymous namespace)::MulIMulIConstant : 'arith.muli -> (arith.constant, arith.muli)' {
+    ** Match Failure : castedOp1 is not ::mlir::arith::MulIOp type
+  } -> failure : pattern failed to match
+} -> failure : pattern failed to match
+//===-------------------------------------------===//
+
+//===-------------------------------------------===//
+Processing operation : 'tt.broadcast'(0x563b3c5b0bb0) {
+  %18 = "tt.broadcast"(%15) : (tensor<2x1x!tt.ptr<f32>>) -> tensor<2x2x!tt.ptr<f32>>
+
+
+  * Pattern  : 'tt.broadcast -> ()' {
+  } -> failure : pattern failed to match
+} -> failure : pattern failed to match
+//===-------------------------------------------===//
+
+//===-------------------------------------------===//
+Processing operation : 'tt.broadcast'(0x563b3c5b0ca0) {
+  %19 = "tt.broadcast"(%17) : (tensor<1x2xi32>) -> tensor<2x2xi32>
+
+
+  * Pattern  : 'tt.broadcast -> ()' {
+  } -> failure : pattern failed to match
+} -> failure : pattern failed to match
+//===-------------------------------------------===//
+
+//===-------------------------------------------===//
+Processing operation : 'arith.index_cast'(0x563b3c5b0d90) {
+  %20 = "arith.index_cast"(%arg7) : (i32) -> index
+
+
+  * Pattern (anonymous namespace)::IndexCastOfIndexCast : 'arith.index_cast -> ()' {
+    ** Match Failure : There's no operation that defines operand 0 of castedOp0
+  } -> failure : pattern failed to match
+
+  * Pattern (anonymous namespace)::IndexCastOfExtSI : 'arith.index_cast -> (arith.index_cast)' {
+    ** Match Failure : There's no operation that defines operand 0 of castedOp0
+  } -> failure : pattern failed to match
+} -> failure : pattern failed to match
+//===-------------------------------------------===//
+
+//===-------------------------------------------===//
+Processing operation : 'tts.make_tptr'(0x563b3c5b0ec0) {
+  %21 = "tts.make_tptr"(%arg1, %14, %20) <{operandSegmentSizes = array<i32: 1, 2, 0, 0>, order = array<i32>, sizes = array<i64: 2, 2>, static_offsets = array<i64: 0, 0>, static_shape = array<i64: 0, 0>, static_strides = array<i64: -9223372036854775808, -9223372036854775808>}> : (!tt.ptr<f32>, index, index) -> tensor<2x2x!tt.ptr<f32>>
+
+} -> failure : pattern failed to match
+//===-------------------------------------------===//
+
+//===-------------------------------------------===//
+Processing operation : 'tt.addptr'(0x563b3c5b0fe0) {
+  %22 = "tt.addptr"(%18, %19) : (tensor<2x2x!tt.ptr<f32>>, tensor<2x2xi32>) -> tensor<2x2x!tt.ptr<f32>>
+
+  ** Erase   : 'tt.addptr'(0x563b3c5b0fe0)
+} -> success : operation is trivially dead
+//===-------------------------------------------===//
+
+//===-------------------------------------------===//
+Processing operation : 'tt.broadcast'(0x563b3c5b0ca0) {
+  %19 = "tt.broadcast"(%17) : (tensor<1x2xi32>) -> tensor<2x2xi32>
+
+  ** Erase   : 'tt.broadcast'(0x563b3c5b0ca0)
+} -> success : operation is trivially dead
+//===-------------------------------------------===//
+
+//===-------------------------------------------===//
+Processing operation : 'arith.muli'(0x563b3c5b0aa0) {
+  %17 = "arith.muli"(%16, %7) <{overflowFlags = #arith.overflow<none>}> : (tensor<1x2xi32>, tensor<1x2xi32>) -> tensor<1x2xi32>
+
+  ** Erase   : 'arith.muli'(0x563b3c5b0aa0)
+} -> success : operation is trivially dead
+//===-------------------------------------------===//
+
+//===-------------------------------------------===//
+Processing operation : 'tt.expand_dims'(0x563b3c5abec0) {
+  %7 = "tt.expand_dims"(%5) <{axis = 0 : i32}> : (tensor<2xi32>) -> tensor<1x2xi32>
+
+  ** Erase   : 'tt.expand_dims'(0x563b3c5abec0)
+} -> success : operation is trivially dead
+//===-------------------------------------------===//
+
+//===-------------------------------------------===//
+Processing operation : 'tt.make_range'(0x563b3c5aa2e0) {
+  %5 = "tt.make_range"() <{end = 2 : i32, start = 0 : i32}> : () -> tensor<2xi32>
+
+} -> failure : pattern failed to match
+//===-------------------------------------------===//
+
+//===-------------------------------------------===//
+Processing operation : 'tt.splat'(0x563b3c5b09b0) {
+  %15 = "tt.splat"(%arg7) : (i32) -> tensor<1x2xi32>
+
+  ** Erase   : 'tt.splat'(0x563b3c5b09b0)
+} -> success : operation is trivially dead
+//===-------------------------------------------===//
+
+//===-------------------------------------------===//
+Processing operation : 'tt.func'(0x563b3c5b0e10) {
+} -> failure : pattern failed to match
+//===-------------------------------------------===//
+
+//===-------------------------------------------===//
+Processing operation : 'tt.broadcast'(0x563b3c5b0bb0) {
+  %15 = "tt.broadcast"(%14) : (tensor<2x1x!tt.ptr<f32>>) -> tensor<2x2x!tt.ptr<f32>>
+
+  ** Erase   : 'tt.broadcast'(0x563b3c5b0bb0)
+} -> success : operation is trivially dead
+//===-------------------------------------------===//
+
+//===-------------------------------------------===//
+Processing operation : 'tt.func'(0x563b3c5b0e10) {
+} -> failure : pattern failed to match
+//===-------------------------------------------===//
+
+//===-------------------------------------------===//
+Processing operation : 'tt.addptr'(0x563b3c5b08a0) {
+  %14 = "tt.addptr"(%12, %11) : (tensor<2x1x!tt.ptr<f32>>, tensor<2x1xi32>) -> tensor<2x1x!tt.ptr<f32>>
+
+  ** Erase   : 'tt.addptr'(0x563b3c5b08a0)
+} -> success : operation is trivially dead
+//===-------------------------------------------===//
+
+//===-------------------------------------------===//
+Processing operation : 'arith.muli'(0x563b3c5afc50) {
+  %11 = "arith.muli"(%10, %6) <{overflowFlags = #arith.overflow<none>}> : (tensor<2x1xi32>, tensor<2x1xi32>) -> tensor<2x1xi32>
+
+  ** Erase   : 'arith.muli'(0x563b3c5afc50)
+} -> success : operation is trivially dead
+//===-------------------------------------------===//
+
+//===-------------------------------------------===//
+Processing operation : 'tt.expand_dims'(0x563b3c5aaef0) {
+  %6 = "tt.expand_dims"(%5) <{axis = 1 : i32}> : (tensor<2xi32>) -> tensor<2x1xi32>
+
+  ** Erase   : 'tt.expand_dims'(0x563b3c5aaef0)
+} -> success : operation is trivially dead
+//===-------------------------------------------===//
+
+//===-------------------------------------------===//
+Processing operation : 'tt.make_range'(0x563b3c5aa2e0) {
+  %5 = "tt.make_range"() <{end = 2 : i32, start = 0 : i32}> : () -> tensor<2xi32>
+
+  ** Erase   : 'tt.make_range'(0x563b3c5aa2e0)
+} -> success : operation is trivially dead
+//===-------------------------------------------===//
+
+//===-------------------------------------------===//
+Processing operation : 'tt.splat'(0x563b3c5afb60) {
+  %8 = "tt.splat"(%arg6) : (i32) -> tensor<2x1xi32>
+
+  ** Erase   : 'tt.splat'(0x563b3c5afb60)
+} -> success : operation is trivially dead
+//===-------------------------------------------===//
+
+//===-------------------------------------------===//
+Processing operation : 'tt.func'(0x563b3c5b0e10) {
+} -> failure : pattern failed to match
+//===-------------------------------------------===//
+
+//===-------------------------------------------===//
+Processing operation : 'tt.splat'(0x563b3c5b01e0) {
+  %8 = "tt.splat"(%arg1) : (!tt.ptr<f32>) -> tensor<2x1x!tt.ptr<f32>>
+
+  ** Erase   : 'tt.splat'(0x563b3c5b01e0)
+} -> success : operation is trivially dead
+//===-------------------------------------------===//
+
+//===-------------------------------------------===//
+Processing operation : 'arith.muli'(0x563b3c5b10f0) {
+  %11 = "arith.muli"(%arg5, %4) <{overflowFlags = #arith.overflow<none>}> : (i32, i32) -> i32
+
+
+  * Pattern (anonymous namespace)::MulIMulIConstant : 'arith.muli -> (arith.constant, arith.muli)' {
+    ** Match Failure : There's no operation that defines operand 0 of castedOp0
+  } -> failure : pattern failed to match
+} -> failure : pattern failed to match
+//===-------------------------------------------===//
+
+//===-------------------------------------------===//
+Processing operation : 'arith.index_cast'(0x563b3c5b1200) {
+  %12 = "arith.index_cast"(%11) : (i32) -> index
+
+
+  * Pattern (anonymous namespace)::IndexCastOfIndexCast : 'arith.index_cast -> ()' {
+    ** Match Failure : castedOp1 is not ::mlir::arith::IndexCastOp type
+  } -> failure : pattern failed to match
+
+  * Pattern (anonymous namespace)::IndexCastOfExtSI : 'arith.index_cast -> (arith.index_cast)' {
+    ** Match Failure : castedOp1 is not ::mlir::arith::ExtSIOp type
+  } -> failure : pattern failed to match
+} -> failure : pattern failed to match
+//===-------------------------------------------===//
+
+//===-------------------------------------------===//
+Processing operation : 'arith.index_cast'(0x563b3c5b12f0) {
+  %13 = "arith.index_cast"(%11) : (i32) -> index
+
+
+  * Pattern (anonymous namespace)::IndexCastOfIndexCast : 'arith.index_cast -> ()' {
+    ** Match Failure : castedOp1 is not ::mlir::arith::IndexCastOp type
+  } -> failure : pattern failed to match
+
+  * Pattern (anonymous namespace)::IndexCastOfExtSI : 'arith.index_cast -> (arith.index_cast)' {
+    ** Match Failure : castedOp1 is not ::mlir::arith::ExtSIOp type
+  } -> failure : pattern failed to match
+} -> failure : pattern failed to match
+//===-------------------------------------------===//
+
+//===-------------------------------------------===//
+Processing operation : 'tt.splat'(0x563b3c5b13e0) {
+  %14 = "tt.splat"(%11) : (i32) -> tensor<2x2xi32>
+
+} -> failure : pattern failed to match
+//===-------------------------------------------===//
+
+//===-------------------------------------------===//
+Processing operation : 'arith.constant'(0x563b3c5b14f0) {
+  %0 = "arith.constant"() <{value = 0 : index}> : () -> index
+
+} -> failure : pattern failed to match
+//===-------------------------------------------===//
+
+//===-------------------------------------------===//
+Processing operation : 'scf.for'(0x563b3c528d00) {
+
+  * Pattern (anonymous namespace)::ForOpIterArgsFolder : 'scf.for -> ()' {
+    ** Insert  : 'scf.for'(0x563b3c512390)
+    ** Modified: 'tt.addptr'(0x563b3c5b5f40)
+    ** Modified: 'tt.addptr'(0x563b3c5b6300)
+    ** Modified: 'arith.addi'(0x563b3c5b5cb0)
+    ** Modified: 'tts.make_tptr'(0x563b3c5b4170)
+    ** Modified: 'scf.yield'(0x563b3c58c590)
+    ** Modified: 'tts.make_tptr'(0x563b3c5b5de0)
+    ** Modified: 'tts.make_tptr'(0x563b3c5b4170)
+    ** Modified: 'scf.yield'(0x563b3c58c590)
+    ** Modified: 'tts.make_tptr'(0x563b3c5b5de0)
+    ** Modified: 'tts.make_tptr'(0x563b3c5b4170)
+    ** Modified: 'scf.yield'(0x563b3c58c590)
+    ** Modified: 'tts.make_tptr'(0x563b3c5b5de0)
+    ** Modified: 'tts.make_tptr'(0x563b3c5b4170)
+    ** Modified: 'arith.addi'(0x563b3c5b6050)
+    ** Modified: 'tts.make_tptr'(0x563b3c5b3fd0)
+    ** Modified: 'scf.yield'(0x563b3c58c590)
+    ** Modified: 'tts.make_tptr'(0x563b3c5b61a0)
+    ** Modified: 'tts.make_tptr'(0x563b3c5b3fd0)
+    ** Modified: 'scf.yield'(0x563b3c58c590)
+    ** Modified: 'tts.make_tptr'(0x563b3c5b61a0)
+    ** Modified: 'tts.make_tptr'(0x563b3c5b3fd0)
+    ** Modified: 'scf.yield'(0x563b3c58c590)
+    ** Modified: 'tts.make_tptr'(0x563b3c5b61a0)
+    ** Modified: 'tts.make_tptr'(0x563b3c5b3fd0)
+    ** Insert  : 'tts.make_tptr'(0x563b3c5b3fd0)
+    ** Insert  : 'tts.make_tptr'(0x563b3c5b4170)
+    ** Insert  : 'tts.load'(0x563b3c5b5230)
+    ** Insert  : 'tts.store'(0x563b3c5b5c00)
+    ** Insert  : 'arith.addi'(0x563b3c5b5cb0)
+    ** Insert  : 'tts.make_tptr'(0x563b3c5b5de0)
+    ** Insert  : 'tt.addptr'(0x563b3c5b5f40)
+    ** Insert  : 'arith.addi'(0x563b3c5b6050)
+    ** Insert  : 'tts.make_tptr'(0x563b3c5b61a0)
+    ** Insert  : 'tt.addptr'(0x563b3c5b6300)
+    ** Insert  : 'scf.yield'(0x563b3c58c590)
+    ** Insert  : 'scf.yield'(0x563b3c5b37d0)
+    ** Erase   : 'scf.yield'(0x563b3c58c590)
+    ** Replace : 'scf.for'(0x563b3c528d00)
+    ** Erase   : 'scf.for'(0x563b3c528d00)
+  } -> success : pattern applied successfully
+} -> success : pattern matched
+//===-------------------------------------------===//
+
+//===-------------------------------------------===//
+Processing operation : 'tts.make_tptr'(0x563b3c5b0ec0) {
+  %10 = "tts.make_tptr"(%arg1, %8, %9) <{operandSegmentSizes = array<i32: 1, 2, 0, 0>, order = array<i32>, sizes = array<i64: 2, 2>, static_offsets = array<i64: 0, 0>, static_shape = array<i64: 0, 0>, static_strides = array<i64: -9223372036854775808, -9223372036854775808>}> : (!tt.ptr<f32>, index, index) -> tensor<2x2x!tt.ptr<f32>>
+
+} -> failure : pattern failed to match
+//===-------------------------------------------===//
+
+//===-------------------------------------------===//
+Processing operation : 'tts.make_tptr'(0x563b3c58ce00) {
+  %7 = "tts.make_tptr"(%arg0, %5, %6) <{operandSegmentSizes = array<i32: 1, 2, 0, 0>, order = array<i32>, sizes = array<i64: 2, 2>, static_offsets = array<i64: 0, 0>, static_shape = array<i64: 0, 0>, static_strides = array<i64: -9223372036854775808, -9223372036854775808>}> : (!tt.ptr<f32>, index, index) -> tensor<2x2x!tt.ptr<f32>>
+
+} -> failure : pattern failed to match
+//===-------------------------------------------===//
+
+//===-------------------------------------------===//
+Processing operation : 'arith.constant'(0x563b3c5a8dc0) {
+  %1 = "arith.constant"() <{value = 1 : i32}> : () -> i32
+
+} -> failure : pattern failed to match
+//===-------------------------------------------===//
+
+//===-------------------------------------------===//
+Processing operation : 'arith.constant'(0x563b3c5a8e90) {
+  %2 = "arith.constant"() <{value = 2 : i32}> : () -> i32
+
+} -> failure : pattern failed to match
+//===-------------------------------------------===//
+
+//===-------------------------------------------===//
+Processing operation : 'arith.constant'(0x563b3c5a93e0) {
+  %3 = "arith.constant"() <{value = 0 : i32}> : () -> i32
+
+} -> failure : pattern failed to match
+//===-------------------------------------------===//
+
+//===-------------------------------------------===//
+Processing operation : 'scf.yield'(0x563b3c5b37d0) {
+  "scf.yield"(%20, %23, %19, %22) : (tensor<2x2x!tt.ptr<f32>>, tensor<2x2x!tt.ptr<f32>>, index, index) -> ()
+
+} -> failure : pattern failed to match
+//===-------------------------------------------===//
+
+//===-------------------------------------------===//
+Processing operation : 'tt.func'(0x563b3c5b0e10) {
+} -> failure : pattern failed to match
+//===-------------------------------------------===//
+
+//===-------------------------------------------===//
+Processing operation : 'scf.for'(0x563b3c512390) {
+
+  * Pattern (anonymous namespace)::ForOpIterArgsFolder : 'scf.for -> ()' {
+  } -> failure : pattern failed to match
+
+  * Pattern (anonymous namespace)::SimplifyTrivialLoops : 'scf.for -> ()' {
+  } -> failure : pattern failed to match
+
+  * Pattern (anonymous namespace)::ForOpTensorCastFolder : 'scf.for -> ()' {
+  } -> failure : pattern failed to match
+} -> failure : pattern failed to match
+//===-------------------------------------------===//
+
+//===-------------------------------------------===//
+Processing operation : 'tts.make_tptr'(0x563b3c5b3fd0) {
+  %16 = "tts.make_tptr"(%arg1, %8, %9, %arg12, %0) <{operandSegmentSizes = array<i32: 1, 2, 2, 0>, order = array<i32>, sizes = array<i64: 2, 2>, static_offsets = array<i64: -9223372036854775808, -9223372036854775808>, static_shape = array<i64: 0, 0>, static_strides = array<i64: -9223372036854775808, -9223372036854775808>}> : (!tt.ptr<f32>, index, index, index, index) -> tensor<2x2x!tt.ptr<f32>>
+
+} -> failure : pattern failed to match
+//===-------------------------------------------===//
+
+//===-------------------------------------------===//
+Processing operation : 'tts.make_tptr'(0x563b3c5b4170) {
+  %17 = "tts.make_tptr"(%arg0, %5, %6, %arg11, %0) <{operandSegmentSizes = array<i32: 1, 2, 2, 0>, order = array<i32>, sizes = array<i64: 2, 2>, static_offsets = array<i64: -9223372036854775808, -9223372036854775808>, static_shape = array<i64: 0, 0>, static_strides = array<i64: -9223372036854775808, -9223372036854775808>}> : (!tt.ptr<f32>, index, index, index, index) -> tensor<2x2x!tt.ptr<f32>>
+
+} -> failure : pattern failed to match
+//===-------------------------------------------===//
+
+//===-------------------------------------------===//
+Processing operation : 'tts.load'(0x563b3c5b5230) {
+  %18 = "tts.load"(%17) <{operandSegmentSizes = array<i32: 1, 0, 0>, static_mask_dims = array<i64>}> : (tensor<2x2x!tt.ptr<f32>>) -> tensor<2x2xf32>
+
+} -> failure : pattern failed to match
+//===-------------------------------------------===//
+
+//===-------------------------------------------===//
+Processing operation : 'tts.store'(0x563b3c5b5c00) {
+  "tts.store"(%16, %18) <{static_mask_dims = array<i64>}> : (tensor<2x2x!tt.ptr<f32>>, tensor<2x2xf32>) -> ()
+
+} -> failure : pattern failed to match
+//===-------------------------------------------===//
+
+//===-------------------------------------------===//
+Processing operation : 'arith.addi'(0x563b3c5b5cb0) {
+  %19 = "arith.addi"(%arg11, %13) <{overflowFlags = #arith.overflow<none>}> : (index, index) -> index
+
+
+  * Pattern (anonymous namespace)::AddIAddConstant : 'arith.addi -> (arith.addi, arith.constant)' {
+    ** Match Failure : There's no operation that defines operand 0 of castedOp0
+  } -> failure : pattern failed to match
+
+  * Pattern (anonymous namespace)::AddISubConstantRHS : 'arith.addi -> (arith.addi, arith.constant)' {
+    ** Match Failure : There's no operation that defines operand 0 of castedOp0
+  } -> failure : pattern failed to match
+
+  * Pattern (anonymous namespace)::AddISubConstantLHS : 'arith.addi -> (arith.constant, arith.subi)' {
+    ** Match Failure : There's no operation that defines operand 0 of castedOp0
+  } -> failure : pattern failed to match
+
+  * Pattern (anonymous namespace)::AddIMulNegativeOneRhs : 'arith.addi -> (arith.subi)' {
+    ** Match Failure : castedOp1 is not ::mlir::arith::MulIOp type
+  } -> failure : pattern failed to match
+
+  * Pattern (anonymous namespace)::AddIMulNegativeOneLhs : 'arith.addi -> (arith.subi)' {
+    ** Match Failure : There's no operation that defines operand 0 of castedOp0
+  } -> failure : pattern failed to match
+} -> failure : pattern failed to match
+//===-------------------------------------------===//
+
+//===-------------------------------------------===//
+Processing operation : 'tts.make_tptr'(0x563b3c5b5de0) {
+  %20 = "tts.make_tptr"(%arg0, %5, %6, %19, %0) <{operandSegmentSizes = array<i32: 1, 2, 2, 0>, order = array<i32>, sizes = array<i64: 2, 2>, static_offsets = array<i64: -9223372036854775808, -9223372036854775808>, static_shape = array<i64: 0, 0>, static_strides = array<i64: -9223372036854775808, -9223372036854775808>}> : (!tt.ptr<f32>, index, index, index, index) -> tensor<2x2x!tt.ptr<f32>>
+
+} -> failure : pattern failed to match
+//===-------------------------------------------===//
+
+//===-------------------------------------------===//
+Processing operation : 'tt.addptr'(0x563b3c5b5f40) {
+  %21 = "tt.addptr"(%arg9, %14) : (tensor<2x2x!tt.ptr<f32>>, tensor<2x2xi32>) -> tensor<2x2x!tt.ptr<f32>>
+
+  ** Erase   : 'tt.addptr'(0x563b3c5b5f40)
+} -> success : operation is trivially dead
+//===-------------------------------------------===//
+
+//===-------------------------------------------===//
+Processing operation : 'tt.func'(0x563b3c5b0e10) {
+} -> failure : pattern failed to match
+//===-------------------------------------------===//
+
+//===-------------------------------------------===//
+Processing operation : 'tt.splat'(0x563b3c5b13e0) {
+  %14 = "tt.splat"(%11) : (i32) -> tensor<2x2xi32>
+
+} -> failure : pattern failed to match
+//===-------------------------------------------===//
+
+//===-------------------------------------------===//
+Processing operation : 'arith.addi'(0x563b3c5b6050) {
+  %21 = "arith.addi"(%arg12, %12) <{overflowFlags = #arith.overflow<none>}> : (index, index) -> index
+
+
+  * Pattern (anonymous namespace)::AddIAddConstant : 'arith.addi -> (arith.addi, arith.constant)' {
+    ** Match Failure : There's no operation that defines operand 0 of castedOp0
+  } -> failure : pattern failed to match
+
+  * Pattern (anonymous namespace)::AddISubConstantRHS : 'arith.addi -> (arith.addi, arith.constant)' {
+    ** Match Failure : There's no operation that defines operand 0 of castedOp0
+  } -> failure : pattern failed to match
+
+  * Pattern (anonymous namespace)::AddISubConstantLHS : 'arith.addi -> (arith.constant, arith.subi)' {
+    ** Match Failure : There's no operation that defines operand 0 of castedOp0
+  } -> failure : pattern failed to match
+
+  * Pattern (anonymous namespace)::AddIMulNegativeOneRhs : 'arith.addi -> (arith.subi)' {
+    ** Match Failure : castedOp1 is not ::mlir::arith::MulIOp type
+  } -> failure : pattern failed to match
+
+  * Pattern (anonymous namespace)::AddIMulNegativeOneLhs : 'arith.addi -> (arith.subi)' {
+    ** Match Failure : There's no operation that defines operand 0 of castedOp0
+  } -> failure : pattern failed to match
+} -> failure : pattern failed to match
+//===-------------------------------------------===//
+
+//===-------------------------------------------===//
+Processing operation : 'tts.make_tptr'(0x563b3c5b61a0) {
+  %22 = "tts.make_tptr"(%arg1, %8, %9, %21, %0) <{operandSegmentSizes = array<i32: 1, 2, 2, 0>, order = array<i32>, sizes = array<i64: 2, 2>, static_offsets = array<i64: -9223372036854775808, -9223372036854775808>, static_shape = array<i64: 0, 0>, static_strides = array<i64: -9223372036854775808, -9223372036854775808>}> : (!tt.ptr<f32>, index, index, index, index) -> tensor<2x2x!tt.ptr<f32>>
+
+} -> failure : pattern failed to match
+//===-------------------------------------------===//
+
+//===-------------------------------------------===//
+Processing operation : 'tt.addptr'(0x563b3c5b6300) {
+  %23 = "tt.addptr"(%arg10, %14) : (tensor<2x2x!tt.ptr<f32>>, tensor<2x2xi32>) -> tensor<2x2x!tt.ptr<f32>>
+
+  ** Erase   : 'tt.addptr'(0x563b3c5b6300)
+} -> success : operation is trivially dead
+//===-------------------------------------------===//
+
+//===-------------------------------------------===//
+Processing operation : 'tt.func'(0x563b3c5b0e10) {
+} -> failure : pattern failed to match
+//===-------------------------------------------===//
+
+//===-------------------------------------------===//
+Processing operation : 'tt.splat'(0x563b3c5b13e0) {
+  %14 = "tt.splat"(%11) : (i32) -> tensor<2x2xi32>
+
+  ** Erase   : 'tt.splat'(0x563b3c5b13e0)
+} -> success : operation is trivially dead
+//===-------------------------------------------===//
+
+//===-------------------------------------------===//
+Processing operation : 'tt.return'(0x563b3c5aa450) {
+  "tt.return"() : () -> ()
+
+} -> failure : pattern failed to match
+//===-------------------------------------------===//
+
+//===-------------------------------------------===//
+Processing operation : 'tt.func'(0x563b3c5b0e10) {
+} -> failure : pattern failed to match
+//===-------------------------------------------===//
+
+//===-------------------------------------------===//
+Processing operation : 'arith.constant'(0x563b3c5b14f0) {
+  %0 = "arith.constant"() <{value = 0 : index}> : () -> index
+
+} -> failure : pattern failed to match
+//===-------------------------------------------===//
+
+//===-------------------------------------------===//
+Processing operation : 'arith.constant'(0x563b3c5a8dc0) {
+  %1 = "arith.constant"() <{value = 1 : i32}> : () -> i32
+
+} -> failure : pattern failed to match
+//===-------------------------------------------===//
+
+//===-------------------------------------------===//
+Processing operation : 'arith.constant'(0x563b3c5a8e90) {
+  %2 = "arith.constant"() <{value = 2 : i32}> : () -> i32
+
+} -> failure : pattern failed to match
+//===-------------------------------------------===//
+
+//===-------------------------------------------===//
+Processing operation : 'arith.constant'(0x563b3c5a93e0) {
+  %3 = "arith.constant"() <{value = 0 : i32}> : () -> i32
+
+} -> failure : pattern failed to match
+//===-------------------------------------------===//
+
+//===-------------------------------------------===//
+Processing operation : 'arith.constant'(0x563b3c5a9930) {
+  %4 = "arith.constant"() <{value = 32 : i32}> : () -> i32
+
+} -> failure : pattern failed to match
+//===-------------------------------------------===//
+
+//===-------------------------------------------===//
+Processing operation : 'arith.index_cast'(0x563b3c5ace90) {
+  %5 = "arith.index_cast"(%arg4) : (i32) -> index
+
+
+  * Pattern (anonymous namespace)::IndexCastOfIndexCast : 'arith.index_cast -> ()' {
+    ** Match Failure : There's no operation that defines operand 0 of castedOp0
+  } -> failure : pattern failed to match
+
+  * Pattern (anonymous namespace)::IndexCastOfExtSI : 'arith.index_cast -> (arith.index_cast)' {
+    ** Match Failure : There's no operation that defines operand 0 of castedOp0
+  } -> failure : pattern failed to match
+} -> failure : pattern failed to match
+//===-------------------------------------------===//
+
+//===-------------------------------------------===//
+Processing operation : 'arith.index_cast'(0x563b3c5acf80) {
+  %6 = "arith.index_cast"(%arg5) : (i32) -> index
+
+
+  * Pattern (anonymous namespace)::IndexCastOfIndexCast : 'arith.index_cast -> ()' {
+    ** Match Failure : There's no operation that defines operand 0 of castedOp0
+  } -> failure : pattern failed to match
+
+  * Pattern (anonymous namespace)::IndexCastOfExtSI : 'arith.index_cast -> (arith.index_cast)' {
+    ** Match Failure : There's no operation that defines operand 0 of castedOp0
+  } -> failure : pattern failed to match
+} -> failure : pattern failed to match
+//===-------------------------------------------===//
+
+//===-------------------------------------------===//
+Processing operation : 'tts.make_tptr'(0x563b3c58ce00) {
+  %7 = "tts.make_tptr"(%arg0, %5, %6) <{operandSegmentSizes = array<i32: 1, 2, 0, 0>, order = array<i32>, sizes = array<i64: 2, 2>, static_offsets = array<i64: 0, 0>, static_shape = array<i64: 0, 0>, static_strides = array<i64: -9223372036854775808, -9223372036854775808>}> : (!tt.ptr<f32>, index, index) -> tensor<2x2x!tt.ptr<f32>>
+
+} -> failure : pattern failed to match
+//===-------------------------------------------===//
+
+//===-------------------------------------------===//
+Processing operation : 'arith.index_cast'(0x563b3c5b02d0) {
+  %8 = "arith.index_cast"(%arg6) : (i32) -> index
+
+
+  * Pattern (anonymous namespace)::IndexCastOfIndexCast : 'arith.index_cast -> ()' {
+    ** Match Failure : There's no operation that defines operand 0 of castedOp0
+  } -> failure : pattern failed to match
+
+  * Pattern (anonymous namespace)::IndexCastOfExtSI : 'arith.index_cast -> (arith.index_cast)' {
+    ** Match Failure : There's no operation that defines operand 0 of castedOp0
+  } -> failure : pattern failed to match
+} -> failure : pattern failed to match
+//===-------------------------------------------===//
+
+//===-------------------------------------------===//
+Processing operation : 'arith.index_cast'(0x563b3c5b0d90) {
+  %9 = "arith.index_cast"(%arg7) : (i32) -> index
+
+
+  * Pattern (anonymous namespace)::IndexCastOfIndexCast : 'arith.index_cast -> ()' {
+    ** Match Failure : There's no operation that defines operand 0 of castedOp0
+  } -> failure : pattern failed to match
+
+  * Pattern (anonymous namespace)::IndexCastOfExtSI : 'arith.index_cast -> (arith.index_cast)' {
+    ** Match Failure : There's no operation that defines operand 0 of castedOp0
+  } -> failure : pattern failed to match
+} -> failure : pattern failed to match
+//===-------------------------------------------===//
+
+//===-------------------------------------------===//
+Processing operation : 'tts.make_tptr'(0x563b3c5b0ec0) {
+  %10 = "tts.make_tptr"(%arg1, %8, %9) <{operandSegmentSizes = array<i32: 1, 2, 0, 0>, order = array<i32>, sizes = array<i64: 2, 2>, static_offsets = array<i64: 0, 0>, static_shape = array<i64: 0, 0>, static_strides = array<i64: -9223372036854775808, -9223372036854775808>}> : (!tt.ptr<f32>, index, index) -> tensor<2x2x!tt.ptr<f32>>
+
+} -> failure : pattern failed to match
+//===-------------------------------------------===//
+
+//===-------------------------------------------===//
+Processing operation : 'arith.muli'(0x563b3c5b10f0) {
+  %11 = "arith.muli"(%arg5, %4) <{overflowFlags = #arith.overflow<none>}> : (i32, i32) -> i32
+
+
+  * Pattern (anonymous namespace)::MulIMulIConstant : 'arith.muli -> (arith.constant, arith.muli)' {
+    ** Match Failure : There's no operation that defines operand 0 of castedOp0
+  } -> failure : pattern failed to match
+} -> failure : pattern failed to match
+//===-------------------------------------------===//
+
+//===-------------------------------------------===//
+Processing operation : 'arith.index_cast'(0x563b3c5b1200) {
+  %12 = "arith.index_cast"(%11) : (i32) -> index
+
+
+  * Pattern (anonymous namespace)::IndexCastOfIndexCast : 'arith.index_cast -> ()' {
+    ** Match Failure : castedOp1 is not ::mlir::arith::IndexCastOp type
+  } -> failure : pattern failed to match
+
+  * Pattern (anonymous namespace)::IndexCastOfExtSI : 'arith.index_cast -> (arith.index_cast)' {
+    ** Match Failure : castedOp1 is not ::mlir::arith::ExtSIOp type
+  } -> failure : pattern failed to match
+} -> failure : pattern failed to match
+//===-------------------------------------------===//
+
+//===-------------------------------------------===//
+Processing operation : 'arith.index_cast'(0x563b3c5b12f0) {
+  %13 = "arith.index_cast"(%11) : (i32) -> index
+
+
+  * Pattern (anonymous namespace)::IndexCastOfIndexCast : 'arith.index_cast -> ()' {
+    ** Match Failure : castedOp1 is not ::mlir::arith::IndexCastOp type
+  } -> failure : pattern failed to match
+
+  * Pattern (anonymous namespace)::IndexCastOfExtSI : 'arith.index_cast -> (arith.index_cast)' {
+    ** Match Failure : castedOp1 is not ::mlir::arith::ExtSIOp type
+  } -> failure : pattern failed to match
+} -> failure : pattern failed to match
+//===-------------------------------------------===//
+
+//===-------------------------------------------===//
+Processing operation : 'scf.for'(0x563b3c512390) {
+
+  * Pattern (anonymous namespace)::ForOpIterArgsFolder : 'scf.for -> ()' {
+    ** Insert  : 'scf.for'(0x563b3c594a60)
+    ** Modified: 'tts.make_tptr'(0x563b3c5b4170)
+    ** Modified: 'arith.addi'(0x563b3c5b5cb0)
+    ** Modified: 'tts.make_tptr'(0x563b3c5b3fd0)
+    ** Modified: 'arith.addi'(0x563b3c5b6050)
+    ** Insert  : 'tts.make_tptr'(0x563b3c5b3fd0)
+    ** Insert  : 'tts.make_tptr'(0x563b3c5b4170)
+    ** Insert  : 'tts.load'(0x563b3c5b5230)
+    ** Insert  : 'tts.store'(0x563b3c5b5c00)
+    ** Insert  : 'arith.addi'(0x563b3c5b5cb0)
+    ** Insert  : 'tts.make_tptr'(0x563b3c5b5de0)
+    ** Insert  : 'arith.addi'(0x563b3c5b6050)
+    ** Insert  : 'tts.make_tptr'(0x563b3c5b61a0)
+    ** Insert  : 'scf.yield'(0x563b3c5b37d0)
+    ** Insert  : 'scf.yield'(0x563b3c5b3010)
+    ** Erase   : 'scf.yield'(0x563b3c5b37d0)
+    ** Replace : 'scf.for'(0x563b3c512390)
+    ** Erase   : 'scf.for'(0x563b3c512390)
+  } -> success : pattern applied successfully
+} -> success : pattern matched
+//===-------------------------------------------===//
+
+//===-------------------------------------------===//
+Processing operation : 'tts.make_tptr'(0x563b3c5b0ec0) {
+  %10 = "tts.make_tptr"(%arg1, %8, %9) <{operandSegmentSizes = array<i32: 1, 2, 0, 0>, order = array<i32>, sizes = array<i64: 2, 2>, static_offsets = array<i64: 0, 0>, static_shape = array<i64: 0, 0>, static_strides = array<i64: -9223372036854775808, -9223372036854775808>}> : (!tt.ptr<f32>, index, index) -> tensor<2x2x!tt.ptr<f32>>
+
+  ** Erase   : 'tts.make_tptr'(0x563b3c5b0ec0)
+} -> success : operation is trivially dead
+//===-------------------------------------------===//
+
+//===-------------------------------------------===//
+Processing operation : 'tts.make_tptr'(0x563b3c58ce00) {
+  %7 = "tts.make_tptr"(%arg0, %5, %6) <{operandSegmentSizes = array<i32: 1, 2, 0, 0>, order = array<i32>, sizes = array<i64: 2, 2>, static_offsets = array<i64: 0, 0>, static_shape = array<i64: 0, 0>, static_strides = array<i64: -9223372036854775808, -9223372036854775808>}> : (!tt.ptr<f32>, index, index) -> tensor<2x2x!tt.ptr<f32>>
+
+  ** Erase   : 'tts.make_tptr'(0x563b3c58ce00)
+} -> success : operation is trivially dead
+//===-------------------------------------------===//
+
+//===-------------------------------------------===//
+Processing operation : 'arith.constant'(0x563b3c5a8dc0) {
+  %1 = "arith.constant"() <{value = 1 : i32}> : () -> i32
+
+} -> failure : pattern failed to match
+//===-------------------------------------------===//
+
+//===-------------------------------------------===//
+Processing operation : 'arith.constant'(0x563b3c5a8e90) {
+  %2 = "arith.constant"() <{value = 2 : i32}> : () -> i32
+
+} -> failure : pattern failed to match
+//===-------------------------------------------===//
+
+//===-------------------------------------------===//
+Processing operation : 'arith.constant'(0x563b3c5a93e0) {
+  %3 = "arith.constant"() <{value = 0 : i32}> : () -> i32
+
+} -> failure : pattern failed to match
+//===-------------------------------------------===//
+
+//===-------------------------------------------===//
+Processing operation : 'scf.yield'(0x563b3c5b3010) {
+  "scf.yield"(%16, %18) : (index, index) -> ()
+
+} -> failure : pattern failed to match
+//===-------------------------------------------===//
+
+//===-------------------------------------------===//
+Processing operation : 'tt.func'(0x563b3c5b0e10) {
+} -> failure : pattern failed to match
+//===-------------------------------------------===//
+
+//===-------------------------------------------===//
+Processing operation : 'scf.for'(0x563b3c594a60) {
+
+  * Pattern (anonymous namespace)::ForOpIterArgsFolder : 'scf.for -> ()' {
+  } -> failure : pattern failed to match
+
+  * Pattern (anonymous namespace)::SimplifyTrivialLoops : 'scf.for -> ()' {
+  } -> failure : pattern failed to match
+
+  * Pattern (anonymous namespace)::ForOpTensorCastFolder : 'scf.for -> ()' {
+  } -> failure : pattern failed to match
+} -> failure : pattern failed to match
+//===-------------------------------------------===//
+
+//===-------------------------------------------===//
+Processing operation : 'tts.make_tptr'(0x563b3c5b3fd0) {
+  %13 = "tts.make_tptr"(%arg1, %7, %8, %arg10, %0) <{operandSegmentSizes = array<i32: 1, 2, 2, 0>, order = array<i32>, sizes = array<i64: 2, 2>, static_offsets = array<i64: -9223372036854775808, -9223372036854775808>, static_shape = array<i64: 0, 0>, static_strides = array<i64: -9223372036854775808, -9223372036854775808>}> : (!tt.ptr<f32>, index, index, index, index) -> tensor<2x2x!tt.ptr<f32>>
+
+} -> failure : pattern failed to match
+//===-------------------------------------------===//
+
+//===-------------------------------------------===//
+Processing operation : 'tts.make_tptr'(0x563b3c5b4170) {
+  %14 = "tts.make_tptr"(%arg0, %5, %6, %arg9, %0) <{operandSegmentSizes = array<i32: 1, 2, 2, 0>, order = array<i32>, sizes = array<i64: 2, 2>, static_offsets = array<i64: -9223372036854775808, -9223372036854775808>, static_shape = array<i64: 0, 0>, static_strides = array<i64: -9223372036854775808, -9223372036854775808>}> : (!tt.ptr<f32>, index, index, index, index) -> tensor<2x2x!tt.ptr<f32>>
+
+} -> failure : pattern failed to match
+//===-------------------------------------------===//
+
+//===-------------------------------------------===//
+Processing operation : 'tts.load'(0x563b3c5b5230) {
+  %15 = "tts.load"(%14) <{operandSegmentSizes = array<i32: 1, 0, 0>, static_mask_dims = array<i64>}> : (tensor<2x2x!tt.ptr<f32>>) -> tensor<2x2xf32>
+
+} -> failure : pattern failed to match
+//===-------------------------------------------===//
+
+//===-------------------------------------------===//
+Processing operation : 'tts.store'(0x563b3c5b5c00) {
+  "tts.store"(%13, %15) <{static_mask_dims = array<i64>}> : (tensor<2x2x!tt.ptr<f32>>, tensor<2x2xf32>) -> ()
+
+} -> failure : pattern failed to match
+//===-------------------------------------------===//
+
+//===-------------------------------------------===//
+Processing operation : 'arith.addi'(0x563b3c5b5cb0) {
+  %16 = "arith.addi"(%arg9, %11) <{overflowFlags = #arith.overflow<none>}> : (index, index) -> index
+
+
+  * Pattern (anonymous namespace)::AddIAddConstant : 'arith.addi -> (arith.addi, arith.constant)' {
+    ** Match Failure : There's no operation that defines operand 0 of castedOp0
+  } -> failure : pattern failed to match
+
+  * Pattern (anonymous namespace)::AddISubConstantRHS : 'arith.addi -> (arith.addi, arith.constant)' {
+    ** Match Failure : There's no operation that defines operand 0 of castedOp0
+  } -> failure : pattern failed to match
+
+  * Pattern (anonymous namespace)::AddISubConstantLHS : 'arith.addi -> (arith.constant, arith.subi)' {
+    ** Match Failure : There's no operation that defines operand 0 of castedOp0
+  } -> failure : pattern failed to match
+
+  * Pattern (anonymous namespace)::AddIMulNegativeOneRhs : 'arith.addi -> (arith.subi)' {
+    ** Match Failure : castedOp1 is not ::mlir::arith::MulIOp type
+  } -> failure : pattern failed to match
+
+  * Pattern (anonymous namespace)::AddIMulNegativeOneLhs : 'arith.addi -> (arith.subi)' {
+    ** Match Failure : There's no operation that defines operand 0 of castedOp0
+  } -> failure : pattern failed to match
+} -> failure : pattern failed to match
+//===-------------------------------------------===//
+
+//===-------------------------------------------===//
+Processing operation : 'tts.make_tptr'(0x563b3c5b5de0) {
+  %17 = "tts.make_tptr"(%arg0, %5, %6, %16, %0) <{operandSegmentSizes = array<i32: 1, 2, 2, 0>, order = array<i32>, sizes = array<i64: 2, 2>, static_offsets = array<i64: -9223372036854775808, -9223372036854775808>, static_shape = array<i64: 0, 0>, static_strides = array<i64: -9223372036854775808, -9223372036854775808>}> : (!tt.ptr<f32>, index, index, index, index) -> tensor<2x2x!tt.ptr<f32>>
+
+  ** Erase   : 'tts.make_tptr'(0x563b3c5b5de0)
+} -> success : operation is trivially dead
+//===-------------------------------------------===//
+
+//===-------------------------------------------===//
+Processing operation : 'scf.for'(0x563b3c594a60) {
+
+  * Pattern (anonymous namespace)::ForOpIterArgsFolder : 'scf.for -> ()' {
+  } -> failure : pattern failed to match
+
+  * Pattern (anonymous namespace)::SimplifyTrivialLoops : 'scf.for -> ()' {
+  } -> failure : pattern failed to match
+
+  * Pattern (anonymous namespace)::ForOpTensorCastFolder : 'scf.for -> ()' {
+  } -> failure : pattern failed to match
+} -> failure : pattern failed to match
+//===-------------------------------------------===//
+
+//===-------------------------------------------===//
+Processing operation : 'arith.addi'(0x563b3c5b5cb0) {
+  %16 = "arith.addi"(%arg9, %11) <{overflowFlags = #arith.overflow<none>}> : (index, index) -> index
+
+
+  * Pattern (anonymous namespace)::AddIAddConstant : 'arith.addi -> (arith.addi, arith.constant)' {
+    ** Match Failure : There's no operation that defines operand 0 of castedOp0
+  } -> failure : pattern failed to match
+
+  * Pattern (anonymous namespace)::AddISubConstantRHS : 'arith.addi -> (arith.addi, arith.constant)' {
+    ** Match Failure : There's no operation that defines operand 0 of castedOp0
+  } -> failure : pattern failed to match
+
+  * Pattern (anonymous namespace)::AddISubConstantLHS : 'arith.addi -> (arith.constant, arith.subi)' {
+    ** Match Failure : There's no operation that defines operand 0 of castedOp0
+  } -> failure : pattern failed to match
+
+  * Pattern (anonymous namespace)::AddIMulNegativeOneRhs : 'arith.addi -> (arith.subi)' {
+    ** Match Failure : castedOp1 is not ::mlir::arith::MulIOp type
+  } -> failure : pattern failed to match
+
+  * Pattern (anonymous namespace)::AddIMulNegativeOneLhs : 'arith.addi -> (arith.subi)' {
+    ** Match Failure : There's no operation that defines operand 0 of castedOp0
+  } -> failure : pattern failed to match
+} -> failure : pattern failed to match
+//===-------------------------------------------===//
+
+//===-------------------------------------------===//
+Processing operation : 'arith.index_cast'(0x563b3c5acf80) {
+  %6 = "arith.index_cast"(%arg5) : (i32) -> index
+
+
+  * Pattern (anonymous namespace)::IndexCastOfIndexCast : 'arith.index_cast -> ()' {
+    ** Match Failure : There's no operation that defines operand 0 of castedOp0
+  } -> failure : pattern failed to match
+
+  * Pattern (anonymous namespace)::IndexCastOfExtSI : 'arith.index_cast -> (arith.index_cast)' {
+    ** Match Failure : There's no operation that defines operand 0 of castedOp0
+  } -> failure : pattern failed to match
+} -> failure : pattern failed to match
+//===-------------------------------------------===//
+
+//===-------------------------------------------===//
+Processing operation : 'tt.func'(0x563b3c5b0e10) {
+} -> failure : pattern failed to match
+//===-------------------------------------------===//
+
+//===-------------------------------------------===//
+Processing operation : 'arith.index_cast'(0x563b3c5ace90) {
+  %5 = "arith.index_cast"(%arg4) : (i32) -> index
+
+
+  * Pattern (anonymous namespace)::IndexCastOfIndexCast : 'arith.index_cast -> ()' {
+    ** Match Failure : There's no operation that defines operand 0 of castedOp0
+  } -> failure : pattern failed to match
+
+  * Pattern (anonymous namespace)::IndexCastOfExtSI : 'arith.index_cast -> (arith.index_cast)' {
+    ** Match Failure : There's no operation that defines operand 0 of castedOp0
+  } -> failure : pattern failed to match
+} -> failure : pattern failed to match
+//===-------------------------------------------===//
+
+//===-------------------------------------------===//
+Processing operation : 'arith.addi'(0x563b3c5b6050) {
+  %17 = "arith.addi"(%arg10, %10) <{overflowFlags = #arith.overflow<none>}> : (index, index) -> index
+
+
+  * Pattern (anonymous namespace)::AddIAddConstant : 'arith.addi -> (arith.addi, arith.constant)' {
+    ** Match Failure : There's no operation that defines operand 0 of castedOp0
+  } -> failure : pattern failed to match
+
+  * Pattern (anonymous namespace)::AddISubConstantRHS : 'arith.addi -> (arith.addi, arith.constant)' {
+    ** Match Failure : There's no operation that defines operand 0 of castedOp0
+  } -> failure : pattern failed to match
+
+  * Pattern (anonymous namespace)::AddISubConstantLHS : 'arith.addi -> (arith.constant, arith.subi)' {
+    ** Match Failure : There's no operation that defines operand 0 of castedOp0
+  } -> failure : pattern failed to match
+
+  * Pattern (anonymous namespace)::AddIMulNegativeOneRhs : 'arith.addi -> (arith.subi)' {
+    ** Match Failure : castedOp1 is not ::mlir::arith::MulIOp type
+  } -> failure : pattern failed to match
+
+  * Pattern (anonymous namespace)::AddIMulNegativeOneLhs : 'arith.addi -> (arith.subi)' {
+    ** Match Failure : There's no operation that defines operand 0 of castedOp0
+  } -> failure : pattern failed to match
+} -> failure : pattern failed to match
+//===-------------------------------------------===//
+
+//===-------------------------------------------===//
+Processing operation : 'tts.make_tptr'(0x563b3c5b61a0) {
+  %18 = "tts.make_tptr"(%arg1, %7, %8, %17, %0) <{operandSegmentSizes = array<i32: 1, 2, 2, 0>, order = array<i32>, sizes = array<i64: 2, 2>, static_offsets = array<i64: -9223372036854775808, -9223372036854775808>, static_shape = array<i64: 0, 0>, static_strides = array<i64: -9223372036854775808, -9223372036854775808>}> : (!tt.ptr<f32>, index, index, index, index) -> tensor<2x2x!tt.ptr<f32>>
+
+  ** Erase   : 'tts.make_tptr'(0x563b3c5b61a0)
+} -> success : operation is trivially dead
+//===-------------------------------------------===//
+
+//===-------------------------------------------===//
+Processing operation : 'scf.for'(0x563b3c594a60) {
+
+  * Pattern (anonymous namespace)::ForOpIterArgsFolder : 'scf.for -> ()' {
+  } -> failure : pattern failed to match
+
+  * Pattern (anonymous namespace)::SimplifyTrivialLoops : 'scf.for -> ()' {
+  } -> failure : pattern failed to match
+
+  * Pattern (anonymous namespace)::ForOpTensorCastFolder : 'scf.for -> ()' {
+  } -> failure : pattern failed to match
+} -> failure : pattern failed to match
+//===-------------------------------------------===//
+
+//===-------------------------------------------===//
+Processing operation : 'arith.addi'(0x563b3c5b6050) {
+  %17 = "arith.addi"(%arg10, %10) <{overflowFlags = #arith.overflow<none>}> : (index, index) -> index
+
+
+  * Pattern (anonymous namespace)::AddIAddConstant : 'arith.addi -> (arith.addi, arith.constant)' {
+    ** Match Failure : There's no operation that defines operand 0 of castedOp0
+  } -> failure : pattern failed to match
+
+  * Pattern (anonymous namespace)::AddISubConstantRHS : 'arith.addi -> (arith.addi, arith.constant)' {
+    ** Match Failure : There's no operation that defines operand 0 of castedOp0
+  } -> failure : pattern failed to match
+
+  * Pattern (anonymous namespace)::AddISubConstantLHS : 'arith.addi -> (arith.constant, arith.subi)' {
+    ** Match Failure : There's no operation that defines operand 0 of castedOp0
+  } -> failure : pattern failed to match
+
+  * Pattern (anonymous namespace)::AddIMulNegativeOneRhs : 'arith.addi -> (arith.subi)' {
+    ** Match Failure : castedOp1 is not ::mlir::arith::MulIOp type
+  } -> failure : pattern failed to match
+
+  * Pattern (anonymous namespace)::AddIMulNegativeOneLhs : 'arith.addi -> (arith.subi)' {
+    ** Match Failure : There's no operation that defines operand 0 of castedOp0
+  } -> failure : pattern failed to match
+} -> failure : pattern failed to match
+//===-------------------------------------------===//
+
+//===-------------------------------------------===//
+Processing operation : 'arith.index_cast'(0x563b3c5b0d90) {
+  %8 = "arith.index_cast"(%arg7) : (i32) -> index
+
+
+  * Pattern (anonymous namespace)::IndexCastOfIndexCast : 'arith.index_cast -> ()' {
+    ** Match Failure : There's no operation that defines operand 0 of castedOp0
+  } -> failure : pattern failed to match
+
+  * Pattern (anonymous namespace)::IndexCastOfExtSI : 'arith.index_cast -> (arith.index_cast)' {
+    ** Match Failure : There's no operation that defines operand 0 of castedOp0
+  } -> failure : pattern failed to match
+} -> failure : pattern failed to match
+//===-------------------------------------------===//
+
+//===-------------------------------------------===//
+Processing operation : 'tt.func'(0x563b3c5b0e10) {
+} -> failure : pattern failed to match
+//===-------------------------------------------===//
+
+//===-------------------------------------------===//
+Processing operation : 'arith.index_cast'(0x563b3c5b02d0) {
+  %7 = "arith.index_cast"(%arg6) : (i32) -> index
+
+
+  * Pattern (anonymous namespace)::IndexCastOfIndexCast : 'arith.index_cast -> ()' {
+    ** Match Failure : There's no operation that defines operand 0 of castedOp0
+  } -> failure : pattern failed to match
+
+  * Pattern (anonymous namespace)::IndexCastOfExtSI : 'arith.index_cast -> (arith.index_cast)' {
+    ** Match Failure : There's no operation that defines operand 0 of castedOp0
+  } -> failure : pattern failed to match
+} -> failure : pattern failed to match
+//===-------------------------------------------===//
+
+//===-------------------------------------------===//
+Processing operation : 'tt.return'(0x563b3c5aa450) {
+  "tt.return"() : () -> ()
+
+} -> failure : pattern failed to match
+//===-------------------------------------------===//
+
+//===-------------------------------------------===//
+Processing operation : 'tt.func'(0x563b3c5b0e10) {
+} -> failure : pattern failed to match
+//===-------------------------------------------===//
+
+//===-------------------------------------------===//
+Processing operation : 'arith.constant'(0x563b3c5b14f0) {
+  %0 = "arith.constant"() <{value = 0 : index}> : () -> index
+
+} -> failure : pattern failed to match
+//===-------------------------------------------===//
+
+//===-------------------------------------------===//
+Processing operation : 'arith.constant'(0x563b3c5a8dc0) {
+  %1 = "arith.constant"() <{value = 1 : i32}> : () -> i32
+
+} -> failure : pattern failed to match
+//===-------------------------------------------===//
+
+//===-------------------------------------------===//
+Processing operation : 'arith.constant'(0x563b3c5a8e90) {
+  %2 = "arith.constant"() <{value = 2 : i32}> : () -> i32
+
+} -> failure : pattern failed to match
+//===-------------------------------------------===//
+
+//===-------------------------------------------===//
+Processing operation : 'arith.constant'(0x563b3c5a93e0) {
+  %3 = "arith.constant"() <{value = 0 : i32}> : () -> i32
+
+} -> failure : pattern failed to match
+//===-------------------------------------------===//
+
+//===-------------------------------------------===//
+Processing operation : 'arith.constant'(0x563b3c5a9930) {
+  %4 = "arith.constant"() <{value = 32 : i32}> : () -> i32
+
+} -> failure : pattern failed to match
+//===-------------------------------------------===//
+
+//===-------------------------------------------===//
+Processing operation : 'arith.index_cast'(0x563b3c5ace90) {
+  %5 = "arith.index_cast"(%arg4) : (i32) -> index
+
+
+  * Pattern (anonymous namespace)::IndexCastOfIndexCast : 'arith.index_cast -> ()' {
+    ** Match Failure : There's no operation that defines operand 0 of castedOp0
+  } -> failure : pattern failed to match
+
+  * Pattern (anonymous namespace)::IndexCastOfExtSI : 'arith.index_cast -> (arith.index_cast)' {
+    ** Match Failure : There's no operation that defines operand 0 of castedOp0
+  } -> failure : pattern failed to match
+} -> failure : pattern failed to match
+//===-------------------------------------------===//
+
+//===-------------------------------------------===//
+Processing operation : 'arith.index_cast'(0x563b3c5acf80) {
+  %6 = "arith.index_cast"(%arg5) : (i32) -> index
+
+
+  * Pattern (anonymous namespace)::IndexCastOfIndexCast : 'arith.index_cast -> ()' {
+    ** Match Failure : There's no operation that defines operand 0 of castedOp0
+  } -> failure : pattern failed to match
+
+  * Pattern (anonymous namespace)::IndexCastOfExtSI : 'arith.index_cast -> (arith.index_cast)' {
+    ** Match Failure : There's no operation that defines operand 0 of castedOp0
+  } -> failure : pattern failed to match
+} -> failure : pattern failed to match
+//===-------------------------------------------===//
+
+//===-------------------------------------------===//
+Processing operation : 'arith.index_cast'(0x563b3c5b02d0) {
+  %7 = "arith.index_cast"(%arg6) : (i32) -> index
+
+
+  * Pattern (anonymous namespace)::IndexCastOfIndexCast : 'arith.index_cast -> ()' {
+    ** Match Failure : There's no operation that defines operand 0 of castedOp0
+  } -> failure : pattern failed to match
+
+  * Pattern (anonymous namespace)::IndexCastOfExtSI : 'arith.index_cast -> (arith.index_cast)' {
+    ** Match Failure : There's no operation that defines operand 0 of castedOp0
+  } -> failure : pattern failed to match
+} -> failure : pattern failed to match
+//===-------------------------------------------===//
+
+//===-------------------------------------------===//
+Processing operation : 'arith.index_cast'(0x563b3c5b0d90) {
+  %8 = "arith.index_cast"(%arg7) : (i32) -> index
+
+
+  * Pattern (anonymous namespace)::IndexCastOfIndexCast : 'arith.index_cast -> ()' {
+    ** Match Failure : There's no operation that defines operand 0 of castedOp0
+  } -> failure : pattern failed to match
+
+  * Pattern (anonymous namespace)::IndexCastOfExtSI : 'arith.index_cast -> (arith.index_cast)' {
+    ** Match Failure : There's no operation that defines operand 0 of castedOp0
+  } -> failure : pattern failed to match
+} -> failure : pattern failed to match
+//===-------------------------------------------===//
+
+//===-------------------------------------------===//
+Processing operation : 'arith.muli'(0x563b3c5b10f0) {
+  %9 = "arith.muli"(%arg5, %4) <{overflowFlags = #arith.overflow<none>}> : (i32, i32) -> i32
+
+
+  * Pattern (anonymous namespace)::MulIMulIConstant : 'arith.muli -> (arith.constant, arith.muli)' {
+    ** Match Failure : There's no operation that defines operand 0 of castedOp0
+  } -> failure : pattern failed to match
+} -> failure : pattern failed to match
+//===-------------------------------------------===//
+
+//===-------------------------------------------===//
+Processing operation : 'arith.index_cast'(0x563b3c5b1200) {
+  %10 = "arith.index_cast"(%9) : (i32) -> index
+
+
+  * Pattern (anonymous namespace)::IndexCastOfIndexCast : 'arith.index_cast -> ()' {
+    ** Match Failure : castedOp1 is not ::mlir::arith::IndexCastOp type
+  } -> failure : pattern failed to match
+
+  * Pattern (anonymous namespace)::IndexCastOfExtSI : 'arith.index_cast -> (arith.index_cast)' {
+    ** Match Failure : castedOp1 is not ::mlir::arith::ExtSIOp type
+  } -> failure : pattern failed to match
+} -> failure : pattern failed to match
+//===-------------------------------------------===//
+
+//===-------------------------------------------===//
+Processing operation : 'arith.index_cast'(0x563b3c5b12f0) {
+  %11 = "arith.index_cast"(%9) : (i32) -> index
+
+
+  * Pattern (anonymous namespace)::IndexCastOfIndexCast : 'arith.index_cast -> ()' {
+    ** Match Failure : castedOp1 is not ::mlir::arith::IndexCastOp type
+  } -> failure : pattern failed to match
+
+  * Pattern (anonymous namespace)::IndexCastOfExtSI : 'arith.index_cast -> (arith.index_cast)' {
+    ** Match Failure : castedOp1 is not ::mlir::arith::ExtSIOp type
+  } -> failure : pattern failed to match
+} -> failure : pattern failed to match
+//===-------------------------------------------===//
+
+//===-------------------------------------------===//
+Processing operation : 'scf.for'(0x563b3c594a60) {
+
+  * Pattern (anonymous namespace)::ForOpIterArgsFolder : 'scf.for -> ()' {
+  } -> failure : pattern failed to match
+
+  * Pattern (anonymous namespace)::SimplifyTrivialLoops : 'scf.for -> ()' {
+  } -> failure : pattern failed to match
+
+  * Pattern (anonymous namespace)::ForOpTensorCastFolder : 'scf.for -> ()' {
+  } -> failure : pattern failed to match
+} -> failure : pattern failed to match
+//===-------------------------------------------===//
+
+//===-------------------------------------------===//
+Processing operation : 'tts.make_tptr'(0x563b3c5b3fd0) {
+  %13 = "tts.make_tptr"(%arg1, %7, %8, %arg10, %0) <{operandSegmentSizes = array<i32: 1, 2, 2, 0>, order = array<i32>, sizes = array<i64: 2, 2>, static_offsets = array<i64: -9223372036854775808, -9223372036854775808>, static_shape = array<i64: 0, 0>, static_strides = array<i64: -9223372036854775808, -9223372036854775808>}> : (!tt.ptr<f32>, index, index, index, index) -> tensor<2x2x!tt.ptr<f32>>
+
+} -> failure : pattern failed to match
+//===-------------------------------------------===//
+
+//===-------------------------------------------===//
+Processing operation : 'tts.make_tptr'(0x563b3c5b4170) {
+  %14 = "tts.make_tptr"(%arg0, %5, %6, %arg9, %0) <{operandSegmentSizes = array<i32: 1, 2, 2, 0>, order = array<i32>, sizes = array<i64: 2, 2>, static_offsets = array<i64: -9223372036854775808, -9223372036854775808>, static_shape = array<i64: 0, 0>, static_strides = array<i64: -9223372036854775808, -9223372036854775808>}> : (!tt.ptr<f32>, index, index, index, index) -> tensor<2x2x!tt.ptr<f32>>
+
+} -> failure : pattern failed to match
+//===-------------------------------------------===//
+
+//===-------------------------------------------===//
+Processing operation : 'tts.load'(0x563b3c5b5230) {
+  %15 = "tts.load"(%14) <{operandSegmentSizes = array<i32: 1, 0, 0>, static_mask_dims = array<i64>}> : (tensor<2x2x!tt.ptr<f32>>) -> tensor<2x2xf32>
+
+} -> failure : pattern failed to match
+//===-------------------------------------------===//
+
+//===-------------------------------------------===//
+Processing operation : 'tts.store'(0x563b3c5b5c00) {
+  "tts.store"(%13, %15) <{static_mask_dims = array<i64>}> : (tensor<2x2x!tt.ptr<f32>>, tensor<2x2xf32>) -> ()
+
+} -> failure : pattern failed to match
+//===-------------------------------------------===//
+
+//===-------------------------------------------===//
+Processing operation : 'arith.addi'(0x563b3c5b5cb0) {
+  %16 = "arith.addi"(%arg9, %11) <{overflowFlags = #arith.overflow<none>}> : (index, index) -> index
+
+
+  * Pattern (anonymous namespace)::AddIAddConstant : 'arith.addi -> (arith.addi, arith.constant)' {
+    ** Match Failure : There's no operation that defines operand 0 of castedOp0
+  } -> failure : pattern failed to match
+
+  * Pattern (anonymous namespace)::AddISubConstantRHS : 'arith.addi -> (arith.addi, arith.constant)' {
+    ** Match Failure : There's no operation that defines operand 0 of castedOp0
+  } -> failure : pattern failed to match
+
+  * Pattern (anonymous namespace)::AddISubConstantLHS : 'arith.addi -> (arith.constant, arith.subi)' {
+    ** Match Failure : There's no operation that defines operand 0 of castedOp0
+  } -> failure : pattern failed to match
+
+  * Pattern (anonymous namespace)::AddIMulNegativeOneRhs : 'arith.addi -> (arith.subi)' {
+    ** Match Failure : castedOp1 is not ::mlir::arith::MulIOp type
+  } -> failure : pattern failed to match
+
+  * Pattern (anonymous namespace)::AddIMulNegativeOneLhs : 'arith.addi -> (arith.subi)' {
+    ** Match Failure : There's no operation that defines operand 0 of castedOp0
+  } -> failure : pattern failed to match
+} -> failure : pattern failed to match
+//===-------------------------------------------===//
+
+//===-------------------------------------------===//
+Processing operation : 'arith.addi'(0x563b3c5b6050) {
+  %17 = "arith.addi"(%arg10, %10) <{overflowFlags = #arith.overflow<none>}> : (index, index) -> index
+
+
+  * Pattern (anonymous namespace)::AddIAddConstant : 'arith.addi -> (arith.addi, arith.constant)' {
+    ** Match Failure : There's no operation that defines operand 0 of castedOp0
+  } -> failure : pattern failed to match
+
+  * Pattern (anonymous namespace)::AddISubConstantRHS : 'arith.addi -> (arith.addi, arith.constant)' {
+    ** Match Failure : There's no operation that defines operand 0 of castedOp0
+  } -> failure : pattern failed to match
+
+  * Pattern (anonymous namespace)::AddISubConstantLHS : 'arith.addi -> (arith.constant, arith.subi)' {
+    ** Match Failure : There's no operation that defines operand 0 of castedOp0
+  } -> failure : pattern failed to match
+
+  * Pattern (anonymous namespace)::AddIMulNegativeOneRhs : 'arith.addi -> (arith.subi)' {
+    ** Match Failure : castedOp1 is not ::mlir::arith::MulIOp type
+  } -> failure : pattern failed to match
+
+  * Pattern (anonymous namespace)::AddIMulNegativeOneLhs : 'arith.addi -> (arith.subi)' {
+    ** Match Failure : There's no operation that defines operand 0 of castedOp0
+  } -> failure : pattern failed to match
+} -> failure : pattern failed to match
+//===-------------------------------------------===//
+
+//===-------------------------------------------===//
+Processing operation : 'scf.yield'(0x563b3c5b3010) {
+  "scf.yield"(%16, %17) : (index, index) -> ()
+
+} -> failure : pattern failed to match
+//===-------------------------------------------===//
+
+//===-------------------------------------------===//
+Processing operation : 'tt.return'(0x563b3c5aa450) {
+  "tt.return"() : () -> ()
+
+} -> failure : pattern failed to match
+//===-------------------------------------------===//
+module {
+  tt.func public @nested1(%arg0: !tt.ptr<f32>, %arg1: !tt.ptr<f32>, %arg2: i32, %arg3: i32, %arg4: i32, %arg5: i32, %arg6: i32, %arg7: i32) attributes {noinline = false} {
+    %c0 = arith.constant 0 : index
+    %c1_i32 = arith.constant 1 : i32
+    %c2_i32 = arith.constant 2 : i32
+    %c0_i32 = arith.constant 0 : i32
+    %c32_i32 = arith.constant 32 : i32
+    %0 = arith.index_cast %arg4 : i32 to index
+    %1 = arith.index_cast %arg5 : i32 to index
+    %2 = arith.index_cast %arg6 : i32 to index
+    %3 = arith.index_cast %arg7 : i32 to index
+    %4 = arith.muli %arg5, %c32_i32 : i32
+    %5 = arith.index_cast %4 : i32 to index
+    %6 = arith.index_cast %4 : i32 to index
+    %7:2 = scf.for %arg8 = %c0_i32 to %c2_i32 step %c1_i32 iter_args(%arg9 = %c0, %arg10 = %c0) -> (index, index)  : i32 {
+      %8 = tts.make_tptr %arg1 to sizes: [2, 2], strides: [%2, %3], offsets: [%arg10, %c0], shape: [0, 0], order: [] : <f32> to tensor<2x2x!tt.ptr<f32>>
+      %9 = tts.make_tptr %arg0 to sizes: [2, 2], strides: [%0, %1], offsets: [%arg9, %c0], shape: [0, 0], order: [] : <f32> to tensor<2x2x!tt.ptr<f32>>
+      %10 = "tts.load"(%9) <{operandSegmentSizes = array<i32: 1, 0, 0>, static_mask_dims = array<i64>}> : (tensor<2x2x!tt.ptr<f32>>) -> tensor<2x2xf32>
+      "tts.store"(%8, %10) <{static_mask_dims = array<i64>}> : (tensor<2x2x!tt.ptr<f32>>, tensor<2x2xf32>) -> ()
+      %11 = arith.addi %arg9, %6 : index
+      %12 = arith.addi %arg10, %5 : index
+      scf.yield %11, %12 : index, index
+    }
+    tt.return
+  }
+}
+
