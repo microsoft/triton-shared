@@ -173,8 +173,10 @@ struct UnrealizedConverter
     auto loc = op->getLoc();
 
     if (op->hasAttr("make_state")) {
-
-      auto tupleType = cast<TupleType>(op.getResult(0).getType());
+      auto t = op.getResult(0).getType();
+      t.dump();
+      auto tupleType = llvm::dyn_cast<TupleType>(t);
+      assert(tupleType);
       SmallVector<Type> resTypes;
       tupleType.getFlattenedTypes(resTypes);
 
@@ -236,7 +238,7 @@ public:
             // assert(0);
             return success();
           }
-          return failure();
+          return std::nullopt;
         });
 
     // Hooks to compute the correct materialization, "argument" and "source"
@@ -354,10 +356,10 @@ public:
   void runOnOperation() override {
     (void)test();
     // assert(0);
-    // return;
+    return;
     // assert(0);
     (void)test2();
-    // return;
+    return;
 
     auto moduleOp = getOperation();
 
