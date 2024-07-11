@@ -5,6 +5,7 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "mlir/Conversion/ReconcileUnrealizedCasts/ReconcileUnrealizedCasts.h"
 #include "mlir/Dialect/SCF/Transforms/Patterns.h"
 #include "mlir/IR/BuiltinAttributes.h"
 #include "mlir/IR/BuiltinOps.h"
@@ -53,7 +54,7 @@ Type getType(MLIRContext *context, triton::PointerType ptrType) {
         context, SmallVector<Type>(rank, IndexType::get(context)));
     auto tupleType = TupleType::get(
         context, SmallVector<Type>{ptrType, offsetTuple, strideTuple});
-    tupleType.dump();
+    // tupleType.dump();
     return tupleType;
   } else {
     return TupleType::get(context,
@@ -84,7 +85,7 @@ public:
             context, SmallVector<Type>(rank, IndexType::get(context)));
         auto tupleType = TupleType::get(
             context, SmallVector<Type>{tensorType, offsetTuple, strideTuple});
-        tupleType.dump();
+        // tupleType.dump();
         return tupleType;
       }
       return std::nullopt;
@@ -116,10 +117,12 @@ static std::optional<SmallVector<Value>>
 buildCastAndOffsetOps2(OpBuilder &builder, TypeRange resultTypes, Value input,
                        Location loc) {
   // assert(0);
-  auto cast = builder.create<UnrealizedConversionCastOp>(
+  // auto cast = builder.create<UnrealizedConversionCastOp>(
+  //     loc, resultTypes, input.getDefiningOp()->getOperand(0));
+  // cast->setAttr("make_state_new", UnitAttr::get(builder.getContext()));
+  auto placeholder = builder.create<tts::StatePlaceholderOp>(
       loc, resultTypes, input.getDefiningOp()->getOperand(0));
-  cast->setAttr("zz", UnitAttr::get(builder.getContext()));
-  return SmallVector<Value>{cast->getResults()};
+  return SmallVector<Value>{placeholder->getResults()};
 }
 
 static std::optional<Value> buildCastOp(OpBuilder &builder, Type resultType,
@@ -135,72 +138,6 @@ static std::optional<Value> buildCastOp(OpBuilder &builder, Type resultType,
   op->setAttr("state_placeholder", UnitAttr::get(builder.getContext()));
   return op.getResult(0);
 }
-
-struct UnrealizedCastConverter : public OpConversionPattern<triton::AddPtrOp> {
-  using OpConversionPattern<triton::AddPtrOp>::OpConversionPattern;
-
-  UnrealizedCastConverter(TypeConverter &typeConverter, MLIRContext *context)
-      : OpConversionPattern<triton::AddPtrOp>(typeConverter, context) {}
-
-  LogicalResult
-  matchAndRewrite(triton::AddPtrOp op, OpAdaptor adaptor,
-                  ConversionPatternRewriter &rewriter) const override {
-    auto origType = op.getResult().getType();
-    origType.dump();
-    auto newType = getTypeConverter()->convertType(origType);
-    auto cast = rewriter.create<UnrealizedConversionCastOp>(
-        op->getLoc(), newType, op.getResult());
-    cast->setAttr("make_state", UnitAttr::get(rewriter.getContext()));
-    auto clone = rewriter.clone(*op.getOperation());
-    rewriter.replaceOp(op, clone);
-    rewriter.replaceAllUsesWith(clone->getResult(0), cast->getResult(0));
-    return success();
-  }
-};
-
-struct UnrealizedConverter
-    : public OneToNOpConversionPattern<UnrealizedConversionCastOp> {
-  using OneToNOpConversionPattern::OneToNOpConversionPattern;
-
-  UnrealizedConverter(TypeConverter &typeConverter, MLIRContext *context)
-      : OneToNOpConversionPattern<UnrealizedConversionCastOp>(typeConverter,
-                                                              context) {}
-
-  LogicalResult
-  matchAndRewrite(UnrealizedConversionCastOp op, OpAdaptor adaptor,
-                  OneToNPatternRewriter &rewriter) const override {
-
-    auto loc = op->getLoc();
-
-    if (op->hasAttr("make_state")) {
-      auto t = op.getResult(0).getType();
-      t.dump();
-      auto tupleType = llvm::dyn_cast<TupleType>(t);
-      assert(tupleType);
-      SmallVector<Type> resTypes;
-      tupleType.getFlattenedTypes(resTypes);
-
-      auto cast = rewriter.create<UnrealizedConversionCastOp>(
-          op->getLoc(), resTypes, op.getInputs());
-      cast->setAttr("make_state_new", UnitAttr::get(rewriter.getContext()));
-
-      rewriter.replaceOp(op, cast->getResults(), adaptor.getResultMapping());
-      return success();
-
-    } else if (op->hasAttr("state_placeholder")) {
-      auto input = op.getInputs()[0];
-      // auto argCast = input.getDefiningOp();
-      // argCast->dump();
-      // op->dump();
-      // input.dump();
-      // argCast->getOperands()[0].dump();
-      // rewriter.replaceOp(op, input);
-      return failure();
-      return success();
-    }
-    return failure();
-  }
-};
 
 class TritonToStructuredPass
     : public TritonToStructuredBase<TritonToStructuredPass> {
@@ -227,7 +164,7 @@ public:
     converter.addConversion(
         [context](RankedTensorType tensorType, SmallVectorImpl<Type> &types)
             -> std::optional<LogicalResult> {
-          tensorType.dump();
+          // tensorType.dump();
           if (auto ptrType =
                   dyn_cast<triton::PointerType>(tensorType.getElementType())) {
             auto rank = tensorType.getRank();
@@ -277,13 +214,13 @@ public:
   static std::optional<Value> buildCastOp2(OpBuilder &builder, Type resultType,
                                            ValueRange inputs, Location loc) {
     // assert(0);
-    llvm::dbgs() << "build cast op2\n";
-    llvm::dbgs() << "result type\n";
-    resultType.dump();
-    llvm::dbgs() << "inputs:\n";
-    for (auto v : inputs) {
-      v.dump();
-    }
+    // llvm::dbgs() << "build cast op2\n";
+    // llvm::dbgs() << "result type\n";
+    // resultType.dump();
+    // llvm::dbgs() << "inputs:\n";
+    // for (auto v : inputs) {
+    //   v.dump();
+    // }
     return inputs[0];
   }
 
@@ -360,50 +297,57 @@ public:
     // return;
     // assert(0);
     (void)test2();
-    return;
-
+    // return;
     auto moduleOp = getOperation();
+
+    {
+      PassManager pm(&getContext(), moduleOp.getOperationName());
+      pm.addPass(mlir::createReconcileUnrealizedCastsPass());
+      if (failed(runPipeline(pm, getOperation()))) {
+        signalPassFailure();
+      }
+    }
 
     mlir::tts::PtrAnalysis ptrAnalysis;
     if (ptrAnalysis.rewriteOp(moduleOp).failed()) {
       moduleOp->emitWarning("PtrAnalysis failed");
     }
 
-    moduleOp.walk([&ptrAnalysis](UnrealizedConversionCastOp op) {
+    moduleOp.walk([&ptrAnalysis](tts::StatePlaceholderOp op) {
       OpBuilder builder(op);
       SmallVector<Value> replacements;
-      if (op->hasAttr("make_state_new")) {
-        auto origPtr = op.getInputs()[0];
-        assert(ptrAnalysis.knownPtrs.contains(origPtr));
-        tts::PtrState state = ptrAnalysis.knownPtrs[origPtr];
+      // if (op->hasAttr("make_state_new")) {
+      auto origPtr = op->getOperand(0);
+      assert(ptrAnalysis.knownPtrs.contains(origPtr));
+      tts::PtrState state = ptrAnalysis.knownPtrs[origPtr];
 
-        replacements.push_back(ptrAnalysis.ptrMap.lookup(origPtr));
+      replacements.push_back(ptrAnalysis.ptrMap.lookup(origPtr));
 
-        for (auto [j, s] : llvm::enumerate(state.offsets)) {
-          auto sIntAttr = getIntAttr(s);
-          if (sIntAttr) {
-            auto constOp = builder.create<arith::ConstantOp>(
-                op.getLoc(), builder.getIndexAttr(sIntAttr.value()));
-            replacements.push_back(constOp.getResult());
-          } else {
-            replacements.push_back(s.get<Value>());
-          }
+      for (auto [j, s] : llvm::enumerate(state.offsets)) {
+        auto sIntAttr = getIntAttr(s);
+        if (sIntAttr) {
+          auto constOp = builder.create<arith::ConstantOp>(
+              op.getLoc(), builder.getIndexAttr(sIntAttr.value()));
+          replacements.push_back(constOp.getResult());
+        } else {
+          replacements.push_back(s.get<Value>());
         }
-
-        for (auto [j, s] : llvm::enumerate(state.strides)) {
-          auto sIntAttr = getIntAttr(s);
-          if (sIntAttr) {
-            auto constOp = builder.create<arith::ConstantOp>(
-                op.getLoc(), builder.getIndexAttr(sIntAttr.value()));
-            replacements.push_back(constOp.getResult());
-          } else {
-            replacements.push_back(s.get<Value>());
-          }
-        }
-
-        op->replaceAllUsesWith(replacements);
-        op->erase();
       }
+
+      for (auto [j, s] : llvm::enumerate(state.strides)) {
+        auto sIntAttr = getIntAttr(s);
+        if (sIntAttr) {
+          auto constOp = builder.create<arith::ConstantOp>(
+              op.getLoc(), builder.getIndexAttr(sIntAttr.value()));
+          replacements.push_back(constOp.getResult());
+        } else {
+          replacements.push_back(s.get<Value>());
+        }
+      }
+
+      op->replaceAllUsesWith(replacements);
+      op->erase();
+      // }
     });
   }
 };

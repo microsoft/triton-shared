@@ -120,6 +120,19 @@ def TTS_MakeTensorPtrOp
   //let hasCanonicalizer = 1;
 }
 
+def TTS_StatePlaceholderOp : TTS_Op<"state_placeholder", [Pure]> {
+  let summary = "An unrealized conversion from one set of types to another";
+  let description = [{}];
+
+  let arguments = (ins TT_PtrLike:$ptr);
+  let results = (outs Variadic<AnyType>:$outputs);
+  // let assemblyFormat = [{
+  //   ($inputs^ `:` type($inputs))? `to` type($outputs) attr-dict
+  // }];
+  let hasFolder = 0;
+  let hasVerifier = 0;
+}
+
 def TTS_LoadOp : TTS_Op<"load", [
   MemoryEffects<[MemRead]>,
   AttrSizedOperandSegments

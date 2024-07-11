@@ -7,6 +7,7 @@
 #include "mlir/Interfaces/SideEffectInterfaces.h"
 #include "triton/Dialect/Triton/IR/Types.h"
 #include "llvm/ADT/STLExtras.h"
+#include "llvm/Support/Casting.h"
 
 #define GET_OP_CLASSES
 #include "triton-shared/Dialect/TritonStructured/IR/TritonStructuredOps.h.inc"
@@ -85,6 +86,16 @@ void StoreOp::build(OpBuilder &b, OperationState &state, Value ptr, Value value,
 
   build(b, state, ptr, value, dynamicDims, b.getDenseI64ArrayAttr(staticDims));
 }
+
+// void StatePlaceholderOp::build(OpBuilder &b, OperationState &state, Value
+// ptr) {
+//   SmallVector<Type> resultTypes{ptr.getType()};
+//   if (auto tensorPtr = llvm::dyn_cast<RankedTensorType>(ptr.getType())) {
+//     resultTypes.append(tensorPtr.getRank() * 2,
+//     IndexType::get(b.getContext()));
+//   }
+//   build(b, state, resultTypes, ptr);
+// }
 
 } // namespace tts
 } // namespace mlir

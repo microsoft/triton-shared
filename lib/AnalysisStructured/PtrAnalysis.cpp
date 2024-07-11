@@ -802,14 +802,6 @@ LogicalResult PtrAnalysis::rewriteAdvanceOp(triton::AdvanceOp op) {
   return success();
 }
 
-// The ptr produced the unrealized_conversion_cast {state_placeholder}
-static Value getActualPtr(Value iterArg) {
-  assert(iterArg.hasOneUse());
-  auto unrealizedCast =
-      cast<UnrealizedConversionCastOp>(*iterArg.getUsers().begin());
-  return unrealizedCast->getResult(0);
-}
-
 static bool isPtr(Type t) {
   if (auto tensor = llvm::dyn_cast<RankedTensorType>(t)) {
     return isa<triton::PointerType>(tensor.getElementType());
@@ -830,9 +822,9 @@ LogicalResult PtrAnalysis::rewriteForOpNew(scf::ForOp op) {
 
     Value origPtr = nullptr;
 
-    if (auto unrealizedCast = arg.getDefiningOp<UnrealizedConversionCastOp>()) {
+    if (auto unrealizedCast = arg.getDefiningOp<tts::StatePlaceholderOp>()) {
       // unrealizedCast->dump();
-      origPtr = unrealizedCast.getInputs()[0];
+      origPtr = unrealizedCast->getOperand(0);
     }
 
     if (!origPtr) {
