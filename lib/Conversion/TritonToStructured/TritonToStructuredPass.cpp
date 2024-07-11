@@ -115,11 +115,11 @@ buildCastAndOffsetOps(OpBuilder &builder, TypeRange resultTypes, Value input,
 static std::optional<SmallVector<Value>>
 buildCastAndOffsetOps2(OpBuilder &builder, TypeRange resultTypes, Value input,
                        Location loc) {
-  assert(0);
+  // assert(0);
   auto cast =
       builder.create<UnrealizedConversionCastOp>(loc, resultTypes, input);
   cast->setAttr("zz", UnitAttr::get(builder.getContext()));
-  return SmallVector<Value>{cast->getResult(0)};
+  return SmallVector<Value>{cast->getResults()};
 }
 
 static std::optional<Value> buildCastOp(OpBuilder &builder, Type resultType,
@@ -194,7 +194,8 @@ struct UnrealizedConverter
       // op->dump();
       // input.dump();
       // argCast->getOperands()[0].dump();
-      rewriter.replaceOp(op, input);
+      // rewriter.replaceOp(op, input);
+      return failure();
       return success();
     }
     return failure();
@@ -276,13 +277,13 @@ public:
   static std::optional<Value> buildCastOp2(OpBuilder &builder, Type resultType,
                                            ValueRange inputs, Location loc) {
     // assert(0);
-    // llvm::dbgs() << "build cast op2\n";
-    // llvm::dbgs() << "result type\n";
-    // resultType.dump();
-    // llvm::dbgs() << "inputs:\n";
-    // for (auto v : inputs) {
-    //   v.dump();
-    // }
+    llvm::dbgs() << "build cast op2\n";
+    llvm::dbgs() << "result type\n";
+    resultType.dump();
+    llvm::dbgs() << "inputs:\n";
+    for (auto v : inputs) {
+      v.dump();
+    }
     return inputs[0];
   }
 
@@ -312,13 +313,13 @@ public:
     // tt.ptr type to a pair of {memref, index}, but the original ptr result is
     // still being used by another tt.load or tt.store.
     converter.addArgumentMaterialization(buildCastOp2);
-    // converter.addSourceMaterialization(buildCastOp2);
+    converter.addSourceMaterialization(buildCastOp2);
 
     // Compute the target materialization, given a value with the pointer type,
     // convert that value to a pair of {memref, index} type.
-    // converter.addTargetMaterialization(buildCastAndOffsetOps2);
+    converter.addTargetMaterialization(buildCastAndOffsetOps2);
 
-    patterns.add<UnrealizedConverter>(converter, context);
+    // patterns.add<UnrealizedConverter>(converter, context);
 
     scf::populateSCFStructuralOneToNTypeConversions(converter, patterns);
 
@@ -356,7 +357,7 @@ public:
   void runOnOperation() override {
     (void)test();
     // assert(0);
-    return;
+    // return;
     // assert(0);
     (void)test2();
     return;
