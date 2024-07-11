@@ -116,8 +116,8 @@ static std::optional<SmallVector<Value>>
 buildCastAndOffsetOps2(OpBuilder &builder, TypeRange resultTypes, Value input,
                        Location loc) {
   // assert(0);
-  auto cast =
-      builder.create<UnrealizedConversionCastOp>(loc, resultTypes, input);
+  auto cast = builder.create<UnrealizedConversionCastOp>(
+      loc, resultTypes, input.getDefiningOp()->getOperand(0));
   cast->setAttr("zz", UnitAttr::get(builder.getContext()));
   return SmallVector<Value>{cast->getResults()};
 }
