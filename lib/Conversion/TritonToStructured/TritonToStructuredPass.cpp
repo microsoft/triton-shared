@@ -224,6 +224,7 @@ public:
     converter.addConversion(
         [context](RankedTensorType tensorType, SmallVectorImpl<Type> &types)
             -> std::optional<LogicalResult> {
+          tensorType.dump();
           if (auto ptrType =
                   dyn_cast<triton::PointerType>(tensorType.getElementType())) {
             auto rank = tensorType.getRank();
@@ -232,9 +233,9 @@ public:
             auto tupleType = TupleType::get(
                 context, SmallVector<Type>{tensorType, offsetAndStrideTuple});
             types = SmallVector<Type>{tupleType};
+            // assert(0);
             return success();
           }
-
           return failure();
         });
 
@@ -313,7 +314,7 @@ public:
 
     // Compute the target materialization, given a value with the pointer type,
     // convert that value to a pair of {memref, index} type.
-    converter.addTargetMaterialization(buildCastAndOffsetOps2);
+    // converter.addTargetMaterialization(buildCastAndOffsetOps2);
 
     patterns.add<UnrealizedConverter>(converter, context);
 
@@ -352,6 +353,8 @@ public:
 
   void runOnOperation() override {
     (void)test();
+    // assert(0);
+    // return;
     // assert(0);
     (void)test2();
     // return;
