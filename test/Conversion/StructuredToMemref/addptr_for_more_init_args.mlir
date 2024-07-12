@@ -41,7 +41,7 @@ module {
     tt.return
   }
 }
-// mlir2FileCheck.py
+
 // CHECK-LABEL:  func.func @kernel
 // CHECK-SAME:   ([[PARAM_0_:%.+]]: memref<*xbf16>, [[PARAM_1_:%.+]]: memref<*xbf16>, [[PARAM_2_:%.+]]: i32, [[PARAM_3_:%.+]]: i32, [[PARAM_4_:%.+]]: i32, [[PARAM_5_:%.+]]: i32, [[PARAM_6_:%.+]]: i32, [[PARAM_7_:%.+]]: i32) {
 // CHECK-DAG:       [[CST_12_:%.+]] = arith.constant 12 : index
@@ -51,21 +51,21 @@ module {
 // CHECK-DAG:       [[CST_0_:%.+]] = arith.constant 0 : index
 // CHECK-DAG:       [[CST_1024_:%.+]] = arith.constant 1024 : index
 // CHECK-NOT: separator of consecutive DAGs
-// CHECK-DAG:       [[VAR_0_:%.+]]:5 = scf.for [[VAR_arg8_:%.+]] = [[CST_0_]] to [[CST_12_]] step [[CST_3_]] iter_args([[VAR_arg9_:%.+]] = [[CST_1_]], [[VAR_arg10_:%.+]] = [[CST_2_]], [[VAR_arg11_:%.+]] = [[CST_3_]], [[VAR_arg12_:%.+]] = [[CST_1024_]], [[VAR_arg13_:%.+]] = [[CST_1024_]]) -> (index, index, index, index, index) {
-// CHECK-DAG:         [[VAR_reinterpret_cast_:%.+]] = memref.reinterpret_cast [[PARAM_1_]] to offset: {{.}}[[VAR_arg13_]]{{.}}, sizes: [256], strides: {{.}}[[CST_1_]]{{.}} : memref<*xbf16> to memref<256xbf16, strided<[?], offset: ?>>
-// CHECK-DAG:         [[VAR_reinterpret_cast_0_:%.+]] = memref.reinterpret_cast [[PARAM_0_]] to offset: {{.}}[[VAR_arg12_]]{{.}}, sizes: [256], strides: {{.}}[[CST_1_]]{{.}} : memref<*xbf16> to memref<256xbf16, strided<[?], offset: ?>>
+// CHECK-DAG:       [[VAR_0_:%.+]]:5 = scf.for [[VAR_arg8_:%.+]] = [[CST_0_]] to [[CST_12_]] step [[CST_3_]] iter_args([[VAR_arg9_:%.+]] = [[CST_1_]], [[VAR_arg10_:%.+]] = [[CST_1024_]], [[VAR_arg11_:%.+]] = [[CST_2_]], [[VAR_arg12_:%.+]] = [[CST_1024_]], [[VAR_arg13_:%.+]] = [[CST_3_]]) -> (index, index, index, index, index) {
+// CHECK-DAG:         [[VAR_reinterpret_cast_:%.+]] = memref.reinterpret_cast [[PARAM_1_]] to offset: {{.}}[[VAR_arg12_]]{{.}}, sizes: [256], strides: {{.}}[[CST_1_]]{{.}} : memref<*xbf16> to memref<256xbf16, strided<[?], offset: ?>>
+// CHECK-DAG:         [[VAR_reinterpret_cast_0_:%.+]] = memref.reinterpret_cast [[PARAM_0_]] to offset: {{.}}[[VAR_arg10_]]{{.}}, sizes: [256], strides: {{.}}[[CST_1_]]{{.}} : memref<*xbf16> to memref<256xbf16, strided<[?], offset: ?>>
 // CHECK-DAG:         [[RES_:%.+]] = memref.alloc() : memref<256xbf16>
 // CHECK:             memref.copy [[VAR_reinterpret_cast_0_]], [[RES_]] : memref<256xbf16, strided<[?], offset: ?>> to memref<256xbf16>
 // CHECK:             [[VAR_1_:%.+]] = bufferization.to_tensor [[RES_]] restrict writable : memref<256xbf16>
 // CHECK:             bufferization.materialize_in_destination [[VAR_1_]] in writable [[VAR_reinterpret_cast_]] : (tensor<256xbf16>, memref<256xbf16, strided<[?], offset: ?>>) -> ()
-// CHECK-DAG:         [[VAR_2_:%.+]] = arith.addi [[VAR_arg12_]], [[CST_3_]] : index
+// CHECK-DAG:         [[VAR_2_:%.+]] = arith.addi [[VAR_arg10_]], [[CST_3_]] : index
 // CHECK-DAG:         [[VAR_3_:%.+]] = arith.addi [[VAR_arg9_]], [[CST_3_]] : index
-// CHECK-DAG:         [[VAR_4_:%.+]] = arith.addi [[VAR_arg10_]], [[CST_3_]] : index
-// CHECK-DAG:         [[VAR_5_:%.+]] = arith.addi [[VAR_arg11_]], [[CST_3_]] : index
+// CHECK-DAG:         [[VAR_4_:%.+]] = arith.addi [[VAR_arg11_]], [[CST_3_]] : index
+// CHECK-DAG:         [[VAR_5_:%.+]] = arith.addi [[VAR_arg13_]], [[CST_3_]] : index
 // CHECK:             [[VAR_6_:%.+]] = arith.addi [[VAR_3_]], [[VAR_4_]] : index
 // CHECK:             [[VAR_7_:%.+]] = arith.addi [[VAR_6_]], [[VAR_5_]] : index
-// CHECK:             [[VAR_8_:%.+]] = arith.addi [[VAR_arg13_]], [[VAR_7_]] : index
-// CHECK:             scf.yield [[VAR_3_]], [[VAR_4_]], [[VAR_5_]], [[VAR_2_]], [[VAR_8_]] : index, index, index, index, index
+// CHECK:             [[VAR_8_:%.+]] = arith.addi [[VAR_arg12_]], [[VAR_7_]] : index
+// CHECK:             scf.yield [[VAR_3_]], [[VAR_2_]], [[VAR_4_]], [[VAR_8_]], [[VAR_5_]] : index, index, index, index, index
 // CHECK:           }
 // CHECK:           return
 // CHECK:         }
