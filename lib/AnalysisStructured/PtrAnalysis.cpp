@@ -840,14 +840,21 @@ LogicalResult PtrAnalysis::rewriteForOpNew(scf::ForOp op) {
 
     // arg.dump();
     int cnt = i + 1;
-    for (auto it = state.offsets.begin(); it != state.offsets.end(); it++) {
-      // llvm::dbgs() << "setting offset to iterarg index " << (cnt) << "\n";
-      *it = op.getRegionIterArgs()[cnt++];
-    }
+    if (state.getRank() == 0) {
+      assert(state.scalar);
+      // for scalar pointers, the scalar contains the offset and is the only
+      // relevant state that could be updated by the loop.
+      state.scalar = op.getRegionIterArgs()[cnt];
+    } else {
+      for (auto it = state.offsets.begin(); it != state.offsets.end(); it++) {
+        // llvm::dbgs() << "setting offset to iterarg index " << (cnt) << "\n";
+        *it = op.getRegionIterArgs()[cnt++];
+      }
 
-    for (auto it = state.strides.begin(); it != state.strides.end(); it++) {
-      // llvm::dbgs() << "setting stride to iterarg index " << (cnt) << "\n";
-      *it = op.getRegionIterArgs()[cnt++];
+      for (auto it = state.strides.begin(); it != state.strides.end(); it++) {
+        // llvm::dbgs() << "setting stride to iterarg index " << (cnt) << "\n";
+        *it = op.getRegionIterArgs()[cnt++];
+      }
     }
 
     auto key = op.getRegionIterArgs()[i];

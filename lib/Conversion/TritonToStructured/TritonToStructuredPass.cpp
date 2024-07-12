@@ -179,6 +179,27 @@ public:
           return std::nullopt;
         });
 
+    converter.addConversion(
+        [context](triton::PointerType ptrType, SmallVectorImpl<Type> &types)
+            -> std::optional<LogicalResult> {
+          if (auto tensorType =
+                  llvm::dyn_cast<RankedTensorType>(ptrType.getPointeeType())) {
+
+            auto rank = tensorType.getRank();
+            auto offsetAndStrideTuple = TupleType::get(
+                context, SmallVector<Type>(rank * 2, IndexType::get(context)));
+            auto tupleType = TupleType::get(
+                context, SmallVector<Type>{ptrType, offsetAndStrideTuple});
+            types = SmallVector<Type>{tupleType};
+
+          } else {
+            auto tupleType = TupleType::get(
+                context, SmallVector<Type>{ptrType, IndexType::get(context)});
+            types = SmallVector<Type>{tupleType};
+          }
+          return success();
+        });
+
     // Hooks to compute the correct materialization, "argument" and "source"
     // materialization are used when we need to convert a pair of {memref,
     // index} type back to the original triton pointer type.
@@ -323,25 +344,31 @@ public:
 
       replacements.push_back(ptrAnalysis.ptrMap.lookup(origPtr));
 
-      for (auto [j, s] : llvm::enumerate(state.offsets)) {
-        auto sIntAttr = getIntAttr(s);
-        if (sIntAttr) {
-          auto constOp = builder.create<arith::ConstantOp>(
-              op.getLoc(), builder.getIndexAttr(sIntAttr.value()));
-          replacements.push_back(constOp.getResult());
-        } else {
-          replacements.push_back(s.get<Value>());
+      if (state.getRank() == 0) {
+        replacements.push_back(state.scalar);
+        // for scalar pointers, the scalar contains the offset and is the only
+        // relevant state that could be updated by the loop.
+      } else {
+        for (auto [j, s] : llvm::enumerate(state.offsets)) {
+          auto sIntAttr = getIntAttr(s);
+          if (sIntAttr) {
+            auto constOp = builder.create<arith::ConstantOp>(
+                op.getLoc(), builder.getIndexAttr(sIntAttr.value()));
+            replacements.push_back(constOp.getResult());
+          } else {
+            replacements.push_back(s.get<Value>());
+          }
         }
-      }
 
-      for (auto [j, s] : llvm::enumerate(state.strides)) {
-        auto sIntAttr = getIntAttr(s);
-        if (sIntAttr) {
-          auto constOp = builder.create<arith::ConstantOp>(
-              op.getLoc(), builder.getIndexAttr(sIntAttr.value()));
-          replacements.push_back(constOp.getResult());
-        } else {
-          replacements.push_back(s.get<Value>());
+        for (auto [j, s] : llvm::enumerate(state.strides)) {
+          auto sIntAttr = getIntAttr(s);
+          if (sIntAttr) {
+            auto constOp = builder.create<arith::ConstantOp>(
+                op.getLoc(), builder.getIndexAttr(sIntAttr.value()));
+            replacements.push_back(constOp.getResult());
+          } else {
+            replacements.push_back(s.get<Value>());
+          }
         }
       }
 
