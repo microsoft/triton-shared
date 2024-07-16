@@ -184,7 +184,7 @@ public:
             -> std::optional<LogicalResult> {
           if (auto tensorType =
                   llvm::dyn_cast<RankedTensorType>(ptrType.getPointeeType())) {
-
+            // Block ptr
             auto rank = tensorType.getRank();
             auto offsetAndStrideTuple = TupleType::get(
                 context, SmallVector<Type>(rank * 2, IndexType::get(context)));
@@ -318,7 +318,6 @@ public:
     // return;
     // assert(0);
     (void)test2();
-    // return;
     auto moduleOp = getOperation();
 
     {
@@ -328,6 +327,8 @@ public:
         signalPassFailure();
       }
     }
+
+    // return;
 
     mlir::tts::PtrAnalysis ptrAnalysis;
     if (ptrAnalysis.rewriteOp(moduleOp).failed()) {

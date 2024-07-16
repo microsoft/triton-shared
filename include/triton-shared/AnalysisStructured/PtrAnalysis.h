@@ -84,6 +84,9 @@ struct PtrAnalysis {
   LogicalResult visitOperand(Value operand, PtrState &state, const Location loc,
                              OpBuilder &builder);
 
+  LogicalResult visitOperandForOp(scf::ForOp forOp, PtrState &state,
+                                  const Location loc, OpBuilder &builder);
+
   // Operand is the result of arith.addi. Process both arguments and insert any
   // arith.addi instruction as needed.
   // Main assumptions:

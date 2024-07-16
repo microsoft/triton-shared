@@ -6,6 +6,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "triton-shared/AnalysisStructured/PtrAnalysis.h"
+#include "mlir/Dialect/SCF/IR/SCF.h"
 #include "mlir/IR/BuiltinOps.h"
 #include "mlir/IR/BuiltinTypes.h"
 #include "mlir/Support/LogicalResult.h"
@@ -658,6 +659,13 @@ PtrAnalysis::visitOperandMakeTensorPtr(triton::MakeTensorPtrOp makeTPtrOp,
   return success();
 }
 
+LogicalResult PtrAnalysis::visitOperandForOp(scf::ForOp forOp, PtrState &state,
+                                             const Location loc,
+                                             OpBuilder &builder) {
+
+  return success();
+}
+
 LogicalResult PtrAnalysis::visitOperand(Value operand, PtrState &state,
                                         const Location loc,
                                         OpBuilder &builder) {
@@ -699,6 +707,51 @@ LogicalResult PtrAnalysis::visitOperand(Value operand, PtrState &state,
     }
   }
 
+  if (auto op = operand.getDefiningOp<scf::ForOp>()) {
+    auto it = llvm::find(op->getResults(), operand);
+    auto index = std::distance(op->getResults().begin(), it);
+
+    auto init = op.getInitArgs()[index];
+
+    Value origPtr = nullptr;
+
+    if (auto unrealizedCast = init.getDefiningOp<tts::StatePlaceholderOp>()) {
+      // unrealizedCast->dump();
+      origPtr = unrealizedCast->getOperand(0);
+    }
+
+    assert(origPtr);
+
+    // if i need to get the state, just need to do knownPtrs[ptr]
+    origPtr.dump();
+    if (!knownPtrs.count(origPtr)) {
+      op.emitError("Rewrite for-op failed.");
+      return failure();
+    }
+    state = knownPtrs[origPtr];
+
+    int cnt = index + 1;
+
+    for (auto it = state.offsets.begin(); it != state.offsets.end(); it++) {
+      // llvm::dbgs() << "setting offset to iterarg index " << (cnt) << "\n";
+      *it = op->getResults()[cnt++];
+    }
+
+    for (auto it = state.strides.begin(); it != state.strides.end(); it++) {
+      // llvm::dbgs() << "setting stride to iterarg index " << (cnt) << "\n";
+      *it = op.getResults()[cnt++];
+    }
+
+    assert(state.source);
+    // state.source = makeTPtrOp.getBase();
+    // state.offsets = makeTPtrOp.getMixedOffsets();
+    // state.sizes = makeTPtrOp.getMixedSizes();
+    // state.strides = makeTPtrOp.getMixedStrides();
+    // state.shape = makeTPtrOp.getMixedShape();
+    // state.order = SmallVector<int32_t>(makeTPtrOp.getOrder());
+    return success();
+  }
+
   if (auto op = operand.getDefiningOp<arith::AddIOp>()) {
     return visitOperandAdd(op, state, loc, builder);
   } else if (auto op = operand.getDefiningOp<arith::MulIOp>()) {
@@ -717,7 +770,9 @@ LogicalResult PtrAnalysis::visitOperand(Value operand, PtrState &state,
     return visitOperandConstSplat(op, state, loc, builder);
   } else if (auto op = operand.getDefiningOp<arith::RemSIOp>()) {
     return visitOperandRem(op, state, loc, builder);
-  } else {
+  }
+
+  else {
     llvm::dbgs() << "PtrAnalysis: encountered addptr operand produced by an "
                     "unsupported operation\n";
     operand.dump();
