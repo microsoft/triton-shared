@@ -146,10 +146,26 @@ def nested3(in_ptr, out_ptr, stride_m, stride_n):
 def test():
     n_rows = 4
     n_cols = 48
+    expected = torch.tensor([[ 0.,  1.,  2.,  3.,  4.,  5.,  0.,  1.,  2.,  3.,  6.,  7.,  0.,  1.,
+          8.,  9., 10., 11.,  0.,  1.,  8.,  9., 12., 13., 14., 15., 16., 17.,
+         18., 19., 14., 15., 16., 17., 20., 21., 14., 15., 22., 23., 24., 25.,
+         14., 15., 22., 23., 26., 27.],
+        [48., 49., 50., 51., 52., 53., 48., 49., 50., 51., 54., 55., 48., 49.,
+         56., 57., 58., 59., 48., 49., 56., 57., 60., 61., 62., 63., 64., 65.,
+         66., 67., 62., 63., 64., 65., 68., 69., 62., 63., 70., 71., 72., 73.,
+         62., 63., 70., 71., 74., 75.],
+        [ 0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,
+          0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,
+          0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,
+          0.,  0.,  0.,  0.,  0.,  0.],
+        [ 0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,
+          0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,
+          0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,
+          0.,  0.,  0.,  0.,  0.,  0.]], dtype=torch.int32, device='cpu')
     # x = torch.arange(0, n_rows * n_cols, device="cuda", dtype=torch.float32).reshape([n_rows, n_cols])
     triton.runtime.driver.set_active(CPUDriver())
-    x = torch.arange(0, n_rows * n_cols, device="cpu", dtype=torch.float32).reshape([n_rows, n_cols])
-    output = torch.empty([n_rows, n_cols], device=x.device, dtype=x.dtype)
+    x = torch.arange(0, n_rows * n_cols, device="cpu", dtype=torch.int32).reshape([n_rows, n_cols])
+    output = torch.zeros([n_rows, n_cols], device=x.device, dtype=x.dtype)
     grid = lambda meta: (n_cols // 4,)
 
     print('before:')
@@ -160,8 +176,8 @@ def test():
     nested3[grid](x, output, x.stride(0), x.stride(1))
     print(output)
     # ans = torch.sum(x, dim=1)
-    # torch.testing.assert_close(output, ans, rtol=0.001, atol=1e-5)
-    # print("Pass!")
+    torch.testing.assert_close(output, expected, rtol=0.001, atol=1e-5)
+    print("Pass!")
 
     # src = triton.compiler.ASTSource(
     #     fn=nested3,

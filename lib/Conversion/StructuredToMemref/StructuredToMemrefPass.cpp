@@ -85,12 +85,20 @@ public:
     addConversion([context](triton::PointerType ptrType) {
       return getMemrefTypeForScalarPtr(ptrType, context);
     });
-    // addConversion([context](RankedTensorType tensorType) {
-    //   if (auto ptrType = llvm::dyn_cast<triton::PointerType>(
-    //           tensorType.getElementType())) {
-    //             return getMemrefTypeForScalarPtr(ptrType, context);
-    //   }
-    // });
+    addConversion(
+        [context](RankedTensorType tensorType) -> std::optional<MemRefType> {
+          if (auto ptrType = llvm::dyn_cast<triton::PointerType>(
+                  tensorType.getElementType())) {
+            auto layout = StridedLayoutAttr::get(
+                context, ShapedType::kDynamic,
+                SmallVector<int64_t>(tensorType.getRank(),
+                                     ShapedType::kDynamic));
+            Type elemType = ptrType.getPointeeType();
+            return MemRefType::get(tensorType.getShape(), elemType, layout);
+          }
+
+          return std::nullopt;
+        });
   }
 };
 
@@ -327,6 +335,16 @@ public:
     if (failed(convertAddPtrToReinterpretCast())) {
       signalPassFailure();
       return;
+    }
+
+    {
+      // Erase dead code and fold constants created during lowering
+      PassManager pm(&getContext(), moduleOp.getOperationName());
+      pm.addPass(createCanonicalizerPass());
+      pm.addPass(createRemoveDeadValuesPass());
+      if (failed(runPipeline(pm, getOperation()))) {
+        signalPassFailure();
+      }
     }
 
     RewritePatternSet patterns(&getContext());
