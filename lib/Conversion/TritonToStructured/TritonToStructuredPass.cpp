@@ -339,7 +339,12 @@ public:
       SmallVector<Value> replacements;
       // if (op->hasAttr("make_state_new")) {
       auto origPtr = op->getOperand(0);
-      assert(ptrAnalysis.knownPtrs.contains(origPtr));
+
+      if (!ptrAnalysis.knownPtrs.contains(origPtr)) {
+        op.getResult(0).replaceAllUsesWith(origPtr);
+        return;
+      }
+
       tts::PtrState state = ptrAnalysis.knownPtrs[origPtr];
 
       replacements.push_back(ptrAnalysis.ptrMap.lookup(origPtr));

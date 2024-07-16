@@ -833,7 +833,10 @@ LogicalResult PtrAnalysis::rewriteForOpNew(scf::ForOp op) {
 
     // if i need to get the state, just need to do knownPtrs[ptr]
     origPtr.dump();
-    assert(knownPtrs.count(origPtr));
+    if (!knownPtrs.count(origPtr)) {
+      op.emitError("Rewrite for-op failed.");
+      return failure();
+    }
     PtrState state = knownPtrs[origPtr];
 
     // modify the state to point to iter args
