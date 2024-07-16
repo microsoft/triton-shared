@@ -5,7 +5,6 @@ from triton.backends.compiler import GPUTarget
 from triton.backends.triton_shared.driver import CPUDriver
 import triton.language as tl
 
-# triton.runtime.driver.set_active(CPUDriver())
 
 
 @triton.jit
@@ -147,30 +146,31 @@ def nested3(in_ptr, out_ptr, stride_m, stride_n):
 def test():
     n_rows = 4
     n_cols = 48
+    # x = torch.arange(0, n_rows * n_cols, device="cuda", dtype=torch.float32).reshape([n_rows, n_cols])
+    triton.runtime.driver.set_active(CPUDriver())
     x = torch.arange(0, n_rows * n_cols, device="cpu", dtype=torch.float32).reshape([n_rows, n_cols])
     output = torch.empty([n_rows, n_cols], device=x.device, dtype=x.dtype)
     grid = lambda meta: (n_cols // 4,)
 
-    # print('before:')
-    # print(x)
-    # print(output)
+    print('before:')
+    print(x)
+    print(output)
     # print(x.stride(1))
 
-    # nested3[grid](x, output, x.stride(0), x.stride(1))
-    # print(x)
-    # print(output)
+    nested3[grid](x, output, x.stride(0), x.stride(1))
+    print(output)
     # ans = torch.sum(x, dim=1)
     # torch.testing.assert_close(output, ans, rtol=0.001, atol=1e-5)
     # print("Pass!")
 
-    src = triton.compiler.ASTSource(
-        fn=nested2_use_loop_results,
-        signature="*fp32,*fp32,i32,i32",
-    )
-    ret = triton.compile(
-        src,
-    )
-    print(ret.asm["ttir"])
+    # src = triton.compiler.ASTSource(
+    #     fn=nested3,
+    #     signature="*fp32,*fp32,i32,i32",
+    # )
+    # ret = triton.compile(
+    #     src,
+    # )
+    # print(ret.asm["ttir"])
     # print(ret.asm["ttsharedir"])
     # print(ret.asm["llir"])
     # print(ret.asm["cpuasm"])

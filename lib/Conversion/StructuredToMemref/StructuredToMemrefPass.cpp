@@ -28,6 +28,7 @@
 #include "mlir/Pass/PassManager.h"
 #include "mlir/Transforms/Passes.h"
 #include "triton/Dialect/Triton/IR/Types.h"
+#include "llvm/Support/Casting.h"
 #include "llvm/Support/Debug.h"
 
 #include <cassert>
@@ -84,6 +85,12 @@ public:
     addConversion([context](triton::PointerType ptrType) {
       return getMemrefTypeForScalarPtr(ptrType, context);
     });
+    // addConversion([context](RankedTensorType tensorType) {
+    //   if (auto ptrType = llvm::dyn_cast<triton::PointerType>(
+    //           tensorType.getElementType())) {
+    //             return getMemrefTypeForScalarPtr(ptrType, context);
+    //   }
+    // });
   }
 };
 

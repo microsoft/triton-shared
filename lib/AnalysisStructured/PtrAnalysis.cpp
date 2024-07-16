@@ -707,20 +707,32 @@ LogicalResult PtrAnalysis::visitOperand(Value operand, PtrState &state,
     }
   }
 
+  if (!operand.getDefiningOp()) {
+    operand.dump();
+    operand.getParentBlock()->dump();
+    state = knownPtrs[operand];
+
+    if (!state.source) {
+      // need this for the wraparound fail case
+      return failure();
+    }
+    // state.source = makeTPtrOp.getBase();
+    // state.offsets = makeTPtrOp.getMixedOffsets();
+    // state.sizes = makeTPtrOp.getMixedSizes();
+    // state.strides = makeTPtrOp.getMixedStrides();
+    // state.shape = makeTPtrOp.getMixedShape();
+    // state.order = SmallVector<int32_t>(makeTPtrOp.getOrder());
+    return success();
+  }
+
   if (auto op = operand.getDefiningOp<scf::ForOp>()) {
     auto it = llvm::find(op->getResults(), operand);
     auto index = std::distance(op->getResults().begin(), it);
 
     auto init = op.getInitArgs()[index];
 
-    Value origPtr = nullptr;
-
-    if (auto unrealizedCast = init.getDefiningOp<tts::StatePlaceholderOp>()) {
-      // unrealizedCast->dump();
-      origPtr = unrealizedCast->getOperand(0);
-    }
-
-    assert(origPtr);
+    Value origPtr = init;
+    assert(origPtr && knownPtrs.count(origPtr));
 
     // if i need to get the state, just need to do knownPtrs[ptr]
     origPtr.dump();
@@ -883,7 +895,10 @@ LogicalResult PtrAnalysis::rewriteForOpNew(scf::ForOp op) {
     }
 
     if (!origPtr) {
-      continue;
+      // This must come from an init args
+      assert(!arg.getDefiningOp());
+      origPtr = arg;
+      assert(knownPtrs.count(origPtr));
     }
 
     // if i need to get the state, just need to do knownPtrs[ptr]
