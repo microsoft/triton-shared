@@ -51,19 +51,19 @@ module {
 // CHECK-DAG:       [[CST_12_:%.+]] = arith.constant 12 : index
 // CHECK-DAG:       [[CST_1024_:%.+]] = arith.constant 1024 : index
 // CHECK-NOT: separator of consecutive DAGs
-// CHECK-DAG:       [[VAR_0_:%.+]]:5 = scf.for [[VAR_arg2_:%.+]] = [[CST_0_]] to [[CST_12_]] step [[CST_3_]] iter_args([[VAR_arg3_:%.+]] = [[CST_1_]], [[VAR_arg4_:%.+]] = [[CST_2_]], [[VAR_arg5_:%.+]] = [[CST_3_]], [[VAR_arg6_:%.+]] = [[CST_1_]]024, [[VAR_arg7_:%.+]] = [[CST_1_]]024) -> (index, index, index, index, index) {
-// CHECK-DAG:         [[VAR_1_:%.+]] = tts.make_tptr [[PARAM_1_]] to sizes: [256], strides: {{.}}[[CST_1_]]{{.}}, offsets: {{.}}[[VAR_arg7_]]{{.}}, shape: [0], order: [] : <bf16> to tensor<256x!tt.ptr<bf16>>
-// CHECK-DAG:         [[VAR_2_:%.+]] = tts.make_tptr [[PARAM_0_]] to sizes: [256], strides: {{.}}[[CST_1_]]{{.}}, offsets: {{.}}[[VAR_arg6_]]{{.}}, shape: [0], order: [] : <bf16> to tensor<256x!tt.ptr<bf16>>
+// CHECK-DAG:       [[VAR_0_:%.+]]:5 = scf.for [[VAR_arg2_:%.+]] = [[CST_0_]] to [[CST_12_]] step [[CST_3_]] iter_args([[VAR_arg3_:%.+]] = [[CST_1_]], [[VAR_arg4_:%.+]] = [[CST_1024_]], [[VAR_arg5_:%.+]] = [[CST_2_]], [[VAR_arg6_:%.+]] = [[CST_1024_]], [[VAR_arg7_:%.+]] = [[CST_3_]]) -> (index, index, index, index, index) {
+// CHECK-DAG:         [[VAR_1_:%.+]] = tts.make_tptr [[PARAM_1_]] to sizes: [256], strides: {{.}}[[CST_1_]]{{.}}, offsets: {{.}}[[VAR_arg6_]]{{.}}, shape: [0], order: [] : <bf16> to tensor<256x!tt.ptr<bf16>>
+// CHECK-DAG:         [[VAR_2_:%.+]] = tts.make_tptr [[PARAM_0_]] to sizes: [256], strides: {{.}}[[CST_1_]]{{.}}, offsets: {{.}}[[VAR_arg4_]]{{.}}, shape: [0], order: [] : <bf16> to tensor<256x!tt.ptr<bf16>>
 // CHECK:             [[VAR_3_:%.+]] = "tts.load"([[VAR_2_]]) <{operandSegmentSizes = array<i32: 1, 0, 0>, static_mask_dims = array<i64>}> : (tensor<256x!tt.ptr<bf16>>) -> tensor<256xbf16>
 // CHECK:             "tts.store"([[VAR_1_]], [[VAR_3_]]) <{static_mask_dims = array<i64>}> : (tensor<256x!tt.ptr<bf16>>, tensor<256xbf16>) -> ()
-// CHECK-DAG:         [[VAR_4_:%.+]] = arith.addi [[VAR_arg6_]], [[CST_3_]] : index
+// CHECK-DAG:         [[VAR_4_:%.+]] = arith.addi [[VAR_arg4_]], [[CST_3_]] : index
 // CHECK-DAG:         [[VAR_5_:%.+]] = arith.addi [[VAR_arg3_]], [[CST_3_]] : index
-// CHECK-DAG:         [[VAR_6_:%.+]] = arith.addi [[VAR_arg4_]], [[CST_3_]] : index
-// CHECK-DAG:         [[VAR_7_:%.+]] = arith.addi [[VAR_arg5_]], [[CST_3_]] : index
+// CHECK-DAG:         [[VAR_6_:%.+]] = arith.addi [[VAR_arg5_]], [[CST_3_]] : index
+// CHECK-DAG:         [[VAR_7_:%.+]] = arith.addi [[VAR_arg7_]], [[CST_3_]] : index
 // CHECK:             [[VAR_8_:%.+]] = arith.addi [[VAR_5_]], [[VAR_6_]] : index
 // CHECK:             [[VAR_9_:%.+]] = arith.addi [[VAR_8_]], [[VAR_7_]] : index
-// CHECK:             [[VAR_10_:%.+]] = arith.addi [[VAR_arg7_]], [[VAR_9_]] : index
-// CHECK:             scf.yield [[VAR_5_]], [[VAR_6_]], [[VAR_7_]], [[VAR_4_]], [[VAR_10_]] : index, index, index, index, index
+// CHECK:             [[VAR_10_:%.+]] = arith.addi [[VAR_arg6_]], [[VAR_9_]] : index
+// CHECK:             scf.yield [[VAR_5_]], [[VAR_4_]], [[VAR_6_]], [[VAR_10_]], [[VAR_7_]] : index, index, index, index, index
 // CHECK:           }
 // CHECK:           tt.return
 // CHECK:         }
