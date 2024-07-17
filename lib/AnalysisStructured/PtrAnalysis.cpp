@@ -23,6 +23,7 @@
 #include "llvm/Support/Casting.h"
 #include "llvm/Support/Debug.h"
 #include <cassert>
+#include <cstddef>
 
 #define DEBUG_TYPE "triton-ptr-analysis"
 
@@ -731,7 +732,14 @@ LogicalResult PtrAnalysis::visitOperand(Value operand, PtrState &state,
 
     auto init = op.getInitArgs()[index];
 
-    Value origPtr = init;
+    Value origPtr = nullptr;
+
+    if (auto unrealizedCast = init.getDefiningOp<tts::StatePlaceholderOp>()) {
+      // unrealizedCast->dump();
+      origPtr = unrealizedCast->getOperand(0);
+    }
+
+    // init.dump();
     assert(origPtr && knownPtrs.count(origPtr));
 
     // if i need to get the state, just need to do knownPtrs[ptr]
