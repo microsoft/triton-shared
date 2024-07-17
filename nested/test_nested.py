@@ -20,6 +20,9 @@ def nested2_strides_change(a_ptr, c_ptr, stride_m, stride_n):
         None, :]
 
     for i in range(0, 2):
+        a_ptrs_copy = a_ptrs
+        c_ptrs_copy = c_ptrs
+
         a_ptrs += 1
         c_ptrs += 1
 
@@ -29,8 +32,9 @@ def nested2_strides_change(a_ptr, c_ptr, stride_m, stride_n):
             a_ptrs += 3
             c_ptrs += 3
 
-        a_ptrs += 4
-        c_ptrs += 4
+        a_ptrs = a_ptrs_copy + 2 * stride_m + 1
+        c_ptrs = c_ptrs_copy + 2 * stride_m + 1
+
 
 
 @triton.jit
@@ -49,9 +53,6 @@ def nested2_use_loop_results(in_ptr, out_ptr, stride_m, stride_n):
         a2 = tl.load(a_ptrs)
         tl.store(c_ptrs, a2)
 
-        # a_ptrs_copy = a_ptrs
-        # c_ptrs_copy = c_ptrs
-
         a_ptrs += 4 * stride_n
         c_ptrs += 4 * stride_n
 
@@ -61,9 +62,6 @@ def nested2_use_loop_results(in_ptr, out_ptr, stride_m, stride_n):
             tl.store(c_ptrs, a2)
             a_ptrs += 4 * stride_n
             c_ptrs += 4 * stride_n
-
-        a_ptrs += 2 * stride_m + 1
-        c_ptrs += 2 * stride_m + 1
 
 
 @triton.jit
@@ -189,17 +187,12 @@ def test2():
 
 def test3():
     n_rows = 4
-    n_cols = 32
+    n_cols = 8
     grid = lambda meta: (n_cols // 4,)
-    expected = torch.tensor([[ 0,  1,  2,  0,  4,  5,  0,  0,  0,  0,  0,  0, 12, 13,  0, 15, 16,  0,
-          0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0],
-        [ 0, 33, 34,  0, 36, 37,  0,  0,  0,  0,  0,  0, 44, 45,  0, 47, 48,  0,
-          0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0],
-        [ 0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
-          0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0],
-        [ 0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
-          0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0]],
-       device='cpu', dtype=torch.int32)
+    expected = torch.tensor([[ 0,  1,  2,  0,  4,  5,  0,  0],
+        [ 0,  9, 10,  0, 12, 13,  0,  0],
+        [ 0,  0, 18, 19,  0, 21, 22,  0],
+        [ 0,  0, 26, 27,  0, 29, 30,  0]], device='cpu', dtype=torch.int32)
 
     # print(x.stride(1))
 
@@ -234,15 +227,15 @@ def test3():
     torch.testing.assert_close(output, expected, rtol=0.001, atol=1e-5)
     print("Pass!")
 
-    # src = triton.compiler.ASTSource(
-    #     fn=nested2_strides_change,
-    #     signature="*fp32,*fp32,i32,i32",
-    # )
-    # ret = triton.compile(
-    #     src,
-    # )
-    # print(ret.asm["ttir"])
-    # print('Pass')
+    src = triton.compiler.ASTSource(
+        fn=nested2_strides_change,
+        signature="*fp32,*fp32,i32,i32",
+    )
+    ret = triton.compile(
+        src,
+    )
+    print(ret.asm["ttir"])
+    print('Pass')
 
 
 test3()
