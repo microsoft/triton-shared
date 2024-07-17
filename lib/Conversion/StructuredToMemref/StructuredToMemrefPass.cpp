@@ -99,6 +99,15 @@ public:
 
           return std::nullopt;
         });
+    addTargetMaterialization([&](OpBuilder &builder, MemRefType memrefType,
+                                 ValueRange inputs,
+                                 Location loc) -> std::optional<Value> {
+      auto reinterpretCast =
+          inputs[0].getDefiningOp<memref::ReinterpretCastOp>();
+      return builder.create<memref::ReinterpretCastOp>(
+          loc, memrefType, inputs[0], reinterpretCast.getMixedOffsets()[0],
+          reinterpretCast.getMixedSizes(), reinterpretCast.getMixedStrides());
+    });
   }
 };
 
@@ -337,15 +346,15 @@ public:
       return;
     }
 
-    {
-      // Erase dead code and fold constants created during lowering
-      PassManager pm(&getContext(), moduleOp.getOperationName());
-      pm.addPass(createCanonicalizerPass());
-      pm.addPass(createRemoveDeadValuesPass());
-      if (failed(runPipeline(pm, getOperation()))) {
-        signalPassFailure();
-      }
-    }
+    // {
+    //   // Erase dead code and fold constants created during lowering
+    //   PassManager pm(&getContext(), moduleOp.getOperationName());
+    //   pm.addPass(createCanonicalizerPass());
+    //   pm.addPass(createRemoveDeadValuesPass());
+    //   if (failed(runPipeline(pm, getOperation()))) {
+    //     signalPassFailure();
+    //   }
+    // }
 
     RewritePatternSet patterns(&getContext());
     ConversionTarget target(getContext());
