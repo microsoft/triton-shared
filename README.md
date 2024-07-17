@@ -39,6 +39,11 @@ sudo apt-get install -y ccache clang lld
 TRITON_BUILD_WITH_CLANG_LLD=true TRITON_BUILD_WITH_CCACHE=true python3 -m pip install --no-build-isolation -vvv '.[tests]'
 ```
 
+To run tests:
+```sh
+pytest -vs test/unit/
+```
+
 To build with a virtualenv:
 
 ```
