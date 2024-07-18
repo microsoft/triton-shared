@@ -7,8 +7,10 @@
 
 #include "triton-shared/AnalysisStructured/PtrAnalysis.h"
 #include "mlir/Dialect/SCF/IR/SCF.h"
+#include "mlir/Dialect/Utils/StaticValueUtils.h"
 #include "mlir/IR/BuiltinOps.h"
 #include "mlir/IR/BuiltinTypes.h"
+#include "mlir/IR/ValueRange.h"
 #include "mlir/Support/LogicalResult.h"
 #include "triton-shared/Analysis/MaskAnalysis.h"
 #include "triton-shared/Analysis/OpFoldResultUtils.h"
@@ -19,11 +21,14 @@
 #include "triton/Dialect/Triton/IR/Dialect.h"
 #include "triton/Dialect/Triton/IR/Types.h"
 
+#include "llvm/ADT/ArrayRef.h"
+#include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/TypeSwitch.h"
 #include "llvm/Support/Casting.h"
 #include "llvm/Support/Debug.h"
 #include <cassert>
 #include <cstddef>
+#include <functional>
 
 #define DEBUG_TYPE "triton-ptr-analysis"
 
@@ -726,43 +731,11 @@ LogicalResult PtrAnalysis::visitOperand(Value operand, PtrState &state,
     auto it = llvm::find(op->getResults(), operand);
     auto index = std::distance(op->getResults().begin(), it);
 
-    auto init = op.getInitArgs()[index];
-
-    Value origPtr = nullptr;
-
-    if (auto unrealizedCast = init.getDefiningOp<tts::GetStructuredStateOp>()) {
-      // unrealizedCast->dump();
-      origPtr = unrealizedCast->getOperand(0);
-    }
-
-    // init.dump();
-    assert(origPtr && knownPtrs.count(origPtr));
-
-    // if i need to get the state, just need to do knownPtrs[ptr]
-    origPtr.dump();
-    if (!knownPtrs.count(origPtr)) {
+    if (failed(getLoopResultPtrState(op, index, state))) {
       op.emitError("Rewrite for-op failed.");
       return failure();
     }
-    state = knownPtrs[origPtr];
 
-    int cnt = index + 1;
-    if (state.getRank() == 0) {
-      assert(state.scalar);
-      state.scalar = op->getResults()[cnt];
-    } else {
-      for (auto it = state.offsets.begin(); it != state.offsets.end(); it++) {
-        // llvm::dbgs() << "setting offset to iterarg index " << (cnt) << "\n";
-        *it = op->getResults()[cnt++];
-      }
-
-      for (auto it = state.strides.begin(); it != state.strides.end(); it++) {
-        // llvm::dbgs() << "setting stride to iterarg index " << (cnt) << "\n";
-        *it = op.getResults()[cnt++];
-      }
-    }
-
-    assert(state.source);
     return success();
   }
 
@@ -878,51 +851,108 @@ static bool isPtr(Type t) {
   return isa<triton::PointerType>(t);
 }
 
+LogicalResult PtrAnalysis::getLoopInitArgPtrState(scf::ForOp forOp,
+                                                  size_t index,
+                                                  PtrState &state) {
+  auto ptr = forOp.getInitArgs()[index];
+
+  // If the pointer into the scf.for was defined by tts.get_structured_state,
+  // we can get the pointer state from the original pointer (the op's input):
+  //
+  // %ptr, %offset_1, %offset_2,..., %stride_1, %stride_2,... =
+  // tts.get_structured_state %original
+  // scf.for ... (%ptr) {...}
+  if (auto getStateOp = ptr.getDefiningOp<tts::GetStructuredStateOp>()) {
+    auto originalPtr = getStateOp->getOperand(0);
+    if (knownPtrs.count(originalPtr)) {
+      state = knownPtrs[originalPtr];
+      return success();
+    }
+  }
+
+  // If the pointer isn't defined by tts.get_structured_state, it means the
+  // current pointer is an iterarg of the outer loop.
+  //
+  // scf.for iterargs(%ptr = %init_arg) {
+  //    scf.for iterargs(%ptr1 = %ptr) {  <--- we're dealing with `%ptr1` here.
+  //          ...
+  //    }
+  // }
+  if (knownPtrs.count(ptr)) {
+    assert(!ptr.getDefiningOp() && "Expect the ptr to be an iterarg");
+    state = knownPtrs[ptr];
+    return success();
+  }
+
+  return failure();
+}
+
+// If a pointer is updated in a loop or is returned from a loop,
+//
+PtrState PtrAnalysis::reconcileLoopPtrState(
+    scf::ForOp forOp, size_t iterArgIndex, const PtrState &state,
+    std::function<Value(scf::ForOp op, size_t)> getReplacementVal) {
+  PtrState newState = state;
+  int cnt = iterArgIndex + 1;
+  if (newState.getRank() == 0) {
+    assert(newState.scalar);
+    // for scalar pointers, the scalar contains the offset and is the only
+    // relevant newState that could be updated by the loop.
+    newState.scalar = getReplacementVal(forOp, cnt);
+  } else {
+    for (auto &offset : newState.offsets) {
+      offset = getReplacementVal(forOp, cnt++);
+    }
+
+    for (auto &stride : newState.strides) {
+      stride = getReplacementVal(forOp, cnt++);
+    }
+  }
+
+  return newState;
+}
+
+LogicalResult PtrAnalysis::getLoopIterArgPtrState(scf::ForOp forOp,
+                                                  size_t index,
+                                                  PtrState &state) {
+  if (failed(getLoopInitArgPtrState(forOp, index, state))) {
+    return failure();
+  }
+
+  state = reconcileLoopPtrState(
+      forOp, index, state,
+      [](scf::ForOp op, size_t index) { return op.getRegionIterArg(index); });
+
+  return success();
+}
+
+LogicalResult PtrAnalysis::getLoopResultPtrState(scf::ForOp forOp, size_t index,
+                                                 PtrState &state) {
+
+  if (failed(getLoopInitArgPtrState(forOp, index, state))) {
+    return failure();
+  }
+
+  state = reconcileLoopPtrState(
+      forOp, index, state,
+      [](scf::ForOp op, size_t index) { return op->getResult(index); });
+
+  return success();
+}
+
 LogicalResult PtrAnalysis::rewriteForOpNew(scf::ForOp op) {
   for (auto [i, arg] : llvm::enumerate(op.getInitArgs())) {
     if (!isPtr(arg.getType())) {
       continue;
     }
 
-    Value origPtr = nullptr;
-
-    if (auto unrealizedCast = arg.getDefiningOp<tts::GetStructuredStateOp>()) {
-      // unrealizedCast->dump();
-      origPtr = unrealizedCast->getOperand(0);
-    }
-
-    if (!origPtr) {
-      // This must come from an init args
-      assert(!arg.getDefiningOp());
-      origPtr = arg;
-      assert(knownPtrs.count(origPtr));
-    }
-
-    // if i need to get the state, just need to do knownPtrs[ptr]
-    origPtr.dump();
-    if (!knownPtrs.count(origPtr)) {
+    PtrState state;
+    if (failed(getLoopIterArgPtrState(op, i, state))) {
       op.emitError("Rewrite for-op failed.");
       return failure();
     }
 
-    PtrState state = knownPtrs[origPtr];
-
-    int cnt = i + 1;
-    if (state.getRank() == 0) {
-      assert(state.scalar);
-      // for scalar pointers, the scalar contains the offset and is the only
-      // relevant state that could be updated by the loop.
-      state.scalar = op.getRegionIterArgs()[cnt];
-    } else {
-      for (auto it = state.offsets.begin(); it != state.offsets.end(); it++) {
-        *it = op.getRegionIterArgs()[cnt++];
-      }
-
-      for (auto it = state.strides.begin(); it != state.strides.end(); it++) {
-        *it = op.getRegionIterArgs()[cnt++];
-      }
-    }
-
+    // Save the current init arg's PtrState
     auto key = op.getRegionIterArgs()[i];
     knownPtrs[key] = state;
 
@@ -933,6 +963,7 @@ LogicalResult PtrAnalysis::rewriteForOpNew(scf::ForOp op) {
     }
   }
 
+  // Recursively rewrite the inner ops
   if (rewriteOp(op).failed()) {
     op->erase();
     op->emitRemark(

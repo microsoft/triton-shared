@@ -12,9 +12,11 @@
 #include "mlir/Dialect/MemRef/IR/MemRef.h"
 #include "mlir/Dialect/SCF/IR/SCF.h"
 
+#include "mlir/Support/LogicalResult.h"
 #include "triton-shared/Dialect/TritonStructured/IR/TritonStructuredDialect.h"
 #include "triton/Dialect/Triton/IR/Dialect.h"
 
+#include <cstddef>
 #include <set>
 
 namespace mlir {
@@ -76,6 +78,19 @@ struct PtrAnalysis {
   llvm::SmallDenseMap<Value, PtrState> knownPtrs;
 
   IRMapping ptrMap;
+
+  LogicalResult getLoopInitArgPtrState(scf::ForOp forOp, size_t index,
+                                       PtrState &state);
+
+  PtrState reconcileLoopPtrState(
+      scf::ForOp forOp, size_t ptrArgIndex, const PtrState &state,
+      std::function<Value(scf::ForOp op, size_t)> getReplacementVal);
+
+  LogicalResult getLoopIterArgPtrState(scf::ForOp forOp, size_t index,
+                                       PtrState &state);
+
+  LogicalResult getLoopResultPtrState(scf::ForOp forOp, size_t index,
+                                      PtrState &state);
 
   LogicalResult rewriteForOpNew(scf::ForOp op);
 
