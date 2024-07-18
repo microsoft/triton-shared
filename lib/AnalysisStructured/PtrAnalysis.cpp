@@ -956,6 +956,29 @@ LogicalResult PtrAnalysis::rewriteForOpNew(scf::ForOp op) {
     auto key = op.getRegionIterArgs()[i];
     knownPtrs[key] = state;
 
+    // For tensors of pointers, create a tts.make_tptr at the beginning of the
+    // loop body that correspond to this region iter arg. In case it is used
+    // by tt.load/tt.store in the loop body before pointer updates, this will
+    // make sure rewriteLoadOp/rewriteStoreOp can use the analysis result.
+    // E.g., given the following input (%tensor_of_ptr is a block arg):
+    // scf.for (%tensor_of_ptr) {
+    //   %data = tt.load %tensor_of_ptr
+    //   // more operations to update %tensor_of_ptr
+    // }
+    // We may produce the following output:
+    // scf.for (%base_ptr, %stride, %offset) {
+    //   %tensor_of_ptr = tts.make_tptr(%base_ptr, %stride, %offset)
+    //   %data = tts.load %tensor_of_ptr
+    //   // more operations to update %offset
+    // }
+    // If %tensor_of_ptr is not used (i.e., %tensor_of_ptr is updated before
+    // used in the original IR), it will simply be removed by
+    // canonicalization.
+
+    // For scalar pointers, there is no need to create a tts.addptr at the
+    // beginning of the loop body. We don't lower tt.load and tt.store on
+    // scalars in this pass; pointer arithmetics can also just use the
+    // original pointer.
     if (state.getRank() != 0) {
       OpBuilder builder(op.getRegion());
       auto maketptrOp = state.createTTSMakeTensorPtrOp(builder, op.getLoc());
