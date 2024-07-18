@@ -87,7 +87,7 @@ void StoreOp::build(OpBuilder &b, OperationState &state, Value ptr, Value value,
   build(b, state, ptr, value, dynamicDims, b.getDenseI64ArrayAttr(staticDims));
 }
 
-// void StatePlaceholderOp::build(OpBuilder &b, OperationState &state, Value
+// void GetStructuredStateOp::build(OpBuilder &b, OperationState &state, Value
 // ptr) {
 //   SmallVector<Type> resultTypes{ptr.getType()};
 //   if (auto tensorPtr = llvm::dyn_cast<RankedTensorType>(ptr.getType())) {

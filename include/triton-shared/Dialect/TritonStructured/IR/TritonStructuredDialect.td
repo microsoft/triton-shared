@@ -120,7 +120,7 @@ def TTS_MakeTensorPtrOp
   //let hasCanonicalizer = 1;
 }
 
-def TTS_StatePlaceholderOp : TTS_Op<"state_placeholder", [Pure]> {
+def TTS_GetStructuredStateOp : TTS_Op<"get_structured_state", [Pure]> {
   let summary = "An unrealized conversion from one set of types to another";
   let description = [{}];
 

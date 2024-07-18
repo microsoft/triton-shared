@@ -714,15 +714,11 @@ LogicalResult PtrAnalysis::visitOperand(Value operand, PtrState &state,
     state = knownPtrs[operand];
 
     if (!state.source) {
+      // TODO: why?
+      //
       // need this for the wraparound fail case
       return failure();
     }
-    // state.source = makeTPtrOp.getBase();
-    // state.offsets = makeTPtrOp.getMixedOffsets();
-    // state.sizes = makeTPtrOp.getMixedSizes();
-    // state.strides = makeTPtrOp.getMixedStrides();
-    // state.shape = makeTPtrOp.getMixedShape();
-    // state.order = SmallVector<int32_t>(makeTPtrOp.getOrder());
     return success();
   }
 
@@ -734,7 +730,7 @@ LogicalResult PtrAnalysis::visitOperand(Value operand, PtrState &state,
 
     Value origPtr = nullptr;
 
-    if (auto unrealizedCast = init.getDefiningOp<tts::StatePlaceholderOp>()) {
+    if (auto unrealizedCast = init.getDefiningOp<tts::GetStructuredStateOp>()) {
       // unrealizedCast->dump();
       origPtr = unrealizedCast->getOperand(0);
     }
@@ -751,24 +747,22 @@ LogicalResult PtrAnalysis::visitOperand(Value operand, PtrState &state,
     state = knownPtrs[origPtr];
 
     int cnt = index + 1;
+    if (state.getRank() == 0) {
+      assert(state.scalar);
+      state.scalar = op->getResults()[cnt];
+    } else {
+      for (auto it = state.offsets.begin(); it != state.offsets.end(); it++) {
+        // llvm::dbgs() << "setting offset to iterarg index " << (cnt) << "\n";
+        *it = op->getResults()[cnt++];
+      }
 
-    for (auto it = state.offsets.begin(); it != state.offsets.end(); it++) {
-      // llvm::dbgs() << "setting offset to iterarg index " << (cnt) << "\n";
-      *it = op->getResults()[cnt++];
-    }
-
-    for (auto it = state.strides.begin(); it != state.strides.end(); it++) {
-      // llvm::dbgs() << "setting stride to iterarg index " << (cnt) << "\n";
-      *it = op.getResults()[cnt++];
+      for (auto it = state.strides.begin(); it != state.strides.end(); it++) {
+        // llvm::dbgs() << "setting stride to iterarg index " << (cnt) << "\n";
+        *it = op.getResults()[cnt++];
+      }
     }
 
     assert(state.source);
-    // state.source = makeTPtrOp.getBase();
-    // state.offsets = makeTPtrOp.getMixedOffsets();
-    // state.sizes = makeTPtrOp.getMixedSizes();
-    // state.strides = makeTPtrOp.getMixedStrides();
-    // state.shape = makeTPtrOp.getMixedShape();
-    // state.order = SmallVector<int32_t>(makeTPtrOp.getOrder());
     return success();
   }
 
@@ -885,11 +879,6 @@ static bool isPtr(Type t) {
 }
 
 LogicalResult PtrAnalysis::rewriteForOpNew(scf::ForOp op) {
-  OpBuilder builder(op.getRegion());
-  RankedTensorType t;
-  Type tt;
-  // tt.
-
   for (auto [i, arg] : llvm::enumerate(op.getInitArgs())) {
     if (!isPtr(arg.getType())) {
       continue;
@@ -897,7 +886,7 @@ LogicalResult PtrAnalysis::rewriteForOpNew(scf::ForOp op) {
 
     Value origPtr = nullptr;
 
-    if (auto unrealizedCast = arg.getDefiningOp<tts::StatePlaceholderOp>()) {
+    if (auto unrealizedCast = arg.getDefiningOp<tts::GetStructuredStateOp>()) {
       // unrealizedCast->dump();
       origPtr = unrealizedCast->getOperand(0);
     }
@@ -915,12 +904,9 @@ LogicalResult PtrAnalysis::rewriteForOpNew(scf::ForOp op) {
       op.emitError("Rewrite for-op failed.");
       return failure();
     }
+
     PtrState state = knownPtrs[origPtr];
 
-    // modify the state to point to iter args
-    // llvm::dbgs() << "current index " << i << "\n";
-
-    // arg.dump();
     int cnt = i + 1;
     if (state.getRank() == 0) {
       assert(state.scalar);
@@ -929,12 +915,10 @@ LogicalResult PtrAnalysis::rewriteForOpNew(scf::ForOp op) {
       state.scalar = op.getRegionIterArgs()[cnt];
     } else {
       for (auto it = state.offsets.begin(); it != state.offsets.end(); it++) {
-        // llvm::dbgs() << "setting offset to iterarg index " << (cnt) << "\n";
         *it = op.getRegionIterArgs()[cnt++];
       }
 
       for (auto it = state.strides.begin(); it != state.strides.end(); it++) {
-        // llvm::dbgs() << "setting stride to iterarg index " << (cnt) << "\n";
         *it = op.getRegionIterArgs()[cnt++];
       }
     }
@@ -943,8 +927,7 @@ LogicalResult PtrAnalysis::rewriteForOpNew(scf::ForOp op) {
     knownPtrs[key] = state;
 
     if (state.getRank() != 0) {
-      OpBuilder::InsertionGuard guard(builder);
-      builder.setInsertionPointToStart(&op.getRegion().front());
+      OpBuilder builder(op.getRegion());
       auto maketptrOp = state.createTTSMakeTensorPtrOp(builder, op.getLoc());
       ptrMap.map(key, maketptrOp.getResult());
     }

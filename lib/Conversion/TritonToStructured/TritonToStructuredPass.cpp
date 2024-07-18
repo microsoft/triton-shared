@@ -13,6 +13,7 @@
 #include "mlir/IR/MLIRContext.h"
 #include "mlir/IR/TypeRange.h"
 #include "mlir/IR/Types.h"
+#include "mlir/IR/ValueRange.h"
 #include "mlir/Support/LogicalResult.h"
 #include "triton-shared/Analysis/OpFoldResultUtils.h"
 #include "triton-shared/AnalysisStructured/PtrAnalysis.h"
@@ -44,100 +45,6 @@ using namespace triton;
 #include "triton-shared/Conversion/TritonToStructured/Passes.h.inc"
 
 namespace {
-
-Type getType(MLIRContext *context, triton::PointerType ptrType) {
-  if (auto tensorType = cast<RankedTensorType>(ptrType.getPointeeType())) {
-    auto rank = tensorType.getRank();
-    auto offsetTuple = TupleType::get(
-        context, SmallVector<Type>(rank, IndexType::get(context)));
-    auto strideTuple = TupleType::get(
-        context, SmallVector<Type>(rank, IndexType::get(context)));
-    auto tupleType = TupleType::get(
-        context, SmallVector<Type>{ptrType, offsetTuple, strideTuple});
-    // tupleType.dump();
-    return tupleType;
-  } else {
-    return TupleType::get(context,
-                          SmallVector<Type>{ptrType, IndexType::get(context),
-                                            IndexType::get(context)});
-  }
-}
-
-class TupleConverter : public TypeConverter {
-public:
-  TupleConverter(MLIRContext *context) {
-    // The order of type conversion is important: later ones are tried earlier.
-    addConversion([](Type type) { return type; });
-    addConversion([context](triton::PointerType ptrType) -> TupleType {
-      return TupleType::get(context,
-                            SmallVector<Type>{ptrType, IndexType::get(context),
-                                              IndexType::get(context)});
-    });
-
-    addConversion([context](
-                      RankedTensorType tensorType) -> std::optional<TupleType> {
-      if (auto ptrType =
-              dyn_cast<triton::PointerType>(tensorType.getElementType())) {
-        auto rank = tensorType.getRank();
-        auto offsetTuple = TupleType::get(
-            context, SmallVector<Type>(rank, IndexType::get(context)));
-        auto strideTuple = TupleType::get(
-            context, SmallVector<Type>(rank, IndexType::get(context)));
-        auto tupleType = TupleType::get(
-            context, SmallVector<Type>{tensorType, offsetTuple, strideTuple});
-        // tupleType.dump();
-        return tupleType;
-      }
-      return std::nullopt;
-    });
-    // Used for converting tuple<tt.ptr, tuple<offset0, offset1,...>,
-    // tuple<stride0, stride1,...>> back to tt.ptr type
-    addSourceMaterialization([&](OpBuilder &builder,
-                                 triton::PointerType ptrType, ValueRange inputs,
-                                 Location loc) -> std::optional<Value> {
-      auto cast =
-          builder.create<UnrealizedConversionCastOp>(loc, ptrType, inputs);
-      cast->setAttr("insert", UnitAttr::get(context));
-      return cast->getResult(0);
-    });
-  }
-};
-
-static std::optional<SmallVector<Value>>
-buildCastAndOffsetOps(OpBuilder &builder, TypeRange resultTypes, Value input,
-                      Location loc) {
-
-  auto cast =
-      builder.create<UnrealizedConversionCastOp>(loc, resultTypes, input);
-  cast->setAttr("make_state", UnitAttr::get(builder.getContext()));
-  return SmallVector<Value>{cast->getResult(0)};
-}
-
-static std::optional<SmallVector<Value>>
-buildCastAndOffsetOps2(OpBuilder &builder, TypeRange resultTypes, Value input,
-                       Location loc) {
-  // assert(0);
-  // auto cast = builder.create<UnrealizedConversionCastOp>(
-  //     loc, resultTypes, input.getDefiningOp()->getOperand(0));
-  // cast->setAttr("make_state_new", UnitAttr::get(builder.getContext()));
-  auto placeholder = builder.create<tts::StatePlaceholderOp>(
-      loc, resultTypes, input.getDefiningOp()->getOperand(0));
-  return SmallVector<Value>{placeholder->getResults()};
-}
-
-static std::optional<Value> buildCastOp(OpBuilder &builder, Type resultType,
-                                        ValueRange inputs, Location loc) {
-  // llvm::dbgs() << "build cast op\n";
-  // llvm::dbgs() << "result type\n";
-  // resultType.dump();
-  // llvm::dbgs() << "inputs:\n";
-  for (auto v : inputs) {
-    // v.dump();
-  }
-  auto op = builder.create<UnrealizedConversionCastOp>(loc, resultType, inputs);
-  op->setAttr("state_placeholder", UnitAttr::get(builder.getContext()));
-  return op.getResult(0);
-}
 
 class TritonToStructuredPass
     : public TritonToStructuredBase<TritonToStructuredPass> {
@@ -207,14 +114,27 @@ public:
     // pointer type. For instance, we convert the result of tt.addptr from
     // tt.ptr type to a pair of {memref, index}, but the original ptr result is
     // still being used by another tt.load or tt.store.
-    converter.addArgumentMaterialization(buildCastOp);
-    converter.addSourceMaterialization(buildCastOp);
+    auto materialize = [](OpBuilder &builder, Type resultType,
+                          ValueRange inputs, Location loc) {
+      auto op =
+          builder.create<UnrealizedConversionCastOp>(loc, resultType, inputs);
+      op->setAttr("state_placeholder", UnitAttr::get(builder.getContext()));
+      return op.getResult(0);
+    };
+
+    converter.addArgumentMaterialization(materialize);
+    converter.addSourceMaterialization(materialize);
 
     // Compute the target materialization, given a value with the pointer type,
     // convert that value to a pair of {memref, index} type.
-    converter.addTargetMaterialization(buildCastAndOffsetOps);
 
-    // patterns.add<ScalarAddptrConverter>(converter, context);
+    converter.addTargetMaterialization(
+        [](OpBuilder &builder, TypeRange resultTypes, Value input,
+           Location loc) -> std::optional<SmallVector<Value>> {
+          return builder
+              .create<UnrealizedConversionCastOp>(loc, resultTypes, input)
+              ->getResults();
+        });
 
     scf::populateSCFStructuralOneToNTypeConversions(converter, patterns);
 
@@ -232,23 +152,8 @@ public:
     return success();
   }
 
-  static std::optional<Value> buildCastOp2(OpBuilder &builder, Type resultType,
-                                           ValueRange inputs, Location loc) {
-    // assert(0);
-    // llvm::dbgs() << "build cast op2\n";
-    // llvm::dbgs() << "result type\n";
-    // resultType.dump();
-    // llvm::dbgs() << "inputs:\n";
-    // for (auto v : inputs) {
-    //   v.dump();
-    // }
-    return inputs[0];
-  }
-
   LogicalResult test2() {
     auto moduleOp = getOperation();
-
-    RewritePatternSet patterns(&getContext());
 
     auto context = &getContext();
     OneToNTypeConverter converter;
@@ -270,45 +175,35 @@ public:
     // pointer type. For instance, we convert the result of tt.addptr from
     // tt.ptr type to a pair of {memref, index}, but the original ptr result is
     // still being used by another tt.load or tt.store.
-    converter.addArgumentMaterialization(buildCastOp2);
-    converter.addSourceMaterialization(buildCastOp2);
+    auto materialize = [](OpBuilder &builder, Type resultType,
+                          ValueRange inputs,
+                          Location loc) { return inputs[0]; };
+    converter.addArgumentMaterialization(materialize);
+    converter.addSourceMaterialization(materialize);
 
-    // Compute the target materialization, given a value with the pointer type,
-    // convert that value to a pair of {memref, index} type.
-    converter.addTargetMaterialization(buildCastAndOffsetOps2);
+    // Compute the target materialization, given a value with the pointer
+    // type, convert that value to a pair of {memref, index} type.
+    converter.addTargetMaterialization([](OpBuilder &builder,
+                                          TypeRange resultTypes, Value input,
+                                          Location loc) {
+      auto placeholder = builder.create<tts::GetStructuredStateOp>(
+          loc, resultTypes, input.getDefiningOp()->getOperand(0));
+      return SmallVector<Value>{placeholder->getResults()};
+    });
 
-    // patterns.add<UnrealizedConverter>(converter, context);
-
+    RewritePatternSet patterns(&getContext());
     scf::populateSCFStructuralOneToNTypeConversions(converter, patterns);
-
     if (failed(applyPartialOneToNConversion(getOperation(), converter,
                                             std::move(patterns)))) {
       return failure();
     }
 
-    // PassManager pm(&getContext(), moduleOp.getOperationName());
-    // pm.addPass(createCanonicalizerPass());
-    // if (failed(runPipeline(pm, getOperation()))) {
-    //   return failure();
-    // }
-
-    return success();
-  }
-
-  LogicalResult decomposeMakeStateOp() {
-    auto moduleOp = getOperation();
-
-    RewritePatternSet patterns(&getContext());
-    ConversionTarget target(getContext());
-
-    target.addIllegalDialect<tts::TritonStructuredDialect>();
-
-    target.addDynamicallyLegalOp<UnrealizedConversionCastOp>(
-        [](Operation *op) { return !op->hasAttr("make_state"); });
-
-    if (failed(applyPartialConversion(moduleOp, target, std::move(patterns)))) {
+    PassManager pm(&getContext(), moduleOp.getOperationName());
+    pm.addPass(mlir::createReconcileUnrealizedCastsPass());
+    if (failed(runPipeline(pm, getOperation()))) {
       signalPassFailure();
     }
+
     return success();
   }
 
@@ -320,14 +215,6 @@ public:
     (void)test2();
     auto moduleOp = getOperation();
 
-    {
-      PassManager pm(&getContext(), moduleOp.getOperationName());
-      pm.addPass(mlir::createReconcileUnrealizedCastsPass());
-      if (failed(runPipeline(pm, getOperation()))) {
-        signalPassFailure();
-      }
-    }
-
     // return;
 
     mlir::tts::PtrAnalysis ptrAnalysis;
@@ -335,7 +222,7 @@ public:
       moduleOp->emitWarning("PtrAnalysis failed");
     }
 
-    moduleOp.walk([&ptrAnalysis](tts::StatePlaceholderOp op) {
+    moduleOp.walk([&ptrAnalysis](tts::GetStructuredStateOp op) {
       OpBuilder builder(op);
       SmallVector<Value> replacements;
       // if (op->hasAttr("make_state_new")) {
