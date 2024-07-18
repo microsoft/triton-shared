@@ -714,16 +714,10 @@ LogicalResult PtrAnalysis::visitOperand(Value operand, PtrState &state,
   }
 
   if (!operand.getDefiningOp()) {
-    operand.dump();
-    operand.getParentBlock()->dump();
+    // This operand must be a nested loop's iterarg, which means its PtrState
+    // must have already been populated during rewriteForOp.
+    assert(knownPtrs.contains(operand));
     state = knownPtrs[operand];
-
-    if (!state.source) {
-      // TODO: why?
-      //
-      // need this for the wraparound fail case
-      return failure();
-    }
     return success();
   }
 
@@ -1471,9 +1465,11 @@ LogicalResult PtrAnalysis::rewriteOp(Operation *rootOp) {
           return WalkResult::skip();
         })
         .Case<scf::ForOp>([&](auto forOp) {
+          // The rewrite for the for-op is in-place and recursive, so regardless
+          // whether the rewrite succeeds or not, we need to return "skip" so
+          // that the the walk does not visit the for-op's child operations.
           if (rewriteForOpNew(forOp).failed()) {
             forOp->emitRemark("PtrAnalysis: Failed to rewrite ForOp");
-            return WalkResult::advance();
           }
           return WalkResult::skip();
         })
