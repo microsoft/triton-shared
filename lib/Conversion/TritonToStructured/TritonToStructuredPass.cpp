@@ -154,8 +154,9 @@ public:
     OneToNTypeConverter converter;
     converter.addConversion([](Type type) { return type; });
 
-    // We are doing a 1->1 type conversion here, where a triton pointer type
-    // maps to a pair of {memref, index} type for the the buffer and offset.
+    // We are doing a 1->N type conversion here, where a pointer tuple type
+    // maps to a sequence of {pointer, offset_0, offset_1,..., stride_0,
+    // stride_1,...}
     converter.addConversion(
         [context](TupleType tupleType, SmallVectorImpl<Type> &types)
             -> std::optional<LogicalResult> {
@@ -164,26 +165,31 @@ public:
         });
 
     // Hooks to compute the correct materialization, "argument" and "source"
-    // materialization are used when we need to convert a pair of {memref,
-    // index} type back to the original triton pointer type.
-    // These are used when there are ops that still need to use the original
-    // pointer type. For instance, we convert the result of tt.addptr from
-    // tt.ptr type to a pair of {memref, index}, but the original ptr result is
-    // still being used by another tt.load or tt.store.
+    // materialization are used when we need to convert a series of {pointer,
+    // offset_0, offset_1,..., stride_0, stride_1,...} type back to the "pointer
+    // tuple type".
+    //
+    // Because we actually want to get rid of the tuple type, return `inputs[0]`
+    // which has "triton pointer type". This approach will work as intended
+    // because the ops that currently take "pointer tuple type" are
+    // `unrealized_conversion_cast` ops which will get removed below during
+    // reconcile-unrealized-conversion-casts.
     auto materialize = [](OpBuilder &builder, Type resultType,
                           ValueRange inputs,
                           Location loc) { return inputs[0]; };
     converter.addArgumentMaterialization(materialize);
     converter.addSourceMaterialization(materialize);
 
-    // Compute the target materialization, given a value with the pointer
-    // type, convert that value to a pair of {memref, index} type.
+    // For each value of "pointer tuple type" that gets decomposed into a
+    // sequence of {pointer, offset_0, offset_1,..., stride_0, stride_1,...},
+    // create a `tts.get_structured_state` op that serves as a placeholder
+    // 
     converter.addTargetMaterialization([](OpBuilder &builder,
                                           TypeRange resultTypes, Value input,
                                           Location loc) {
       auto placeholder = builder.create<tts::GetStructuredStateOp>(
           loc, resultTypes, input.getDefiningOp()->getOperand(0));
-      return SmallVector<Value>{placeholder->getResults()};
+      return placeholder->getResults();
     });
 
     RewritePatternSet patterns(&getContext());
@@ -193,6 +199,10 @@ public:
       return failure();
     }
 
+    // Note:
+    // Be careful not to run canonicalization here, because the
+    // tts.get_structured_state ops created above are just placeholders and
+    // don't have any effects. Canonicalization will remove them altogether.
     PassManager pm(&getContext(), moduleOp.getOperationName());
     pm.addPass(mlir::createReconcileUnrealizedCastsPass());
     if (failed(runPipeline(pm, getOperation()))) {
