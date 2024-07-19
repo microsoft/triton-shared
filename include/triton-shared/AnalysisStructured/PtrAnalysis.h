@@ -79,21 +79,6 @@ struct PtrAnalysis {
 
   IRMapping ptrMap;
 
-  LogicalResult getLoopInitArgPtrState(scf::ForOp forOp, size_t index,
-                                       PtrState &state);
-
-  PtrState reconcileLoopPtrState(
-      scf::ForOp forOp, size_t ptrArgIndex, const PtrState &state,
-      std::function<Value(scf::ForOp op, size_t)> getReplacementVal);
-
-  LogicalResult getLoopIterArgPtrState(scf::ForOp forOp, size_t index,
-                                       PtrState &state);
-
-  LogicalResult getLoopResultPtrState(scf::ForOp forOp, size_t index,
-                                      PtrState &state);
-
-  LogicalResult rewriteForOpNew(scf::ForOp op);
-
   // Recursively parse a Value; call the corresponding
   // function based on the defining operation and argument type.
   LogicalResult visitOperand(Value operand, PtrState &state, const Location loc,
@@ -208,6 +193,21 @@ struct PtrAnalysis {
   LogicalResult visitOperandMakeTensorPtr(triton::MakeTensorPtrOp makeTPtrOp,
                                           PtrState &state, const Location loc,
                                           OpBuilder &builder);
+
+  LogicalResult getLoopInitArgPtrState(scf::ForOp forOp, size_t index,
+                                       PtrState &state);
+
+  PtrState reconcileLoopPtrState(
+      scf::ForOp forOp, size_t ptrArgIndex, const PtrState &state,
+      std::function<Value(scf::ForOp op, size_t)> getReplacementVal);
+
+  LogicalResult getLoopIterArgPtrState(scf::ForOp forOp, size_t index,
+                                       PtrState &state);
+
+  LogicalResult getLoopResultPtrState(scf::ForOp forOp, size_t index,
+                                      PtrState &state);
+
+  LogicalResult rewriteForOpNew(scf::ForOp op);
 
   // Parse the state of AddPtrOp, insert any instruction needed to
   // calculate strides and offsets, build PtrState for this operand, and record
