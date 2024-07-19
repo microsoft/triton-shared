@@ -346,16 +346,6 @@ public:
       return;
     }
 
-    {
-      // Erase dead code and fold constants created during lowering
-      PassManager pm(&getContext(), moduleOp.getOperationName());
-      pm.addPass(createCanonicalizerPass());
-      pm.addPass(createRemoveDeadValuesPass());
-      if (failed(runPipeline(pm, getOperation()))) {
-        signalPassFailure();
-      }
-    }
-
     RewritePatternSet patterns(&getContext());
     ConversionTarget target(getContext());
 
