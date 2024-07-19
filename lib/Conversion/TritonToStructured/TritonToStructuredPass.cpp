@@ -57,7 +57,7 @@ public:
                 tts::TritonStructuredDialect>();
   }
 
-  LogicalResult test() {
+  LogicalResult convertToPointerTupleWithOffsetsAndStrides() {
     auto moduleOp = getOperation();
 
     RewritePatternSet patterns(&getContext());
@@ -71,7 +71,6 @@ public:
     converter.addConversion(
         [context](RankedTensorType tensorType, SmallVectorImpl<Type> &types)
             -> std::optional<LogicalResult> {
-          // tensorType.dump();
           if (auto ptrType =
                   dyn_cast<triton::PointerType>(tensorType.getElementType())) {
             auto rank = tensorType.getRank();
@@ -80,7 +79,6 @@ public:
             auto tupleType = TupleType::get(
                 context, SmallVector<Type>{tensorType, offsetAndStrideTuple});
             types = SmallVector<Type>{tupleType};
-            // assert(0);
             return success();
           }
           return std::nullopt;
@@ -91,15 +89,15 @@ public:
             -> std::optional<LogicalResult> {
           if (auto tensorType =
                   llvm::dyn_cast<RankedTensorType>(ptrType.getPointeeType())) {
-            // Block ptr
+            // Block pointers
             auto rank = tensorType.getRank();
             auto offsetAndStrideTuple = TupleType::get(
                 context, SmallVector<Type>(rank * 2, IndexType::get(context)));
             auto tupleType = TupleType::get(
                 context, SmallVector<Type>{ptrType, offsetAndStrideTuple});
             types = SmallVector<Type>{tupleType};
-
           } else {
+            // Scalar pointers
             auto tupleType = TupleType::get(
                 context, SmallVector<Type>{ptrType, IndexType::get(context)});
             types = SmallVector<Type>{tupleType};
@@ -116,10 +114,8 @@ public:
     // still being used by another tt.load or tt.store.
     auto materialize = [](OpBuilder &builder, Type resultType,
                           ValueRange inputs, Location loc) {
-      auto op =
-          builder.create<UnrealizedConversionCastOp>(loc, resultType, inputs);
-      op->setAttr("state_placeholder", UnitAttr::get(builder.getContext()));
-      return op.getResult(0);
+      return builder.create<UnrealizedConversionCastOp>(loc, resultType, inputs)
+          .getResult(0);
     };
 
     converter.addArgumentMaterialization(materialize);
@@ -127,7 +123,6 @@ public:
 
     // Compute the target materialization, given a value with the pointer type,
     // convert that value to a pair of {memref, index} type.
-
     converter.addTargetMaterialization(
         [](OpBuilder &builder, TypeRange resultTypes, Value input,
            Location loc) -> std::optional<SmallVector<Value>> {
@@ -152,7 +147,7 @@ public:
     return success();
   }
 
-  LogicalResult test2() {
+  LogicalResult decomposePointerTuple() {
     auto moduleOp = getOperation();
 
     auto context = &getContext();
@@ -208,14 +203,12 @@ public:
   }
 
   void runOnOperation() override {
-    (void)test();
+    (void)convertToPointerTupleWithOffsetsAndStrides();
     // assert(0);
     // return;
     // assert(0);
-    (void)test2();
+    (void)decomposePointerTuple();
     auto moduleOp = getOperation();
-
-    // return;
 
     mlir::tts::PtrAnalysis ptrAnalysis;
     if (ptrAnalysis.rewriteOp(moduleOp).failed()) {
