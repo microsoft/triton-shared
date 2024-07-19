@@ -7,7 +7,6 @@
 #include "mlir/Interfaces/SideEffectInterfaces.h"
 #include "triton/Dialect/Triton/IR/Types.h"
 #include "llvm/ADT/STLExtras.h"
-#include "llvm/Support/Casting.h"
 
 #define GET_OP_CLASSES
 #include "triton-shared/Dialect/TritonStructured/IR/TritonStructuredOps.h.inc"
