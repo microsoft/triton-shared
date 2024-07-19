@@ -223,51 +223,9 @@ public:
     }
 
     moduleOp.walk([&ptrAnalysis](tts::GetStructuredStateOp op) {
-      OpBuilder builder(op);
-      SmallVector<Value> replacements;
-      // if (op->hasAttr("make_state_new")) {
-      auto origPtr = op->getOperand(0);
-
-      if (!ptrAnalysis.knownPtrs.contains(origPtr)) {
-        op.getResult(0).replaceAllUsesWith(origPtr);
-        return;
+      if (failed(ptrAnalysis.rewriteGetStructuredStateOp(op))) {
+        op.emitWarning("Rewriting GetStructuredStateOp failed.");
       }
-
-      tts::PtrState state = ptrAnalysis.knownPtrs[origPtr];
-
-      replacements.push_back(ptrAnalysis.ptrMap.lookup(origPtr));
-
-      if (state.getRank() == 0) {
-        replacements.push_back(state.scalar);
-        // for scalar pointers, the scalar contains the offset and is the only
-        // relevant state that could be updated by the loop.
-      } else {
-        for (auto [j, s] : llvm::enumerate(state.offsets)) {
-          auto sIntAttr = getIntAttr(s);
-          if (sIntAttr) {
-            auto constOp = builder.create<arith::ConstantOp>(
-                op.getLoc(), builder.getIndexAttr(sIntAttr.value()));
-            replacements.push_back(constOp.getResult());
-          } else {
-            replacements.push_back(s.get<Value>());
-          }
-        }
-
-        for (auto [j, s] : llvm::enumerate(state.strides)) {
-          auto sIntAttr = getIntAttr(s);
-          if (sIntAttr) {
-            auto constOp = builder.create<arith::ConstantOp>(
-                op.getLoc(), builder.getIndexAttr(sIntAttr.value()));
-            replacements.push_back(constOp.getResult());
-          } else {
-            replacements.push_back(s.get<Value>());
-          }
-        }
-      }
-
-      op->replaceAllUsesWith(replacements);
-      op->erase();
-      // }
     });
   }
 };

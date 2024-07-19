@@ -207,6 +207,8 @@ struct PtrAnalysis {
   LogicalResult getLoopResultPtrState(scf::ForOp forOp, size_t index,
                                       PtrState &state);
 
+  LogicalResult rewriteGetStructuredStateOp(tts::GetStructuredStateOp op);
+
   LogicalResult rewriteForOpNew(scf::ForOp op);
 
   // Parse the state of AddPtrOp, insert any instruction needed to
