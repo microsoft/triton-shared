@@ -67,7 +67,10 @@ public:
     converter.addConversion([](Type type) { return type; });
 
     // We are doing a 1->1 type conversion here, where a triton pointer type
-    // maps to a pair of {memref, index} type for the the buffer and offset.
+    // maps to a tuple of {pointer, offset_0, offset_1,..., stride_0,
+    // stride_1,...} type.
+
+    // Case 1: Unstructured pointers (tensor<!tt.ptr<type>>)
     converter.addConversion(
         [context](RankedTensorType tensorType, SmallVectorImpl<Type> &types)
             -> std::optional<LogicalResult> {
@@ -84,6 +87,7 @@ public:
           return std::nullopt;
         });
 
+    // Case 2: Block pointers (!tt.ptr<tensor<>> or !tt.ptr<type>)
     converter.addConversion(
         [context](triton::PointerType ptrType, SmallVectorImpl<Type> &types)
             -> std::optional<LogicalResult> {
@@ -98,6 +102,8 @@ public:
             types = SmallVector<Type>{tupleType};
           } else {
             // Scalar pointers
+            // The only relevant state that can be updated in loops for scalar
+            // pointers are offset. No need to include stride here.
             auto tupleType = TupleType::get(
                 context, SmallVector<Type>{ptrType, IndexType::get(context)});
             types = SmallVector<Type>{tupleType};
@@ -106,12 +112,11 @@ public:
         });
 
     // Hooks to compute the correct materialization, "argument" and "source"
-    // materialization are used when we need to convert a pair of {memref,
-    // index} type back to the original triton pointer type.
-    // These are used when there are ops that still need to use the original
-    // pointer type. For instance, we convert the result of tt.addptr from
-    // tt.ptr type to a pair of {memref, index}, but the original ptr result is
-    // still being used by another tt.load or tt.store.
+    // materialization are used when we need to convert the tuple type back to
+    // the original triton pointer type. These are used when there are ops that
+    // still need to use the original pointer type. For instance, we convert the
+    // result of tt.addptr from tt.ptr type to a tuple, but the original ptr
+    // result is still being used by another tt.load or tt.store.
     auto materialize = [](OpBuilder &builder, Type resultType,
                           ValueRange inputs, Location loc) {
       return builder.create<UnrealizedConversionCastOp>(loc, resultType, inputs)
@@ -122,7 +127,7 @@ public:
     converter.addSourceMaterialization(materialize);
 
     // Compute the target materialization, given a value with the pointer type,
-    // convert that value to a pair of {memref, index} type.
+    // convert that value to a tuple type.
     converter.addTargetMaterialization(
         [](OpBuilder &builder, TypeRange resultTypes, Value input,
            Location loc) -> std::optional<SmallVector<Value>> {
@@ -182,8 +187,10 @@ public:
 
     // For each value of "pointer tuple type" that gets decomposed into a
     // sequence of {pointer, offset_0, offset_1,..., stride_0, stride_1,...},
-    // create a `tts.get_structured_state` op that serves as a placeholder
-    // 
+    // create a `tts.get_structured_state` op that serves as a placeholder.
+    // The return values for this op will be used as the init-args for scf.for.
+    // At the end of pointer analysis, we will use the PtrState to create the
+    // correct offsets, strides, and remove these ops.
     converter.addTargetMaterialization([](OpBuilder &builder,
                                           TypeRange resultTypes, Value input,
                                           Location loc) {
@@ -212,6 +219,7 @@ public:
     return success();
   }
 
+  // 
   LogicalResult runTritonToStructuredPrepass() {
     if (failed(convertToPointerTupleWithOffsetsAndStrides())) {
       return failure();
