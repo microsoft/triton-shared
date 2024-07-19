@@ -202,16 +202,23 @@ public:
     return success();
   }
 
-  void runOnOperation() override {
-    (void)convertToPointerTupleWithOffsetsAndStrides();
-    // assert(0);
-    // return;
-    // assert(0);
-    (void)decomposePointerTuple();
-    auto moduleOp = getOperation();
+  LogicalResult runTritonToStructuredPrepass() {
+    if (failed(convertToPointerTupleWithOffsetsAndStrides())) {
+      return failure();
+    }
 
+    return decomposePointerTuple();
+  }
+
+  void runOnOperation() override {
+    if (failed(runTritonToStructuredPrepass())) {
+      signalPassFailure();
+      return;
+    }
+
+    auto moduleOp = getOperation();
     mlir::tts::PtrAnalysis ptrAnalysis;
-    if (ptrAnalysis.rewriteOp(moduleOp).failed()) {
+    if (failed(ptrAnalysis.rewriteOp(moduleOp))) {
       moduleOp->emitWarning("PtrAnalysis failed");
     }
 
