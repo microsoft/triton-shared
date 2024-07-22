@@ -84,8 +84,12 @@ struct PtrAnalysis {
   LogicalResult visitOperand(Value operand, PtrState &state, const Location loc,
                              OpBuilder &builder);
 
-  LogicalResult visitOperandForOp(scf::ForOp forOp, PtrState &state,
-                                  const Location loc, OpBuilder &builder);
+  // Operand is a result of an scf.for. Such cases occur when there are multiple
+  // levels of nested loops where the results of the inner scf.for (pointer) are
+  // yielded by the outer loop.
+  LogicalResult visitOperandForOp(scf::ForOp forOp, Value operand,
+                                  PtrState &state, const Location loc,
+                                  OpBuilder &builder);
 
   // Operand is the result of arith.addi. Process both arguments and insert any
   // arith.addi instruction as needed.

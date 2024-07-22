@@ -219,7 +219,9 @@ public:
     return success();
   }
 
-  // Prepass that inserts `tts.get_structured_state` ops.
+  // Prepass that inserts `tts.get_structured_state` ops. These ops are used as
+  // placeholders to make passing structured pointer state into scf.for loop's
+  // init args easier, especially with multiple levels of loops.
   //
   // Background:
   // If a triton pointer is updated and returned in a scf.for op, it means
@@ -259,8 +261,7 @@ public:
   // type conversion implementation for scf.for ops doesn't provide us with a
   // way to detect that a type conversion is recursive. So a triton_ptr type
   // that gets converted to a {triton_ptr, offset_0, offset_1, ..., stride_0,
-  // stride_1,...} will recursively trigger other conversions without a base
-  // case.
+  // stride_1,...} will recursively trigger other conversions.
   //
   // To fix this issue, we have to first convert triton_ptr to
   // tuple<triton_ptr, offset_0, offset_1, ..., stride_0, stride_1,...>.
@@ -276,6 +277,10 @@ public:
   void runOnOperation() override {
     if (failed(runTritonToStructuredPrepass())) {
       signalPassFailure();
+      return;
+    }
+
+    if (runPrepassOnly) {
       return;
     }
 

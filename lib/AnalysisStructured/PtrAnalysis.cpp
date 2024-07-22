@@ -667,9 +667,20 @@ PtrAnalysis::visitOperandMakeTensorPtr(triton::MakeTensorPtrOp makeTPtrOp,
   return success();
 }
 
-LogicalResult PtrAnalysis::visitOperandForOp(scf::ForOp forOp, PtrState &state,
+LogicalResult PtrAnalysis::visitOperandForOp(scf::ForOp forOp, Value operand,
+                                             PtrState &state,
                                              const Location loc,
                                              OpBuilder &builder) {
+
+  auto it = llvm::find(forOp->getResults(), operand);
+  auto index = std::distance(forOp->getResults().begin(), it);
+
+  if (failed(getLoopResultPtrState(forOp, index, state))) {
+    forOp.emitError(
+        "Rewrite for-op failed. Could not find PtrState returned by "
+        "the loop.");
+    return failure();
+  }
 
   return success();
 }
@@ -716,24 +727,6 @@ LogicalResult PtrAnalysis::visitOperand(Value operand, PtrState &state,
   }
 
   if (!operand.getDefiningOp()) {
-    // This operand must be a nested loop's iterarg, which means its PtrState
-    // must have already been populated during rewriteForOp.
-    assert(knownPtrs.contains(operand));
-    state = knownPtrs[operand];
-    return success();
-  }
-
-  if (auto op = operand.getDefiningOp<scf::ForOp>()) {
-    auto it = llvm::find(op->getResults(), operand);
-    auto index = std::distance(op->getResults().begin(), it);
-
-    if (failed(getLoopResultPtrState(op, index, state))) {
-      op.emitError("Rewrite for-op failed. Could not find PtrState returned by "
-                   "the loop.");
-      return failure();
-    }
-
-    return success();
   }
 
   if (auto op = operand.getDefiningOp<arith::AddIOp>()) {
@@ -754,9 +747,16 @@ LogicalResult PtrAnalysis::visitOperand(Value operand, PtrState &state,
     return visitOperandConstSplat(op, state, loc, builder);
   } else if (auto op = operand.getDefiningOp<arith::RemSIOp>()) {
     return visitOperandRem(op, state, loc, builder);
-  }
-
-  else {
+  } else if (auto op = operand.getDefiningOp<scf::ForOp>()) {
+    return visitOperandForOp(op, operand, state, loc, builder);
+  } else if (!operand.getDefiningOp()) {
+    // This operand must be an iter-arg of an inner-loop in a multiple-level
+    // nested loop, which means its PtrState must have already been populated
+    // during rewriteForOp of the parent loop.
+    assert(knownPtrs.contains(operand));
+    state = knownPtrs[operand];
+    return success();
+  } else {
     llvm::dbgs() << "PtrAnalysis: encountered addptr operand produced by an "
                     "unsupported operation\n";
     operand.dump();

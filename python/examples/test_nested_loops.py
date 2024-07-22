@@ -7,7 +7,7 @@ import triton.language as tl
 
 
 @triton.jit
-def nested2_strides_change(a_ptr, c_ptr, stride_m, stride_n):
+def nested2_complex_body(a_ptr, c_ptr, stride_m, stride_n):
     offs_am = tl.arange(0, 2)
     offs_an = tl.arange(0, 2)
     a_ptrs = a_ptr + (offs_am[:, None] * stride_m +
@@ -130,18 +130,15 @@ def test_nested3():
     torch.testing.assert_close(output, expected, rtol=0.001, atol=1e-5)
     print("Pass!")
 
-    # src = triton.compiler.ASTSource(
-    #     fn=nested3,
-    #     signature="*fp32,*fp32,i32,i32",
-    # )
-    # ret = triton.compile(
-    #     src,
-    # )
-    # print(ret.asm["ttir"])
-    # print(ret.asm["ttsharedir"])
-    # print(ret.asm["llir"])
-    # print(ret.asm["cpuasm"])
-    # print('Pass')
+    src = triton.compiler.ASTSource(
+        fn=nested3,
+        signature="*fp32,*fp32,i32,i32",
+    )
+    ret = triton.compile(
+        src,
+    )
+    print(ret.asm["ttir"])
+    print('Pass')
 
 
 def test_nested2_use_loop_results():
@@ -171,8 +168,18 @@ def test_nested2_use_loop_results():
     torch.testing.assert_close(output, expected, rtol=0.001, atol=1e-5)
     print("Pass!")
 
+    src = triton.compiler.ASTSource(
+        fn=nested2_use_loop_results,
+        signature="*fp32,*fp32,i32,i32",
+    )
+    ret = triton.compile(
+        src,
+    )
+    print(ret.asm["ttir"])
+    print('Pass')
 
-def test_nested2_strides_change():
+
+def test_nested2_complex_body():
     n_rows = 4
     n_cols = 8
     grid = lambda meta: (n_cols // 4,)
@@ -191,13 +198,13 @@ def test_nested2_strides_change():
     print(x)
     print(output)
 
-    nested2_strides_change[grid](x, output, x.stride(0), x.stride(1))
+    nested2_complex_body[grid](x, output, x.stride(0), x.stride(1))
     print(output)
     torch.testing.assert_close(output, expected, rtol=0.001, atol=1e-5)
     print("Pass!")
 
     src = triton.compiler.ASTSource(
-        fn=nested2_strides_change,
+        fn=nested2_complex_body,
         signature="*fp32,*fp32,i32,i32",
     )
     ret = triton.compile(
@@ -207,7 +214,6 @@ def test_nested2_strides_change():
     print('Pass')
 
 
-# test_nested2_strides_change()
-# test2()
-# test3()
+# test_nested2_complex_body()
+test_nested3()
 # test_nested2_use_loop_results()
