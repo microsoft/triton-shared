@@ -884,71 +884,6 @@ LogicalResult PtrAnalysis::getLoopInitArgPtrState(scf::ForOp forOp,
   return failure();
 }
 
-// LogicalResult PtrAnalysis::getLoopInitArgPtrState(scf::ForOp forOp,
-//                                                   size_t index,
-//                                                   PtrState &state) {
-//   auto ptr = forOp.getInitArgs()[index];
-
-//   // Getting the PtrState for an scf.for's init arg is as simple as looking
-//   // up from the `knownPtrs` map which maps a triton pointer to its
-//   // corresponding PtrState. The following describes why this process works.
-//   //
-//   // There are two kinds of init arg:
-//   //
-//   // 1. If the pointer into the scf.for is defined by a
-//   // tts.get_structured_state, we can get the pointer state from the original
-//   // pointer (%triton_ptr):
-//   //
-//   // %triton_ptr = tt.addptr %some_ptr %some_offset
-//   // %ptr, %off_1, %off_2,..., %stride_1, %stride_2,... =
-//   // tts.get_structured_state %triton_ptr
-//   // scf.for ... (%ptr) {...}
-//   //
-//   // But by the time we visit the scf.for, tts.get_structured_state would
-//   have
-//   // already been rewritten by `rewriteGetStructuredStateOp` because we do
-//   // a pre-order traversal.
-//   //
-//   // `rewriteGetStructuredStateOp` is responsible for updating the loop's
-//   init
-//   // args: creating instructions that describe the pointers' offsets and
-//   // strides, and mapping %ptr in the example above to a structured pointer
-//   // while also storing its state in `knownPtrs`.
-//   //
-//   // After rewriteGetStructuredStateOp is done, the example above
-//   // becomes:
-//   //
-//   // scf.for ... (%structured_ptr) {...}
-//   //
-//   // 2. With multiple levels of loops, an scf.for init arg can be defined
-//   from
-//   // its parent loop's iter-arg:
-//   //
-//   // scf.for iterargs(%ptr = %init_arg) {
-//   //    scf.for iterargs(%ptr1 = %ptr) {  <--- we're dealing with `%ptr1`
-//   here.
-//   //          ...
-//   //    }
-//   // }
-//   //
-//   // In such cases, during `rewriteForOp`, we would have already set up the
-//   // PtrState for `%ptr` as well.
-//   //
-//   // So for both cases, we can do lookup in `knownPtrs`. If the pointer
-//   doesn't
-//   // existing in the map, it means that PtrAnalysis has failed to analyze
-//   that
-//   // pointer.
-//   if (knownPtrs.count(ptr)) {
-//     state = knownPtrs[ptr];
-//     return success();
-//   }
-
-//   return failure();
-// }
-
-// If a pointer is updated in a loop or is returned from a loop,
-//
 PtrState PtrAnalysis::reconcileLoopPtrState(
     scf::ForOp forOp, size_t iterArgIndex, const PtrState &state,
     std::function<Value(scf::ForOp op, size_t)> getReplacementVal) {
@@ -1000,7 +935,7 @@ LogicalResult PtrAnalysis::getLoopResultPtrState(scf::ForOp forOp, size_t index,
   return success();
 }
 
-LogicalResult PtrAnalysis::rewriteForOpNew(scf::ForOp op) {
+LogicalResult PtrAnalysis::rewriteForOp(scf::ForOp op) {
   for (auto [i, arg] : llvm::enumerate(op.getInitArgs())) {
     if (!isPointerType(arg.getType())) {
       continue;
@@ -1262,8 +1197,9 @@ LogicalResult PtrAnalysis::rewriteOp(Operation *rootOp) {
         .Case<scf::ForOp>([&](auto forOp) {
           // The rewrite for the for-op is in-place and recursive, so regardless
           // whether the rewrite succeeds or not, we need to return "skip" so
-          // that the the walk does not visit the for-op's child operations.
-          if (rewriteForOpNew(forOp).failed()) {
+          // that the the walk does not visit the for-op's child operations as
+          // that is done during `rewriteForOp` anyway.
+          if (rewriteForOp(forOp).failed()) {
             forOp->emitRemark("PtrAnalysis: Failed to rewrite ForOp");
           }
           return WalkResult::skip();
