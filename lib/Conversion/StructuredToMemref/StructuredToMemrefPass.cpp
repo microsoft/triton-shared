@@ -85,6 +85,10 @@ public:
     addConversion([context](triton::PointerType ptrType) {
       return getMemrefTypeForScalarPtr(ptrType, context);
     });
+
+    // A tensor of pointers can be passed in as scf.for's init-args, in such
+    // cases, we convert the type to a memref with dynamic offsets and
+    // strides.
     addConversion(
         [context](RankedTensorType tensorType) -> std::optional<MemRefType> {
           if (auto ptrType = llvm::dyn_cast<triton::PointerType>(
@@ -99,6 +103,11 @@ public:
 
           return std::nullopt;
         });
+
+    // Convert the current memref type to a memref type with dynamic offsets and
+    // strides through another reinterpret_cast with the same offsets.
+    // Canonicalization will simplify this sequence by removing the inital
+    // reinterpret_cast.
     addTargetMaterialization([&](OpBuilder &builder, MemRefType memrefType,
                                  ValueRange inputs,
                                  Location loc) -> std::optional<Value> {
