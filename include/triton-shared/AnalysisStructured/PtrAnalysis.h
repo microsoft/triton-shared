@@ -198,19 +198,41 @@ struct PtrAnalysis {
                                           PtrState &state, const Location loc,
                                           OpBuilder &builder);
 
+  // Get the computed PtrState for the forOp's init-arg at the provided index.
   LogicalResult getLoopInitArgPtrState(scf::ForOp forOp, size_t index,
                                        PtrState &state);
 
+  // Get the computed PtrState for the forOp's iter-arg at the provided index.
+  LogicalResult getLoopIterArgPtrState(scf::ForOp forOp, size_t index,
+                                       PtrState &state);
+
+  // Get the computed PtrState for the forOp's result at the provided index.
+  LogicalResult getLoopResultPtrState(scf::ForOp forOp, size_t index,
+                                      PtrState &state);
+
+  // This function is internally used by getLoopIterArgPtrState and
+  // getLoopResultPtrState to get the correct PtrState for either an iter-arg or
+  // a loop's result.
+  //
+  // A PtrState of an scf.for's iter-arg is the same as its corresponding
+  // init-arg, except that the strides and offsets have to point to the loop's
+  // iter-args that were created to carry the offsets and strides.
+  //
+  // For instance, for a pointer with index i and rank 2, 4 additional args
+  // starting at index i + 1 are created. The PtrState's strides and offsets
+  // value of the pointer's iter-arg must point to these 4 additionally created
+  // iter-args.
+  //
+  // A similar process is used for getting the PtrState of the loop's i'th
+  // result: its strides and offsets have to point to the corresponding stride
+  // and offset values returned by the loop.
   PtrState reconcileLoopPtrState(
       scf::ForOp forOp, size_t ptrArgIndex, const PtrState &state,
       std::function<Value(scf::ForOp op, size_t)> getReplacementVal);
 
-  LogicalResult getLoopIterArgPtrState(scf::ForOp forOp, size_t index,
-                                       PtrState &state);
-
-  LogicalResult getLoopResultPtrState(scf::ForOp forOp, size_t index,
-                                      PtrState &state);
-
+  // After PtrAnalysis finishes, rewrite the GetStructuredStateOp by creating
+  // the correct initialization ops for offsets and strides and passing them to
+  // any loop's init-args.
   LogicalResult rewriteGetStructuredStateOp(tts::GetStructuredStateOp op);
 
   LogicalResult rewriteForOpNew(scf::ForOp op);
