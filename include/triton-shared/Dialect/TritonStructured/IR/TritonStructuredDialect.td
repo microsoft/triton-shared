@@ -121,14 +121,11 @@ def TTS_MakeTensorPtrOp
 }
 
 def TTS_GetStructuredStateOp : TTS_Op<"get_structured_state", [Pure]> {
-  let summary = "An unrealized conversion from one set of types to another";
-  let description = [{}];
+  let summary = "Placeholder for the structured pointer states computed during PtrAnalysis.";
+  let description = "Used to pass the offsets and strides to scf.for op to simplify IR rewrites.";
 
   let arguments = (ins TT_PtrLike:$ptr);
   let results = (outs Variadic<AnyType>:$outputs);
-  // let assemblyFormat = [{
-  //   ($inputs^ `:` type($inputs))? `to` type($outputs) attr-dict
-  // }];
   let hasFolder = 0;
   let hasVerifier = 0;
 }
