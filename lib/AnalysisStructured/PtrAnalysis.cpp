@@ -867,8 +867,32 @@ LogicalResult PtrAnalysis::getLoopInitArgPtrState(scf::ForOp forOp,
     }
   }
 
-  // If the pointer isn't defined by tts.get_structured_state, it means the
-  // current pointer is an iterarg of the outer loop.
+  // For nested loops scenarios, a pointer in init-args can be returned from
+  // another loop of the same level:
+  // e.g.:
+  // clang-format off
+  //  %22:2 = scf.for %arg4 = %c0_i32 to %c2_i32 step %c1_i32 iter_args(%arg5 = %11, %arg6 = %15) -> (tensor<2x2x!tt.ptr<f32>>, tensor<2x2x!tt.ptr<f32>>)  : i32 {
+  //    %23 = scf.for %arg7 = %c0_i32 to %c2_i32 step %c1_i32 iter_args(%arg8 = %arg5) -> (tensor<2x2x!tt.ptr<f32>>)  : i32 {
+  //      %26 = tt.addptr %arg8, %17 : tensor<2x2x!tt.ptr<f32>>, tensor<2x2xi32>
+  //      scf.yield %26 : tensor<2x2x!tt.ptr<f32>>
+  //    }
+  //    %24:2 = scf.for %arg7 = %c0_i32 to %c2_i32 step %c1_i32 iter_args(%arg8 = %23, %arg9 = %arg6) -> (tensor<2x2x!tt.ptr<f32>>, tensor<2x2x!tt.ptr<f32>>)  : i32 {
+  //      %26 = tt.load %arg8 : tensor<2x2x!tt.ptr<f32>>
+  //      %27 = tt.addptr %arg8, %19 : tensor<2x2x!tt.ptr<f32>>, tensor<2x2xi32>
+  //      ...
+  //    }
+  //    ...
+  //  }
+  // clang-format on
+  // Notice %arg8 = %23 comes from the return value of the first loop.
+  if (auto forOp = ptr.getDefiningOp<scf::ForOp>()) {
+    return getLoopResultPtrState(forOp, index, state);
+  }
+
+  // If the pointer isn't defined by tts.get_structured_state nor another loop,
+  // it means the current pointer is an iterarg of the outer loop.
+  // In such cases, the outer loops would have already set up the PtrState for
+  // us already.
   //
   // scf.for iterargs(%ptr = %init_arg) {
   //    scf.for iterargs(%ptr1 = %ptr) {  <--- we're dealing with `%ptr1` here.

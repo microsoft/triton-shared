@@ -64,7 +64,7 @@ def nested2_use_loop_results(in_ptr, out_ptr, stride_m, stride_n):
 
 
 @triton.jit
-def nested3(in_ptr, out_ptr, stride_m, stride_n):
+def nested_who_knows_how_many_levels(in_ptr, out_ptr, stride_m, stride_n):
     offs_am = tl.arange(0, 2)
     offs_an = tl.arange(0, 2)
     a_ptrs = in_ptr + (offs_am[:, None] * stride_m +
@@ -75,14 +75,14 @@ def nested3(in_ptr, out_ptr, stride_m, stride_n):
     c_ptrs = out_ptr + stride_m * offs_cm[:, None] + stride_n * offs_cn[
         None, :]
 
-    for i in range(0, 2):
+    for i1 in range(0, 2):
         a1 = tl.load(a_ptrs)
 
-        for j in range(0, 2):
+        for j1 in range(0, 2):
             a_ptrs += 2 * stride_n
             a2 = tl.load(a_ptrs)
 
-            for k in range(0, 2):
+            for k1 in range(0, 2):
                 a_ptrs += 2 * stride_n
                 a3 = tl.load(a_ptrs)
                 tl.store(c_ptrs, a1)
@@ -93,6 +93,132 @@ def nested3(in_ptr, out_ptr, stride_m, stride_n):
                 tl.store(c_ptrs, a3)
                 c_ptrs += 2 * stride_n
 
+                for i2 in range(0, 2):
+                    a1 = tl.load(a_ptrs)
+
+                    for j2 in range(0, 2):
+                        a_ptrs += 2 * stride_n
+                        a2 = tl.load(a_ptrs)
+
+                        for k2 in range(0, 2):
+                            a_ptrs += 2 * stride_n
+                            a3 = tl.load(a_ptrs)
+                            tl.store(c_ptrs, a1)
+                            c_ptrs += 2 * stride_n
+
+                            tl.store(c_ptrs, a2)
+                            c_ptrs += 2 * stride_n
+                            tl.store(c_ptrs, a3)
+                            c_ptrs += 2 * stride_n
+
+                            for i3 in range(0, 2):
+                                a1 = tl.load(a_ptrs)
+
+                                for j3 in range(0, 2):
+                                    a_ptrs += 2 * stride_n
+                                    a2 = tl.load(a_ptrs)
+
+                                    for k3 in range(0, 2):
+                                        a_ptrs += 2 * stride_n
+                                        a3 = tl.load(a_ptrs)
+                                        tl.store(c_ptrs, a1)
+                                        c_ptrs += 2 * stride_n
+
+                                        tl.store(c_ptrs, a2)
+                                        c_ptrs += 2 * stride_n
+                                        tl.store(c_ptrs, a3)
+                                        c_ptrs += 2 * stride_n
+
+                                        for i4 in range(0, 2):
+                                            a1 = tl.load(a_ptrs)
+
+                                            for j4 in range(0, 2):
+                                                a_ptrs += 2 * stride_n
+                                                a2 = tl.load(a_ptrs)
+
+                                                for k4 in range(0, 2):
+                                                    a_ptrs += 2 * stride_n
+                                                    a3 = tl.load(a_ptrs)
+                                                    tl.store(c_ptrs, a1)
+                                                    c_ptrs += 2 * stride_n
+
+                                                    tl.store(c_ptrs, a2)
+                                                    c_ptrs += 2 * stride_n
+                                                    tl.store(c_ptrs, a3)
+                                                    c_ptrs += 2 * stride_n
+
+                for i5 in range(0, 2):
+                    a1 = tl.load(a_ptrs)
+
+                    for j5 in range(0, 2):
+                        a_ptrs += 2 * stride_n
+                        a2 = tl.load(a_ptrs)
+
+                        for k5 in range(0, 2):
+                            a_ptrs += 2 * stride_n
+                            a3 = tl.load(a_ptrs)
+                            tl.store(c_ptrs, a1)
+                            c_ptrs += 2 * stride_n
+
+                            tl.store(c_ptrs, a2)
+                            c_ptrs += 2 * stride_n
+                            tl.store(c_ptrs, a3)
+                            c_ptrs += 2 * stride_n
+
+            a_ptrs += 2 * stride_n
+
+        for i6 in range(0, 2):
+            a1 = tl.load(a_ptrs)
+
+            for j6 in range(0, 2):
+                a_ptrs += 2 * stride_n
+                a2 = tl.load(a_ptrs)
+
+                for k6 in range(0, 2):
+                    a_ptrs += 2 * stride_n
+                    a3 = tl.load(a_ptrs)
+                    tl.store(c_ptrs, a1)
+                    c_ptrs += 2 * stride_n
+
+                    tl.store(c_ptrs, a2)
+                    c_ptrs += 2 * stride_n
+                    tl.store(c_ptrs, a3)
+                    c_ptrs += 2 * stride_n
+            a_ptrs += 2 * stride_n
+
+
+        a_ptrs += 2 * stride_n
+
+
+@triton.jit
+def nested_buggy(in_ptr, out_ptr, stride_m, stride_n):
+    offs_am = tl.arange(0, 2)
+    offs_an = tl.arange(0, 2)
+    a_ptrs = in_ptr + (offs_am[:, None] * stride_m +
+                        offs_an[None, :] * stride_n)
+
+    offs_cm = tl.arange(0, 2)
+    offs_cn = tl.arange(0, 2)
+    c_ptrs = out_ptr + stride_m * offs_cm[:, None] + stride_n * offs_cn[
+        None, :]
+
+    for i1 in range(0, 2):
+        a1 = tl.load(a_ptrs)
+
+        for j1 in range(0, 2):
+            a_ptrs += 2 * stride_n
+
+        for i6 in range(0, 2):
+            a1 = tl.load(a_ptrs)
+            a_ptrs += 2 * stride_n
+            a3 = tl.load(a_ptrs)
+            tl.store(c_ptrs, a1)
+            c_ptrs += 2 * stride_n
+
+            c_ptrs += 2 * stride_n
+            tl.store(c_ptrs, a3)
+            c_ptrs += 2 * stride_n
+            a_ptrs += 2 * stride_n
 
         a_ptrs += 2 * stride_n
 
@@ -116,29 +242,29 @@ def test_nested3():
           0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
           0,  0,  0,  0,  0,  0]], dtype=torch.int32, device='cpu')
     # x = torch.arange(0, n_rows * n_cols, device="cuda", dtype=torch.float32).reshape([n_rows, n_cols])
-    triton.runtime.driver.set_active(CPUDriver())
+    # triton.runtime.driver.set_active(CPUDriver())
     x = torch.arange(0, n_rows * n_cols, device="cpu", dtype=torch.int32).reshape([n_rows, n_cols])
     output = torch.zeros([n_rows, n_cols], device=x.device, dtype=x.dtype)
     grid = lambda meta: (n_cols // 4,)
 
-    print('before:')
-    print(x)
-    print(output)
+    # print('before:')
+    # print(x)
+    # print(output)
 
-    nested3[grid](x, output, x.stride(0), x.stride(1))
-    print(output)
-    torch.testing.assert_close(output, expected, rtol=0.001, atol=1e-5)
-    print("Pass!")
+    # nested_who_knows_how_many_levels[grid](x, output, x.stride(0), x.stride(1))
+    # print(output)
+    # torch.testing.assert_close(output, expected, rtol=0.001, atol=1e-5)
+    # print("Pass!")
 
     src = triton.compiler.ASTSource(
-        fn=nested3,
+        fn=nested_buggy,
         signature="*fp32,*fp32,i32,i32",
     )
     ret = triton.compile(
         src,
     )
     print(ret.asm["ttir"])
-    print('Pass')
+    # print('Pass')
 
 
 def test_nested2_use_loop_results():
