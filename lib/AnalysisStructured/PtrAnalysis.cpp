@@ -1081,8 +1081,6 @@ LogicalResult PtrAnalysis::rewriteLoadOp(triton::LoadOp op) {
   if (!ptr) {
     op->emitRemark("PtrAnalysis: pointer is not replace with tts.make_tptr so "
                    "loadOp cannot be rewritten");
-    llvm::dbgs() << "ptr in load\n";
-    op.getPtr().dump();
     return failure();
   }
 
@@ -1219,10 +1217,10 @@ LogicalResult PtrAnalysis::rewriteOp(Operation *rootOp) {
           return WalkResult::skip();
         })
         .Case<scf::ForOp>([&](auto forOp) {
-          // The rewrite for the for-op is in-place and recursive, so regardless
+          // `rewriteForOp` recursively visits its children, so regardless
           // whether the rewrite succeeds or not, we need to return "skip" so
-          // that the the walk does not visit the for-op's child operations as
-          // that is done during `rewriteForOp` anyway.
+          // that the the walk does not visit the for-op's child operations the
+          // second time.
           if (rewriteForOp(forOp).failed()) {
             forOp->emitRemark("PtrAnalysis: Failed to rewrite ForOp");
           }

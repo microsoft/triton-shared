@@ -69,47 +69,45 @@ public:
     // We are doing a 1->1 type conversion here, where a triton pointer type
     // maps to a tuple of {pointer, offset_0, offset_1,..., stride_0,
     // stride_1,...} type.
-
+    //
     // Case 1: Unstructured pointers (tensor<!tt.ptr<type>>)
-    converter.addConversion(
-        [context](RankedTensorType tensorType, SmallVectorImpl<Type> &types)
-            -> std::optional<LogicalResult> {
-          if (auto ptrType =
-                  dyn_cast<triton::PointerType>(tensorType.getElementType())) {
-            auto rank = tensorType.getRank();
-            auto offsetAndStrideTuple = TupleType::get(
-                context, SmallVector<Type>(rank * 2, IndexType::get(context)));
-            auto tupleType = TupleType::get(
-                context, SmallVector<Type>{tensorType, offsetAndStrideTuple});
-            types = SmallVector<Type>{tupleType};
-            return success();
-          }
-          return std::nullopt;
-        });
+    converter.addConversion([context](RankedTensorType tensorType,
+                                      SmallVectorImpl<Type> &types)
+                                -> std::optional<LogicalResult> {
+      if (auto ptrType =
+              dyn_cast<triton::PointerType>(tensorType.getElementType())) {
+        SmallVector<Type> tupleTypes{tensorType};
+        // Each tensor of rank k gets k values for its offsets and k values for
+        // its strides, all of which has Index type.
+        tupleTypes.append(tensorType.getRank() * 2, IndexType::get(context));
+        types = SmallVector<Type>{TupleType::get(context, tupleTypes)};
+        return success();
+      }
+      return std::nullopt;
+    });
 
     // Case 2: Block pointers (!tt.ptr<tensor<>> or !tt.ptr<type>)
-    converter.addConversion(
-        [context](triton::PointerType ptrType, SmallVectorImpl<Type> &types)
-            -> std::optional<LogicalResult> {
-          if (auto tensorType =
-                  llvm::dyn_cast<RankedTensorType>(ptrType.getPointeeType())) {
-            // Block pointers
-            auto rank = tensorType.getRank();
-            auto offsetAndStrideTuple = TupleType::get(
-                context, SmallVector<Type>(rank * 2, IndexType::get(context)));
-            auto tupleType = TupleType::get(
-                context, SmallVector<Type>{ptrType, offsetAndStrideTuple});
-            types = SmallVector<Type>{tupleType};
-          } else {
-            // Scalar pointers
-            // The only relevant state that can be updated in loops for scalar
-            // pointers are offset. No need to include stride here.
-            auto tupleType = TupleType::get(
-                context, SmallVector<Type>{ptrType, IndexType::get(context)});
-            types = SmallVector<Type>{tupleType};
-          }
-          return success();
-        });
+    converter.addConversion([context](triton::PointerType ptrType,
+                                      SmallVectorImpl<Type> &types)
+                                -> std::optional<LogicalResult> {
+      if (auto tensorType =
+              llvm::dyn_cast<RankedTensorType>(ptrType.getPointeeType())) {
+        // Block pointers
+        SmallVector<Type> tupleTypes{ptrType};
+        // Each tensor of rank k gets k values for its offsets and k values for
+        // its strides, all of which has Index type.
+        tupleTypes.append(tensorType.getRank() * 2, IndexType::get(context));
+        types = SmallVector<Type>{TupleType::get(context, tupleTypes)};
+      } else {
+        // Scalar pointers
+        // The only relevant state that can be updated in loops for scalar
+        // pointers are offset. No need to include stride here.
+        auto tupleType = TupleType::get(
+            context, SmallVector<Type>{ptrType, IndexType::get(context)});
+        types = SmallVector<Type>{tupleType};
+      }
+      return success();
+    });
 
     // Hooks to compute the correct materialization, "argument" and "source"
     // materialization are used when we need to convert the tuple type back to
