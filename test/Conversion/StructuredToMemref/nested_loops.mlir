@@ -129,6 +129,54 @@ module {
     }
     tt.return
   }
+  tt.func public @nested_use_same_level_loop_result(%arg0: !tt.ptr<f32>, %arg1: !tt.ptr<f32>, %arg2: i32, %arg3: i32) attributes {noinline = false} {
+    %c1_i32 = arith.constant 1 : i32
+    %c0_i32 = arith.constant 0 : i32
+    %c2_i32 = arith.constant 2 : i32
+    %0 = tt.make_range {end = 2 : i32, start = 0 : i32} : tensor<2xi32>
+    %1 = tt.expand_dims %0 {axis = 1 : i32} : tensor<2xi32> -> tensor<2x1xi32>
+    %2 = tt.splat %arg2 : i32 -> tensor<2x1xi32>
+    %3 = arith.muli %1, %2 : tensor<2x1xi32>
+    %4 = tt.expand_dims %0 {axis = 0 : i32} : tensor<2xi32> -> tensor<1x2xi32>
+    %5 = tt.splat %arg3 : i32 -> tensor<1x2xi32>
+    %6 = arith.muli %4, %5 : tensor<1x2xi32>
+    %7 = tt.broadcast %3 : tensor<2x1xi32> -> tensor<2x2xi32>
+    %8 = tt.broadcast %6 : tensor<1x2xi32> -> tensor<2x2xi32>
+    %9 = arith.addi %7, %8 : tensor<2x2xi32>
+    %10 = tt.splat %arg0 : !tt.ptr<f32> -> tensor<2x2x!tt.ptr<f32>>
+    %11 = tt.addptr %10, %9 : tensor<2x2x!tt.ptr<f32>>, tensor<2x2xi32>
+    %12 = tt.splat %arg1 : !tt.ptr<f32> -> tensor<2x1x!tt.ptr<f32>>
+    %13 = tt.addptr %12, %3 : tensor<2x1x!tt.ptr<f32>>, tensor<2x1xi32>
+    %14 = tt.broadcast %13 : tensor<2x1x!tt.ptr<f32>> -> tensor<2x2x!tt.ptr<f32>>
+    %15 = tt.addptr %14, %8 : tensor<2x2x!tt.ptr<f32>>, tensor<2x2xi32>
+    %16 = arith.muli %arg3, %c2_i32 : i32
+    %17 = tt.splat %16 : i32 -> tensor<2x2xi32>
+    %18 = arith.muli %arg3, %c2_i32 : i32
+    %19 = tt.splat %18 : i32 -> tensor<2x2xi32>
+    %20 = arith.muli %arg3, %c2_i32 : i32
+    %21 = tt.splat %20 : i32 -> tensor<2x2xi32>
+    %22:2 = scf.for %arg4 = %c0_i32 to %c2_i32 step %c1_i32 iter_args(%arg5 = %11, %arg6 = %15) -> (tensor<2x2x!tt.ptr<f32>>, tensor<2x2x!tt.ptr<f32>>)  : i32 {
+      %23 = scf.for %arg7 = %c0_i32 to %c2_i32 step %c1_i32 iter_args(%arg8 = %arg5) -> (tensor<2x2x!tt.ptr<f32>>)  : i32 {
+        %26 = tt.addptr %arg8, %17 : tensor<2x2x!tt.ptr<f32>>, tensor<2x2xi32>
+        scf.yield %26 : tensor<2x2x!tt.ptr<f32>>
+      }
+      %24:2 = scf.for %arg7 = %c0_i32 to %c2_i32 step %c1_i32 iter_args(%arg8 = %23, %arg9 = %arg6) -> (tensor<2x2x!tt.ptr<f32>>, tensor<2x2x!tt.ptr<f32>>)  : i32 {
+        %26 = tt.load %arg8 : tensor<2x2x!tt.ptr<f32>>
+        %27 = tt.addptr %arg8, %19 : tensor<2x2x!tt.ptr<f32>>, tensor<2x2xi32>
+        %28 = tt.load %27 : tensor<2x2x!tt.ptr<f32>>
+        tt.store %arg9, %26 : tensor<2x2x!tt.ptr<f32>>
+        %29 = tt.addptr %arg9, %19 : tensor<2x2x!tt.ptr<f32>>, tensor<2x2xi32>
+        %30 = tt.addptr %29, %19 : tensor<2x2x!tt.ptr<f32>>, tensor<2x2xi32>
+        tt.store %30, %28 : tensor<2x2x!tt.ptr<f32>>
+        %31 = tt.addptr %30, %19 : tensor<2x2x!tt.ptr<f32>>, tensor<2x2xi32>
+        %32 = tt.addptr %27, %19 : tensor<2x2x!tt.ptr<f32>>, tensor<2x2xi32>
+        scf.yield %32, %31 : tensor<2x2x!tt.ptr<f32>>, tensor<2x2x!tt.ptr<f32>>
+      }
+      %25 = tt.addptr %24#0, %21 : tensor<2x2x!tt.ptr<f32>>, tensor<2x2xi32>
+      scf.yield %25, %24#1 : tensor<2x2x!tt.ptr<f32>>, tensor<2x2x!tt.ptr<f32>>
+    }
+    tt.return
+  }
 }
 
 // CHECK-LABEL:  func.func @nested2_complex_body
@@ -249,6 +297,52 @@ module {
 // CHECK:                 scf.yield [[VAR_11_]], [[VAR_reinterpret_cast_8_]], [[VAR_15_]] : index, memref<2x2xf32, strided<[?, ?], offset: ?>>, index
 // CHECK:               }
 // CHECK:               scf.yield [[VAR_10_]]#0, [[VAR_10_]]#1, [[VAR_10_]]#2 : index, memref<2x2xf32, strided<[?, ?], offset: ?>>, index
+// CHECK:             }
+// CHECK:             [[VAR_7_:%.+]] = arith.addi [[VAR_6_]]#0, [[VAR_3_]] : index
+// CHECK:             scf.yield [[VAR_7_]], [[VAR_6_]]#1, [[VAR_6_]]#2 : index, memref<2x2xf32, strided<[?, ?], offset: ?>>, index
+// CHECK:           }
+// CHECK:           return
+// CHECK:         }
+//
+// CHECK-LABEL:  func.func @nested_use_same_level_loop_result
+// CHECK-SAME:   ([[PARAM_0_:%.+]]: memref<*xf32>, [[PARAM_1_:%.+]]: memref<*xf32>, [[PARAM_2_:%.+]]: i32, [[PARAM_3_:%.+]]: i32, [[PARAM_4_:%.+]]: i32, [[PARAM_5_:%.+]]: i32, [[PARAM_6_:%.+]]: i32, [[PARAM_7_:%.+]]: i32, [[PARAM_8_:%.+]]: i32, [[PARAM_9_:%.+]]: i32) {
+// CHECK-DAG:       [[CST_2_:%.+]] = arith.constant 2 : i32
+// CHECK-DAG:       [[CST_0_:%.+]] = arith.constant 0 : i32
+// CHECK-DAG:       [[CST_1_:%.+]] = arith.constant 1 : i32
+// CHECK-DAG:       [[CST_0_1_:%.+]] = arith.constant 0 : index
+// CHECK-DAG:       [[VAR_0_:%.+]] = arith.index_cast [[PARAM_2_]] : i32 to index
+// CHECK-DAG:       [[VAR_1_:%.+]] = arith.index_cast [[PARAM_3_]] : i32 to index
+// CHECK-NOT: separator of consecutive DAGs
+// CHECK-DAG:       [[VAR_reinterpret_cast_:%.+]] = memref.reinterpret_cast [[PARAM_1_]] to offset: [0], sizes: [2, 2], strides: {{.}}[[VAR_0_]], [[VAR_1_]]{{.}} : memref<*xf32> to memref<2x2xf32, strided<[?, ?], offset: ?>>
+// CHECK-DAG:       [[VAR_2_:%.+]] = arith.muli [[PARAM_3_]], [[CST_2_]] : i32
+// CHECK-NOT: separator of consecutive DAGs
+// CHECK-DAG:       [[VAR_3_:%.+]] = arith.index_cast [[VAR_2_]] : i32 to index
+// CHECK-DAG:       [[VAR_4_:%.+]]:3 = scf.for [[VAR_arg10_:%.+]] = [[CST_0_]] to [[CST_2_]] step [[CST_1_]] iter_args([[VAR_arg11_:%.+]] = [[CST_0_1_]], [[VAR_arg12_:%.+]] = [[VAR_reinterpret_cast_]], [[VAR_arg13_:%.+]] = [[CST_0_1_]]) -> (index, memref<2x2xf32, strided<[?, ?], offset: ?>>, index)  : i32 {
+// CHECK-DAG:         [[VAR_5_:%.+]] = scf.for [[VAR_arg14_:%.+]] = [[CST_0_]] to [[CST_2_]] step [[CST_1_]] iter_args([[VAR_arg15_:%.+]] = [[VAR_arg11_]]) -> (index)  : i32 {
+// CHECK:               [[VAR_8_:%.+]] = arith.addi [[VAR_arg15_]], [[VAR_3_]] : index
+// CHECK:               scf.yield [[VAR_8_]] : index
+// CHECK:             }
+// CHECK-DAG:         [[VAR_6_:%.+]]:3 = scf.for [[VAR_arg14_1_:%.+]] = [[CST_0_]] to [[CST_2_]] step [[CST_1_]] iter_args([[VAR_arg15_1_:%.+]] = [[VAR_5_]], [[VAR_arg16_:%.+]] = [[VAR_arg12_]], [[VAR_arg17_:%.+]] = [[VAR_arg13_]]) -> (index, memref<2x2xf32, strided<[?, ?], offset: ?>>, index)  : i32 {
+// CHECK-DAG:           [[VAR_reinterpret_cast_0_:%.+]] = memref.reinterpret_cast [[PARAM_1_]] to offset: {{.}}[[VAR_arg17_]]{{.}}, sizes: [2, 2], strides: {{.}}[[VAR_0_]], [[VAR_1_]]{{.}} : memref<*xf32> to memref<2x2xf32, strided<[?, ?], offset: ?>>
+// CHECK-DAG:           [[VAR_reinterpret_cast_1_:%.+]] = memref.reinterpret_cast [[PARAM_0_]] to offset: {{.}}[[VAR_arg15_1_]]{{.}}, sizes: [2, 2], strides: {{.}}[[VAR_0_]], [[VAR_1_]]{{.}} : memref<*xf32> to memref<2x2xf32, strided<[?, ?], offset: ?>>
+// CHECK-DAG:           [[RES_:%.+]] = memref.alloc() : memref<2x2xf32>
+// CHECK:               memref.copy [[VAR_reinterpret_cast_1_]], [[RES_]] : memref<2x2xf32, strided<[?, ?], offset: ?>> to memref<2x2xf32>
+// CHECK-DAG:           [[VAR_8_1_:%.+]] = bufferization.to_tensor [[RES_]] restrict writable : memref<2x2xf32>
+// CHECK-DAG:           [[VAR_9_:%.+]] = arith.addi [[VAR_arg15_1_]], [[VAR_3_]] : index
+// CHECK-NOT: separator of consecutive DAGs
+// CHECK-DAG:           [[VAR_reinterpret_cast_2_:%.+]] = memref.reinterpret_cast [[PARAM_0_]] to offset: {{.}}[[VAR_9_]]{{.}}, sizes: [2, 2], strides: {{.}}[[VAR_0_]], [[VAR_1_]]{{.}} : memref<*xf32> to memref<2x2xf32, strided<[?, ?], offset: ?>>
+// CHECK-DAG:           [[RES_1_:%.+]] = memref.alloc() : memref<2x2xf32>
+// CHECK:               memref.copy [[VAR_reinterpret_cast_2_]], [[RES_1_]] : memref<2x2xf32, strided<[?, ?], offset: ?>> to memref<2x2xf32>
+// CHECK:               [[VAR_10_:%.+]] = bufferization.to_tensor [[RES_1_]] restrict writable : memref<2x2xf32>
+// CHECK:               bufferization.materialize_in_destination [[VAR_8_1_]] in writable [[VAR_reinterpret_cast_0_]] : (tensor<2x2xf32>, memref<2x2xf32, strided<[?, ?], offset: ?>>) -> ()
+// CHECK:               [[VAR_11_:%.+]] = arith.addi [[VAR_arg17_]], [[VAR_3_]] : index
+// CHECK:               [[VAR_12_:%.+]] = arith.addi [[VAR_11_]], [[VAR_3_]] : index
+// CHECK:               [[VAR_reinterpret_cast_4_:%.+]] = memref.reinterpret_cast [[PARAM_1_]] to offset: {{.}}[[VAR_12_]]{{.}}, sizes: [2, 2], strides: {{.}}[[VAR_0_]], [[VAR_1_]]{{.}} : memref<*xf32> to memref<2x2xf32, strided<[?, ?], offset: ?>>
+// CHECK:               bufferization.materialize_in_destination [[VAR_10_]] in writable [[VAR_reinterpret_cast_4_]] : (tensor<2x2xf32>, memref<2x2xf32, strided<[?, ?], offset: ?>>) -> ()
+// CHECK:               [[VAR_13_:%.+]] = arith.addi [[VAR_12_]], [[VAR_3_]] : index
+// CHECK-DAG:           [[VAR_reinterpret_cast_5_:%.+]] = memref.reinterpret_cast [[PARAM_1_]] to offset: {{.}}[[VAR_13_]]{{.}}, sizes: [2, 2], strides: {{.}}[[VAR_0_]], [[VAR_1_]]{{.}} : memref<*xf32> to memref<2x2xf32, strided<[?, ?], offset: ?>>
+// CHECK-DAG:           [[VAR_14_:%.+]] = arith.addi [[VAR_9_]], [[VAR_3_]] : index
+// CHECK:               scf.yield [[VAR_14_]], [[VAR_reinterpret_cast_5_]], [[VAR_13_]] : index, memref<2x2xf32, strided<[?, ?], offset: ?>>, index
 // CHECK:             }
 // CHECK:             [[VAR_7_:%.+]] = arith.addi [[VAR_6_]]#0, [[VAR_3_]] : index
 // CHECK:             scf.yield [[VAR_7_]], [[VAR_6_]]#1, [[VAR_6_]]#2 : index, memref<2x2xf32, strided<[?, ?], offset: ?>>, index
