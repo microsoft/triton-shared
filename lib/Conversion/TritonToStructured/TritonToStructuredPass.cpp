@@ -86,7 +86,7 @@ public:
       return std::nullopt;
     });
 
-    // Case 2: Block pointers (!tt.ptr<tensor<>> or !tt.ptr<type>)
+    // Case 2: Block pointers (!tt.ptr<tensor<type>> or !tt.ptr<type>)
     converter.addConversion([context](triton::PointerType ptrType,
                                       SmallVectorImpl<Type> &types)
                                 -> std::optional<LogicalResult> {
