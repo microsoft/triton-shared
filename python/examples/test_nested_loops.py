@@ -372,3 +372,42 @@ def test_nested2_complex_body():
     )
     print(ret.asm["ttir"])
     print('Pass')
+
+def test_nested2_use_same_level_loop_result():
+    n_rows = 4
+    n_cols = 32
+    grid = lambda meta: (n_cols // 4,)
+    expected = torch.tensor([[ 4,  5,  0,  0,  6,  7,  8,  9,  0,  0, 10, 11, 18, 19,  0,  0, 20, 21,
+         22, 23,  0,  0, 24, 25,  0,  0,  0,  0,  0,  0,  0,  0],
+        [36, 37,  0,  0, 38, 39, 40, 41,  0,  0, 42, 43, 50, 51,  0,  0, 52, 53,
+         54, 55,  0,  0, 56, 57,  0,  0,  0,  0,  0,  0,  0,  0],
+        [ 0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
+          0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0],
+        [ 0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
+          0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0]],
+       device='cpu', dtype=torch.int32)
+
+
+    x = torch.arange(0, n_rows * n_cols, device="cpu", dtype=torch.int32).reshape([n_rows, n_cols])
+    triton.runtime.driver.set_active(CPUDriver())
+    output = torch.zeros([n_rows, n_cols], device=x.device, dtype=x.dtype)
+
+
+    print('before:')
+    print(x)
+    print(output)
+
+    nested_use_same_level_loop_results[grid](x, output, x.stride(0), x.stride(1))
+    print(output)
+    torch.testing.assert_close(output, expected, rtol=0.001, atol=1e-5)
+    print("Pass!")
+
+    src = triton.compiler.ASTSource(
+        fn=nested_use_same_level_loop_results,
+        signature="*fp32,*fp32,i32,i32",
+    )
+    ret = triton.compile(
+        src,
+    )
+    print(ret.asm["ttir"])
+    print('Pass')
