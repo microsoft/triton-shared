@@ -146,7 +146,10 @@ class CPUBackend(BaseBackend):
         return CPUOptions(**args)
 
     def get_codegen_implementation(self):
-        codegen_fns = dict()
+        # The sample CPU backend does not enforce a limit on the minimum matrix
+        # sizes when using the dot operator, however we need to put 16, 16, 16
+        # here to make the triton runtime happy.
+        codegen_fns = {"min_dot_size": lambda lhsType, rhsType: (1, 1, 1)}
         return codegen_fns
 
     def pack_metadata(self, metadata):
