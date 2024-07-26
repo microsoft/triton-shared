@@ -146,7 +146,7 @@ class CPUBackend(BaseBackend):
         return CPUOptions(**args)
 
     def get_codegen_implementation(self):
-        codegen_fns = dict()
+        codegen_fns = {"min_dot_size": lambda lhsType, rhsType: (1, 1, 1)}
         return codegen_fns
 
     def pack_metadata(self, metadata):
