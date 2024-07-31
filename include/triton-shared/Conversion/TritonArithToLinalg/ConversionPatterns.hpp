@@ -1085,8 +1085,7 @@ private:
     }
 
     if (convertToF32Precision) {
-      finalResult = rewriter.create<arith::TruncFOp>(
-          loc, BFloat16Type::get(rewriter.getContext()), finalResult);
+      finalResult = rewriter.create<arith::TruncFOp>(loc, resType, finalResult);
     }
 
     rewriter.replaceOp(op, finalResult);
