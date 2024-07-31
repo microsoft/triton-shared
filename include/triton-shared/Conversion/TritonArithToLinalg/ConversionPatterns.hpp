@@ -843,6 +843,21 @@ struct BitcastConverter : public OpConversionPattern<triton::BitcastOp> {
   }
 };
 
+struct MulHiUIOpConverter : public OpConversionPattern<triton::MulhiUIOp> {
+  using OpConversionPattern<triton::MulhiUIOp>::OpConversionPattern;
+
+  LogicalResult
+  matchAndRewrite(triton::MulhiUIOp op, OpAdaptor adaptor,
+                  ConversionPatternRewriter &rewriter) const override {
+    Location loc = op.getLoc();
+
+    auto mulResult = rewriter.create<arith::MulUIExtendedOp>(loc, adaptor.getOperands());
+    rewriter.replaceOp(op, mulResult.getHigh());
+
+    return success();
+  }
+};
+
 struct MatmulConverter : public OpConversionPattern<triton::DotOp> {
   using OpConversionPattern<triton::DotOp>::OpConversionPattern;
 
