@@ -1,3 +1,5 @@
+# This test is one of the tests from triton/python/test/unit/language/test_core.py
+# with an addition of CPUDriver activation
 import itertools
 import re
 from typing import Optional, Union
