@@ -2,10 +2,7 @@ import torch
 
 import triton
 from triton.backends.compiler import GPUTarget
-from triton.backends.triton_shared.driver import CPUDriver
 import triton.language as tl
-
-triton.runtime.driver.set_active(CPUDriver())
 
 
 @triton.jit
@@ -32,18 +29,17 @@ def reduce_kernel_2d(
     tl.store(output_ptr + pid0, output)
 
 
-def test():
+def test(device):
     n_rows = 16
     n_cols = 32
-    x = torch.rand([n_cols, n_rows], device="cpu", dtype=torch.float32)
-    output = torch.empty([n_cols], device=x.device, dtype=x.dtype)
+    x = torch.rand([n_cols, n_rows], device=device, dtype=torch.float32)
+    output = torch.empty([n_cols], device=device, dtype=x.dtype)
     BLOCK_SIZE = n_rows
     grid = lambda meta: (n_cols,)
 
     reduce_kernel_2d[grid](x, output, x.stride(0), n_rows, BLOCK_SIZE=BLOCK_SIZE)
     ans = torch.sum(x, dim=1)
     torch.testing.assert_close(output, ans, rtol=0.001, atol=1e-5)
-    print("Pass!")
 
     src = triton.compiler.ASTSource(
         fn=reduce_kernel_2d,
@@ -52,10 +48,9 @@ def test():
     )
     ret = triton.compile(
         src,
-        target=GPUTarget("cpu", 0, 0)
+        target=GPUTarget(device, 0, 0)
     )
-    print(ret.asm["ttir"])
+    print(ret.asm["ttir"]) # TODO: need to check some conditions otherwise the test is meaningless
     print(ret.asm["ttsharedir"])
     print(ret.asm["llir"])
     print(ret.asm["cpuasm"])
-    print('Pass')

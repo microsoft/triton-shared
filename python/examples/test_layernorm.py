@@ -21,10 +21,9 @@
 import torch
 
 import triton
-from triton.backends.triton_shared.driver import CPUDriver
 import triton.language as tl
+import pytest
 
-triton.runtime.driver.set_active(CPUDriver())
 
 @triton.jit
 def _layer_norm_fwd_fused(
@@ -79,14 +78,14 @@ def _layer_norm_fwd_fused(
 class LayerNorm(torch.autograd.Function):
 
     @staticmethod
-    def forward(ctx, x, normalized_shape, weight, bias, eps):
+    def forward(ctx, x, normalized_shape, weight, bias, eps, device):
         # allocate output
         y = torch.empty_like(x)
         # reshape input data into 2D tensor
         x_arg = x.reshape(-1, x.shape[-1])
         M, N = x_arg.shape
-        mean = torch.empty((M, ), dtype=torch.float32, device='cpu')
-        rstd = torch.empty((M, ), dtype=torch.float32, device='cpu')
+        mean = torch.empty((M, ), dtype=torch.float32, device=device)
+        rstd = torch.empty((M, ), dtype=torch.float32, device=device)
         # Less than 64KB per feature: enqueue fused kernel
         MAX_FUSED_SIZE = 65536 // x.element_size()
         BLOCK_SIZE = min(MAX_FUSED_SIZE, triton.next_power_of_2(N))
@@ -105,21 +104,27 @@ class LayerNorm(torch.autograd.Function):
         ctx.eps = eps
         return y
 
-layer_norm = LayerNorm.apply
 
-
-def test_layer_norm(M=1151, N=8192, dtype=torch.float16, eps=1e-5, device='cpu'):
+@pytest.mark.parametrize("M, N, dtype, eps", [  #
+    (M, N, dtype, eps)
+    for M in [1151]
+    for N in [8192]
+    for dtype in [torch.float16]
+    for eps in [1e-5]
+])
+def test_layer_norm(M, N, dtype, eps, device):
+    layer_norm = LayerNorm.apply
     # create data
     x_shape = (M, N)
     w_shape = (x_shape[-1], )
-    weight = torch.rand(w_shape, dtype=dtype, device='cpu', requires_grad=False)
-    bias = torch.rand(w_shape, dtype=dtype, device='cpu', requires_grad=False)
-    x = -2.3 + 0.5 * torch.randn(x_shape, dtype=dtype, device='cpu')
+    weight = torch.rand(w_shape, dtype=dtype, device=device, requires_grad=False)
+    bias = torch.rand(w_shape, dtype=dtype, device=device, requires_grad=False)
+    x = -2.3 + 0.5 * torch.randn(x_shape, dtype=dtype, device=device)
     dy = .1 * torch.randn_like(x)
     x.requires_grad_(False)
 
     # forward pass
-    y_tri = layer_norm(x, w_shape, weight, bias, eps)
+    y_tri = layer_norm(x, w_shape, weight, bias, eps, device)
     # TODO We can't compare against Torch layer_norm since it doesn't support float16 on CPU
     #y_ref = torch.nn.functional.layer_norm(x, w_shape, weight, bias, eps).to(dtype)
 
@@ -128,5 +133,3 @@ def test_layer_norm(M=1151, N=8192, dtype=torch.float16, eps=1e-5, device='cpu')
 
     # compare
     #assert torch.allclose(y_tri, y_ref, atol=1e-2, rtol=0)
-
-test_layer_norm(1151, 8192, torch.float16)

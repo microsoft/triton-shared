@@ -1,10 +1,7 @@
 import torch
 
 import triton
-from triton.backends.triton_shared.driver import CPUDriver
 import triton.language as tl
-
-triton.runtime.driver.set_active(CPUDriver())
 
 
 """
@@ -54,13 +51,13 @@ def kernel(
     tl.store(output_ptr, x)
 
 
-def test():
+def test(device):
     n_rows = 512
     n_cols = 256
-    x = torch.arange(0, n_rows * n_cols, 1, device="cpu", dtype=torch.float32).reshape(
+    x = torch.arange(0, n_rows * n_cols, 1, device=device, dtype=torch.float32).reshape(
         [n_rows, n_cols]
     )
-    output = torch.full([n_rows, n_cols], -1, device="cpu", dtype=x.dtype)
+    output = torch.full([n_rows, n_cols], -1, device=device, dtype=x.dtype)
     BLOCK_SIZE_ROW = 4
     BLOCK_SIZE_COL = 2
 
@@ -77,13 +74,5 @@ def test():
         BLOCK_SIZE_COL=BLOCK_SIZE_COL,
     )
     expected = (2 * x) + 1
-    print("expected")
-    print(x + 1)
-    print("-----")
-
-    print("actual")
-    print(output)
-    print("-----")
 
     torch.testing.assert_close(output, expected, rtol=0.001, atol=1e-5)
-    print("Pass!")

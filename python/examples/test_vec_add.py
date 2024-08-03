@@ -1,10 +1,7 @@
 import torch
 
 import triton
-from triton.backends.triton_shared.driver import CPUDriver
 import triton.language as tl
-
-triton.runtime.driver.set_active(CPUDriver())
 
 
 @triton.jit
@@ -55,13 +52,14 @@ def add(x: torch.Tensor, y: torch.Tensor):
     return output
 
 
-def test():
+def test(device):
     torch.manual_seed(0)
     size = 98432
-    x = torch.rand(size, device="cpu")
-    y = torch.rand(size, device="cpu")
+    x = torch.rand(size, device=device)
+    y = torch.rand(size, device=device)
     output_torch = x + y
     output_triton = add(x, y)
+    # TODO: need to check some conditions otherwise the code below is meaningless
     print("expected", output_torch)
     print("actual", output_triton)
     print(

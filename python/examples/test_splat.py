@@ -1,10 +1,7 @@
 import torch
 
 import triton
-from triton.backends.triton_shared.driver import CPUDriver
 import triton.language as tl
-
-triton.runtime.driver.set_active(CPUDriver())
 
 
 @triton.jit
@@ -24,12 +21,12 @@ def splat(
     tl.store(a_ptrs, x)
 
 
-def test():
+def test(device):
     n_rows = 256
     n_cols = 512
     fill_value = 123.456
     expected_result = torch.full((n_rows, n_cols), fill_value, dtype=torch.float32)
-    output = torch.empty([n_rows, n_cols], device="cpu", dtype=expected_result.dtype)
+    output = torch.empty([n_rows, n_cols], device=device, dtype=expected_result.dtype)
     grid = lambda meta: (n_rows // 2,)
 
     splat[grid](
@@ -41,13 +38,4 @@ def test():
         BLOCK_SIZE_COL=n_cols,
     )
 
-    print("expected")
-    print(expected_result)
-    print("-----")
-
-    print("actual")
-    print(output)
-    print("-----")
-
     torch.testing.assert_close(output, expected_result, rtol=0.001, atol=1e-5)
-    print("Pass!")
