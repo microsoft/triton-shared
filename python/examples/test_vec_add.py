@@ -59,7 +59,7 @@ def test(device):
     y = torch.rand(size, device=device)
     output_torch = x + y
     output_triton = add(x, y)
-    # TODO: need to check some conditions otherwise the code below is meaningless
+    # TODO: need to check some conditions otherwise the code below does not make any difference for the test
     print("expected", output_torch)
     print("actual", output_triton)
     print(
