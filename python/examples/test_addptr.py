@@ -32,7 +32,7 @@ def test(device):
     print(output)
     assert torch.equal(input, output)
 
-    # TODO: need to check some conditions otherwise the code below is meaningless
+    # TODO: need to check some conditions otherwise the code below does not make any difference for the test
     src = triton.compiler.ASTSource(
         fn=addptr,
         signature="*fp32,*fp32",
