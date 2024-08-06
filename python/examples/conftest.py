@@ -88,9 +88,17 @@ tests_not_supported = {
 
 def pytest_collection_modifyitems(config, items):
     skip_marker = pytest.mark.skip(reason="CPU backend does not support it yet")
+    # There is a dependency issue on build machine which breaks bfloat16
+    skip_marker_bfloat = pytest.mark.skip(reason="bfloat16 linking issue")
 
     for item in items:
         test_func_name = item.originalname if item.originalname else item.name
         
         if test_func_name in tests_not_supported:
             item.add_marker(skip_marker)
+            continue
+
+        if "parametrize" in item.keywords:
+            for param_name, param_value in item.callspec.params.items():
+                if param_name.startswith('dtype') and param_value == 'bfloat16':
+                    item.add_marker(skip_marker_bfloat)
