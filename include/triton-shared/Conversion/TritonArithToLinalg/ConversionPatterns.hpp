@@ -133,6 +133,13 @@ static Value getTransposedValue(Value source, const Location loc,
   return transpose;
 }
 
+// for IntLike and FloatLike types
+static unsigned getBitWidth(Type a) {
+  if (auto type = dyn_cast<TensorType>(a))
+    return type.getElementType().getIntOrFloatBitWidth();
+  return a.getIntOrFloatBitWidth();
+}
+
 //===----------------------------------------------------------------------===//
 // Op Lowering Patterns
 //===----------------------------------------------------------------------===//
@@ -839,6 +846,95 @@ struct BitcastConverter : public OpConversionPattern<triton::BitcastOp> {
         op.getLoc(), op.getType(), op.getOperand());
 
     rewriter.replaceOp(op, arithBitcast.getResult());
+    return success();
+  }
+};
+
+struct FpToFpConverter : public OpConversionPattern<triton::FpToFpOp> {
+  using OpConversionPattern<triton::FpToFpOp>::OpConversionPattern;
+
+  LogicalResult
+  matchAndRewrite(triton::FpToFpOp op, OpAdaptor adaptor,
+                  ConversionPatternRewriter &rewriter) const override {
+    auto roundingMode = triton::RoundingMode::RTNE; // default
+
+    if (auto roundingModeAttr = op->getAttrOfType<triton::RoundingModeAttr>("rounding")) {
+      roundingMode = roundingModeAttr.getValue();
+    }
+
+    assert(roundingMode != triton::RoundingMode::RTZ &&
+           "Rounding Towards Zero is not supported");
+
+    Type resultType = op.getResult().getType();
+
+    unsigned operandWidth = getBitWidth(op.getOperand().getType());
+    unsigned resultWidth = getBitWidth(resultType);
+
+    if (operandWidth > resultWidth) {
+      Value truncatedValue = rewriter.create<arith::TruncFOp>(op.getLoc(), resultType, op.getOperand());
+      rewriter.replaceOp(op, truncatedValue);
+      return success();
+    }
+
+    Value extendedValue = rewriter.create<arith::ExtFOp>(op.getLoc(), resultType, op.getOperand());
+    rewriter.replaceOp(op, extendedValue);
+
+    return success();
+  }
+};
+
+struct ClampConverter : public OpConversionPattern<triton::ClampFOp> {
+  using OpConversionPattern<triton::ClampFOp>::OpConversionPattern;
+
+  LogicalResult
+  matchAndRewrite(triton::ClampFOp op, OpAdaptor adaptor,
+                  ConversionPatternRewriter &rewriter) const override {
+    bool propagateNan = false;
+
+    if (auto propagateNanAttr = op->getAttrOfType<triton::PropagateNanAttr>("propagateNan")) {
+      propagateNan = propagateNanAttr.getValue() == triton::PropagateNan::ALL;
+    }
+
+    assert(!propagateNan &&
+           "PropagateNan is not supported");
+
+    Location loc = op.getLoc();
+    Value x = adaptor.getOperands()[0];
+    Value min = adaptor.getOperands()[1];
+    Value max = adaptor.getOperands()[2];
+
+    Value maxMin = rewriter.create<arith::MaximumFOp>(loc, x, min);
+    Value clamp = rewriter.create<arith::MinimumFOp>(loc, maxMin, max);
+    rewriter.replaceOp(op, clamp);
+
+    return success();
+  }
+};
+
+struct PreciseSqrtConverter : public OpConversionPattern<triton::PreciseSqrtOp> {
+  using OpConversionPattern<triton::PreciseSqrtOp>::OpConversionPattern;
+
+  LogicalResult
+  matchAndRewrite(triton::PreciseSqrtOp op, OpAdaptor adaptor,
+                  ConversionPatternRewriter &rewriter) const override {
+    auto replacement = rewriter.create<math::SqrtOp>(
+        op.getLoc(), adaptor.getOperands());
+
+    rewriter.replaceOp(op, replacement);
+    return success();
+  }
+};
+
+struct PreciseDivConverter : public OpConversionPattern<triton::PreciseDivFOp> {
+  using OpConversionPattern<triton::PreciseDivFOp>::OpConversionPattern;
+
+  LogicalResult
+  matchAndRewrite(triton::PreciseDivFOp op, OpAdaptor adaptor,
+                  ConversionPatternRewriter &rewriter) const override {
+    auto replacement = rewriter.create<arith::DivFOp>(
+        op.getLoc(), adaptor.getOperands());
+
+    rewriter.replaceOp(op, replacement);
     return success();
   }
 };
