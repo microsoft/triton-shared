@@ -1,13 +1,10 @@
 import torch
 
 import triton
-from triton.backends.triton_shared.driver import CPUDriver
 import triton.language as tl
 
-triton.runtime.driver.set_active(CPUDriver())
 
-
-def test_wrap_stacked():
+def test_wrap_stacked(device):
 
     @triton.jit
     def wrap_stacked(a_ptr, c_ptr, M, N, stride_am, stride_an, stride_cm,
@@ -30,9 +27,9 @@ def test_wrap_stacked():
 
     M = 4
     N = 8
-    A = torch.arange(0, M * N, device="cpu", dtype=torch.float32).reshape(
+    A = torch.arange(0, M * N, device=device, dtype=torch.float32).reshape(
         (M, N))
-    out = torch.full((M, N), 88888, device="cpu", dtype=torch.float32)
+    out = torch.full((M, N), 88888, device=device, dtype=torch.float32)
     grid = lambda meta: (1, )
 
     wrap_stacked[grid](A,
@@ -49,15 +46,12 @@ def test_wrap_stacked():
     expected_out = torch.tensor(
         [[16, 17, 18, 19, 20, 21, 22, 23], [24, 25, 26, 27, 28, 29, 30, 31],
          [0, 1, 2, 3, 4, 5, 6, 7], [8, 9, 10, 11, 12, 13, 14, 15]],
-        device="cpu")
+        device=device)
 
-    print(A)
-    print(out.int())
     assert torch.equal(expected_out.int(), out.int())
-    print('Hooooray')
 
 
-def test_1d():
+def test_1d(device):
 
     @triton.jit
     def mod_1d(a_ptr, c_ptr, M, N, stride_am, stride_an, stride_cm, stride_cn,
@@ -74,9 +68,9 @@ def test_1d():
 
     M = 8
     N = 8
-    A = torch.arange(0, M * N, device="cpu", dtype=torch.float32).reshape(
+    A = torch.arange(0, M * N, device=device, dtype=torch.float32).reshape(
         (M, N))
-    out = torch.full((M, N), 88888, device="cpu", dtype=torch.float32)
+    out = torch.full((M, N), 88888, device=device, dtype=torch.float32)
     grid = lambda meta: (1, )
 
     mod_1d[grid](A,
@@ -99,15 +93,12 @@ def test_1d():
          [88888, 88888, 88888, 88888, 88888, 88888, 88888, 88888],
          [88888, 88888, 88888, 88888, 88888, 88888, 88888, 88888],
          [88888, 88888, 88888, 88888, 88888, 88888, 88888, 88888]],
-        device="cpu")
+        device=device)
 
-    print(A)
-    print(out.int())
     assert torch.equal(expected_out.int(), out.int())
-    print('Hooooray')
 
 
-def test_2d():
+def test_2d(device):
 
     @triton.jit
     def mod_2d(a_ptr, c_ptr, M, N, stride_am, stride_an, stride_cm, stride_cn,
@@ -127,9 +118,9 @@ def test_2d():
 
     M = 8
     N = 8
-    A = torch.arange(0, M * N, device="cpu", dtype=torch.float32).reshape(
+    A = torch.arange(0, M * N, device=device, dtype=torch.float32).reshape(
         (M, N))
-    out = torch.full((M, N), 88888, device="cpu", dtype=torch.float32)
+    out = torch.full((M, N), 88888, device=device, dtype=torch.float32)
     grid = lambda meta: (1, )
 
     mod_2d[grid](A,
@@ -152,15 +143,12 @@ def test_2d():
          [88888, 88888, 88888, 88888, 88888, 88888, 88888, 88888],
          [88888, 88888, 88888, 88888, 88888, 88888, 88888, 88888],
          [88888, 88888, 88888, 88888, 88888, 88888, 88888, 88888]],
-        device="cpu")
+        device=device)
 
-    print(A)
-    print(out.int())
     assert torch.equal(expected_out.int(), out.int())
-    print('Hooooray')
 
 
-def test_side_by_side_masked_loop():
+def test_side_by_side_masked_loop(device):
 
     @triton.jit
     def wrap_side_by_side_masked_loop(a_ptr, c_ptr, M, N, stride_am, stride_an,
@@ -186,9 +174,9 @@ def test_side_by_side_masked_loop():
 
     M = 12
     N = 8
-    A = torch.arange(0, M * N, device="cpu", dtype=torch.float32).reshape(
+    A = torch.arange(0, M * N, device=device, dtype=torch.float32).reshape(
         (M, N))
-    out = torch.full((M, N), 88888, device="cpu", dtype=torch.float32)
+    out = torch.full((M, N), 88888, device=device, dtype=torch.float32)
     print(out)
     grid = lambda meta: (1, )
 
@@ -217,13 +205,10 @@ def test_side_by_side_masked_loop():
          [88888, 88888, 88888, 88888, 88888, 88888, 88888, 88888]],
         dtype=torch.int32)
 
-    print(A)
-    print(out.int())
     assert torch.equal(expected_out.int(), out.int())
-    print('Hooooray')
 
 
-def test_stacked_masked_loop():
+def test_stacked_masked_loop(device):
 
     @triton.jit
     def wrap_stacked_masked_loop(a_ptr, c_ptr, M, N, stride_am, stride_an,
@@ -251,11 +236,11 @@ def test_stacked_masked_loop():
     N = 12
     BLOCK_SIZE_M = 4
     BLOCK_SIZE_N = 4
-    A = torch.arange(0, M * N, device="cpu", dtype=torch.float32).reshape(
+    A = torch.arange(0, M * N, device=device, dtype=torch.float32).reshape(
         (M, N))
     out = torch.full((BLOCK_SIZE_M, N),
                      88888,
-                     device="cpu",
+                     device=device,
                      dtype=torch.float32)
     print(out)
     grid = lambda meta: (1, )
@@ -330,10 +315,7 @@ def test_stacked_masked_loop():
         ],
     ], )
 
-    print(A)
-    print(out.int())
     assert torch.equal(expected_out.int(), out.int())
-    print('Passed')
 
 
 def test_torch_inductor_pattern():
@@ -401,6 +383,4 @@ def test_torch_inductor_pattern():
         device=device,
         dtype=torch.int32)
 
-    print(out)
     assert torch.equal(expected_out.int(), out.int())
-    print('Passed')

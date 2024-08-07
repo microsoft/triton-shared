@@ -1,10 +1,8 @@
 import torch
 
 import triton
-from triton.backends.triton_shared.driver import CPUDriver
 import triton.language as tl
 
-triton.runtime.driver.set_active(CPUDriver())
 
 @triton.jit
 def block_copy_kernel(a_ptr, b_ptr):
@@ -29,13 +27,11 @@ def block_copy_kernel(a_ptr, b_ptr):
 
 
 
-def test():
-    input = torch.arange(0, 16, device="cpu", dtype=torch.float32)
-    output = torch.full((4,), -1, device="cpu", dtype=torch.float32)
-    expected = torch.arange(8, 12, device="cpu")
+def test(device):
+    input = torch.arange(0, 16, device=device, dtype=torch.float32)
+    output = torch.full((4,), -1, device=device, dtype=torch.float32)
+    expected = torch.arange(8, 12, device=device)
     grid = lambda meta: (1,)
 
-    print("Output before: ", output)
     block_copy_kernel[grid](input, output)
     torch.equal(expected, output)
-    print("Output after: ", output)
