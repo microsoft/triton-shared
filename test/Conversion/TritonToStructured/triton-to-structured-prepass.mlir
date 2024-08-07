@@ -74,24 +74,20 @@ module {
 // CHECK:             [[VAR_19_:%.+]] = tt.broadcast [[VAR_17_]] : tensor<1x2xi32> -> tensor<2x2xi32>
 // CHECK-DAG:         [[VAR_20_:%.+]] = tt.addptr [[VAR_18_]], [[VAR_19_]] : tensor<2x2x!tt.ptr<f32>>, tensor<2x2xi32>
 // CHECK-DAG:         [[VAR_21_:%.+]] = arith.muli [[arg5_]], [[CST_32_]] : i32
-// CHECK-NOT: separator of consecutive DAGs
-// CHECK-DAG:         [[VAR_22_:%.+]] = tt.splat [[VAR_21_]] : i32 -> tensor<2x2xi32>
-// CHECK-DAG:         [[VAR_23_:%.+]]:5 = "tts.get_structured_state"([[VAR_11_]]) : (tensor<2x2x!tt.ptr<f32>>) -> (tensor<2x2x!tt.ptr<f32>>, index, index, index, index)
-// CHECK-DAG:         [[VAR_24_:%.+]]:5 = "tts.get_structured_state"([[VAR_20_]]) : (tensor<2x2x!tt.ptr<f32>>) -> (tensor<2x2x!tt.ptr<f32>>, index, index, index, index)
-// CHECK-NOT: separator of consecutive DAGs
-// CHECK-DAG:         [[VAR_25_:%.+]]:10 = scf.for [[VAR_arg8_:%.+]] = [[CST_0_]] to [[CST_2_]] step [[CST_1_]] iter_args([[VAR_arg9_:%.+]] = [[VAR_23_]]#0, [[VAR_arg10_:%.+]] = [[VAR_23_]]#1, [[VAR_arg11_:%.+]] = [[VAR_23_]]#2, [[VAR_arg12_:%.+]] = [[VAR_23_]]#3, [[VAR_arg13_:%.+]] = [[VAR_23_]]#4, [[VAR_arg14_:%.+]] = [[VAR_24_]]#0, [[VAR_arg15_:%.+]] = [[VAR_24_]]#1, [[VAR_arg16_:%.+]] = [[VAR_24_]]#2, [[VAR_arg17_:%.+]] = [[VAR_24_]]#3, [[VAR_arg18_:%.+]] = [[VAR_24_]]#4) -> (tensor<2x2x!tt.ptr<f32>>, index, index, index, index, tensor<2x2x!tt.ptr<f32>>, index, index, index, index)  : i32 {
+// CHECK:             [[VAR_22_:%.+]] = tt.splat [[VAR_21_]] : i32 -> tensor<2x2xi32>
+// CHECK:             [[structuredPtr_:%.+]], [[offsets_:%.+]]:2, [[VAR_strides_:%.+]]:2 = "tts.get_structured_state"([[VAR_11_]]) <{resultSegmentSizes = array<i32: 1, 2, 2>}> : (tensor<2x2x!tt.ptr<f32>>) -> (tensor<2x2x!tt.ptr<f32>>, index, index, index, index)
+// CHECK:             [[structuredPtr_0_:%.+]], [[offsets_1_:%.+]]:2, [[VAR_strides_2_:%.+]]:2 = "tts.get_structured_state"([[VAR_20_]]) <{resultSegmentSizes = array<i32: 1, 2, 2>}> : (tensor<2x2x!tt.ptr<f32>>) -> (tensor<2x2x!tt.ptr<f32>>, index, index, index, index)
+// CHECK-DAG:         [[VAR_23_:%.+]]:10 = scf.for [[VAR_arg8_:%.+]] = [[CST_0_]] to [[CST_2_]] step [[CST_1_]] iter_args([[VAR_arg9_:%.+]] = [[structuredPtr_]], [[VAR_arg10_:%.+]] = [[offsets_]]#0, [[VAR_arg11_:%.+]] = [[offsets_]]#1, [[VAR_arg12_:%.+]] = [[VAR_strides_]]#0, [[VAR_arg13_:%.+]] = [[VAR_strides_]]#1, [[VAR_arg14_:%.+]] = [[structuredPtr_0_]], [[VAR_arg15_:%.+]] = [[offsets_1_]]#0, [[VAR_arg16_:%.+]] = [[offsets_1_]]#1, [[VAR_arg17_:%.+]] = [[VAR_strides_2_]]#0, [[VAR_arg18_:%.+]] = [[VAR_strides_2_]]#1) -> (tensor<2x2x!tt.ptr<f32>>, index, index, index, index, tensor<2x2x!tt.ptr<f32>>, index, index, index, index)  : i32 {
 // CHECK-DAG:           [[LOAD_VAR_arg9_MEM_:%.+]] = tt.load [[VAR_arg9_]] : tensor<2x2x!tt.ptr<f32>>
 // CHECK:               tt.store [[VAR_arg14_]], [[LOAD_VAR_arg9_MEM_]] : tensor<2x2x!tt.ptr<f32>>
-// CHECK-DAG:           [[VAR_27_:%.+]] = tt.addptr [[VAR_arg9_]], [[VAR_22_]] : tensor<2x2x!tt.ptr<f32>>, tensor<2x2xi32>
-// CHECK-DAG:           [[VAR_28_:%.+]] = tt.addptr [[VAR_arg14_]], [[VAR_22_]] : tensor<2x2x!tt.ptr<f32>>, tensor<2x2xi32>
-// CHECK-NOT: separator of consecutive DAGs
-// CHECK-DAG:           [[VAR_29_:%.+]]:5 = "tts.get_structured_state"([[VAR_27_]]) : (tensor<2x2x!tt.ptr<f32>>) -> (tensor<2x2x!tt.ptr<f32>>, index, index, index, index)
-// CHECK-DAG:           [[VAR_30_:%.+]]:5 = "tts.get_structured_state"([[VAR_28_]]) : (tensor<2x2x!tt.ptr<f32>>) -> (tensor<2x2x!tt.ptr<f32>>, index, index, index, index)
-// CHECK:               scf.yield [[VAR_29_]]#0, [[VAR_29_]]#1, [[VAR_29_]]#2, [[VAR_29_]]#3, [[VAR_29_]]#4, [[VAR_30_]]#0, [[VAR_30_]]#1, [[VAR_30_]]#2, [[VAR_30_]]#3, [[VAR_30_]]#4 : tensor<2x2x!tt.ptr<f32>>, index, index, index, index, tensor<2x2x!tt.ptr<f32>>, index, index, index, index
+// CHECK-DAG:           [[VAR_25_:%.+]] = tt.addptr [[VAR_arg9_]], [[VAR_22_]] : tensor<2x2x!tt.ptr<f32>>, tensor<2x2xi32>
+// CHECK-DAG:           [[VAR_26_:%.+]] = tt.addptr [[VAR_arg14_]], [[VAR_22_]] : tensor<2x2x!tt.ptr<f32>>, tensor<2x2xi32>
+// CHECK:               [[structuredPtr_3_:%.+]], [[offsets_4_:%.+]]:2, [[VAR_strides_5_:%.+]]:2 = "tts.get_structured_state"([[VAR_25_]]) <{resultSegmentSizes = array<i32: 1, 2, 2>}> : (tensor<2x2x!tt.ptr<f32>>) -> (tensor<2x2x!tt.ptr<f32>>, index, index, index, index)
+// CHECK:               [[structuredPtr_6_:%.+]], [[offsets_7_:%.+]]:2, [[VAR_strides_8_:%.+]]:2 = "tts.get_structured_state"([[VAR_26_]]) <{resultSegmentSizes = array<i32: 1, 2, 2>}> : (tensor<2x2x!tt.ptr<f32>>) -> (tensor<2x2x!tt.ptr<f32>>, index, index, index, index)
+// CHECK:               scf.yield [[structuredPtr_3_]], [[offsets_4_]]#0, [[offsets_4_]]#1, [[VAR_strides_5_]]#0, [[VAR_strides_5_]]#1, [[structuredPtr_6_]], [[offsets_7_]]#0, [[offsets_7_]]#1, [[VAR_strides_8_]]#0, [[VAR_strides_8_]]#1 : tensor<2x2x!tt.ptr<f32>>, index, index, index, index, tensor<2x2x!tt.ptr<f32>>, index, index, index, index
 // CHECK:             }
 // CHECK:             tt.return
 // CHECK:           }
-// CHECK:         }
 
 // ----
 
@@ -176,31 +172,26 @@ module {
 // CHECK:             [[VAR_19_1_:%.+]] = tt.broadcast [[VAR_17_1_]] : tensor<1x2xi32> -> tensor<2x2xi32>
 // CHECK-DAG:         [[VAR_20_1_:%.+]] = tt.addptr [[VAR_18_1_]], [[VAR_19_1_]] : tensor<2x2x!tt.ptr<f32>>, tensor<2x2xi32>
 // CHECK-DAG:         [[VAR_21_1_:%.+]] = arith.muli [[arg5_]], [[CST_32_1_]] : i32
-// CHECK-NOT: separator of consecutive DAGs
-// CHECK-DAG:         [[VAR_22_1_:%.+]] = tt.splat [[VAR_21_1_]] : i32 -> tensor<2x2xi32>
-// CHECK-DAG:         [[VAR_23_1_:%.+]]:5 = "tts.get_structured_state"([[VAR_11_1_]]) : (tensor<2x2x!tt.ptr<f32>>) -> (tensor<2x2x!tt.ptr<f32>>, index, index, index, index)
-// CHECK-DAG:         [[VAR_24_1_:%.+]]:5 = "tts.get_structured_state"([[VAR_20_1_]]) : (tensor<2x2x!tt.ptr<f32>>) -> (tensor<2x2x!tt.ptr<f32>>, index, index, index, index)
-// CHECK-NOT: separator of consecutive DAGs
-// CHECK-DAG:         [[VAR_25_1_:%.+]]:10 = scf.for [[VAR_arg8_1_:%.+]] = [[CST_0_1_]] to [[CST_2_1_]] step [[CST_1_1_]] iter_args([[VAR_arg9_1_:%.+]] = [[VAR_23_1_]]#0, [[VAR_arg10_1_:%.+]] = [[VAR_23_1_]]#1, [[VAR_arg11_1_:%.+]] = [[VAR_23_1_]]#2, [[VAR_arg12_1_:%.+]] = [[VAR_23_1_]]#3, [[VAR_arg13_1_:%.+]] = [[VAR_23_1_]]#4, [[VAR_arg14_1_:%.+]] = [[VAR_24_1_]]#0, [[VAR_arg15_1_:%.+]] = [[VAR_24_1_]]#1, [[VAR_arg16_1_:%.+]] = [[VAR_24_1_]]#2, [[VAR_arg17_1_:%.+]] = [[VAR_24_1_]]#3, [[VAR_arg18_1_:%.+]] = [[VAR_24_1_]]#4) -> (tensor<2x2x!tt.ptr<f32>>, index, index, index, index, tensor<2x2x!tt.ptr<f32>>, index, index, index, index)  : i32 {
+// CHECK:             [[VAR_22_1_:%.+]] = tt.splat [[VAR_21_1_]] : i32 -> tensor<2x2xi32>
+// CHECK:             [[structuredPtr_:%.+]], [[offsets_:%.+]]:2, [[VAR_strides_1_:%.+]]:2 = "tts.get_structured_state"([[VAR_11_1_]]) <{resultSegmentSizes = array<i32: 1, 2, 2>}> : (tensor<2x2x!tt.ptr<f32>>) -> (tensor<2x2x!tt.ptr<f32>>, index, index, index, index)
+// CHECK:             [[structuredPtr_0_:%.+]], [[offsets_1_:%.+]]:2, [[VAR_strides_2_1_:%.+]]:2 = "tts.get_structured_state"([[VAR_20_1_]]) <{resultSegmentSizes = array<i32: 1, 2, 2>}> : (tensor<2x2x!tt.ptr<f32>>) -> (tensor<2x2x!tt.ptr<f32>>, index, index, index, index)
+// CHECK-DAG:         [[VAR_23_1_:%.+]]:10 = scf.for [[VAR_arg8_1_:%.+]] = [[CST_0_1_]] to [[CST_2_1_]] step [[CST_1_1_]] iter_args([[VAR_arg9_1_:%.+]] = [[structuredPtr_]], [[VAR_arg10_1_:%.+]] = [[offsets_]]#0, [[VAR_arg11_1_:%.+]] = [[offsets_]]#1, [[VAR_arg12_1_:%.+]] = [[VAR_strides_1_]]#0, [[VAR_arg13_1_:%.+]] = [[VAR_strides_1_]]#1, [[VAR_arg14_1_:%.+]] = [[structuredPtr_0_]], [[VAR_arg15_1_:%.+]] = [[offsets_1_]]#0, [[VAR_arg16_1_:%.+]] = [[offsets_1_]]#1, [[VAR_arg17_1_:%.+]] = [[VAR_strides_2_1_]]#0, [[VAR_arg18_1_:%.+]] = [[VAR_strides_2_1_]]#1) -> (tensor<2x2x!tt.ptr<f32>>, index, index, index, index, tensor<2x2x!tt.ptr<f32>>, index, index, index, index)  : i32 {
 // CHECK-DAG:           [[LOAD_VAR_arg9_MEM_1_:%.+]] = tt.load [[VAR_arg9_1_]] : tensor<2x2x!tt.ptr<f32>>
 // CHECK:               tt.store [[VAR_arg14_1_]], [[LOAD_VAR_arg9_MEM_1_]] : tensor<2x2x!tt.ptr<f32>>
-// CHECK-DAG:           [[VAR_27_1_:%.+]] = tt.addptr [[VAR_arg9_1_]], [[VAR_22_1_]] : tensor<2x2x!tt.ptr<f32>>, tensor<2x2xi32>
-// CHECK-DAG:           [[VAR_28_1_:%.+]] = tt.addptr [[VAR_arg14_1_]], [[VAR_22_1_]] : tensor<2x2x!tt.ptr<f32>>, tensor<2x2xi32>
-// CHECK-NOT: separator of consecutive DAGs
-// CHECK-DAG:           [[VAR_29_1_:%.+]]:5 = "tts.get_structured_state"([[VAR_27_1_]]) : (tensor<2x2x!tt.ptr<f32>>) -> (tensor<2x2x!tt.ptr<f32>>, index, index, index, index)
-// CHECK-DAG:           [[VAR_30_1_:%.+]]:5 = "tts.get_structured_state"([[VAR_28_1_]]) : (tensor<2x2x!tt.ptr<f32>>) -> (tensor<2x2x!tt.ptr<f32>>, index, index, index, index)
-// CHECK-NOT: separator of consecutive DAGs
-// CHECK-DAG:           [[VAR_31_:%.+]]:10 = scf.for [[VAR_arg19_:%.+]] = [[CST_0_1_]] to [[CST_2_1_]] step [[CST_1_1_]] iter_args([[VAR_arg20_:%.+]] = [[VAR_29_1_]]#0, [[VAR_arg21_:%.+]] = [[VAR_29_1_]]#1, [[VAR_arg22_:%.+]] = [[VAR_29_1_]]#2, [[VAR_arg23_:%.+]] = [[VAR_29_1_]]#3, [[VAR_arg24_:%.+]] = [[VAR_29_1_]]#4, [[VAR_arg25_:%.+]] = [[VAR_30_1_]]#0, [[VAR_arg26_:%.+]] = [[VAR_30_1_]]#1, [[VAR_arg27_:%.+]] = [[VAR_30_1_]]#2, [[VAR_arg28_:%.+]] = [[VAR_30_1_]]#3, [[VAR_arg29_:%.+]] = [[VAR_30_1_]]#4) -> (tensor<2x2x!tt.ptr<f32>>, index, index, index, index, tensor<2x2x!tt.ptr<f32>>, index, index, index, index)  : i32 {
+// CHECK-DAG:           [[VAR_25_1_:%.+]] = tt.addptr [[VAR_arg9_1_]], [[VAR_22_1_]] : tensor<2x2x!tt.ptr<f32>>, tensor<2x2xi32>
+// CHECK-DAG:           [[VAR_26_1_:%.+]] = tt.addptr [[VAR_arg14_1_]], [[VAR_22_1_]] : tensor<2x2x!tt.ptr<f32>>, tensor<2x2xi32>
+// CHECK:               [[structuredPtr_3_:%.+]], [[offsets_4_:%.+]]:2, [[VAR_strides_5_1_:%.+]]:2 = "tts.get_structured_state"([[VAR_25_1_]]) <{resultSegmentSizes = array<i32: 1, 2, 2>}> : (tensor<2x2x!tt.ptr<f32>>) -> (tensor<2x2x!tt.ptr<f32>>, index, index, index, index)
+// CHECK:               [[structuredPtr_6_:%.+]], [[offsets_7_:%.+]]:2, [[VAR_strides_8_1_:%.+]]:2 = "tts.get_structured_state"([[VAR_26_1_]]) <{resultSegmentSizes = array<i32: 1, 2, 2>}> : (tensor<2x2x!tt.ptr<f32>>) -> (tensor<2x2x!tt.ptr<f32>>, index, index, index, index)
+// CHECK-DAG:           [[VAR_27_:%.+]]:10 = scf.for [[VAR_arg19_:%.+]] = [[CST_0_1_]] to [[CST_2_1_]] step [[CST_1_1_]] iter_args([[VAR_arg20_:%.+]] = [[structuredPtr_3_]], [[VAR_arg21_:%.+]] = [[offsets_4_]]#0, [[VAR_arg22_:%.+]] = [[offsets_4_]]#1, [[VAR_arg23_:%.+]] = [[VAR_strides_5_1_]]#0, [[VAR_arg24_:%.+]] = [[VAR_strides_5_1_]]#1, [[VAR_arg25_:%.+]] = [[structuredPtr_6_]], [[VAR_arg26_:%.+]] = [[offsets_7_]]#0, [[VAR_arg27_:%.+]] = [[offsets_7_]]#1, [[VAR_arg28_:%.+]] = [[VAR_strides_8_1_]]#0, [[VAR_arg29_:%.+]] = [[VAR_strides_8_1_]]#1) -> (tensor<2x2x!tt.ptr<f32>>, index, index, index, index, tensor<2x2x!tt.ptr<f32>>, index, index, index, index)  : i32 {
 // CHECK-DAG:             [[LOAD_VAR_arg20_MEM_:%.+]] = tt.load [[VAR_arg20_]] : tensor<2x2x!tt.ptr<f32>>
 // CHECK:                 tt.store [[VAR_arg25_]], [[LOAD_VAR_arg20_MEM_]] : tensor<2x2x!tt.ptr<f32>>
-// CHECK-DAG:             [[VAR_33_:%.+]] = tt.addptr [[VAR_arg20_]], [[VAR_22_1_]] : tensor<2x2x!tt.ptr<f32>>, tensor<2x2xi32>
-// CHECK-DAG:             [[VAR_34_:%.+]] = tt.addptr [[VAR_arg25_]], [[VAR_22_1_]] : tensor<2x2x!tt.ptr<f32>>, tensor<2x2xi32>
-// CHECK-NOT: separator of consecutive DAGs
-// CHECK-DAG:             [[VAR_35_:%.+]]:5 = "tts.get_structured_state"([[VAR_33_]]) : (tensor<2x2x!tt.ptr<f32>>) -> (tensor<2x2x!tt.ptr<f32>>, index, index, index, index)
-// CHECK-DAG:             [[VAR_36_:%.+]]:5 = "tts.get_structured_state"([[VAR_34_]]) : (tensor<2x2x!tt.ptr<f32>>) -> (tensor<2x2x!tt.ptr<f32>>, index, index, index, index)
-// CHECK:                 scf.yield [[VAR_35_]]#0, [[VAR_35_]]#1, [[VAR_35_]]#2, [[VAR_35_]]#3, [[VAR_35_]]#4, [[VAR_36_]]#0, [[VAR_36_]]#1, [[VAR_36_]]#2, [[VAR_36_]]#3, [[VAR_36_]]#4 : tensor<2x2x!tt.ptr<f32>>, index, index, index, index, tensor<2x2x!tt.ptr<f32>>, index, index, index, index
+// CHECK-DAG:             [[VAR_29_:%.+]] = tt.addptr [[VAR_arg20_]], [[VAR_22_1_]] : tensor<2x2x!tt.ptr<f32>>, tensor<2x2xi32>
+// CHECK-DAG:             [[VAR_30_:%.+]] = tt.addptr [[VAR_arg25_]], [[VAR_22_1_]] : tensor<2x2x!tt.ptr<f32>>, tensor<2x2xi32>
+// CHECK:                 [[structuredPtr_9_:%.+]], [[offsets_10_:%.+]]:2, [[VAR_strides_11_:%.+]]:2 = "tts.get_structured_state"([[VAR_29_]]) <{resultSegmentSizes = array<i32: 1, 2, 2>}> : (tensor<2x2x!tt.ptr<f32>>) -> (tensor<2x2x!tt.ptr<f32>>, index, index, index, index)
+// CHECK:                 [[structuredPtr_12_:%.+]], [[offsets_13_:%.+]]:2, [[VAR_strides_14_:%.+]]:2 = "tts.get_structured_state"([[VAR_30_]]) <{resultSegmentSizes = array<i32: 1, 2, 2>}> : (tensor<2x2x!tt.ptr<f32>>) -> (tensor<2x2x!tt.ptr<f32>>, index, index, index, index)
+// CHECK:                 scf.yield [[structuredPtr_9_]], [[offsets_10_]]#0, [[offsets_10_]]#1, [[VAR_strides_11_]]#0, [[VAR_strides_11_]]#1, [[structuredPtr_12_]], [[offsets_13_]]#0, [[offsets_13_]]#1, [[VAR_strides_14_]]#0, [[VAR_strides_14_]]#1 : tensor<2x2x!tt.ptr<f32>>, index, index, index, index, tensor<2x2x!tt.ptr<f32>>, index, index, index, index
 // CHECK:               }
-// CHECK:               scf.yield [[VAR_31_]]#0, [[VAR_31_]]#1, [[VAR_31_]]#2, [[VAR_31_]]#3, [[VAR_31_]]#4, [[VAR_31_]]#5, [[VAR_31_]]#6, [[VAR_31_]]#7, [[VAR_31_]]#8, [[VAR_31_]]#9 : tensor<2x2x!tt.ptr<f32>>, index, index, index, index, tensor<2x2x!tt.ptr<f32>>, index, index, index, index
+// CHECK:               scf.yield [[VAR_27_]]#0, [[VAR_27_]]#1, [[VAR_27_]]#2, [[VAR_27_]]#3, [[VAR_27_]]#4, [[VAR_27_]]#5, [[VAR_27_]]#6, [[VAR_27_]]#7, [[VAR_27_]]#8, [[VAR_27_]]#9 : tensor<2x2x!tt.ptr<f32>>, index, index, index, index, tensor<2x2x!tt.ptr<f32>>, index, index, index, index
 // CHECK:             }
 // CHECK:             tt.return
 // CHECK:           }
@@ -251,7 +242,7 @@ module {
   }
 }
 
-// CHECK:           tt.func public @nested2_use_loop_results([[arg0_:.+]]: !tt.ptr<f32>, [[arg1_:.+]]: !tt.ptr<f32>, [[arg2_:.+]]: i32, [[arg3_:.+]]: i32) attributes {noinline = false} {
+// CHECK:           tt.func public @nested2_use_loop_results([[arg0_]]: !tt.ptr<f32>, [[arg1_]]: !tt.ptr<f32>, [[arg2_]]: i32, [[arg3_]]: i32) attributes {noinline = false} {
 // CHECK-DAG:         [[CST_1_2_:%.+]] = arith.constant 1 : i32
 // CHECK-DAG:         [[CST_2_2_:%.+]] = arith.constant 2 : i32
 // CHECK-DAG:         [[CST_0_2_:%.+]] = arith.constant 0 : i32
@@ -277,36 +268,30 @@ module {
 // CHECK:             [[VAR_14_2_:%.+]] = tt.broadcast [[VAR_13_2_]] : tensor<2x1x!tt.ptr<f32>> -> tensor<2x2x!tt.ptr<f32>>
 // CHECK-DAG:         [[VAR_15_2_:%.+]] = tt.addptr [[VAR_14_2_]], [[VAR_8_2_]] : tensor<2x2x!tt.ptr<f32>>, tensor<2x2xi32>
 // CHECK-DAG:         [[VAR_16_2_:%.+]] = arith.muli [[arg3_]], [[CST_4_]] : i32
-// CHECK-NOT: separator of consecutive DAGs
-// CHECK-DAG:         [[VAR_17_2_:%.+]] = tt.splat [[VAR_16_2_]] : i32 -> tensor<2x2xi32>
-// CHECK-DAG:         [[VAR_18_2_:%.+]]:5 = "tts.get_structured_state"([[VAR_11_2_]]) : (tensor<2x2x!tt.ptr<f32>>) -> (tensor<2x2x!tt.ptr<f32>>, index, index, index, index)
-// CHECK-DAG:         [[VAR_19_2_:%.+]]:5 = "tts.get_structured_state"([[VAR_15_2_]]) : (tensor<2x2x!tt.ptr<f32>>) -> (tensor<2x2x!tt.ptr<f32>>, index, index, index, index)
-// CHECK-NOT: separator of consecutive DAGs
-// CHECK-DAG:         [[VAR_20_2_:%.+]]:10 = scf.for [[VAR_arg4_:%.+]] = [[CST_0_2_]] to [[CST_2_2_]] step [[CST_1_2_]] iter_args([[VAR_arg5_:%.+]] = [[VAR_18_2_]]#0, [[VAR_arg6_:%.+]] = [[VAR_18_2_]]#1, [[VAR_arg7_:%.+]] = [[VAR_18_2_]]#2, [[VAR_arg8_2_:%.+]] = [[VAR_18_2_]]#3, [[VAR_arg9_2_:%.+]] = [[VAR_18_2_]]#4, [[VAR_arg10_2_:%.+]] = [[VAR_19_2_]]#0, [[VAR_arg11_2_:%.+]] = [[VAR_19_2_]]#1, [[VAR_arg12_2_:%.+]] = [[VAR_19_2_]]#2, [[VAR_arg13_2_:%.+]] = [[VAR_19_2_]]#3, [[VAR_arg14_2_:%.+]] = [[VAR_19_2_]]#4) -> (tensor<2x2x!tt.ptr<f32>>, index, index, index, index, tensor<2x2x!tt.ptr<f32>>, index, index, index, index)  : i32 {
-// CHECK-DAG:           [[VAR_21_1_:%.+]] = tt.load [[VAR_arg5_]] : tensor<2x2x!tt.ptr<f32>>
-// CHECK:               tt.store [[VAR_arg10_2_]], [[VAR_21_1_]] : tensor<2x2x!tt.ptr<f32>>
-// CHECK-DAG:           [[VAR_22_2_:%.+]] = tt.addptr [[VAR_arg5_]], [[VAR_17_2_]] : tensor<2x2x!tt.ptr<f32>>, tensor<2x2xi32>
-// CHECK-DAG:           [[VAR_23_2_:%.+]] = tt.addptr [[VAR_arg10_2_]], [[VAR_17_2_]] : tensor<2x2x!tt.ptr<f32>>, tensor<2x2xi32>
-// CHECK-NOT: separator of consecutive DAGs
-// CHECK-DAG:           [[VAR_24_2_:%.+]]:5 = "tts.get_structured_state"([[VAR_22_2_]]) : (tensor<2x2x!tt.ptr<f32>>) -> (tensor<2x2x!tt.ptr<f32>>, index, index, index, index)
-// CHECK-DAG:           [[VAR_25_2_:%.+]]:5 = "tts.get_structured_state"([[VAR_23_2_]]) : (tensor<2x2x!tt.ptr<f32>>) -> (tensor<2x2x!tt.ptr<f32>>, index, index, index, index)
-// CHECK-NOT: separator of consecutive DAGs
-// CHECK-DAG:           [[LOAD_VAR_arg9_MEM_1_:%.+]]:10 = scf.for [[VAR_arg15_2_:%.+]] = [[CST_0_2_]] to [[CST_2_2_]] step [[CST_1_2_]] iter_args([[VAR_arg16_2_:%.+]] = [[VAR_24_2_]]#0, [[VAR_arg17_2_:%.+]] = [[VAR_24_2_]]#1, [[VAR_arg18_2_:%.+]] = [[VAR_24_2_]]#2, [[VAR_arg19_1_:%.+]] = [[VAR_24_2_]]#3, [[VAR_arg20_1_:%.+]] = [[VAR_24_2_]]#4, [[VAR_arg21_1_:%.+]] = [[VAR_25_2_]]#0, [[VAR_arg22_1_:%.+]] = [[VAR_25_2_]]#1, [[VAR_arg23_1_:%.+]] = [[VAR_25_2_]]#2, [[VAR_arg24_1_:%.+]] = [[VAR_25_2_]]#3, [[VAR_arg25_1_:%.+]] = [[VAR_25_2_]]#4) -> (tensor<2x2x!tt.ptr<f32>>, index, index, index, index, tensor<2x2x!tt.ptr<f32>>, index, index, index, index)  : i32 {
-// CHECK-DAG:             [[VAR_31_1_:%.+]] = tt.load [[VAR_arg16_2_]] : tensor<2x2x!tt.ptr<f32>>
-// CHECK:                 tt.store [[VAR_arg21_1_]], [[VAR_31_1_]] : tensor<2x2x!tt.ptr<f32>>
-// CHECK-DAG:             [[LOAD_VAR_arg20_MEM_1_:%.+]] = tt.addptr [[VAR_arg16_2_]], [[VAR_17_2_]] : tensor<2x2x!tt.ptr<f32>>, tensor<2x2xi32>
-// CHECK-DAG:             [[VAR_33_1_:%.+]] = tt.addptr [[VAR_arg21_1_]], [[VAR_17_2_]] : tensor<2x2x!tt.ptr<f32>>, tensor<2x2xi32>
-// CHECK-NOT: separator of consecutive DAGs
-// CHECK-DAG:             [[VAR_34_1_:%.+]]:5 = "tts.get_structured_state"([[LOAD_VAR_arg20_MEM_1_]]) : (tensor<2x2x!tt.ptr<f32>>) -> (tensor<2x2x!tt.ptr<f32>>, index, index, index, index)
-// CHECK-DAG:             [[VAR_35_1_:%.+]]:5 = "tts.get_structured_state"([[VAR_33_1_]]) : (tensor<2x2x!tt.ptr<f32>>) -> (tensor<2x2x!tt.ptr<f32>>, index, index, index, index)
-// CHECK:                 scf.yield [[VAR_34_1_]]#0, [[VAR_34_1_]]#1, [[VAR_34_1_]]#2, [[VAR_34_1_]]#3, [[VAR_34_1_]]#4, [[VAR_35_1_]]#0, [[VAR_35_1_]]#1, [[VAR_35_1_]]#2, [[VAR_35_1_]]#3, [[VAR_35_1_]]#4 : tensor<2x2x!tt.ptr<f32>>, index, index, index, index, tensor<2x2x!tt.ptr<f32>>, index, index, index, index
+// CHECK:             [[VAR_17_2_:%.+]] = tt.splat [[VAR_16_2_]] : i32 -> tensor<2x2xi32>
+// CHECK:             [[structuredPtr_:%.+]], [[offsets_:%.+]]:2, [[VAR_strides_2_:%.+]]:2 = "tts.get_structured_state"([[VAR_11_2_]]) <{resultSegmentSizes = array<i32: 1, 2, 2>}> : (tensor<2x2x!tt.ptr<f32>>) -> (tensor<2x2x!tt.ptr<f32>>, index, index, index, index)
+// CHECK:             [[structuredPtr_0_:%.+]], [[offsets_1_:%.+]]:2, [[VAR_strides_2_2_:%.+]]:2 = "tts.get_structured_state"([[VAR_15_2_]]) <{resultSegmentSizes = array<i32: 1, 2, 2>}> : (tensor<2x2x!tt.ptr<f32>>) -> (tensor<2x2x!tt.ptr<f32>>, index, index, index, index)
+// CHECK-DAG:         [[VAR_18_2_:%.+]]:10 = scf.for [[VAR_arg4_:%.+]] = [[CST_0_2_]] to [[CST_2_2_]] step [[CST_1_2_]] iter_args([[VAR_arg5_:%.+]] = [[structuredPtr_]], [[VAR_arg6_:%.+]] = [[offsets_]]#0, [[VAR_arg7_:%.+]] = [[offsets_]]#1, [[VAR_arg8_2_:%.+]] = [[VAR_strides_2_]]#0, [[VAR_arg9_2_:%.+]] = [[VAR_strides_2_]]#1, [[VAR_arg10_2_:%.+]] = [[structuredPtr_0_]], [[VAR_arg11_2_:%.+]] = [[offsets_1_]]#0, [[VAR_arg12_2_:%.+]] = [[offsets_1_]]#1, [[VAR_arg13_2_:%.+]] = [[VAR_strides_2_2_]]#0, [[VAR_arg14_2_:%.+]] = [[VAR_strides_2_2_]]#1) -> (tensor<2x2x!tt.ptr<f32>>, index, index, index, index, tensor<2x2x!tt.ptr<f32>>, index, index, index, index)  : i32 {
+// CHECK-DAG:           [[VAR_19_1_:%.+]] = tt.load [[VAR_arg5_]] : tensor<2x2x!tt.ptr<f32>>
+// CHECK:               tt.store [[VAR_arg10_2_]], [[VAR_19_1_]] : tensor<2x2x!tt.ptr<f32>>
+// CHECK-DAG:           [[VAR_20_2_:%.+]] = tt.addptr [[VAR_arg5_]], [[VAR_17_2_]] : tensor<2x2x!tt.ptr<f32>>, tensor<2x2xi32>
+// CHECK-DAG:           [[VAR_21_2_:%.+]] = tt.addptr [[VAR_arg10_2_]], [[VAR_17_2_]] : tensor<2x2x!tt.ptr<f32>>, tensor<2x2xi32>
+// CHECK:               [[structuredPtr_3_:%.+]], [[offsets_4_:%.+]]:2, [[VAR_strides_5_2_:%.+]]:2 = "tts.get_structured_state"([[VAR_20_2_]]) <{resultSegmentSizes = array<i32: 1, 2, 2>}> : (tensor<2x2x!tt.ptr<f32>>) -> (tensor<2x2x!tt.ptr<f32>>, index, index, index, index)
+// CHECK:               [[structuredPtr_6_:%.+]], [[offsets_7_:%.+]]:2, [[VAR_strides_8_2_:%.+]]:2 = "tts.get_structured_state"([[VAR_21_2_]]) <{resultSegmentSizes = array<i32: 1, 2, 2>}> : (tensor<2x2x!tt.ptr<f32>>) -> (tensor<2x2x!tt.ptr<f32>>, index, index, index, index)
+// CHECK-DAG:           [[VAR_22_2_:%.+]]:10 = scf.for [[VAR_arg15_2_:%.+]] = [[CST_0_2_]] to [[CST_2_2_]] step [[CST_1_2_]] iter_args([[VAR_arg16_2_:%.+]] = [[structuredPtr_3_]], [[VAR_arg17_2_:%.+]] = [[offsets_4_]]#0, [[VAR_arg18_2_:%.+]] = [[offsets_4_]]#1, [[VAR_arg19_1_:%.+]] = [[VAR_strides_5_2_]]#0, [[VAR_arg20_1_:%.+]] = [[VAR_strides_5_2_]]#1, [[VAR_arg21_1_:%.+]] = [[structuredPtr_6_]], [[VAR_arg22_1_:%.+]] = [[offsets_7_]]#0, [[VAR_arg23_1_:%.+]] = [[offsets_7_]]#1, [[VAR_arg24_1_:%.+]] = [[VAR_strides_8_2_]]#0, [[VAR_arg25_1_:%.+]] = [[VAR_strides_8_2_]]#1) -> (tensor<2x2x!tt.ptr<f32>>, index, index, index, index, tensor<2x2x!tt.ptr<f32>>, index, index, index, index)  : i32 {
+// CHECK-DAG:             [[VAR_25_1_:%.+]] = tt.load [[VAR_arg16_2_]] : tensor<2x2x!tt.ptr<f32>>
+// CHECK:                 tt.store [[VAR_arg21_1_]], [[VAR_25_1_]] : tensor<2x2x!tt.ptr<f32>>
+// CHECK-DAG:             [[VAR_26_2_:%.+]] = tt.addptr [[VAR_arg16_2_]], [[VAR_17_2_]] : tensor<2x2x!tt.ptr<f32>>, tensor<2x2xi32>
+// CHECK-DAG:             [[VAR_27_1_:%.+]] = tt.addptr [[VAR_arg21_1_]], [[VAR_17_2_]] : tensor<2x2x!tt.ptr<f32>>, tensor<2x2xi32>
+// CHECK:                 [[structuredPtr_15_:%.+]], [[offsets_16_:%.+]]:2, [[VAR_strides_17_:%.+]]:2 = "tts.get_structured_state"([[VAR_26_2_]]) <{resultSegmentSizes = array<i32: 1, 2, 2>}> : (tensor<2x2x!tt.ptr<f32>>) -> (tensor<2x2x!tt.ptr<f32>>, index, index, index, index)
+// CHECK:                 [[structuredPtr_18_:%.+]], [[offsets_19_:%.+]]:2, [[VAR_strides_20_:%.+]]:2 = "tts.get_structured_state"([[VAR_27_1_]]) <{resultSegmentSizes = array<i32: 1, 2, 2>}> : (tensor<2x2x!tt.ptr<f32>>) -> (tensor<2x2x!tt.ptr<f32>>, index, index, index, index)
+// CHECK:                 scf.yield [[structuredPtr_15_]], [[offsets_16_]]#0, [[offsets_16_]]#1, [[VAR_strides_17_]]#0, [[VAR_strides_17_]]#1, [[structuredPtr_18_]], [[offsets_19_]]#0, [[offsets_19_]]#1, [[VAR_strides_20_]]#0, [[VAR_strides_20_]]#1 : tensor<2x2x!tt.ptr<f32>>, index, index, index, index, tensor<2x2x!tt.ptr<f32>>, index, index, index, index
 // CHECK:               }
-// CHECK-DAG:           [[VAR_27_2_:%.+]] = tt.addptr [[LOAD_VAR_arg9_MEM_1_]]#0, [[VAR_17_2_]] : tensor<2x2x!tt.ptr<f32>>, tensor<2x2xi32>
-// CHECK-DAG:           [[VAR_28_2_:%.+]] = tt.addptr [[LOAD_VAR_arg9_MEM_1_]]#5, [[VAR_17_2_]] : tensor<2x2x!tt.ptr<f32>>, tensor<2x2xi32>
-// CHECK-NOT: separator of consecutive DAGs
-// CHECK-DAG:           [[VAR_29_2_:%.+]]:5 = "tts.get_structured_state"([[VAR_27_2_]]) : (tensor<2x2x!tt.ptr<f32>>) -> (tensor<2x2x!tt.ptr<f32>>, index, index, index, index)
-// CHECK-DAG:           [[VAR_30_2_:%.+]]:5 = "tts.get_structured_state"([[VAR_28_2_]]) : (tensor<2x2x!tt.ptr<f32>>) -> (tensor<2x2x!tt.ptr<f32>>, index, index, index, index)
-// CHECK:               scf.yield [[VAR_29_2_]]#0, [[VAR_29_2_]]#1, [[VAR_29_2_]]#2, [[VAR_29_2_]]#3, [[VAR_29_2_]]#4, [[VAR_30_2_]]#0, [[VAR_30_2_]]#1, [[VAR_30_2_]]#2, [[VAR_30_2_]]#3, [[VAR_30_2_]]#4 : tensor<2x2x!tt.ptr<f32>>, index, index, index, index, tensor<2x2x!tt.ptr<f32>>, index, index, index, index
+// CHECK-DAG:           [[VAR_23_2_:%.+]] = tt.addptr [[VAR_22_2_]]#0, [[VAR_17_2_]] : tensor<2x2x!tt.ptr<f32>>, tensor<2x2xi32>
+// CHECK-DAG:           [[LOAD_VAR_arg9_MEM_1_:%.+]] = tt.addptr [[VAR_22_2_]]#5, [[VAR_17_2_]] : tensor<2x2x!tt.ptr<f32>>, tensor<2x2xi32>
+// CHECK:               [[structuredPtr_9_:%.+]], [[offsets_10_:%.+]]:2, [[VAR_strides_11_1_:%.+]]:2 = "tts.get_structured_state"([[VAR_23_2_]]) <{resultSegmentSizes = array<i32: 1, 2, 2>}> : (tensor<2x2x!tt.ptr<f32>>) -> (tensor<2x2x!tt.ptr<f32>>, index, index, index, index)
+// CHECK:               [[structuredPtr_12_:%.+]], [[offsets_13_:%.+]]:2, [[VAR_strides_14_1_:%.+]]:2 = "tts.get_structured_state"([[LOAD_VAR_arg9_MEM_1_]]) <{resultSegmentSizes = array<i32: 1, 2, 2>}> : (tensor<2x2x!tt.ptr<f32>>) -> (tensor<2x2x!tt.ptr<f32>>, index, index, index, index)
+// CHECK:               scf.yield [[structuredPtr_9_]], [[offsets_10_]]#0, [[offsets_10_]]#1, [[VAR_strides_11_1_]]#0, [[VAR_strides_11_1_]]#1, [[structuredPtr_12_]], [[offsets_13_]]#0, [[offsets_13_]]#1, [[VAR_strides_14_1_]]#0, [[VAR_strides_14_1_]]#1 : tensor<2x2x!tt.ptr<f32>>, index, index, index, index, tensor<2x2x!tt.ptr<f32>>, index, index, index, index
 // CHECK:             }
 // CHECK:             tt.return
 // CHECK:           }
@@ -391,37 +376,33 @@ module {
 // CHECK-NOT: separator of consecutive DAGs
 // CHECK-DAG:         [[VAR_17_3_:%.+]] = tt.splat [[VAR_16_3_]] : i32 -> tensor<2x2xi32>
 // CHECK-DAG:         [[VAR_18_3_:%.+]] = arith.muli [[arg3_]], [[CST_2_3_]] : i32
-// CHECK-NOT: separator of consecutive DAGs
-// CHECK-DAG:         [[VAR_19_3_:%.+]] = tt.splat [[VAR_18_3_]] : i32 -> tensor<2x2xi32>
-// CHECK-DAG:         [[VAR_20_3_:%.+]]:5 = "tts.get_structured_state"([[VAR_11_3_]]) : (tensor<2x2x!tt.ptr<f32>>) -> (tensor<2x2x!tt.ptr<f32>>, index, index, index, index)
-// CHECK-DAG:         [[VAR_21_2_:%.+]]:5 = "tts.get_structured_state"([[VAR_15_3_]]) : (tensor<2x2x!tt.ptr<f32>>) -> (tensor<2x2x!tt.ptr<f32>>, index, index, index, index)
-// CHECK-NOT: separator of consecutive DAGs
-// CHECK-DAG:         [[VAR_22_3_:%.+]]:10 = scf.for [[VAR_arg4_1_:%.+]] = [[CST_0_3_]] to [[CST_2_3_]] step [[CST_1_3_]] iter_args([[VAR_arg5_1_:%.+]] = [[VAR_20_3_]]#0, [[VAR_arg6_1_:%.+]] = [[VAR_20_3_]]#1, [[VAR_arg7_1_:%.+]] = [[VAR_20_3_]]#2, [[VAR_arg8_3_:%.+]] = [[VAR_20_3_]]#3, [[VAR_arg9_3_:%.+]] = [[VAR_20_3_]]#4, [[VAR_arg10_3_:%.+]] = [[VAR_21_2_]]#0, [[VAR_arg11_3_:%.+]] = [[VAR_21_2_]]#1, [[VAR_arg12_3_:%.+]] = [[VAR_21_2_]]#2, [[VAR_arg13_3_:%.+]] = [[VAR_21_2_]]#3, [[VAR_arg14_3_:%.+]] = [[VAR_21_2_]]#4) -> (tensor<2x2x!tt.ptr<f32>>, index, index, index, index, tensor<2x2x!tt.ptr<f32>>, index, index, index, index)  : i32 {
-// CHECK-DAG:           [[VAR_23_2_:%.+]] = tt.load [[VAR_arg5_1_]] : tensor<2x2x!tt.ptr<f32>>
-// CHECK-DAG:           [[VAR_24_3_:%.+]]:10 = scf.for [[VAR_arg15_3_:%.+]] = [[CST_0_3_]] to [[CST_2_3_]] step [[CST_1_3_]] iter_args([[VAR_arg16_3_:%.+]] = [[VAR_arg5_1_]], [[VAR_arg17_3_:%.+]] = [[VAR_arg6_1_]], [[VAR_arg18_3_:%.+]] = [[VAR_arg7_1_]], [[VAR_arg19_2_:%.+]] = [[VAR_arg8_3_]], [[VAR_arg20_2_:%.+]] = [[VAR_arg9_3_]], [[VAR_arg21_2_:%.+]] = [[VAR_arg10_3_]], [[VAR_arg22_2_:%.+]] = [[VAR_arg11_3_]], [[VAR_arg23_2_:%.+]] = [[VAR_arg12_3_]], [[VAR_arg24_2_:%.+]] = [[VAR_arg13_3_]], [[VAR_arg25_2_:%.+]] = [[VAR_arg14_3_]]) -> (tensor<2x2x!tt.ptr<f32>>, index, index, index, index, tensor<2x2x!tt.ptr<f32>>, index, index, index, index)  : i32 {
-// CHECK-DAG:             [[VAR_27_3_:%.+]] = tt.addptr [[VAR_arg16_3_]], [[VAR_17_3_]] : tensor<2x2x!tt.ptr<f32>>, tensor<2x2xi32>
-// CHECK-NOT: separator of consecutive DAGs
-// CHECK-DAG:             [[VAR_28_2_:%.+]] = tt.load [[VAR_27_3_]] : tensor<2x2x!tt.ptr<f32>>
-// CHECK-DAG:             [[VAR_29_3_:%.+]]:5 = "tts.get_structured_state"([[VAR_27_3_]]) : (tensor<2x2x!tt.ptr<f32>>) -> (tensor<2x2x!tt.ptr<f32>>, index, index, index, index)
-// CHECK-NOT: separator of consecutive DAGs
-// CHECK-DAG:             [[VAR_30_3_:%.+]]:10 = scf.for [[VAR_arg26_1_:%.+]] = [[CST_0_3_]] to [[CST_2_3_]] step [[CST_1_3_]] iter_args([[VAR_arg27_1_:%.+]] = [[VAR_29_3_]]#0, [[VAR_arg28_1_:%.+]] = [[VAR_29_3_]]#1, [[VAR_arg29_1_:%.+]] = [[VAR_29_3_]]#2, [[VAR_arg30_:%.+]] = [[VAR_29_3_]]#3, [[VAR_arg31_:%.+]] = [[VAR_29_3_]]#4, [[VAR_arg32_:%.+]] = [[VAR_arg21_2_]], [[VAR_arg33_:%.+]] = [[VAR_arg22_2_]], [[VAR_arg34_:%.+]] = [[VAR_arg23_2_]], [[VAR_arg35_:%.+]] = [[VAR_arg24_2_]], [[VAR_arg36_:%.+]] = [[VAR_arg25_2_]]) -> (tensor<2x2x!tt.ptr<f32>>, index, index, index, index, tensor<2x2x!tt.ptr<f32>>, index, index, index, index)  : i32 {
-// CHECK-DAG:               [[VAR_31_2_:%.+]] = tt.addptr [[VAR_arg27_1_]], [[VAR_17_3_]] : tensor<2x2x!tt.ptr<f32>>, tensor<2x2xi32>
-// CHECK:                   [[LOAD_VAR_arg20_MEM_1_:%.+]] = tt.load [[VAR_31_2_]] : tensor<2x2x!tt.ptr<f32>>
-// CHECK:                   tt.store [[VAR_arg32_]], [[VAR_23_2_]] : tensor<2x2x!tt.ptr<f32>>
-// CHECK:                   [[VAR_33_2_:%.+]] = tt.addptr [[VAR_arg32_]], [[VAR_17_3_]] : tensor<2x2x!tt.ptr<f32>>, tensor<2x2xi32>
-// CHECK:                   tt.store [[VAR_33_2_]], [[VAR_28_2_]] : tensor<2x2x!tt.ptr<f32>>
-// CHECK:                   [[VAR_34_2_:%.+]] = tt.addptr [[VAR_33_2_]], [[VAR_17_3_]] : tensor<2x2x!tt.ptr<f32>>, tensor<2x2xi32>
-// CHECK:                   tt.store [[VAR_34_2_]], [[LOAD_VAR_arg20_MEM_1_]] : tensor<2x2x!tt.ptr<f32>>
-// CHECK-DAG:               [[VAR_35_2_:%.+]] = tt.addptr [[VAR_34_2_]], [[VAR_17_3_]] : tensor<2x2x!tt.ptr<f32>>, tensor<2x2xi32>
-// CHECK-DAG:               [[VAR_36_1_:%.+]]:5 = "tts.get_structured_state"([[VAR_31_2_]]) : (tensor<2x2x!tt.ptr<f32>>) -> (tensor<2x2x!tt.ptr<f32>>, index, index, index, index)
-// CHECK:                   [[VAR_37_:%.+]]:5 = "tts.get_structured_state"([[VAR_35_2_]]) : (tensor<2x2x!tt.ptr<f32>>) -> (tensor<2x2x!tt.ptr<f32>>, index, index, index, index)
-// CHECK:                   scf.yield [[VAR_36_1_]]#0, [[VAR_36_1_]]#1, [[VAR_36_1_]]#2, [[VAR_36_1_]]#3, [[VAR_36_1_]]#4, [[VAR_37_]]#0, [[VAR_37_]]#1, [[VAR_37_]]#2, [[VAR_37_]]#3, [[VAR_37_]]#4 : tensor<2x2x!tt.ptr<f32>>, index, index, index, index, tensor<2x2x!tt.ptr<f32>>, index, index, index, index
+// CHECK:             [[VAR_19_2_:%.+]] = tt.splat [[VAR_18_3_]] : i32 -> tensor<2x2xi32>
+// CHECK:             [[structuredPtr_:%.+]], [[offsets_:%.+]]:2, [[VAR_strides_3_:%.+]]:2 = "tts.get_structured_state"([[VAR_11_3_]]) <{resultSegmentSizes = array<i32: 1, 2, 2>}> : (tensor<2x2x!tt.ptr<f32>>) -> (tensor<2x2x!tt.ptr<f32>>, index, index, index, index)
+// CHECK:             [[structuredPtr_0_:%.+]], [[offsets_1_:%.+]]:2, [[VAR_strides_2_3_:%.+]]:2 = "tts.get_structured_state"([[VAR_15_3_]]) <{resultSegmentSizes = array<i32: 1, 2, 2>}> : (tensor<2x2x!tt.ptr<f32>>) -> (tensor<2x2x!tt.ptr<f32>>, index, index, index, index)
+// CHECK-DAG:         [[VAR_20_3_:%.+]]:10 = scf.for [[VAR_arg4_1_:%.+]] = [[CST_0_3_]] to [[CST_2_3_]] step [[CST_1_3_]] iter_args([[VAR_arg5_1_:%.+]] = [[structuredPtr_]], [[VAR_arg6_1_:%.+]] = [[offsets_]]#0, [[VAR_arg7_1_:%.+]] = [[offsets_]]#1, [[VAR_arg8_3_:%.+]] = [[VAR_strides_3_]]#0, [[VAR_arg9_3_:%.+]] = [[VAR_strides_3_]]#1, [[VAR_arg10_3_:%.+]] = [[structuredPtr_0_]], [[VAR_arg11_3_:%.+]] = [[offsets_1_]]#0, [[VAR_arg12_3_:%.+]] = [[offsets_1_]]#1, [[VAR_arg13_3_:%.+]] = [[VAR_strides_2_3_]]#0, [[VAR_arg14_3_:%.+]] = [[VAR_strides_2_3_]]#1) -> (tensor<2x2x!tt.ptr<f32>>, index, index, index, index, tensor<2x2x!tt.ptr<f32>>, index, index, index, index)  : i32 {
+// CHECK-DAG:           [[VAR_21_2_:%.+]] = tt.load [[VAR_arg5_1_]] : tensor<2x2x!tt.ptr<f32>>
+// CHECK-DAG:           [[VAR_22_3_:%.+]]:10 = scf.for [[VAR_arg15_3_:%.+]] = [[CST_0_3_]] to [[CST_2_3_]] step [[CST_1_3_]] iter_args([[VAR_arg16_3_:%.+]] = [[VAR_arg5_1_]], [[VAR_arg17_3_:%.+]] = [[VAR_arg6_1_]], [[VAR_arg18_3_:%.+]] = [[VAR_arg7_1_]], [[VAR_arg19_2_:%.+]] = [[VAR_arg8_3_]], [[VAR_arg20_2_:%.+]] = [[VAR_arg9_3_]], [[VAR_arg21_2_:%.+]] = [[VAR_arg10_3_]], [[VAR_arg22_2_:%.+]] = [[VAR_arg11_3_]], [[VAR_arg23_2_:%.+]] = [[VAR_arg12_3_]], [[VAR_arg24_2_:%.+]] = [[VAR_arg13_3_]], [[VAR_arg25_2_:%.+]] = [[VAR_arg14_3_]]) -> (tensor<2x2x!tt.ptr<f32>>, index, index, index, index, tensor<2x2x!tt.ptr<f32>>, index, index, index, index)  : i32 {
+// CHECK-DAG:             [[LOAD_VAR_arg9_MEM_1_1_:%.+]] = tt.addptr [[VAR_arg16_3_]], [[VAR_17_3_]] : tensor<2x2x!tt.ptr<f32>>, tensor<2x2xi32>
+// CHECK:                 [[VAR_25_1_1_:%.+]] = tt.load [[LOAD_VAR_arg9_MEM_1_1_]] : tensor<2x2x!tt.ptr<f32>>
+// CHECK:                 [[structuredPtr_6_:%.+]], [[offsets_7_:%.+]]:2, [[VAR_strides_8_3_:%.+]]:2 = "tts.get_structured_state"([[LOAD_VAR_arg9_MEM_1_1_]]) <{resultSegmentSizes = array<i32: 1, 2, 2>}> : (tensor<2x2x!tt.ptr<f32>>) -> (tensor<2x2x!tt.ptr<f32>>, index, index, index, index)
+// CHECK-DAG:             [[VAR_26_3_:%.+]]:10 = scf.for [[VAR_arg26_1_:%.+]] = [[CST_0_3_]] to [[CST_2_3_]] step [[CST_1_3_]] iter_args([[VAR_arg27_1_:%.+]] = [[structuredPtr_6_]], [[VAR_arg28_1_:%.+]] = [[offsets_7_]]#0, [[VAR_arg29_1_:%.+]] = [[offsets_7_]]#1, [[VAR_arg30_:%.+]] = [[VAR_strides_8_3_]]#0, [[VAR_arg31_:%.+]] = [[VAR_strides_8_3_]]#1, [[VAR_arg32_:%.+]] = [[VAR_arg21_2_]], [[VAR_arg33_:%.+]] = [[VAR_arg22_2_]], [[VAR_arg34_:%.+]] = [[VAR_arg23_2_]], [[VAR_arg35_:%.+]] = [[VAR_arg24_2_]], [[VAR_arg36_:%.+]] = [[VAR_arg25_2_]]) -> (tensor<2x2x!tt.ptr<f32>>, index, index, index, index, tensor<2x2x!tt.ptr<f32>>, index, index, index, index)  : i32 {
+// CHECK-DAG:               [[VAR_27_2_:%.+]] = tt.addptr [[VAR_arg27_1_]], [[VAR_17_3_]] : tensor<2x2x!tt.ptr<f32>>, tensor<2x2xi32>
+// CHECK:                   [[LOAD_VAR_arg20_MEM_1_:%.+]] = tt.load [[VAR_27_2_]] : tensor<2x2x!tt.ptr<f32>>
+// CHECK:                   tt.store [[VAR_arg32_]], [[VAR_21_2_]] : tensor<2x2x!tt.ptr<f32>>
+// CHECK:                   [[VAR_29_1_:%.+]] = tt.addptr [[VAR_arg32_]], [[VAR_17_3_]] : tensor<2x2x!tt.ptr<f32>>, tensor<2x2xi32>
+// CHECK:                   tt.store [[VAR_29_1_]], [[VAR_25_1_1_]] : tensor<2x2x!tt.ptr<f32>>
+// CHECK:                   [[VAR_30_1_:%.+]] = tt.addptr [[VAR_29_1_]], [[VAR_17_3_]] : tensor<2x2x!tt.ptr<f32>>, tensor<2x2xi32>
+// CHECK:                   tt.store [[VAR_30_1_]], [[LOAD_VAR_arg20_MEM_1_]] : tensor<2x2x!tt.ptr<f32>>
+// CHECK:                   [[VAR_31_:%.+]] = tt.addptr [[VAR_30_1_]], [[VAR_17_3_]] : tensor<2x2x!tt.ptr<f32>>, tensor<2x2xi32>
+// CHECK:                   [[structuredPtr_9_:%.+]], [[offsets_10_:%.+]]:2, [[VAR_strides_11_2_:%.+]]:2 = "tts.get_structured_state"([[VAR_27_2_]]) <{resultSegmentSizes = array<i32: 1, 2, 2>}> : (tensor<2x2x!tt.ptr<f32>>) -> (tensor<2x2x!tt.ptr<f32>>, index, index, index, index)
+// CHECK:                   [[structuredPtr_12_:%.+]], [[offsets_13_:%.+]]:2, [[VAR_strides_14_2_:%.+]]:2 = "tts.get_structured_state"([[VAR_31_]]) <{resultSegmentSizes = array<i32: 1, 2, 2>}> : (tensor<2x2x!tt.ptr<f32>>) -> (tensor<2x2x!tt.ptr<f32>>, index, index, index, index)
+// CHECK:                   scf.yield [[structuredPtr_9_]], [[offsets_10_]]#0, [[offsets_10_]]#1, [[VAR_strides_11_2_]]#0, [[VAR_strides_11_2_]]#1, [[structuredPtr_12_]], [[offsets_13_]]#0, [[offsets_13_]]#1, [[VAR_strides_14_2_]]#0, [[VAR_strides_14_2_]]#1 : tensor<2x2x!tt.ptr<f32>>, index, index, index, index, tensor<2x2x!tt.ptr<f32>>, index, index, index, index
 // CHECK:                 }
-// CHECK:                 scf.yield [[VAR_30_3_]]#0, [[VAR_30_3_]]#1, [[VAR_30_3_]]#2, [[VAR_30_3_]]#3, [[VAR_30_3_]]#4, [[VAR_30_3_]]#5, [[VAR_30_3_]]#6, [[VAR_30_3_]]#7, [[VAR_30_3_]]#8, [[VAR_30_3_]]#9 : tensor<2x2x!tt.ptr<f32>>, index, index, index, index, tensor<2x2x!tt.ptr<f32>>, index, index, index, index
+// CHECK:                 scf.yield [[VAR_26_3_]]#0, [[VAR_26_3_]]#1, [[VAR_26_3_]]#2, [[VAR_26_3_]]#3, [[VAR_26_3_]]#4, [[VAR_26_3_]]#5, [[VAR_26_3_]]#6, [[VAR_26_3_]]#7, [[VAR_26_3_]]#8, [[VAR_26_3_]]#9 : tensor<2x2x!tt.ptr<f32>>, index, index, index, index, tensor<2x2x!tt.ptr<f32>>, index, index, index, index
 // CHECK:               }
-// CHECK:               [[VAR_25_3_:%.+]] = tt.addptr [[VAR_24_3_]]#0, [[VAR_19_3_]] : tensor<2x2x!tt.ptr<f32>>, tensor<2x2xi32>
-// CHECK:               [[LOAD_VAR_arg9_MEM_1_1_:%.+]]:5 = "tts.get_structured_state"([[VAR_25_3_]]) : (tensor<2x2x!tt.ptr<f32>>) -> (tensor<2x2x!tt.ptr<f32>>, index, index, index, index)
-// CHECK:               scf.yield [[LOAD_VAR_arg9_MEM_1_1_]]#0, [[LOAD_VAR_arg9_MEM_1_1_]]#1, [[LOAD_VAR_arg9_MEM_1_1_]]#2, [[LOAD_VAR_arg9_MEM_1_1_]]#3, [[LOAD_VAR_arg9_MEM_1_1_]]#4, [[VAR_24_3_]]#5, [[VAR_24_3_]]#6, [[VAR_24_3_]]#7, [[VAR_24_3_]]#8, [[VAR_24_3_]]#9 : tensor<2x2x!tt.ptr<f32>>, index, index, index, index, tensor<2x2x!tt.ptr<f32>>, index, index, index, index
+// CHECK:               [[VAR_23_3_:%.+]] = tt.addptr [[VAR_22_3_]]#0, [[VAR_19_2_]] : tensor<2x2x!tt.ptr<f32>>, tensor<2x2xi32>
+// CHECK:               [[structuredPtr_3_:%.+]], [[offsets_4_:%.+]]:2, [[VAR_strides_5_3_:%.+]]:2 = "tts.get_structured_state"([[VAR_23_3_]]) <{resultSegmentSizes = array<i32: 1, 2, 2>}> : (tensor<2x2x!tt.ptr<f32>>) -> (tensor<2x2x!tt.ptr<f32>>, index, index, index, index)
+// CHECK:               scf.yield [[structuredPtr_3_]], [[offsets_4_]]#0, [[offsets_4_]]#1, [[VAR_strides_5_3_]]#0, [[VAR_strides_5_3_]]#1, [[VAR_22_3_]]#5, [[VAR_22_3_]]#6, [[VAR_22_3_]]#7, [[VAR_22_3_]]#8, [[VAR_22_3_]]#9 : tensor<2x2x!tt.ptr<f32>>, index, index, index, index, tensor<2x2x!tt.ptr<f32>>, index, index, index, index
 // CHECK:             }
 // CHECK:             tt.return
 // CHECK:           }

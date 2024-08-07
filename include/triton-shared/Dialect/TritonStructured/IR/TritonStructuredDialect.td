@@ -133,6 +133,14 @@ def TTS_GetStructuredStateOp : TTS_Op<"get_structured_state", [AttrSizedResultSe
     OpBuilder<(ins "Value":$ptr)>,
   ];
 
+  let extraClassDeclaration = [{
+    static std::optional<std::pair<SmallVector<Type>, SmallVector<Type>>>
+      getOffsetAndStrideTypes(MLIRContext *context, Type ptrLikeType);
+
+    static std::optional<std::pair<int32_t, int32_t>>
+      getOffsetAndStrideSegmentSizes(Type ptrLikeType);
+  }];
+
   let hasFolder = 0;
   let hasVerifier = 1;
 }

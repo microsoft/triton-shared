@@ -50,6 +50,15 @@ namespace {
 class TritonToStructuredPass
     : public TritonToStructuredBase<TritonToStructuredPass> {
 
+  static TupleType getStructuredStateTupleType(MLIRContext *context, Type t) {
+    SmallVector<Type> tupleTypes{t};
+    auto [offsetTypes, strideTypes] =
+        *tts::GetStructuredStateOp::getOffsetAndStrideTypes(context, t);
+    tupleTypes.append(offsetTypes);
+    tupleTypes.append(strideTypes);
+    return TupleType::get(context, tupleTypes);
+  }
+
 public:
   void getDependentDialects(DialectRegistry &registry) const override {
     registry
@@ -75,38 +84,19 @@ public:
     converter.addConversion([context](RankedTensorType tensorType,
                                       SmallVectorImpl<Type> &types)
                                 -> std::optional<LogicalResult> {
-      if (auto ptrType =
-              dyn_cast<triton::PointerType>(tensorType.getElementType())) {
-        SmallVector<Type> tupleTypes{tensorType};
-        // Each tensor of rank k gets k values for its offsets and k values for
-        // its strides, all of which has Index type.
-        tupleTypes.append(tensorType.getRank() * 2, IndexType::get(context));
-        types = SmallVector<Type>{TupleType::get(context, tupleTypes)};
-        return success();
+      if (!isa<triton::PointerType>(tensorType.getElementType())) {
+        return std::nullopt;
       }
-      return std::nullopt;
+      types =
+          SmallVector<Type>{getStructuredStateTupleType(context, tensorType)};
+      return success();
     });
 
     // Case 2: Block pointers (!tt.ptr<tensor<type>> or !tt.ptr<type>)
     converter.addConversion([context](triton::PointerType ptrType,
                                       SmallVectorImpl<Type> &types)
                                 -> std::optional<LogicalResult> {
-      if (auto tensorType =
-              llvm::dyn_cast<RankedTensorType>(ptrType.getPointeeType())) {
-        // Block pointers
-        SmallVector<Type> tupleTypes{ptrType};
-        // Each tensor of rank k gets k values for its offsets and k values for
-        // its strides, all of which has Index type.
-        tupleTypes.append(tensorType.getRank() * 2, IndexType::get(context));
-        types = SmallVector<Type>{TupleType::get(context, tupleTypes)};
-      } else {
-        // Scalar pointers
-        // The only relevant state that can be updated in loops for scalar
-        // pointers are offset. No need to include stride here.
-        auto tupleType = TupleType::get(
-            context, SmallVector<Type>{ptrType, IndexType::get(context)});
-        types = SmallVector<Type>{tupleType};
-      }
+      types = SmallVector<Type>{getStructuredStateTupleType(context, ptrType)};
       return success();
     });
 
