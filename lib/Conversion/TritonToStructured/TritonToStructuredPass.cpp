@@ -30,6 +30,7 @@
 #include "mlir/Transforms/Passes.h"
 #include "triton/Dialect/Triton/IR/Types.h"
 
+#include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/Support/Casting.h"
 #include "llvm/Support/Debug.h"
@@ -193,8 +194,9 @@ public:
                                           TypeRange resultTypes, Value input,
                                           Location loc) {
       auto placeholder = builder.create<tts::GetStructuredStateOp>(
-          loc, resultTypes, input.getDefiningOp()->getOperand(0));
-      return placeholder->getResults();
+          loc, input.getDefiningOp()->getOperand(0));
+      assert(llvm::equal(placeholder.getResultTypes(), resultTypes));
+      return placeholder.getResults();
     });
 
     RewritePatternSet patterns(&getContext());

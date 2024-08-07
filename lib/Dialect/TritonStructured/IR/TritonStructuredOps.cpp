@@ -5,8 +5,11 @@
 #include "mlir/IR/BuiltinTypes.h"
 #include "mlir/IR/OperationSupport.h"
 #include "mlir/Interfaces/SideEffectInterfaces.h"
+#include "mlir/Support/LogicalResult.h"
 #include "triton/Dialect/Triton/IR/Types.h"
 #include "llvm/ADT/STLExtras.h"
+#include "llvm/Support/Casting.h"
+#include <cstdint>
 
 #define GET_OP_CLASSES
 #include "triton-shared/Dialect/TritonStructured/IR/TritonStructuredOps.h.inc"
@@ -84,6 +87,42 @@ void StoreOp::build(OpBuilder &b, OperationState &state, Value ptr, Value value,
   dispatchIndexOpFoldResults(dims, dynamicDims, staticDims);
 
   build(b, state, ptr, value, dynamicDims, b.getDenseI64ArrayAttr(staticDims));
+}
+
+LogicalResult GetStructuredStateOp::verify() { return success(); }
+
+void GetStructuredStateOp::build(OpBuilder &b, OperationState &state,
+                                 Value ptr) {
+  auto type = ptr.getType();
+  int32_t offsetSegmentSize = 0;
+  int32_t strideSegmentSize = 0;
+
+  // Unstructured pointers (tensor<!tt.ptr<type>>)
+  if (auto tensorType = llvm::dyn_cast<RankedTensorType>(type)) {
+    if (auto ptrType =
+            dyn_cast<triton::PointerType>(tensorType.getElementType())) {
+      offsetSegmentSize = strideSegmentSize = tensorType.getRank();
+    }
+  }
+  // Block pointers (!tt.ptr<tensor<type>> or !tt.ptr<type>)
+  else if (auto ptrType = llvm::dyn_cast<triton::PointerType>(type)) {
+    if (auto tensorType =
+            llvm::dyn_cast<RankedTensorType>(ptrType.getPointeeType())) {
+      offsetSegmentSize = strideSegmentSize = tensorType.getRank();
+    } else {
+      // Scalar pointers, there are no strides
+      offsetSegmentSize = 1;
+    }
+  }
+
+  state.addAttribute(
+      "operandSegmentSizes",
+      b.getDenseI32ArrayAttr({offsetSegmentSize, strideSegmentSize}));
+
+  build(b, state, ptr.getType(),
+        SmallVector<Type>(offsetSegmentSize, IndexType::get(b.getContext())),
+        SmallVector<Type>(strideSegmentSize, IndexType::get(b.getContext())),
+        ptr);
 }
 
 } // namespace tts
