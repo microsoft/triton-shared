@@ -14,6 +14,7 @@ add_triton_library(TritonToStructured
   MLIRTensorDialect
   MLIRTransforms
   MLIRSupport
+  MLIRReconcileUnrealizedCasts
   TritonIR
   TritonTransforms
   TritonSharedAnalysisStructured

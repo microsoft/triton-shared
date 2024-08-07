@@ -120,6 +120,31 @@ def TTS_MakeTensorPtrOp
   //let hasCanonicalizer = 1;
 }
 
+// SameVariadicResultSize
+// AttrSizedResultSegments
+def TTS_GetStructuredStateOp : TTS_Op<"get_structured_state", [AttrSizedResultSegments, Pure]> {
+  let summary = "Placeholder for the structured pointer states computed during PtrAnalysis.";
+  let description = "Used to pass the offsets and strides to scf.for op to simplify IR rewrites.";
+
+  let arguments = (ins TT_PtrLike:$ptr);
+  let results = (outs TT_PtrLike:$structuredPtr, Variadic<Index>:$offsets, Variadic<Index>:$strides);
+
+  let builders = [
+    OpBuilder<(ins "Value":$ptr)>,
+  ];
+
+  let extraClassDeclaration = [{
+    static std::optional<std::pair<SmallVector<Type>, SmallVector<Type>>>
+      getOffsetAndStrideTypes(MLIRContext *context, Type ptrLikeType);
+
+    static std::optional<std::pair<int32_t, int32_t>>
+      getOffsetAndStrideSegmentSizes(Type ptrLikeType);
+  }];
+
+  let hasFolder = 0;
+  let hasVerifier = 1;
+}
+
 def TTS_LoadOp : TTS_Op<"load", [
   MemoryEffects<[MemRead]>,
   AttrSizedOperandSegments

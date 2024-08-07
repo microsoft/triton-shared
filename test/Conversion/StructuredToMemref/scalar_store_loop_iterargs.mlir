@@ -31,7 +31,7 @@ module {
 // CHECK:           [[VAR_2_:%.+]]:4 = scf.for [[VAR_arg10_:%.+]] = [[CST_0_]] to [[CST_5_]] step [[CST_1_]] iter_args([[VAR_arg11_:%.+]] = [[VAR_reinterpret_cast_]], [[VAR_arg12_:%.+]] = [[VAR_0_]], [[VAR_arg13_:%.+]] = [[VAR_0_]], [[VAR_arg14_:%.+]] = [[VAR_0_]]) -> (memref<1xf32, strided<[1], offset: ?>>, index, index, index)  : i32 {
 // CHECK:             affine.store [[VAR_1_]], [[VAR_arg11_]][0] : memref<1xf32, strided<[1], offset: ?>>
 // CHECK:             [[VAR_3_:%.+]] = arith.index_cast [[VAR_arg10_]] : i32 to index
-// CHECK:             [[VAR_4_:%.+]] = arith.addi [[VAR_arg12_]], [[VAR_3_]] : index
+// CHECK-DAG:         [[VAR_4_:%.+]] = arith.addi [[VAR_arg12_]], [[VAR_3_]] : index
 // CHECK-DAG:         [[VAR_reinterpret_cast_0_:%.+]] = memref.reinterpret_cast [[VAR_arg11_]] to offset: {{.}}[[VAR_4_]]{{.}}, sizes: [1], strides: [1] : memref<1xf32, strided<[1], offset: ?>> to memref<1xf32, strided<[1], offset: ?>>
 // CHECK-DAG:         [[VAR_5_:%.+]] = arith.addi [[VAR_arg13_]], [[VAR_3_]] : index
 // CHECK-DAG:         [[VAR_6_:%.+]] = arith.addi [[VAR_arg14_]], [[VAR_3_]] : index
