@@ -675,13 +675,15 @@ LogicalResult PtrAnalysis::visitOperandForOp(scf::ForOp forOp, Value operand,
   auto it = llvm::find(forOp->getResults(), operand);
   auto index = std::distance(forOp->getResults().begin(), it);
 
-  if (failed(getLoopResultPtrState(forOp, index, state))) {
+  auto newState = getLoopResultPtrState(forOp, index);
+  if (failed(newState)) {
     forOp.emitError(
         "Rewrite for-op failed. Could not find PtrState returned by "
         "the loop.");
     return failure();
   }
 
+  state = newState.value();
   return success();
 }
 
@@ -724,9 +726,6 @@ LogicalResult PtrAnalysis::visitOperand(Value operand, PtrState &state,
       state.source = operand;
       return success();
     }
-  }
-
-  if (!operand.getDefiningOp()) {
   }
 
   if (auto op = operand.getDefiningOp<arith::AddIOp>()) {
@@ -848,9 +847,8 @@ static bool isPointerType(Type t) {
   return isa<triton::PointerType>(t);
 }
 
-LogicalResult PtrAnalysis::getLoopInitArgPtrState(scf::ForOp forOp,
-                                                  size_t index,
-                                                  PtrState &state) {
+FailureOr<PtrState> PtrAnalysis::getLoopInitArgPtrState(scf::ForOp forOp,
+                                                        size_t index) {
   auto ptr = forOp.getInitArgs()[index];
 
   // If the pointer into the scf.for was defined by tts.get_structured_state,
@@ -862,8 +860,7 @@ LogicalResult PtrAnalysis::getLoopInitArgPtrState(scf::ForOp forOp,
   if (auto getStateOp = ptr.getDefiningOp<tts::GetStructuredStateOp>()) {
     auto originalPtr = getStateOp->getOperand(0);
     if (knownPtrs.count(originalPtr)) {
-      state = knownPtrs[originalPtr];
-      return success();
+      return knownPtrs[originalPtr];
     }
   }
 
@@ -886,7 +883,7 @@ LogicalResult PtrAnalysis::getLoopInitArgPtrState(scf::ForOp forOp,
   // clang-format on
   // Notice %arg8 = %23 comes from the return value of the first loop.
   if (auto forOp = ptr.getDefiningOp<scf::ForOp>()) {
-    return getLoopResultPtrState(forOp, index, state);
+    return getLoopResultPtrState(forOp, index);
   }
 
   // If the pointer isn't defined by tts.get_structured_state nor another loop,
@@ -901,8 +898,7 @@ LogicalResult PtrAnalysis::getLoopInitArgPtrState(scf::ForOp forOp,
   // }
   if (knownPtrs.count(ptr)) {
     assert(!ptr.getDefiningOp() && "Expect the ptr to be an iterarg");
-    state = knownPtrs[ptr];
-    return success();
+    return knownPtrs[ptr];
   }
 
   return failure();
@@ -910,7 +906,7 @@ LogicalResult PtrAnalysis::getLoopInitArgPtrState(scf::ForOp forOp,
 
 PtrState PtrAnalysis::reconcileLoopPtrState(
     scf::ForOp forOp, size_t iterArgIndex, const PtrState &state,
-    std::function<Value(scf::ForOp op, size_t)> getReplacementVal) {
+    llvm::function_ref<Value(scf::ForOp op, size_t)> getReplacementVal) {
   PtrState newState = state;
   int cnt = iterArgIndex + 1;
   if (newState.getRank() == 0) {
@@ -931,32 +927,29 @@ PtrState PtrAnalysis::reconcileLoopPtrState(
   return newState;
 }
 
-LogicalResult PtrAnalysis::getLoopIterArgPtrState(scf::ForOp forOp,
-                                                  size_t index,
-                                                  PtrState &state) {
-  if (failed(getLoopInitArgPtrState(forOp, index, state))) {
+FailureOr<PtrState> PtrAnalysis::getLoopIterArgPtrState(scf::ForOp forOp,
+                                                        size_t index) {
+  auto state = getLoopInitArgPtrState(forOp, index);
+  if (failed(state)) {
     return failure();
   }
 
-  state = reconcileLoopPtrState(
-      forOp, index, state,
+  return reconcileLoopPtrState(
+      forOp, index, state.value(),
       [](scf::ForOp op, size_t index) { return op.getRegionIterArg(index); });
-
-  return success();
 }
 
-LogicalResult PtrAnalysis::getLoopResultPtrState(scf::ForOp forOp, size_t index,
-                                                 PtrState &state) {
+FailureOr<PtrState> PtrAnalysis::getLoopResultPtrState(scf::ForOp forOp,
+                                                       size_t index) {
 
-  if (failed(getLoopInitArgPtrState(forOp, index, state))) {
+  auto state = getLoopInitArgPtrState(forOp, index);
+  if (failed(state)) {
     return failure();
   }
 
-  state = reconcileLoopPtrState(
-      forOp, index, state,
+  return reconcileLoopPtrState(
+      forOp, index, state.value(),
       [](scf::ForOp op, size_t index) { return op->getResult(index); });
-
-  return success();
 }
 
 LogicalResult PtrAnalysis::rewriteForOp(scf::ForOp op) {
@@ -965,8 +958,8 @@ LogicalResult PtrAnalysis::rewriteForOp(scf::ForOp op) {
       continue;
     }
 
-    PtrState state;
-    if (failed(getLoopIterArgPtrState(op, i, state))) {
+    auto state = getLoopIterArgPtrState(op, i);
+    if (failed(state)) {
       op.emitError(
           "Rewrite for-op failed. Could not find PtrState for iter-arg index " +
           std::to_string(i));
@@ -975,7 +968,7 @@ LogicalResult PtrAnalysis::rewriteForOp(scf::ForOp op) {
 
     // Save the current init arg's PtrState
     auto key = op.getRegionIterArgs()[i];
-    knownPtrs[key] = state;
+    knownPtrs[key] = state.value();
 
     // For tensors of pointers, create a tts.make_tptr at the beginning of the
     // loop body that correspond to this region iter arg. In case it is used
@@ -1000,16 +993,15 @@ LogicalResult PtrAnalysis::rewriteForOp(scf::ForOp op) {
     // beginning of the loop body. We don't lower tt.load and tt.store on
     // scalars in this pass; pointer arithmetics can also just use the
     // original pointer.
-    if (state.getRank() != 0) {
+    if (state->getRank() != 0) {
       OpBuilder builder(op.getRegion());
-      auto maketptrOp = state.createTTSMakeTensorPtrOp(builder, op.getLoc());
+      auto maketptrOp = state->createTTSMakeTensorPtrOp(builder, op.getLoc());
       ptrMap.map(key, maketptrOp.getResult());
     }
   }
 
   // Recursively rewrite the inner ops
   if (rewriteOp(op).failed()) {
-    op->erase();
     op->emitRemark(
         "PtrAnalysis: update loop body failed when rewriting for op");
     return failure();
