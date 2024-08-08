@@ -28,6 +28,7 @@
 #include "llvm/Support/MathExtras.h"
 
 #include <numeric>
+#include <optional>
 #include <type_traits>
 
 using namespace mlir;
@@ -134,10 +135,14 @@ static Value getTransposedValue(Value source, const Location loc,
 }
 
 // for IntLike and FloatLike types
-static unsigned getBitWidth(Type a) {
+static std::optional<unsigned> getBitWidth(Type a) {
   if (auto type = dyn_cast<TensorType>(a))
     return type.getElementType().getIntOrFloatBitWidth();
-  return a.getIntOrFloatBitWidth();
+
+  if (a.isIntOrFloat())
+    return a.getIntOrFloatBitWidth();
+
+  return std::nullopt;
 }
 
 //===----------------------------------------------------------------------===//
@@ -858,7 +863,7 @@ struct FpToFpConverter : public OpConversionPattern<triton::FpToFpOp> {
                   ConversionPatternRewriter &rewriter) const override {
     auto roundingMode = triton::RoundingMode::RTNE; // default
 
-    if (auto roundingModeAttr = op->getAttrOfType<triton::RoundingModeAttr>("rounding")) {
+    if (auto roundingModeAttr = op.getRounding()) {
       roundingMode = roundingModeAttr.getValue();
     }
 
@@ -867,10 +872,13 @@ struct FpToFpConverter : public OpConversionPattern<triton::FpToFpOp> {
 
     Type resultType = op.getResult().getType();
 
-    unsigned operandWidth = getBitWidth(op.getOperand().getType());
-    unsigned resultWidth = getBitWidth(resultType);
+    auto operandWidth = getBitWidth(op.getOperand().getType());
+    auto resultWidth = getBitWidth(resultType);
 
-    if (operandWidth > resultWidth) {
+    assert(operandWidth.has_value() && resultWidth.has_value() &&
+        "Not a float-like operand or result");
+
+    if (operandWidth.value() > resultWidth.value()) {
       Value truncatedValue = rewriter.create<arith::TruncFOp>(op.getLoc(), resultType, op.getOperand());
       rewriter.replaceOp(op, truncatedValue);
       return success();
@@ -891,7 +899,7 @@ struct ClampConverter : public OpConversionPattern<triton::ClampFOp> {
                   ConversionPatternRewriter &rewriter) const override {
     bool propagateNan = false;
 
-    if (auto propagateNanAttr = op->getAttrOfType<triton::PropagateNanAttr>("propagateNan")) {
+    if (auto propagateNanAttr = op.getPropagateNan()) {
       propagateNan = propagateNanAttr.getValue() == triton::PropagateNan::ALL;
     }
 
