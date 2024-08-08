@@ -898,12 +898,7 @@ struct ClampConverter : public OpConversionPattern<triton::ClampFOp> {
   LogicalResult
   matchAndRewrite(triton::ClampFOp op, OpAdaptor adaptor,
                   ConversionPatternRewriter &rewriter) const override {
-    bool propagateNan = true;
-
-    auto propagateNanAttr = op.getPropagateNan();
-    if (propagateNanAttr.has_value()) {
-      propagateNan = propagateNanAttr.value() == triton::PropagateNan::ALL;
-    }
+    bool propagateNan = op.getPropagateNan() == triton::PropagateNan::ALL;
 
     assert(propagateNan &&
            "PropagateNan=false is not supported");
