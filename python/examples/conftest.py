@@ -87,7 +87,7 @@ tests_not_supported = {
 
 # probably different version of MLIR on the nightly build machine is complaining
 # about unregistered dialect for llvm.intr.assume, pre-commit checks are passing
-tests_not_supported += ["test_assume"]
+tests_not_supported.add("test_assume")
 
 def pytest_collection_modifyitems(config, items):
     skip_marker = pytest.mark.skip(reason="CPU backend does not support it yet")
