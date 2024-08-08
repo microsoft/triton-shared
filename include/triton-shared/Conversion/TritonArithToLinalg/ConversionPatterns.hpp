@@ -900,8 +900,8 @@ struct ClampConverter : public OpConversionPattern<triton::ClampFOp> {
                   ConversionPatternRewriter &rewriter) const override {
     bool propagateNan = op.getPropagateNan() == triton::PropagateNan::ALL;
 
-    assert(propagateNan &&
-           "PropagateNan=false is not supported");
+    assert(!propagateNan &&
+           "PropagateNan is not supported");
 
     Location loc = op.getLoc();
     Value x = adaptor.getOperands()[0];
