@@ -136,8 +136,13 @@ static Value getTransposedValue(Value source, const Location loc,
 
 // for IntLike and FloatLike types
 static std::optional<unsigned> getBitWidth(Type a) {
-  if (auto type = dyn_cast<TensorType>(a))
-    return type.getElementType().getIntOrFloatBitWidth();
+  if (auto type = dyn_cast<TensorType>(a)) {
+    auto elementType = type.getElementType();
+    if (elementType.isIntOrFloat()) {
+      return type.getElementType().getIntOrFloatBitWidth();
+    }
+    return std::nullopt;
+  }
 
   if (a.isIntOrFloat())
     return a.getIntOrFloatBitWidth();
