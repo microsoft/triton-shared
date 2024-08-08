@@ -863,8 +863,9 @@ struct FpToFpConverter : public OpConversionPattern<triton::FpToFpOp> {
                   ConversionPatternRewriter &rewriter) const override {
     auto roundingMode = triton::RoundingMode::RTNE; // default
 
-    if (auto roundingModeAttr = op.getRounding()) {
-      roundingMode = roundingModeAttr.getValue();
+    auto roundingModeAttr = op.getRounding();
+    if (roundingModeAttr.has_value()) {
+      roundingMode = roundingModeAttr.value();
     }
 
     assert(roundingMode != triton::RoundingMode::RTZ &&
@@ -897,14 +898,15 @@ struct ClampConverter : public OpConversionPattern<triton::ClampFOp> {
   LogicalResult
   matchAndRewrite(triton::ClampFOp op, OpAdaptor adaptor,
                   ConversionPatternRewriter &rewriter) const override {
-    bool propagateNan = false;
+    bool propagateNan = true;
 
-    if (auto propagateNanAttr = op.getPropagateNan()) {
-      propagateNan = propagateNanAttr.getValue() == triton::PropagateNan::ALL;
+    auto propagateNanAttr = op.getPropagateNan();
+    if (propagateNanAttr.has_value()) {
+      propagateNan = propagateNanAttr.value() == triton::PropagateNan::ALL;
     }
 
-    assert(!propagateNan &&
-           "PropagateNan is not supported");
+    assert(propagateNan &&
+           "PropagateNan=false is not supported");
 
     Location loc = op.getLoc();
     Value x = adaptor.getOperands()[0];
