@@ -41,7 +41,6 @@ tests_not_supported = {
     "test_slice",
     "test_where",
     "test_math_erf_op",
-    "test_precise_math",
     "test_abs_fp8",
     "test_shapes_as_params",
     "test_transpose",
@@ -79,7 +78,6 @@ tests_not_supported = {
     "test_convertmma2mma",
     "test_dot_max_num_imprecise_acc",
     "test_propagate_nan",
-    "test_clamp",
     "test_clamp_symmetric",
     "test_temp_var_in_loop",
     "test_math_extern"
