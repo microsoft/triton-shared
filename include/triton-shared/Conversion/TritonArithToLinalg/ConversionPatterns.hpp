@@ -28,6 +28,7 @@
 #include "llvm/Support/MathExtras.h"
 
 #include <numeric>
+#include <optional>
 #include <type_traits>
 
 using namespace mlir;
@@ -131,6 +132,22 @@ static Value getTransposedValue(Value source, const Location loc,
           .getResults()[0];
 
   return transpose;
+}
+
+// for IntLike and FloatLike types
+static std::optional<unsigned> getBitWidth(Type a) {
+  if (auto type = dyn_cast<TensorType>(a)) {
+    auto elementType = type.getElementType();
+    if (elementType.isIntOrFloat()) {
+      return type.getElementType().getIntOrFloatBitWidth();
+    }
+    return std::nullopt;
+  }
+
+  if (a.isIntOrFloat())
+    return a.getIntOrFloatBitWidth();
+
+  return std::nullopt;
 }
 
 //===----------------------------------------------------------------------===//
@@ -843,6 +860,110 @@ struct BitcastConverter : public OpConversionPattern<triton::BitcastOp> {
   }
 };
 
+struct FpToFpConverter : public OpConversionPattern<triton::FpToFpOp> {
+  using OpConversionPattern<triton::FpToFpOp>::OpConversionPattern;
+
+  LogicalResult
+  matchAndRewrite(triton::FpToFpOp op, OpAdaptor adaptor,
+                  ConversionPatternRewriter &rewriter) const override {
+    auto roundingMode = triton::RoundingMode::RTNE; // default
+
+    auto roundingModeAttr = op.getRounding();
+    if (roundingModeAttr.has_value()) {
+      roundingMode = roundingModeAttr.value();
+    }
+
+    assert(roundingMode != triton::RoundingMode::RTZ &&
+           "Rounding Towards Zero is not supported");
+
+    Type resultType = op.getResult().getType();
+
+    auto operandWidth = getBitWidth(op.getOperand().getType());
+    auto resultWidth = getBitWidth(resultType);
+
+    assert(operandWidth.has_value() && resultWidth.has_value() &&
+        "Not a float-like operand or result");
+
+    if (operandWidth.value() > resultWidth.value()) {
+      Value truncatedValue = rewriter.create<arith::TruncFOp>(op.getLoc(), resultType, op.getOperand());
+      rewriter.replaceOp(op, truncatedValue);
+      return success();
+    }
+
+    Value extendedValue = rewriter.create<arith::ExtFOp>(op.getLoc(), resultType, op.getOperand());
+    rewriter.replaceOp(op, extendedValue);
+
+    return success();
+  }
+};
+
+struct ClampConverter : public OpConversionPattern<triton::ClampFOp> {
+  using OpConversionPattern<triton::ClampFOp>::OpConversionPattern;
+
+  LogicalResult
+  matchAndRewrite(triton::ClampFOp op, OpAdaptor adaptor,
+                  ConversionPatternRewriter &rewriter) const override {
+    bool propagateNan = op.getPropagateNan() == triton::PropagateNan::ALL;
+
+    assert(!propagateNan &&
+           "PropagateNan is not supported");
+
+    Location loc = op.getLoc();
+    Value x = adaptor.getOperands()[0];
+    Value min = adaptor.getOperands()[1];
+    Value max = adaptor.getOperands()[2];
+
+    Value maxMin = rewriter.create<arith::MaximumFOp>(loc, x, min);
+    Value clamp = rewriter.create<arith::MinimumFOp>(loc, maxMin, max);
+    rewriter.replaceOp(op, clamp);
+
+    return success();
+  }
+};
+
+struct PreciseSqrtConverter : public OpConversionPattern<triton::PreciseSqrtOp> {
+  using OpConversionPattern<triton::PreciseSqrtOp>::OpConversionPattern;
+
+  LogicalResult
+  matchAndRewrite(triton::PreciseSqrtOp op, OpAdaptor adaptor,
+                  ConversionPatternRewriter &rewriter) const override {
+    auto replacement = rewriter.create<math::SqrtOp>(
+        op.getLoc(), adaptor.getOperands());
+
+    rewriter.replaceOp(op, replacement);
+    return success();
+  }
+};
+
+struct PreciseDivConverter : public OpConversionPattern<triton::PreciseDivFOp> {
+  using OpConversionPattern<triton::PreciseDivFOp>::OpConversionPattern;
+
+  LogicalResult
+  matchAndRewrite(triton::PreciseDivFOp op, OpAdaptor adaptor,
+                  ConversionPatternRewriter &rewriter) const override {
+    auto replacement = rewriter.create<arith::DivFOp>(
+        op.getLoc(), adaptor.getOperands());
+
+    rewriter.replaceOp(op, replacement);
+    return success();
+  }
+};
+
+struct MulHiUIOpConverter : public OpConversionPattern<triton::MulhiUIOp> {
+  using OpConversionPattern<triton::MulhiUIOp>::OpConversionPattern;
+
+  LogicalResult
+  matchAndRewrite(triton::MulhiUIOp op, OpAdaptor adaptor,
+                  ConversionPatternRewriter &rewriter) const override {
+    Location loc = op.getLoc();
+
+    auto mulResult = rewriter.create<arith::MulUIExtendedOp>(loc, adaptor.getOperands());
+    rewriter.replaceOp(op, mulResult.getHigh());
+
+    return success();
+  }
+};
+
 struct MatmulConverter : public OpConversionPattern<triton::DotOp> {
   using OpConversionPattern<triton::DotOp>::OpConversionPattern;
 
@@ -1070,8 +1191,7 @@ private:
     }
 
     if (convertToF32Precision) {
-      finalResult = rewriter.create<arith::TruncFOp>(
-          loc, BFloat16Type::get(rewriter.getContext()), finalResult);
+      finalResult = rewriter.create<arith::TruncFOp>(loc, resType, finalResult);
     }
 
     rewriter.replaceOp(op, finalResult);

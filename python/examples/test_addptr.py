@@ -1,10 +1,7 @@
 import torch
 
 import triton
-from triton.backends.triton_shared.driver import CPUDriver
 import triton.language as tl
-
-triton.runtime.driver.set_active(CPUDriver())
 
 
 @triton.jit
@@ -24,9 +21,9 @@ def addptr(in0, out0):
 
 
 
-def test():
-    input = torch.arange(0, 11, device="cpu", dtype=torch.float32)
-    output = torch.full((11,), 0, device="cpu", dtype=torch.float32)
+def test(device):
+    input = torch.arange(0, 11, device=device, dtype=torch.float32)
+    output = torch.full((11,), 0, device=device, dtype=torch.float32)
     grid = lambda meta: (1,)
 
     print(output)
@@ -35,6 +32,7 @@ def test():
     print(output)
     assert torch.equal(input, output)
 
+    # TODO: need to check some conditions otherwise the code below does not make any difference for the test
     src = triton.compiler.ASTSource(
         fn=addptr,
         signature="*fp32,*fp32",
@@ -43,4 +41,3 @@ def test():
         src,
     )
     print(ret.asm["ttir"])
-    print('Pass')

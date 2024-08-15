@@ -1,10 +1,7 @@
 import torch
 
 import triton
-from triton.backends.triton_shared.driver import CPUDriver
 import triton.language as tl
-
-triton.runtime.driver.set_active(CPUDriver())
 
 
 @triton.jit
@@ -59,10 +56,9 @@ def softmax(x):
     )
     return y
 
-def test_softmax():
+def test_softmax(device):
     torch.manual_seed(0)
-    x = torch.randn(1823, 781, device='cpu')
+    x = torch.randn(1823, 781, device=device)
     y_triton = softmax(x)
     y_torch = torch.softmax(x, axis=1)
     assert torch.allclose(y_triton, y_torch), (y_triton, y_torch)
-    print('ok')
