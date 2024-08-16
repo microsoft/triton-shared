@@ -85,7 +85,7 @@ module {
 // CHECK:               [[VAR_14_1_:%.+]] = arith.addf [[IN_2_]], [[IN_3_]] : f32
 // CHECK:               linalg.yield [[VAR_14_1_]] : f32
 // CHECK:             } -> tensor<128x128xf32>
-// CHECK:             [[VAR_12_:%.+]] = arith.addi [[VAR_arg14_]], [[VAR_arg11_]] : index
+// CHECK-DAG:         [[VAR_12_:%.+]] = arith.addi [[VAR_arg14_]], [[VAR_arg11_]] : index
 // CHECK-DAG:         [[VAR_reinterpret_cast_2_:%.+]] = memref.reinterpret_cast [[VAR_arg13_]] to offset: {{.}}[[VAR_12_]]{{.}}, sizes: [1], strides: [1] : memref<1xf32, strided<[1], offset: ?>> to memref<1xf32, strided<[1], offset: ?>>
 // CHECK-DAG:         [[VAR_13_:%.+]] = arith.addi [[VAR_arg15_]], [[VAR_arg11_]] : index
 // CHECK:             scf.yield [[VAR_11_]], [[VAR_reinterpret_cast_2_]], [[VAR_12_]], [[VAR_13_]] : tensor<128x128xf32>, memref<1xf32, strided<[1], offset: ?>>, index, index

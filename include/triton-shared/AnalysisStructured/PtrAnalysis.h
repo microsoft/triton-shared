@@ -12,9 +12,11 @@
 #include "mlir/Dialect/MemRef/IR/MemRef.h"
 #include "mlir/Dialect/SCF/IR/SCF.h"
 
+#include "mlir/Support/LogicalResult.h"
 #include "triton-shared/Dialect/TritonStructured/IR/TritonStructuredDialect.h"
 #include "triton/Dialect/Triton/IR/Dialect.h"
 
+#include <cstddef>
 #include <set>
 
 namespace mlir {
@@ -67,7 +69,28 @@ struct PtrState {
                                                 Location loc);
 };
 
-struct PtrAnalysis {
+class PtrAnalysis {
+  // This function is internally used by getLoopIterArgPtrState and
+  // getLoopResultPtrState to get the correct PtrState for either an iter-arg or
+  // a loop's result.
+  //
+  // A PtrState of an scf.for's iter-arg is the same as its corresponding
+  // init-arg, except that the strides and offsets have to point to the loop's
+  // iter-args that were created to carry the offsets and strides.
+  //
+  // For instance, for a pointer with index i and rank 2, 4 additional args
+  // starting at index i + 1 are created. The PtrState's strides and offsets
+  // value of the pointer's iter-arg must point to these 4 additionally created
+  // iter-args.
+  //
+  // A similar process is used for getting the PtrState of the loop's i'th
+  // result: its strides and offsets have to point to the corresponding stride
+  // and offset values returned by the loop.
+  PtrState reconcileLoopPtrState(
+      scf::ForOp forOp, size_t ptrArgIndex, const PtrState &state,
+      llvm::function_ref<Value(scf::ForOp op, size_t)> getReplacementVal);
+
+public:
   using IndexMapSet = std::map<int, std::set<int>>;
 
   IndexMapSet levelToBlockArgIndex;
@@ -81,6 +104,13 @@ struct PtrAnalysis {
   // function based on the defining operation and argument type.
   LogicalResult visitOperand(Value operand, PtrState &state, const Location loc,
                              OpBuilder &builder);
+
+  // Operand is a result of an scf.for. Such cases occur when there are multiple
+  // levels of nested loops where the results of the inner scf.for (pointer) are
+  // yielded by the outer loop.
+  LogicalResult visitOperandForOp(scf::ForOp forOp, Value operand,
+                                  PtrState &state, const Location loc,
+                                  OpBuilder &builder);
 
   // Operand is the result of arith.addi. Process both arguments and insert any
   // arith.addi instruction as needed.
@@ -188,6 +218,20 @@ struct PtrAnalysis {
   LogicalResult visitOperandMakeTensorPtr(triton::MakeTensorPtrOp makeTPtrOp,
                                           PtrState &state, const Location loc,
                                           OpBuilder &builder);
+
+  // Get the computed PtrState for the forOp's init-arg at the provided index.
+  FailureOr<PtrState> getLoopInitArgPtrState(scf::ForOp forOp, size_t index);
+
+  // Get the computed PtrState for the forOp's iter-arg at the provided index.
+  FailureOr<PtrState> getLoopIterArgPtrState(scf::ForOp forOp, size_t index);
+
+  // Get the computed PtrState for the forOp's result at the provided index.
+  FailureOr<PtrState> getLoopResultPtrState(scf::ForOp forOp, size_t index);
+
+  // After PtrAnalysis finishes, rewrite the GetStructuredStateOp by creating
+  // the correct initialization ops for offsets and strides and passing them to
+  // any loop's init-args.
+  LogicalResult rewriteGetStructuredStateOp(tts::GetStructuredStateOp op);
 
   // Parse the state of AddPtrOp, insert any instruction needed to
   // calculate strides and offsets, build PtrState for this operand, and record

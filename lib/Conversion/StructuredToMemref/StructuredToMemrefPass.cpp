@@ -28,6 +28,7 @@
 #include "mlir/Pass/PassManager.h"
 #include "mlir/Transforms/Passes.h"
 #include "triton/Dialect/Triton/IR/Types.h"
+#include "llvm/Support/Casting.h"
 #include "llvm/Support/Debug.h"
 
 #include <cassert>
@@ -83,6 +84,38 @@ public:
     addConversion([](Type type) { return type; });
     addConversion([context](triton::PointerType ptrType) {
       return getMemrefTypeForScalarPtr(ptrType, context);
+    });
+
+    // A tensor of pointers can be passed in as scf.for's init-args, in such
+    // cases, we convert the type to a memref with dynamic offsets and
+    // strides.
+    addConversion(
+        [context](RankedTensorType tensorType) -> std::optional<MemRefType> {
+          if (auto ptrType = llvm::dyn_cast<triton::PointerType>(
+                  tensorType.getElementType())) {
+            auto layout = StridedLayoutAttr::get(
+                context, ShapedType::kDynamic,
+                SmallVector<int64_t>(tensorType.getRank(),
+                                     ShapedType::kDynamic));
+            Type elemType = ptrType.getPointeeType();
+            return MemRefType::get(tensorType.getShape(), elemType, layout);
+          }
+
+          return std::nullopt;
+        });
+
+    // Convert the current memref type to a memref type with dynamic offsets and
+    // strides through another reinterpret_cast with the same offsets.
+    // Canonicalization will simplify this sequence by removing the inital
+    // reinterpret_cast.
+    addTargetMaterialization([&](OpBuilder &builder, MemRefType memrefType,
+                                 ValueRange inputs,
+                                 Location loc) -> std::optional<Value> {
+      auto reinterpretCast =
+          inputs[0].getDefiningOp<memref::ReinterpretCastOp>();
+      return builder.create<memref::ReinterpretCastOp>(
+          loc, memrefType, inputs[0], reinterpretCast.getMixedOffsets()[0],
+          reinterpretCast.getMixedSizes(), reinterpretCast.getMixedStrides());
     });
   }
 };
