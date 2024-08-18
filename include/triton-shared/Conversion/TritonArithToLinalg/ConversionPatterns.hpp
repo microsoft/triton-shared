@@ -151,6 +151,36 @@ static std::optional<unsigned> getBitWidth(Type a) {
   return std::nullopt;
 }
 
+static void processTwoStridesLastDim(RankedTensorType type, ConversionPatternRewriter &rewriter,
+    std::function<void(SmallVector<OpFoldResult, 4> &, SmallVector<OpFoldResult, 4>&, SmallVector<OpFoldResult, 4>&, int)> op) {
+  int64_t rank = type.getRank();
+  auto shape = type.getShape();
+
+  SmallVector<OpFoldResult, 4> offsets, sizes, strides;
+  std::vector<int64_t> stridesInt(rank, 0);
+
+  int64_t currentStride = 1;
+  for (size_t i = shape.size(); i > 0; --i) {
+    stridesInt[i - 1] = currentStride;
+    currentStride *= stridesInt[i - 1];
+  }
+
+  for (size_t j = 0; j < shape.size(); ++j) {
+    offsets.push_back(rewriter.getIndexAttr(0));
+    sizes.push_back(rewriter.getIndexAttr(shape[j]));
+    strides.push_back(rewriter.getIndexAttr(stridesInt[j]));
+  }
+
+  for (int i = 0; i < 2; ++i) {
+    offsets.pop_back();
+    sizes.pop_back();
+
+    offsets.push_back(rewriter.getIndexAttr(i));
+    sizes.push_back(rewriter.getIndexAttr(1));
+    op(offsets, sizes, strides, i);
+  }
+}
+
 //===----------------------------------------------------------------------===//
 // Op Lowering Patterns
 //===----------------------------------------------------------------------===//
@@ -989,6 +1019,111 @@ struct PreciseDivConverter : public OpConversionPattern<triton::PreciseDivFOp> {
         op.getLoc(), adaptor.getOperands());
 
     rewriter.replaceOp(op, replacement);
+    return success();
+  }
+};
+
+struct CatConverter : public OpConversionPattern<triton::CatOp> {
+  using OpConversionPattern<triton::CatOp>::OpConversionPattern;
+
+  LogicalResult
+  matchAndRewrite(triton::CatOp op, OpAdaptor adaptor,
+                  ConversionPatternRewriter &rewriter) const override {
+    auto loc = op.getLoc();
+    auto lhs = op.getLhs();
+    auto rhs = op.getRhs();
+    auto lhsType = cast<RankedTensorType>(lhs.getType());
+    auto resultType = cast<RankedTensorType>(op.getResult().getType());
+    Value emptyTensor = rewriter.create<tensor::EmptyOp>(loc, resultType.getShape(), resultType.getElementType());
+
+    auto mapAll = AffineMap::get(1, 0, rewriter.getAffineDimExpr(0), rewriter.getContext());
+    auto mapFirstHalf = AffineMap::get(1, 0, lhsType.getShape()[0] - 1 - rewriter.getAffineDimExpr(0), rewriter.getContext());
+    auto mapSecondHalf = AffineMap::get(1, 0, rewriter.getAffineDimExpr(0) + lhsType.getShape()[0], rewriter.getContext());
+
+    auto allParallel = getNParallelLoopsAttrs(resultType.getRank());
+
+    auto yieldFirstArg = [](OpBuilder &nestedBuilder, Location nestedLoc, ValueRange args) {
+          nestedBuilder.create<linalg::YieldOp>(nestedLoc, args[0]);
+        };
+
+    auto fistPart = rewriter.create<linalg::GenericOp>(
+        loc,
+        resultType,
+        /*inputs=*/ValueRange{lhs},
+        /*outputs=*/ValueRange{emptyTensor},
+        /*indexing maps=*/ArrayRef<AffineMap>{
+            mapAll,  // lhs
+            mapFirstHalf}, // result
+        allParallel,
+        yieldFirstArg);
+
+    auto secondPart = rewriter.create<linalg::GenericOp>(
+        loc,
+        resultType,
+        /*inputs=*/ValueRange{rhs},
+        fistPart->getResults(),
+        /*indexing maps=*/ArrayRef<AffineMap>{
+            mapAll,  // rhs
+            mapSecondHalf},  // result
+        allParallel,
+        yieldFirstArg);
+
+    rewriter.replaceOp(op, secondPart->getResults());
+
+    return success();
+  }
+};
+
+struct SplitConverter : public OpConversionPattern<triton::SplitOp> {
+  using OpConversionPattern<triton::SplitOp>::OpConversionPattern;
+
+  LogicalResult
+  matchAndRewrite(triton::SplitOp op, OpAdaptor adaptor,
+                  ConversionPatternRewriter &rewriter) const override {
+    Location loc = op.getLoc();
+    Value input = op.getOperand();
+    auto inputType = cast<RankedTensorType>(input.getType());
+
+    Type resultType = op.getResults().front().getType();
+    auto resultTensor = cast<RankedTensorType>(resultType);
+
+    SmallVector<Value, 2> results;
+    processTwoStridesLastDim(inputType, rewriter,
+      [&rewriter, &results, &loc, &resultTensor, &input](SmallVector<OpFoldResult, 4> &offsets,
+         SmallVector<OpFoldResult, 4> &sizes,
+        SmallVector<OpFoldResult, 4> &strides, int index) {
+            Value slice = rewriter.create<tensor::ExtractSliceOp>(
+              loc, resultTensor, input, offsets, sizes, strides);
+            results.push_back(slice);
+        });
+
+    rewriter.replaceOp(op, results);
+    return success();
+  }
+};
+
+struct JoinConverter : public OpConversionPattern<triton::JoinOp> {
+  using OpConversionPattern<triton::JoinOp>::OpConversionPattern;
+
+  LogicalResult
+  matchAndRewrite(triton::JoinOp op, OpAdaptor adaptor,
+                  ConversionPatternRewriter &rewriter) const override {
+    ValueRange inputs = op.getOperands();
+
+    auto resultType = cast<RankedTensorType>(op.getResult().getType());
+
+    auto loc = op.getLoc();
+    Value result = rewriter.create<tensor::EmptyOp>(loc, resultType.getShape(), resultType.getElementType());
+
+    processTwoStridesLastDim(resultType, rewriter,
+      [&rewriter, &result, &loc, &inputs](SmallVector<OpFoldResult, 4> &offsets,
+         SmallVector<OpFoldResult, 4> &sizes,
+        SmallVector<OpFoldResult, 4> &strides, int index) {
+            result = rewriter.create<tensor::InsertSliceOp>(loc, inputs[index], result, offsets, sizes, strides);
+        });
+
+    rewriter.replaceOp(op, result);
+
     return success();
   }
 };
