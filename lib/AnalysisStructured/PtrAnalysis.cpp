@@ -751,10 +751,15 @@ LogicalResult PtrAnalysis::visitOperand(Value operand, PtrState &state,
   } else if (!operand.getDefiningOp()) {
     // This operand must be an iter-arg of an inner-loop in a multiple-level
     // nested loop, which means its PtrState must have already been populated
-    // during rewriteForOp of the parent loop.
-    assert(knownPtrs.contains(operand));
-    state = knownPtrs[operand];
-    return success();
+    // during rewriteForOp of the parent loop. If the entry doesn't exist,
+    // it means the analysis has failed.
+    if (knownPtrs.contains(operand)) {
+      state = knownPtrs[operand];
+      return success();
+    } else {
+      return failure();
+    }
+
   } else {
     llvm::dbgs() << "PtrAnalysis: encountered addptr operand produced by an "
                     "unsupported operation\n";
