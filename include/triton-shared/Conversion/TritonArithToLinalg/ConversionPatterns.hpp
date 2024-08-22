@@ -152,17 +152,20 @@ static std::optional<unsigned> getBitWidth(Type a) {
 }
 
 static void processTwoStridesLastDim(RankedTensorType type, ConversionPatternRewriter &rewriter,
-    std::function<void(SmallVector<OpFoldResult, 4> &, SmallVector<OpFoldResult, 4>&, SmallVector<OpFoldResult, 4>&, int)> op) {
+    std::function<void(SmallVector<OpFoldResult> &/* offsets */,
+        SmallVector<OpFoldResult>&/* sizes */,
+        SmallVector<OpFoldResult>&/* strides */,
+        int /* index */)> op) {
   int64_t rank = type.getRank();
   auto shape = type.getShape();
 
-  SmallVector<OpFoldResult, 4> offsets, sizes, strides;
-  std::vector<int64_t> stridesInt(rank, 0);
+  SmallVector<OpFoldResult> offsets, sizes, strides;
+  SmallVector<int64_t> stridesInt(rank, 0);
 
   int64_t currentStride = 1;
   for (size_t i = shape.size(); i > 0; --i) {
     stridesInt[i - 1] = currentStride;
-    currentStride *= stridesInt[i - 1];
+    currentStride *= shape[i - 1];
   }
 
   for (size_t j = 0; j < shape.size(); ++j) {
@@ -1089,9 +1092,9 @@ struct SplitConverter : public OpConversionPattern<triton::SplitOp> {
 
     SmallVector<Value, 2> results;
     processTwoStridesLastDim(inputType, rewriter,
-      [&rewriter, &results, &loc, &resultTensor, &input](SmallVector<OpFoldResult, 4> &offsets,
-         SmallVector<OpFoldResult, 4> &sizes,
-        SmallVector<OpFoldResult, 4> &strides, int index) {
+      [&rewriter, &results, &loc, &resultTensor, &input](SmallVector<OpFoldResult> &offsets,
+         SmallVector<OpFoldResult> &sizes,
+        SmallVector<OpFoldResult> &strides, int index) {
             Value slice = rewriter.create<tensor::ExtractSliceOp>(
               loc, resultTensor, input, offsets, sizes, strides);
             results.push_back(slice);
@@ -1116,9 +1119,9 @@ struct JoinConverter : public OpConversionPattern<triton::JoinOp> {
     Value result = rewriter.create<tensor::EmptyOp>(loc, resultType.getShape(), resultType.getElementType());
 
     processTwoStridesLastDim(resultType, rewriter,
-      [&rewriter, &result, &loc, &inputs](SmallVector<OpFoldResult, 4> &offsets,
-         SmallVector<OpFoldResult, 4> &sizes,
-        SmallVector<OpFoldResult, 4> &strides, int index) {
+      [&rewriter, &result, &loc, &inputs](SmallVector<OpFoldResult> &offsets,
+         SmallVector<OpFoldResult> &sizes,
+        SmallVector<OpFoldResult> &strides, int index) {
             result = rewriter.create<tensor::InsertSliceOp>(loc, inputs[index], result, offsets, sizes, strides);
         });
 
