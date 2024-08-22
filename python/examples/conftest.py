@@ -19,7 +19,6 @@ def device(request):
 
 
 tests_not_supported = {
-    "test_if_else",
     "test_split",
     "test_split_to_scalar",
     "test_interleave_scalars",
