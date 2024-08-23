@@ -160,13 +160,7 @@ static void processTwoStridesLastDim(RankedTensorType type, ConversionPatternRew
   auto shape = type.getShape();
 
   SmallVector<OpFoldResult> offsets, sizes, strides;
-  SmallVector<int64_t> stridesInt(rank, 0);
-
-  int64_t currentStride = 1;
-  for (size_t i = shape.size(); i > 0; --i) {
-    stridesInt[i - 1] = currentStride;
-    currentStride *= shape[i - 1];
-  }
+  SmallVector<int64_t> stridesInt(rank, 1);
 
   for (size_t j = 0; j < shape.size(); ++j) {
     offsets.push_back(rewriter.getIndexAttr(0));
