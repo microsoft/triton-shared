@@ -1,39 +1,45 @@
-import torch
+# this is a benchmark which multiplies square matrices with maximum block size
+# to check the performance of tl.dot operation
 
+import torch
 import triton
 import triton.language as tl
 import benchmark
 
 
 @triton.jit
-def bare_matmul(X, Y, Z, BLOCK_SIZE: tl.constexpr):
-    pid = tl.program_id(0)
-    
-    offs_x = pid * BLOCK_SIZE + tl.arange(0, BLOCK_SIZE)
-    offs_y = tl.arange(0, BLOCK_SIZE)
+def bare_matmul(X, Y, Z, M, N, K, BLOCK_SIZE: tl.constexpr):
+    pid_x = tl.program_id(0)  # block row id
+    pid_y = tl.program_id(1)  # block column id
 
-    x = tl.load(X + offs_x[:, None])
-    y = tl.load(Y + offs_y[None, :])
+    offs_x = pid_x * BLOCK_SIZE + tl.arange(0, BLOCK_SIZE)
+    offs_y = pid_y * BLOCK_SIZE + tl.arange(0, BLOCK_SIZE)
+
+    x = tl.load(X + offs_x[:, None] * K + offs_y[None, :])
+    y = tl.load(Y + offs_x[:, None] * N + offs_y[None, :])
 
     z = tl.dot(x, y)
-    tl.store(Z + offs_x[:, None] + offs_y[None, :], z)
+
+    tl.store(Z + offs_x[:, None] * N + offs_y[None, :], z)
 
 
 @benchmark.measure()
-def bench_matmul(M, N, K, provider):
+def bench_matmul(N, provider):
     device = 'cpu'
     dtype = torch.float32
-    a = torch.randn((M, K), device=device, dtype=dtype)
-    b = torch.randn((K, N), device=device, dtype=dtype)
-    c = torch.empty((K, N), device=device, dtype=dtype)
-    if provider == 'torch':
-        torch.matmul(a, b)
-    if provider == 'triton':
-        bare_matmul[(1,)](a, b, c, N)
+    a = torch.randn((N, N), device=device, dtype=dtype)
+    b = torch.randn((N, N), device=device, dtype=dtype)
+    c = torch.empty((N, N), device=device, dtype=dtype)
+    if provider == 'torch' or provider == 'test':
+        c_ref = torch.matmul(a, b)
+    if provider == 'triton' or provider == 'test':
+        bare_matmul[(1,)](a, b, c, N, N, N, N)
+        if provider == 'test':
+            torch.testing.assert_close(c, c_ref, atol=1e-2, rtol=0)
 
 
 if __name__ == "__main__":
     benchmark.select_cpu_backend()
-    for X in [2**i for i in range(7, 11, 1)]:
-        for provider in ['torch', 'triton']:
-            bench_matmul(X, X, X, provider)
+    for X in [2**i for i in range(7, 10, 1)]:
+        for provider in ['test', 'torch', 'triton']:
+            bench_matmul(X, provider)

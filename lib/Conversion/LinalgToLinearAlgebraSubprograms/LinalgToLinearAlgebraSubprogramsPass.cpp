@@ -5,7 +5,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "triton-shared/Conversion/TritonToLinearAlgebraSubprograms/TritonToLinearAlgebraSubprograms.h"
+#include "triton-shared/Conversion/LinalgToLinearAlgebraSubprograms/LinalgToLinearAlgebraSubprograms.h"
 #include "triton-shared/Dialect/TritonStructured/IR/TritonStructuredDialect.h"
 #include "triton-shared/Dialect/TritonTilingExt/IR/TritonTilingExtDialect.h"
 #include "triton/Dialect/Triton/IR/Dialect.h"
@@ -27,24 +27,54 @@ using namespace triton;
 
 namespace mlir {
 namespace triton {
-#define GEN_PASS_DEF_TRITONTOLINEARALGEBRASUBPROGRAMS
-#include "triton-shared/Conversion/TritonToLinearAlgebraSubprograms/Passes.h.inc"
+#define GEN_PASS_DEF_LINALGTOLINEARALGEBRASUBPROGRAMS
+#include "triton-shared/Conversion/LinalgToLinearAlgebraSubprograms/Passes.h.inc"
 } // namespace triton
 } // namespace mlir
 
 namespace {
 
-struct MatmulConverter : public OpConversionPattern<triton::DotOp> {
-  using OpConversionPattern<triton::DotOp>::OpConversionPattern;
+struct MatmulConverter : public OpConversionPattern<linalg::MatmulOp> {
+  using OpConversionPattern<linalg::MatmulOp>::OpConversionPattern;
 
   LogicalResult
-  matchAndRewrite(triton::DotOp op, OpAdaptor adaptor,
+  matchAndRewrite(linalg::MatmulOp op, OpAdaptor adaptor,
                   ConversionPatternRewriter &rewriter) const override {
     Location loc = op.getLoc();
 
-    Value A = op.getA();
-    Value B = op.getB();
-    Value C = op.getC();
+    if (op.getInputs().size() != 2) {
+      LLVM_DEBUG(llvm::dbgs() << "Cannot replace, must be exactly two input matrices\n");
+      return failure();
+    }
+
+    Operation *resultOp;
+
+    Value A = op.getInputs()[0];
+    Value B = op.getInputs()[1];
+    Value C;
+
+    Value matmulResult = op.getResults()[0];
+    bool otherUsers = false;
+    bool found = false;
+
+    for (Operation *user : matmulResult.getUsers()) {
+        if (auto addFOp = dyn_cast<arith::AddFOp>(user)) {
+          if (!found) {
+            found = true;
+            C = addFOp.getLhs() == matmulResult ? addFOp.getRhs() : addFOp.getLhs();
+            resultOp = addFOp;
+            continue;
+          }
+        }
+        otherUsers = true;
+    }
+
+    bool replacingFOp = true;
+    if (otherUsers || !found) {
+      C = op.getOutputs()[0];
+      resultOp = op;
+      replacingFOp = false;
+    }
 
     auto tensorA = cast<RankedTensorType>(A.getType());
     auto tensorB = cast<RankedTensorType>(B.getType());
@@ -97,6 +127,11 @@ struct MatmulConverter : public OpConversionPattern<triton::DotOp> {
     };
 
     auto tensorToPointer = [&rewriter, &loc, &memrefToPointer](Value &V, RankedTensorType &T) {
+      if (auto tensorOp = V.getDefiningOp<bufferization::ToTensorOp>()) {
+        Value ref = tensorOp.getMemref();
+        return memrefToPointer(ref);
+      }
+
       Value memref = rewriter.create<bufferization::ToMemrefOp>(loc, MemRefType::get(T.getShape(), T.getElementType()), V);
       return memrefToPointer(memref);
     };
@@ -115,6 +150,9 @@ struct MatmulConverter : public OpConversionPattern<triton::DotOp> {
     auto constOp = [&rewriter, &loc, &intType](int32_t V) {
       return rewriter.create<arith::ConstantOp>(loc, intType, rewriter.getI32IntegerAttr(V));
       };
+
+    // constants below are from OpenBLAS library, check variable names for interpretation
+    // for more information check: https://github.com/OpenMathLib/OpenBLAS/blob/develop/cblas.h
     Value CblasRowMajor = constOp(101), CblasNoTrans = constOp(111);
     Value MVal = constOp(M), NVal = constOp(N), KVal = constOp(K);
     Value LDA = KVal, LDB = NVal, LDC = NVal;
@@ -129,21 +167,28 @@ struct MatmulConverter : public OpConversionPattern<triton::DotOp> {
 
     auto toTensorOp = rewriter.create<bufferization::ToTensorOp>(loc,
         tensorC, memrefC, true /* restrict */, true /* writable */);
-    rewriter.replaceOp(op, toTensorOp);
+
+    if (!replacingFOp) {
+      rewriter.replaceOp(op, toTensorOp);
+    } else {
+      rewriter.eraseOp(op);
+      rewriter.replaceOp(resultOp, toTensorOp);
+    }
+
     return success();
   }
 };
 
-class TritonToLinearAlgebraSubprogramsPass
-    : public triton::impl::TritonToLinearAlgebraSubprogramsBase<TritonToLinearAlgebraSubprogramsPass> {
-  using TritonToLinearAlgebraSubprogramsBase<
-      TritonToLinearAlgebraSubprogramsPass>::TritonToLinearAlgebraSubprogramsBase;
+class LinalgToLinearAlgebraSubprogramsPass
+    : public triton::impl::LinalgToLinearAlgebraSubprogramsBase<LinalgToLinearAlgebraSubprogramsPass> {
+  using LinalgToLinearAlgebraSubprogramsBase<
+      LinalgToLinearAlgebraSubprogramsPass>::LinalgToLinearAlgebraSubprogramsBase;
 
 public:
   void getDependentDialects(DialectRegistry &registry) const override {
     registry
-        .insert<linalg::LinalgDialect, func::FuncDialect, arith::ArithDialect, math::MathDialect,
-            affine::AffineDialect, scf::SCFDialect, tensor::TensorDialect, LLVM::LLVMDialect, triton::TritonDialect>();
+        .insert<linalg::LinalgDialect, func::FuncDialect, arith::ArithDialect, math::MathDialect, bufferization::BufferizationDialect,
+            affine::AffineDialect, scf::SCFDialect, tensor::TensorDialect, LLVM::LLVMDialect>();
   }
 
   void runOnOperation() override {
@@ -159,6 +204,27 @@ public:
         cf::ControlFlowDialect, tensor::TensorDialect,
         bufferization::BufferizationDialect, memref::MemRefDialect, LLVM::LLVMDialect>();
 
+
+    target.addDynamicallyLegalOp<linalg::MatmulOp>([](linalg::MatmulOp op) {
+        Value A = op.getInputs()[0];
+        Value B = op.getInputs()[1];
+
+        auto tensorA = cast<RankedTensorType>(A.getType());
+        auto tensorB = cast<RankedTensorType>(B.getType());
+
+        if (tensorA.getElementType() != tensorB.getElementType()) {
+          // no need to replace if types are different
+          return true;
+        }
+
+        if (!tensorA.getElementType().isF32() && !tensorA.getElementType().isF64()) {
+          // unsupported types
+          return true;
+        }
+
+        return false;  // MatmulOp is illegal, and transformation is needed
+    });
+
     if (failed(applyPartialConversion(moduleOp, target, std::move(patterns)))) {
       signalPassFailure();
     }
@@ -168,6 +234,6 @@ public:
 } // namespace
 
 std::unique_ptr<OperationPass<ModuleOp>>
-triton::createTritonToLinearAlgebraSubprogramsPass() {
-  return std::make_unique<TritonToLinearAlgebraSubprogramsPass>();
+triton::createLinalgToLinearAlgebraSubprogramsPass() {
+  return std::make_unique<LinalgToLinearAlgebraSubprogramsPass>();
 }
