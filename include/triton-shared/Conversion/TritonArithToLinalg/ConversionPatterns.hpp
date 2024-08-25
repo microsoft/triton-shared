@@ -998,7 +998,7 @@ struct MatmulConverter : public OpConversionPattern<triton::DotOp> {
     auto init =
         rewriter.create<tensor::EmptyOp>(loc, dstType.getShape(), elemType);
 
-    auto zero = rewriter.create<mlir::arith::ConstantOp>(
+    auto zero = rewriter.create<arith::ConstantOp>(
         op.getLoc(), elemType, rewriter.getFloatAttr(elemType, 0));
 
     auto zeroes =

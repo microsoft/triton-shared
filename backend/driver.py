@@ -12,6 +12,14 @@ from triton.runtime.cache import get_cache_manager
 from triton.backends.driver import DriverBase
 from triton.backends.compiler import GPUTarget
 
+
+# because of the way triton loads backends, this function is duplicated
+# in compiler and driver
+def _get_triton_shared_use_openblas() -> bool:
+    use_blas = os.getenv("TRITON_SHARED_USE_OPENBLAS", "")
+    return use_blas != ""
+
+
 # -------------------- Launcher ----------------------------
 def _ty_to_cpp(ty):
     if ty[0] == '*':
@@ -250,11 +258,12 @@ def compile_module(launcher_src, kernel_placeholder_name):
               so_path = os.path.join(tmpdir, "kernel.so")
               Path(asm_src_path).write_bytes(asm_src)
               Path(launcher_src_path).write_text(src)
+              extra_lib = ["-lopenblas"] if _get_triton_shared_use_openblas() else []
               # Compile it together.
               subprocess.check_call([
                 "g++", launcher_src_path, asm_src_path,
                 f"-I{py_include_dir}", f"-I{include_dir}",
-                "-shared", "-fPIC", "-o", so_path
+                "-shared", "-fPIC"] + extra_lib + ["-o", so_path
               ])
 
               with open(so_path, "rb") as f:
