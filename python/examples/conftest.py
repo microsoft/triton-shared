@@ -64,7 +64,6 @@ tests_not_supported = {
     "test_chain_reduce",
     "test_generic_reduction",
     "test_trans_4d",
-    "test_dot",
     "test_dot3d",
     "test_constexpr",
     "test_arange",
@@ -90,6 +89,8 @@ def pytest_collection_modifyitems(config, items):
     skip_marker = pytest.mark.skip(reason="CPU backend does not support it yet")
     # There is a dependency issue on build machine which breaks bfloat16
     skip_marker_bfloat = pytest.mark.skip(reason="bfloat16 linking issue")
+    skip_marker_tf32 = pytest.mark.skip(reason="tf32 is not supported on CPU")
+    skip_marker_float8 = pytest.mark.skip(reason="float8 is not supported on CPU")
 
     for item in items:
         test_func_name = item.originalname if item.originalname else item.name
@@ -102,3 +103,7 @@ def pytest_collection_modifyitems(config, items):
             for param_name, param_value in item.callspec.params.items():
                 if param_name.startswith('dtype') and param_value == 'bfloat16':
                     item.add_marker(skip_marker_bfloat)
+                if param_name.startswith('input_precision') and param_value.startswith('tf32'):
+                    item.add_marker(skip_marker_tf32)
+                if param_name.endswith('dtype') and param_value.startswith('float8'):
+                    item.add_marker(skip_marker_float8)

@@ -150,6 +150,34 @@ static std::optional<unsigned> getBitWidth(Type a) {
   return std::nullopt;
 }
 
+// true means tensor elements are zeros
+// false means not zero or it cannot be determined
+static bool isZeroTensor(Value &v, bool integers) {
+    if (auto splatOp = v.getDefiningOp<triton::SplatOp>()) {
+      if (auto constOp = splatOp.getSrc().getDefiningOp<arith::ConstantOp>()) {
+        if (auto val = dyn_cast<FloatAttr>(constOp.getValue())) {
+          return val.getValueAsDouble() == 0.;
+        }
+        if (auto val = dyn_cast<IntegerAttr>(constOp.getValue())) {
+          return val.getValue() == 0;
+        }
+      }
+      return false;
+    }
+
+    if (auto constOp = v.getDefiningOp<arith::ConstantOp>()) {
+      if (auto denseAttr = dyn_cast<DenseElementsAttr>(constOp.getValue())) {
+        if (denseAttr.isSplat()) {
+          if (integers)
+            return denseAttr.getSplatValue<APInt>().isZero();
+          return denseAttr.getSplatValue<APFloat>().isZero();
+        }
+      }
+    }
+
+    return false;
+}
+
 //===----------------------------------------------------------------------===//
 // Op Lowering Patterns
 //===----------------------------------------------------------------------===//
@@ -970,36 +998,23 @@ struct MatmulConverter : public OpConversionPattern<triton::DotOp> {
   LogicalResult
   matchAndRewrite(triton::DotOp op, OpAdaptor adaptor,
                   ConversionPatternRewriter &rewriter) const override {
+    auto loc = op.getLoc();
     auto opa = adaptor.getA();
     auto opb = adaptor.getB();
     auto opc = adaptor.getC();
-    auto opcOrig = op.getC();
-
-    bool skipC = false;
-    if (auto splatOp = opcOrig.getDefiningOp<triton::SplatOp>()) {
-      if (auto val = splatOp.getSrc().getDefiningOp<arith::ConstantOp>()) {
-        if (cast<FloatAttr>(val.getValue()).getValueAsDouble() == 0.) {
-          skipC = true;
-        }
-      }
-    } else if (auto constOp = opcOrig.getDefiningOp<arith::ConstantOp>()) {
-      if (auto denseAttr = dyn_cast<DenseElementsAttr>(constOp.getValue())) {
-        if (denseAttr.isSplat() &&
-            denseAttr.getSplatValue<FloatAttr>().getValueAsDouble() == 0.) {
-          skipC = true;
-        }
-      }
-    }
 
     auto dstType = cast<RankedTensorType>(op.getType());
-    auto elemType = dstType.getElementType();
-    auto loc = op.getLoc();
-
+    auto elementType = dstType.getElementType();
+    bool integers = elementType.isInteger();
+    bool skipC = isZeroTensor(opc, integers);
     auto init =
-        rewriter.create<tensor::EmptyOp>(loc, dstType.getShape(), elemType);
+        rewriter.create<tensor::EmptyOp>(loc, dstType.getShape(), elementType);
+    TypedAttr constantAttr = integers ?
+      static_cast<TypedAttr>(rewriter.getIntegerAttr(elementType, 0)) :
+      static_cast<TypedAttr>(rewriter.getFloatAttr(elementType, 0));
 
     auto zero = rewriter.create<mlir::arith::ConstantOp>(
-        op.getLoc(), elemType, rewriter.getFloatAttr(elemType, 0));
+        op.getLoc(), elementType, constantAttr);
 
     auto zeroes =
         rewriter.create<linalg::FillOp>(loc, ValueRange{zero}, ValueRange{init})
@@ -1011,7 +1026,11 @@ struct MatmulConverter : public OpConversionPattern<triton::DotOp> {
                    .getResult(0);
 
     if (!skipC) {
-      res = rewriter.create<arith::AddFOp>(loc, res, opc);
+      if (integers) {
+        res = rewriter.create<arith::AddIOp>(loc, res, opc);
+      } else {
+        res = rewriter.create<arith::AddFOp>(loc, res, opc);
+      }
     }
 
     rewriter.replaceOp(op, res);
