@@ -150,34 +150,6 @@ static std::optional<unsigned> getBitWidth(Type a) {
   return std::nullopt;
 }
 
-// true means tensor elements are zeros
-// false means not zero or it cannot be determined
-static bool isZeroTensor(Value &v, bool integers) {
-    if (auto splatOp = v.getDefiningOp<triton::SplatOp>()) {
-      if (auto constOp = splatOp.getSrc().getDefiningOp<arith::ConstantOp>()) {
-        if (auto val = dyn_cast<FloatAttr>(constOp.getValue())) {
-          return val.getValueAsDouble() == 0.;
-        }
-        if (auto val = dyn_cast<IntegerAttr>(constOp.getValue())) {
-          return val.getValue() == 0;
-        }
-      }
-      return false;
-    }
-
-    if (auto constOp = v.getDefiningOp<arith::ConstantOp>()) {
-      if (auto denseAttr = dyn_cast<DenseElementsAttr>(constOp.getValue())) {
-        if (denseAttr.isSplat()) {
-          if (integers)
-            return denseAttr.getSplatValue<APInt>().isZero();
-          return denseAttr.getSplatValue<APFloat>().isZero();
-        }
-      }
-    }
-
-    return false;
-}
-
 //===----------------------------------------------------------------------===//
 // Op Lowering Patterns
 //===----------------------------------------------------------------------===//
@@ -995,13 +967,41 @@ struct MulHiUIOpConverter : public OpConversionPattern<triton::MulhiUIOp> {
 struct MatmulConverter : public OpConversionPattern<triton::DotOp> {
   using OpConversionPattern<triton::DotOp>::OpConversionPattern;
 
+  // true means tensor elements are zeros
+  // false means not zero or it cannot be determined
+  bool isZeroTensor(Value &v, bool integers) {
+      if (auto splatOp = v.getDefiningOp<triton::SplatOp>()) {
+        if (auto constOp = splatOp.getSrc().getDefiningOp<arith::ConstantOp>()) {
+          if (auto val = dyn_cast<FloatAttr>(constOp.getValue())) {
+            return val.getValueAsDouble() == 0.;
+          }
+          if (auto val = dyn_cast<IntegerAttr>(constOp.getValue())) {
+            return val.getValue() == 0;
+          }
+        }
+        return false;
+      }
+
+      if (auto constOp = v.getDefiningOp<arith::ConstantOp>()) {
+        if (auto denseAttr = dyn_cast<DenseElementsAttr>(constOp.getValue())) {
+          if (denseAttr.isSplat()) {
+            if (integers)
+              return denseAttr.getSplatValue<APInt>().isZero();
+            return denseAttr.getSplatValue<APFloat>().isZero();
+          }
+        }
+      }
+
+      return false;
+  }
+
   LogicalResult
   matchAndRewrite(triton::DotOp op, OpAdaptor adaptor,
                   ConversionPatternRewriter &rewriter) const override {
     auto loc = op.getLoc();
-    auto opa = adaptor.getA();
-    auto opb = adaptor.getB();
-    auto opc = adaptor.getC();
+    auto opa = op.getA();
+    auto opb = op.getB();
+    auto opc = op.getC();
 
     auto dstType = cast<RankedTensorType>(op.getType());
     auto elementType = dstType.getElementType();
