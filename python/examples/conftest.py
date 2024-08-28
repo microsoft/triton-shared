@@ -105,5 +105,5 @@ def pytest_collection_modifyitems(config, items):
                     item.add_marker(skip_marker_bfloat)
                 if param_name.startswith('input_precision') and param_value.startswith('tf32'):
                     item.add_marker(skip_marker_tf32)
-                if param_name.endswith('dtype') and param_value.startswith('float8'):
+                if param_name.endswith('dtype') and ('float8' in str(param_value)):
                     item.add_marker(skip_marker_float8)
