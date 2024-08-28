@@ -101,7 +101,7 @@ def pytest_collection_modifyitems(config, items):
 
         if "parametrize" in item.keywords:
             for param_name, param_value in item.callspec.params.items():
-                if param_name.startswith('dtype') and param_value == 'bfloat16':
+                if (param_name.startswith('dtype') or param_name.endswith('dtype')) and param_value == 'bfloat16':
                     item.add_marker(skip_marker_bfloat)
                 if param_name.startswith('input_precision') and param_value.startswith('tf32'):
                     item.add_marker(skip_marker_tf32)
