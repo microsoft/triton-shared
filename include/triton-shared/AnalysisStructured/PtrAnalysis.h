@@ -194,6 +194,9 @@ public:
   LogicalResult visitOperandConstSplat(arith::ConstantOp op, PtrState &state,
                                        const Location loc, OpBuilder &builder);
 
+  LogicalResult visitOperandExtSI(arith::ExtSIOp, PtrState &state,
+                                  const Location loc, OpBuilder &builder);
+
   // Operand is the result of addptr.
   // Main assumptions:
   //  The ptr field should populate the source field
