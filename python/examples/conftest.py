@@ -32,7 +32,6 @@ tests_not_supported = {
     "test_tensor_atomic_rmw_block",
     "test_nested_if_else_return",
     "test_ptx_cast",
-    "test_compare_op",
     "test_maxnreg",
     "test_join",
     "test_join_scalars",
