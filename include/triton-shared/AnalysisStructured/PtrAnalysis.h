@@ -238,6 +238,8 @@ public:
   // PtrState for knownPtrs.
   LogicalResult rewriteAddptrOp(triton::AddPtrOp op);
 
+  LogicalResult rewriteBitcastOp(triton::BitcastOp op);
+
   LogicalResult rewriteMakeTensorPtrOp(triton::MakeTensorPtrOp op);
 
   LogicalResult rewriteAdvanceOp(triton::AdvanceOp op);

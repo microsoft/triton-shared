@@ -34,7 +34,7 @@ def TTS_MakeTensorPtrOp
   : TTS_Op<"make_tptr", [AttrSizedOperandSegments, Pure]> {
   let summary = "create a pointer that points to a tensor in memory";
 
-  // base:    Base pointer used to contruct the tensor of pointers or pointer to tensor.
+  // base:    Base pointer used to construct the tensor of pointers or pointer to tensor.
   // sizes:   Size of the data being loaded or stored.
   // strides: The strides of the parent tensor, which means how much to increase the pointer
   //          by when moving by 1 element in a specific axis.
@@ -118,6 +118,19 @@ def TTS_MakeTensorPtrOp
   // TODO
   //let hasVerifier = 1;
   //let hasCanonicalizer = 1;
+}
+
+def TTS_CastTensorPtrOp : TTS_Op<"cast_tptr", [SameOperandsAndResultShape,
+                                     Pure]> {
+    let summary = "Cast between types tensor pointers";
+
+    let arguments = (ins TT_PtrLike:$src);
+
+    let results = (outs TT_PtrLike:$result);
+
+    let assemblyFormat = "$src attr-dict `:` type($src) `->` type($result)";
+
+    // TODO: Add verifier
 }
 
 // SameVariadicResultSize
