@@ -39,6 +39,16 @@ sudo apt-get install -y ccache clang lld
 TRITON_BUILD_WITH_CLANG_LLD=true TRITON_BUILD_WITH_CCACHE=true python3 -m pip install --no-build-isolation -vvv '.[tests]'
 ```
 
+To run with clang-tidy:
+
+```sh
+sudo apt install -y bear clang-tidy
+TRITON_BUILD_WITH_CLANG_LLD=true TRITON_BUILD_WITH_CCACHE=true bear -- pip install --no-build-isolation -vvv '.[tests]'
+cd ../../
+python filter_compile_commands.py
+run-clang-tidy
+```
+
 To build with a virtualenv:
 
 ```

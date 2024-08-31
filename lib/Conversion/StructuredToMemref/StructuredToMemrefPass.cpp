@@ -333,7 +333,7 @@ public:
       return failure();
     }
 
-    PassManager pm(&getContext(), moduleOp.getOperationName());
+    PassManager pm(&getContext(), mlir::ModuleOp::getOperationName());
     pm.addPass(createCanonicalizerPass());
     if (failed(runPipeline(pm, getOperation()))) {
       return failure();
@@ -343,8 +343,6 @@ public:
   }
 
   void runOnOperation() override {
-    auto moduleOp = getOperation();
-
     if (failed(convertArgsToMemrefType())) {
       signalPassFailure();
       return;
@@ -385,7 +383,7 @@ public:
     }
 
     // Erase dead code and fold constants created during lowering
-    PassManager pm(&getContext(), moduleOp.getOperationName());
+    PassManager pm(&getContext(), mlir::ModuleOp::getOperationName());
     pm.addPass(createCanonicalizerPass());
     if (failed(runPipeline(pm, getOperation()))) {
       signalPassFailure();

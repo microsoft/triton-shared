@@ -20,25 +20,32 @@ LogicalResult MaskState::parse(Value operand, const Location loc,
                                OpBuilder &builder) {
   if (auto op = operand.getDefiningOp<arith::ConstantOp>()) {
     return this->parseConstant(op, loc, builder);
-  } else if (isa<IntegerType>(operand.getType())) {
-    return this->parseIntScalar(operand, loc, builder);
-  } else if (auto op = operand.getDefiningOp<arith::AddIOp>()) {
-    return this->parseAdd(op, loc, builder);
-  } else if (auto op = operand.getDefiningOp<arith::AndIOp>()) {
-    return this->parseAnd(op, loc, builder);
-  } else if (auto op = operand.getDefiningOp<arith::CmpIOp>()) {
-    return this->parseCmp(op, loc, builder);
-  } else if (auto op = operand.getDefiningOp<triton::MakeRangeOp>()) {
-    return this->parseMakeRange(op, loc, builder);
-  } else if (auto op = operand.getDefiningOp<triton::BroadcastOp>()) {
-    return this->parseBroadcast(op, loc, builder);
-  } else if (auto op = operand.getDefiningOp<triton::SplatOp>()) {
-    return this->parseSplat(op, loc, builder);
-  } else if (auto op = operand.getDefiningOp<triton::ExpandDimsOp>()) {
-    return this->parseExpandDims(op, loc, builder);
-  } else {
-    return failure();
   }
+  if (isa<IntegerType>(operand.getType())) {
+    return this->parseIntScalar(operand, loc, builder);
+  }
+  if (auto op = operand.getDefiningOp<arith::AddIOp>()) {
+    return this->parseAdd(op, loc, builder);
+  }
+  if (auto op = operand.getDefiningOp<arith::AndIOp>()) {
+    return this->parseAnd(op, loc, builder);
+  }
+  if (auto op = operand.getDefiningOp<arith::CmpIOp>()) {
+    return this->parseCmp(op, loc, builder);
+  }
+  if (auto op = operand.getDefiningOp<triton::MakeRangeOp>()) {
+    return this->parseMakeRange(op, loc, builder);
+  }
+  if (auto op = operand.getDefiningOp<triton::BroadcastOp>()) {
+    return this->parseBroadcast(op, loc, builder);
+  }
+  if (auto op = operand.getDefiningOp<triton::SplatOp>()) {
+    return this->parseSplat(op, loc, builder);
+  }
+  if (auto op = operand.getDefiningOp<triton::ExpandDimsOp>()) {
+    return this->parseExpandDims(op, loc, builder);
+  }
+  return failure();
 }
 
 tensor::ExtractSliceOp MaskState::getExtractSlice(Value source,

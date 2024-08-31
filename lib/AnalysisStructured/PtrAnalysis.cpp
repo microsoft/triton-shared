@@ -76,9 +76,8 @@ static Value getScalarValue(Value operand, Location loc, OpBuilder &builder) {
     } else if (auto op = operand.getDefiningOp<arith::ConstantOp>()) {
       if (auto attr = dyn_cast<DenseElementsAttr>(op.getValue())) {
         if (!attr.isSplat()) {
-          InFlightDiagnostic diag = emitError(loc)
-                                    << "other value used in masked load "
-                                       "produced by unsupported instruction";
+          emitError(loc) << "other value used in masked load "
+                            "produced by unsupported instruction";
           return nullptr;
         }
         auto elemValue = attr.getSplatValue<Attribute>();
@@ -95,9 +94,8 @@ static Value getScalarValue(Value operand, Location loc, OpBuilder &builder) {
       ops.push_back(op.getOperation());
       operand = op.getIn();
     } else {
-      InFlightDiagnostic diag = emitError(loc)
-                                << "other value used in masked load produced "
-                                   "by unsupported instruction";
+      emitError(loc) << "other value used in masked load produced "
+                        "by unsupported instruction";
       return nullptr;
     }
   }
@@ -220,9 +218,7 @@ LogicalResult PtrState::addState(const PtrState &lhsState,
   }
 
   for (uint64_t i = 0; i < lhs->getRank(); i++) {
-    if (!lhs->dimHasModulo(i)) {
-      shape.push_back(lhs->shape[i]);
-    } else if (hasConstZero(rhs->offsets[i])) {
+    if (!lhs->dimHasModulo(i) || hasConstZero(rhs->offsets[i])) {
       shape.push_back(lhs->shape[i]);
     } else if (i == 0 && lhs->getRank() == 2 && rhs->scalar) {
       shape.push_back(lhs->shape[1]);
@@ -730,37 +726,46 @@ LogicalResult PtrAnalysis::visitOperand(Value operand, PtrState &state,
 
   if (auto op = operand.getDefiningOp<arith::AddIOp>()) {
     return visitOperandAdd(op, state, loc, builder);
-  } else if (auto op = operand.getDefiningOp<arith::MulIOp>()) {
+  }
+  if (auto op = operand.getDefiningOp<arith::MulIOp>()) {
     return visitOperandMul(op, state, loc, builder);
-  } else if (auto op = operand.getDefiningOp<triton::MakeRangeOp>()) {
+  }
+  if (auto op = operand.getDefiningOp<triton::MakeRangeOp>()) {
     return visitOperandMakeRange(op, state, loc, builder);
-  } else if (auto op = operand.getDefiningOp<triton::BroadcastOp>()) {
+  }
+  if (auto op = operand.getDefiningOp<triton::BroadcastOp>()) {
     return visitOperandBroadcast(op, state, loc, builder);
-  } else if (auto op = operand.getDefiningOp<triton::SplatOp>()) {
+  }
+  if (auto op = operand.getDefiningOp<triton::SplatOp>()) {
     return visitOperandSplat(op, state, loc, builder);
-  } else if (auto op = operand.getDefiningOp<triton::ExpandDimsOp>()) {
+  }
+  if (auto op = operand.getDefiningOp<triton::ExpandDimsOp>()) {
     return visitOperandExpandDims(op, state, loc, builder);
-  } else if (auto op = operand.getDefiningOp<triton::AddPtrOp>()) {
+  }
+  if (auto op = operand.getDefiningOp<triton::AddPtrOp>()) {
     return visitOperandAddptr(op, state, loc, builder);
-  } else if (auto op = operand.getDefiningOp<arith::ConstantOp>()) {
+  }
+  if (auto op = operand.getDefiningOp<arith::ConstantOp>()) {
     return visitOperandConstSplat(op, state, loc, builder);
-  } else if (auto op = operand.getDefiningOp<arith::RemSIOp>()) {
+  }
+  if (auto op = operand.getDefiningOp<arith::RemSIOp>()) {
     return visitOperandRem(op, state, loc, builder);
-  } else if (auto op = operand.getDefiningOp<scf::ForOp>()) {
+  }
+  if (auto op = operand.getDefiningOp<scf::ForOp>()) {
     return visitOperandForOp(op, operand, state, loc, builder);
-  } else if (!operand.getDefiningOp()) {
+  }
+  if (operand.getDefiningOp() == nullptr) {
     // This operand must be an iter-arg of an inner-loop in a multiple-level
     // nested loop, which means its PtrState must have already been populated
     // during rewriteForOp of the parent loop.
     assert(knownPtrs.contains(operand));
     state = knownPtrs[operand];
     return success();
-  } else {
-    llvm::dbgs() << "PtrAnalysis: encountered addptr operand produced by an "
-                    "unsupported operation\n";
-    operand.dump();
-    return failure();
   }
+  llvm::dbgs() << "PtrAnalysis: encountered addptr operand produced by an "
+                  "unsupported operation\n";
+  operand.dump();
+  return failure();
 }
 
 LogicalResult PtrAnalysis::rewriteAddptrOp(triton::AddPtrOp op) {

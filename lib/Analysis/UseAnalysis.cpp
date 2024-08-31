@@ -118,7 +118,8 @@ LogicalResult triton::runUseAnalysis(triton::FuncOp &funcOp) {
     if (useType == UseType::Undefined) {
       LLVM_DEBUG({ op->setAttr("Undefined", UnitAttr::get(context)); });
       return;
-    } else if (useType == UseType::MetaUse) {
+    }
+    if (useType == UseType::MetaUse) {
       assert(op->getNumResults() == 1 &&
              "Ops used for meta computation are expected to have one result");
       // Only set the tag if the operation uses tensors
@@ -127,7 +128,8 @@ LogicalResult triton::runUseAnalysis(triton::FuncOp &funcOp) {
         op->setAttr("MetaUse", UnitAttr::get(context));
       }
       return;
-    } else if (useType == UseType::DataUse) {
+    }
+    if (useType == UseType::DataUse) {
       LLVM_DEBUG({ op->setAttr("DataUse", UnitAttr::get(context)); });
       return;
     }

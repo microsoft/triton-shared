@@ -68,8 +68,6 @@ public:
   }
 
   LogicalResult convertToPointerTupleWithOffsetsAndStrides() {
-    auto moduleOp = getOperation();
-
     RewritePatternSet patterns(&getContext());
 
     auto context = &getContext();
@@ -153,7 +151,7 @@ public:
       return failure();
     }
 
-    PassManager pm(&getContext(), moduleOp.getOperationName());
+    PassManager pm(&getContext(), mlir::ModuleOp::getOperationName());
     pm.addPass(createCanonicalizerPass());
     if (failed(runPipeline(pm, getOperation()))) {
       return failure();
@@ -163,8 +161,6 @@ public:
   }
 
   LogicalResult decomposePointerTuple() {
-    auto moduleOp = getOperation();
-
     auto context = &getContext();
     OneToNTypeConverter converter;
     converter.addConversion([](Type type) { return type; });
@@ -221,7 +217,7 @@ public:
     // Be careful not to run canonicalization here, because the
     // tts.get_structured_state ops created above are just placeholders and
     // don't have any effects. Canonicalization will remove them altogether.
-    PassManager pm(&getContext(), moduleOp.getOperationName());
+    PassManager pm(&getContext(), mlir::ModuleOp::getOperationName());
     pm.addPass(mlir::createReconcileUnrealizedCastsPass());
     if (failed(runPipeline(pm, getOperation()))) {
       signalPassFailure();

@@ -69,9 +69,15 @@ jobs:
         python3 -m pip install --upgrade pip
         python3 -m pip install cmake==3.24 ninja pytest-xdist
         sudo apt-get update -y
-        sudo apt-get install -y ccache clang lld
+        sudo apt-get install -y ccache clang lld bear clang-tidy
         export TRITON_PLUGIN_DIRS="${GITHUB_WORKSPACE}/triton_shared"
-        TRITON_BUILD_WITH_CLANG_LLD=true TRITON_BUILD_WITH_CCACHE=true python3 -m pip install --no-build-isolation -vvv '.[tests]'
+        TRITON_BUILD_WITH_CLANG_LLD=true TRITON_BUILD_WITH_CCACHE=true bear -- pip install --no-build-isolation -vvv '.[tests]'
+
+    - name: Run clang-tidy
+      working-directory: triton_shared/
+      run: |
+        python3 filter_compile_commands.py
+        run-clang-tidy
 
     - name: Run shared middle-layer lit tests
       working-directory: triton_shared/triton/python
