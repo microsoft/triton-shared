@@ -1027,7 +1027,7 @@ struct CatConverter : public OpConversionPattern<triton::CatOp> {
   matchAndRewrite(triton::CatOp op, OpAdaptor adaptor,
                   ConversionPatternRewriter &rewriter) const override {
     auto replacement = rewriter.create<tensor::ConcatOp>(
-        op.getLoc(), adaptor.getOperands());
+        op.getLoc(), 0 /* concat dimension */, adaptor.getOperands());
 
     rewriter.replaceOp(op, replacement);
 
