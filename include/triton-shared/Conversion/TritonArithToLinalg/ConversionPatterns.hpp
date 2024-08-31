@@ -1026,46 +1026,10 @@ struct CatConverter : public OpConversionPattern<triton::CatOp> {
   LogicalResult
   matchAndRewrite(triton::CatOp op, OpAdaptor adaptor,
                   ConversionPatternRewriter &rewriter) const override {
-    auto loc = op.getLoc();
-    auto lhs = op.getLhs();
-    auto rhs = op.getRhs();
-    auto lhsType = cast<RankedTensorType>(lhs.getType());
-    auto resultType = cast<RankedTensorType>(op.getResult().getType());
-    Value emptyTensor = rewriter.create<tensor::EmptyOp>(loc, resultType.getShape(), resultType.getElementType());
+    auto replacement = rewriter.create<tensor::ConcatOp>(
+        op.getLoc(), adaptor.getOperands());
 
-    auto mapAll = AffineMap::get(1, 0, rewriter.getAffineDimExpr(0), rewriter.getContext());
-    auto mapFirstHalf = AffineMap::get(1, 0, lhsType.getShape()[0] - 1 - rewriter.getAffineDimExpr(0), rewriter.getContext());
-    auto mapSecondHalf = AffineMap::get(1, 0, rewriter.getAffineDimExpr(0) + lhsType.getShape()[0], rewriter.getContext());
-
-    auto allParallel = getNParallelLoopsAttrs(resultType.getRank());
-
-    auto yieldFirstArg = [](OpBuilder &nestedBuilder, Location nestedLoc, ValueRange args) {
-          nestedBuilder.create<linalg::YieldOp>(nestedLoc, args[0]);
-        };
-
-    auto fistPart = rewriter.create<linalg::GenericOp>(
-        loc,
-        resultType,
-        /*inputs=*/ValueRange{lhs},
-        /*outputs=*/ValueRange{emptyTensor},
-        /*indexing maps=*/ArrayRef<AffineMap>{
-            mapAll,  // lhs
-            mapFirstHalf}, // result
-        allParallel,
-        yieldFirstArg);
-
-    auto secondPart = rewriter.create<linalg::GenericOp>(
-        loc,
-        resultType,
-        /*inputs=*/ValueRange{rhs},
-        fistPart->getResults(),
-        /*indexing maps=*/ArrayRef<AffineMap>{
-            mapAll,  // rhs
-            mapSecondHalf},  // result
-        allParallel,
-        yieldFirstArg);
-
-    rewriter.replaceOp(op, secondPart->getResults());
+    rewriter.replaceOp(op, replacement);
 
     return success();
   }
