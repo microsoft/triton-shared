@@ -39,18 +39,18 @@
 using namespace mlir;
 using namespace triton;
 
-namespace mlir {
-namespace triton {
+
+namespace mlir::triton {
 #define GEN_PASS_DEF_STRUCTUREDTOMEMREF
 #include "triton-shared/Conversion/StructuredToMemref/Passes.h.inc"
-} // namespace triton
-} // namespace mlir
+} // namespace mlir::triton
+
 
 namespace {
 
-static MemRefType getMemrefTypeForScalarPtr(triton::PointerType ptrType,
+MemRefType getMemrefTypeForScalarPtr(triton::PointerType ptrType,
                                             MLIRContext *context) {
-  SmallVector<int64_t> strides{1};
+  SmallVector<int64_t> const strides{1};
   auto layout = StridedLayoutAttr::get(context, ShapedType::kDynamic, strides);
 
   auto elemType = ptrType.getPointeeType();
@@ -79,7 +79,7 @@ public:
 
 class LoopTypeConverter : public TypeConverter {
 public:
-  LoopTypeConverter(MLIRContext *context) {
+  explicit LoopTypeConverter(MLIRContext *context) {
     // The order of type conversion is important: later ones are tried earlier.
     addConversion([](Type type) { return type; });
     addConversion([context](triton::PointerType ptrType) {
@@ -97,7 +97,7 @@ public:
                 context, ShapedType::kDynamic,
                 SmallVector<int64_t>(tensorType.getRank(),
                                      ShapedType::kDynamic));
-            Type elemType = ptrType.getPointeeType();
+            Type const elemType = ptrType.getPointeeType();
             return MemRefType::get(tensorType.getShape(), elemType, layout);
           }
 
@@ -159,7 +159,7 @@ struct ScalarAddptrConverter
   }
 };
 
-static std::optional<SmallVector<Value>>
+std::optional<SmallVector<Value>>
 buildCastAndOffsetOps(OpBuilder &builder, TypeRange resultTypes, Value input,
                       Location loc) {
   assert(resultTypes.size() == 2 && isa<MemRefType>(resultTypes[0]) &&
@@ -193,10 +193,10 @@ buildCastAndOffsetOps(OpBuilder &builder, TypeRange resultTypes, Value input,
   return SmallVector<Value>{cast, zero};
 }
 
-static std::optional<Value> buildCastOp(OpBuilder &builder, Type resultType,
+std::optional<Value> buildCastOp(OpBuilder &builder, Type resultType,
                                         ValueRange inputs, Location loc) {
   assert(isa<triton::PointerType>(resultType));
-  assert(inputs.size() && isa<MemRefType>(inputs[0].getType()) &&
+  assert(!inputs.empty() && isa<MemRefType>(inputs[0].getType()) &&
          isa<IndexType>(inputs[1].getType()));
   return builder.create<UnrealizedConversionCastOp>(loc, resultType, inputs[0])
       .getResult(0);
@@ -296,7 +296,7 @@ public:
 
     RewritePatternSet patterns(&getContext());
 
-    auto context = &getContext();
+    auto *context = &getContext();
     OneToNTypeConverter converter;
     converter.addConversion([](Type type) { return type; });
 

@@ -70,7 +70,7 @@ public:
   LogicalResult convertToPointerTupleWithOffsetsAndStrides() {
     RewritePatternSet patterns(&getContext());
 
-    auto context = &getContext();
+    auto *context = &getContext();
     OneToNTypeConverter converter;
     converter.addConversion([](Type type) { return type; });
 
@@ -161,7 +161,7 @@ public:
   }
 
   LogicalResult decomposePointerTuple() {
-    auto context = &getContext();
+    auto *context = &getContext();
     OneToNTypeConverter converter;
     converter.addConversion([](Type type) { return type; });
 
@@ -185,9 +185,9 @@ public:
     // intended because the ops that currently take "pointer tuple type" are
     // `unrealized_conversion_cast` ops which will get removed below during
     // reconcile-unrealized-conversion-casts.
-    auto materialize = [](OpBuilder &builder, Type resultType,
+    auto materialize = [](OpBuilder & /*builder*/, Type  /*resultType*/,
                           ValueRange inputs,
-                          Location loc) { return inputs[0]; };
+                          Location  /*loc*/) { return inputs[0]; };
     converter.addArgumentMaterialization(materialize);
     converter.addSourceMaterialization(materialize);
 

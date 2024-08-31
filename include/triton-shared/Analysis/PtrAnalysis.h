@@ -135,7 +135,7 @@ public:
                   const llvm::SmallDenseMap<Value, PtrState> &knownPtrs);
 
   static void
-  visitOperandRem(arith::RemSIOp mulOp, PtrState &state, const Location loc,
+  visitOperandRem(arith::RemSIOp remOp, PtrState &state, const Location loc,
                   ConversionPatternRewriter &rewriter,
                   const llvm::SmallDenseMap<Value, PtrState> &knownPtrs);
 

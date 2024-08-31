@@ -167,7 +167,7 @@ public:
             return true;
           }
 
-          bool operateOnTensors =
+          bool const operateOnTensors =
               llvm::all_of(op->getOperandTypes(), [](Type type) {
                 return isa<RankedTensorType>(type);
               });
@@ -191,7 +191,8 @@ public:
       auto name = func.getName();
       auto type = func.getFunctionType();
 
-      SmallVector<DictionaryAttr> argAttrs, resAttrs;
+      SmallVector<DictionaryAttr> argAttrs;
+      SmallVector<DictionaryAttr> resAttrs;
       func.getAllArgAttrs(argAttrs);
       func.getAllResultAttrs(resAttrs);
 
@@ -206,7 +207,7 @@ public:
       funcBody.cloneInto(&funcFuncBody, map);
 
       for (Block &block : funcFuncBody.getBlocks()) {
-        auto term = block.getTerminator();
+        auto *term = block.getTerminator();
         builder.setInsertionPoint(term);
         builder.create<func::ReturnOp>(func.getLoc(), term->getOperands());
         term->erase();

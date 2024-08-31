@@ -27,8 +27,8 @@ using namespace mlir::ttx;
 void ttx::CumSumOp::build(OpBuilder &odsBuilder, OperationState &odsState,
                           Value input, IntegerAttr axis, Value output,
                           ArrayRef<NamedAttribute> attributes) {
-  SmallVector<Value> inputs{input};
-  SmallVector<Value> outputs{output};
+  SmallVector<Value> const inputs{input};
+  SmallVector<Value> const outputs{output};
   odsState.addOperands(inputs);
   odsState.addOperands(outputs);
   odsState.addAttribute(
@@ -59,12 +59,12 @@ mlir::LogicalResult ttx::CumSumOp::verify() {
     return emitOpError("Input and output types must be the same.");
   }
 
-  int64_t rank = getRank();
+  int64_t const rank = getRank();
   if (rank != 1 && rank != 2) {
     return emitOpError("CumSum op only takes tensors of rank 1 & 2.");
   }
 
-  int64_t axis = getAxis();
+  int64_t const axis = getAxis();
   if (axis != rank - 1) {
     return emitOpError("CumSum computation only supports axis == rank - 1");
   }
@@ -74,14 +74,14 @@ mlir::LogicalResult ttx::CumSumOp::verify() {
 
 AffineMap ttx::CumSumOp::getInputIndexingMap(MLIRContext *context,
                                              unsigned int index,
-                                             ArrayRef<OpFoldResult> sizes) {
+                                             ArrayRef<OpFoldResult>  /*sizes*/) {
   assert(index == 0);
   return AffineMap::getMultiDimIdentityMap(getRank(), context);
 }
 
 AffineMap ttx::CumSumOp::getOutputIndexingMap(MLIRContext *context,
                                               unsigned int index,
-                                              ArrayRef<OpFoldResult> sizes) {
+                                              ArrayRef<OpFoldResult>  /*sizes*/) {
   assert(index == 0);
   return AffineMap::getMultiDimIdentityMap(getRank(), context);
 }
@@ -94,7 +94,7 @@ SmallVector<utils::IteratorType> ttx::CumSumOp::getLoopIteratorTypes() {
 }
 
 SmallVector<Range> ttx::CumSumOp::getIterationDomain(OpBuilder &b) {
-  OpBuilder::InsertionGuard g(b);
+  OpBuilder::InsertionGuard const g(b);
   b.setInsertionPoint(*this);
   auto loc = getLoc();
   auto zero = b.getIndexAttr(0);
@@ -105,7 +105,7 @@ SmallVector<Range> ttx::CumSumOp::getIterationDomain(OpBuilder &b) {
   // tiling the inner most dimension, otherwise the semantic of the resulting op
   // is incorrect.
   for (auto i = 0; i < getRank(); i++) {
-    OpFoldResult upperbound = linalg::createFoldedDimOp(b, loc, getInput(), i);
+    OpFoldResult const upperbound = linalg::createFoldedDimOp(b, loc, getInput(), i);
     iterationDomain.push_back(Range{zero, upperbound, one});
   }
   return iterationDomain;

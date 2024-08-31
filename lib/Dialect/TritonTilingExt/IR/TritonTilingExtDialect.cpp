@@ -21,22 +21,22 @@ using namespace mlir;
 using namespace mlir::ttx;
 using namespace mlir::linalg;
 
-namespace mlir {
-namespace ttx {
+
+namespace mlir::ttx {
 
 Value getSlice(OpBuilder &b, Location loc, Value source,
                ArrayRef<OpFoldResult> offsets, ArrayRef<OpFoldResult> sizes,
                ArrayRef<OpFoldResult> strides) {
   return TypeSwitch<Type, Value>(source.getType())
-      .Case<RankedTensorType>([&](RankedTensorType t) -> Value {
+      .Case<RankedTensorType>([&](RankedTensorType  /*t*/) -> Value {
         return b.create<tensor::ExtractSliceOp>(loc, source, offsets, sizes,
                                                 strides);
       })
-      .Case<MemRefType>([&](MemRefType type) -> Value {
+      .Case<MemRefType>([&](MemRefType  /*type*/) -> Value {
         return b.create<memref::SubViewOp>(loc, source, offsets, sizes,
                                            strides);
       })
-      .Default([&](Type t) { return nullptr; });
+      .Default([&](Type  /*t*/) { return nullptr; });
 }
 
 //
@@ -148,13 +148,13 @@ FailureOr<TilingResult> getTiledImplementation(TritonTilingExtOpTy op,
                                                OpBuilder &b,
                                                ArrayRef<OpFoldResult> offsets,
                                                ArrayRef<OpFoldResult> sizes) {
-  Location loc = op->getLoc();
+  Location const loc = op->getLoc();
   SmallVector<Value> valuesToTile = op->getOperands();
   SmallVector<Value> tiledValues;
   auto oneAttr = b.getI64IntegerAttr(1);
 
   for (OpOperand &opOperand : op->getOpOperands()) {
-    unsigned int index = opOperand.getOperandNumber();
+    unsigned int const index = opOperand.getOperandNumber();
     auto val = valuesToTile[index];
     auto type = dyn_cast<ShapedType>(val.getType());
 
@@ -166,24 +166,24 @@ FailureOr<TilingResult> getTiledImplementation(TritonTilingExtOpTy op,
     auto rank = type.getRank();
     SmallVector<OpFoldResult> newOffsets;
     SmallVector<OpFoldResult> newSizes;
-    SmallVector<OpFoldResult> newStrides(rank, oneAttr);
+    SmallVector<OpFoldResult> const newStrides(rank, oneAttr);
 
-    llvm::SmallVector<mlir::OpFoldResult> composedTileSizes =
+    llvm::SmallVector<mlir::OpFoldResult> const composedTileSizes =
         linalg::computeTileSizes(b, loc, sizes, {});
 
-    AffineMap map = op.getIndexingMap(b.getContext(), index, sizes);
+    AffineMap const map = op.getIndexingMap(b.getContext(), index, sizes);
     for (int64_t i = 0; i < rank; i++) {
-      AffineMap m = map.getSubMap(i);
+      AffineMap const m = map.getSubMap(i);
       {
-        OpFoldResult upperboundClosed =
+        OpFoldResult const upperboundClosed =
             affine::makeComposedFoldedAffineApply(b, loc, m, composedTileSizes);
-        AffineExpr s0 = getAffineSymbolExpr(0, b.getContext());
-        OpFoldResult size = affine::makeComposedFoldedAffineApply(
+        AffineExpr const s0 = getAffineSymbolExpr(0, b.getContext());
+        OpFoldResult const size = affine::makeComposedFoldedAffineApply(
             b, loc, s0 + 1, upperboundClosed);
         newSizes.push_back(size);
       }
       {
-        OpFoldResult offset =
+        OpFoldResult const offset =
             affine::makeComposedFoldedAffineApply(b, loc, m, offsets);
         newOffsets.push_back(offset);
       }
@@ -193,7 +193,7 @@ FailureOr<TilingResult> getTiledImplementation(TritonTilingExtOpTy op,
         getSlice(b, loc, val, newOffsets, newSizes, newStrides));
   }
 
-  SmallVector<Type> resultTensorTypes = llvm::to_vector(
+  SmallVector<Type> const resultTensorTypes = llvm::to_vector(
       llvm::map_range(op.getDpsInitsMutable(), [&](OpOperand &opOperand) {
         return tiledValues[opOperand.getOperandNumber()].getType();
       }));
@@ -222,28 +222,28 @@ LogicalResult getResultTilePosition(TritonTilingExtOpTy op, OpBuilder &b,
                                     ArrayRef<OpFoldResult> sizes,
                                     SmallVector<OpFoldResult> &resultOffsets,
                                     SmallVector<OpFoldResult> &resultSizes) {
-  Location loc = op.getLoc();
+  Location const loc = op.getLoc();
 
-  AffineMap outputMap =
+  AffineMap const outputMap =
       op.getOutputIndexingMap(b.getContext(), resultNumber, sizes);
 
-  Value result = op.getDpsInitOperand(resultNumber)->get();
+  Value const result = op.getDpsInitOperand(resultNumber)->get();
   auto rank = dyn_cast<ShapedType>(result.getType()).getRank();
 
-  llvm::SmallVector<mlir::OpFoldResult> composedTileSizes =
+  llvm::SmallVector<mlir::OpFoldResult> const composedTileSizes =
       linalg::computeTileSizes(b, loc, sizes, {});
   for (int64_t i = 0; i < rank; i++) {
-    AffineMap m = outputMap.getSubMap(i);
+    AffineMap const m = outputMap.getSubMap(i);
     {
-      OpFoldResult upperboundClosed =
+      OpFoldResult const upperboundClosed =
           affine::makeComposedFoldedAffineApply(b, loc, m, composedTileSizes);
-      AffineExpr s0 = getAffineSymbolExpr(0, b.getContext());
-      OpFoldResult size = affine::makeComposedFoldedAffineApply(
+      AffineExpr const s0 = getAffineSymbolExpr(0, b.getContext());
+      OpFoldResult const size = affine::makeComposedFoldedAffineApply(
           b, loc, s0 + 1, upperboundClosed);
       resultSizes.push_back(size);
     }
     {
-      OpFoldResult offset =
+      OpFoldResult const offset =
           affine::makeComposedFoldedAffineApply(b, loc, m, offsets);
       resultOffsets.push_back(offset);
     }
@@ -301,7 +301,7 @@ generateResultTileValue(TritonTilingExtOpTy op, OpBuilder &b,
   // permutation. This could be relaxed with a more general approach that can
   // map the offsets and sizes from the result to iteration space tiles
   // (filling in full extent for dimensions not used to access the result).
-  AffineMap indexingMap = op.getOutputIndexingMap(b.getContext(), 0, sizes);
+  AffineMap const indexingMap = op.getOutputIndexingMap(b.getContext(), 0, sizes);
   if (!indexingMap.isProjectedPermutation()) {
     return op.emitOpError(
         "unhandled tiled implementation generation when result is not "
@@ -309,8 +309,8 @@ generateResultTileValue(TritonTilingExtOpTy op, OpBuilder &b,
   }
 
   auto numLoops = op.getLoopIteratorTypes().size();
-  SmallVector<OpFoldResult> iterationTileOffsets(numLoops),
-      iterationTileSizes(numLoops);
+  SmallVector<OpFoldResult> iterationTileOffsets(numLoops);
+  SmallVector<OpFoldResult> iterationTileSizes(numLoops);
   if (!indexingMap.isPermutation()) {
     SmallVector<Range> iterationDomain = op.getIterationDomain(b);
     for (auto range : llvm::enumerate(iterationDomain)) {
@@ -323,9 +323,9 @@ generateResultTileValue(TritonTilingExtOpTy op, OpBuilder &b,
     // HACK: LLVM casting utilities do not work here for out-of-tree builds,
     // as there is no template specialization for this cast in the base
     // build.
-    AffineDimExpr affineDimExpr(static_cast<AffineExpr::ImplType *>(
+    AffineDimExpr const affineDimExpr(static_cast<AffineExpr::ImplType *>(
         const_cast<void *>(resultExpr.value().getAsOpaquePointer())));
-    unsigned dimPosition = affineDimExpr.getPosition();
+    unsigned const dimPosition = affineDimExpr.getPosition();
     iterationTileOffsets[dimPosition] = offsets[resultExpr.index()];
     iterationTileSizes[dimPosition] = sizes[resultExpr.index()];
   }
@@ -348,9 +348,9 @@ generateResultTileValue(TritonTilingExtOpTy op, OpBuilder &b,
 static void getTritonTilingExtEffectsImpl(
     SmallVectorImpl<SideEffects::EffectInstance<MemoryEffects::Effect>>
         &effects,
-    ValueRange results, ArrayRef<OpOperand *> inputOperands,
+    ArrayRef<OpOperand *> inputOperands,
     const MutableOperandRange &outputOperands) {
-  for (auto operand : inputOperands) {
+  for (auto *operand : inputOperands) {
     if (!llvm::isa<MemRefType>(operand->get().getType()))
       continue;
     effects.emplace_back(MemoryEffects::Read::get(), operand, /*stage=*/0,
@@ -380,8 +380,8 @@ void getEffects(
                                 op.getDpsInitsMutable());
 }
 
-} // namespace ttx
-} // namespace mlir
+} // namespace mlir::ttx
+
 
 /// Dialect creation, the instance will be owned by the context. This is the
 /// point of registration of custom types and operations for the dialect.

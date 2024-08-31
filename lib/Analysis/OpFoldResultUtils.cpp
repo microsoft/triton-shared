@@ -23,10 +23,7 @@ std::optional<int64_t> getIntAttr(const OpFoldResult ofr) {
 bool hasConstZero(const OpFoldResult ofr) {
   auto intAttr = getIntAttr(ofr);
   if (intAttr.has_value()) {
-    if (intAttr.value() == 0) {
-      return true;
-    }
-    return false;
+    return intAttr.value() == 0;
   }
 
   auto val = dyn_cast<Value>(ofr);
@@ -37,10 +34,7 @@ bool hasConstZero(const OpFoldResult ofr) {
 
   intAttr = getIntAttr(constOp.getValue());
   if (intAttr.has_value()) {
-    if (intAttr.value() == 0) {
-      return true;
-    }
-    return false;
+    return intAttr.value() == 0;
   }
 
   return false;

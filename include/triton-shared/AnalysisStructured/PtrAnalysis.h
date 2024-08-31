@@ -87,7 +87,7 @@ class PtrAnalysis {
   // result: its strides and offsets have to point to the corresponding stride
   // and offset values returned by the loop.
   PtrState reconcileLoopPtrState(
-      scf::ForOp forOp, size_t ptrArgIndex, const PtrState &state,
+      scf::ForOp forOp, size_t iterArgIndex, const PtrState &state,
       llvm::function_ref<Value(scf::ForOp op, size_t)> getReplacementVal);
 
 public:
@@ -139,7 +139,7 @@ public:
   LogicalResult visitOperandMul(arith::MulIOp mulOp, PtrState &state,
                                 const Location loc, OpBuilder &builder);
 
-  LogicalResult visitOperandRem(arith::RemSIOp mulOp, PtrState &state,
+  LogicalResult visitOperandRem(arith::RemSIOp remOp, PtrState &state,
                                 const Location loc, OpBuilder &builder);
 
   // Operand is the result of make_range.
@@ -254,9 +254,9 @@ public:
   // strides, offsets, and modulos.
   LogicalResult rewriteForOp(scf::ForOp op);
 
-  LogicalResult rewriteLoadOp(triton::LoadOp op);
+  LogicalResult rewriteLoadOp(triton::LoadOp op) const;
 
-  LogicalResult rewriteStoreOp(triton::StoreOp op);
+  LogicalResult rewriteStoreOp(triton::StoreOp op) const;
 
   LogicalResult rewriteOp(Operation *op);
 };

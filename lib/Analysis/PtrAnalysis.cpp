@@ -16,9 +16,9 @@
 
 #define DEBUG_TYPE "triton-ptr-analysis"
 
-namespace mlir {
 
-namespace triton {
+
+namespace mlir::triton {
 
 static void assertValidUnrealizedCast(UnrealizedConversionCastOp op) {
   assert(op && op->hasAttr(ModuloState::WraparoundAttr) &&
@@ -28,7 +28,7 @@ static void assertValidUnrealizedCast(UnrealizedConversionCastOp op) {
          op.getInputs()[2].getDefiningOp<triton::AddPtrOp>());
 }
 
-MemRefType PtrState::getResultMemrefType(MLIRContext *context, int64_t offset,
+MemRefType PtrState::getResultMemrefType(MLIRContext * /*context*/, int64_t offset,
                                          ArrayRef<int64_t> resultShape,
                                          bool useDynamicStrides) const {
 
@@ -129,9 +129,9 @@ void PtrState::mulState(const PtrState &lhsState, const PtrState &rhsState,
   }
 
   for (uint64_t i = 0; i < lhs->sizes.size(); i++) {
-    OpFoldResult newOffset =
+    OpFoldResult const newOffset =
         mulOFRValue(lhs->offsets[i], rhs->scalar, loc, rewriter);
-    OpFoldResult newStride =
+    OpFoldResult const newStride =
         mulOFRValue(lhs->strides[i], rhs->scalar, loc, rewriter);
     offsets.push_back(newOffset);
     strides.push_back(newStride);
@@ -153,7 +153,7 @@ PtrState::createStackedCastOps(ArrayRef<int64_t> resultShape,
   assert(getRank() == 2);
   assert(modulos[0].has_value() && !modulos[1].has_value());
 
-  Value targetOffset =
+  Value const targetOffset =
       ofrToIndexValue(accumulateTargetOffset(loc, rewriter), loc, rewriter);
 
   //////////////////////////////////////////////////////////////////////////////
@@ -204,17 +204,17 @@ PtrState::createStackedCastOps(ArrayRef<int64_t> resultShape,
       },
       true /*useDynamicStrides*/);
 
-  Value rowSize = ofrToIndexValue(sizes[0], loc, rewriter);
-  Value colSize = ofrToIndexValue(sizes[1], loc, rewriter);
+  Value const rowSize = ofrToIndexValue(sizes[0], loc, rewriter);
+  Value const colSize = ofrToIndexValue(sizes[1], loc, rewriter);
 
-  Value strideRow = ofrToIndexValue(strides[0], loc, rewriter);
-  Value strideCol = ofrToIndexValue(strides[1], loc, rewriter);
+  Value const strideRow = ofrToIndexValue(strides[0], loc, rewriter);
+  Value const strideCol = ofrToIndexValue(strides[1], loc, rewriter);
 
-  Value modRow = rewriter.create<arith::IndexCastOp>(
+  Value const modRow = rewriter.create<arith::IndexCastOp>(
       loc, rewriter.getIndexType(), modulos[0]->size);
 
   // First chunk
-  Value wrappedAroundOff =
+  Value const wrappedAroundOff =
       rewriter.create<arith::RemSIOp>(loc, targetOffset, strideRow);
   Value clampedOff = rewriter.create<arith::MulIOp>(loc, modRow, strideRow);
   clampedOff =
@@ -222,15 +222,15 @@ PtrState::createStackedCastOps(ArrayRef<int64_t> resultShape,
   Value d1 = rewriter.create<arith::SubIOp>(loc, clampedOff, targetOffset);
   d1 = rewriter.create<arith::DivSIOp>(loc, d1, strideRow);
 
-  SmallVector<Value> sizes1{d1, colSize};
-  memref::ReinterpretCastOp cast1 = rewriter.create<memref::ReinterpretCastOp>(
+  SmallVector<Value> const sizes1{d1, colSize};
+  auto const cast1 = rewriter.create<memref::ReinterpretCastOp>(
       loc, resultType, source, targetOffset, sizes1,
       ValueRange{strideRow, strideCol});
 
   // Second chunk
-  Value d2 = rewriter.create<arith::SubIOp>(loc, rowSize, d1);
-  SmallVector<Value> sizes2{d2, colSize};
-  memref::ReinterpretCastOp cast2 = rewriter.create<memref::ReinterpretCastOp>(
+  Value const d2 = rewriter.create<arith::SubIOp>(loc, rowSize, d1);
+  SmallVector<Value> const sizes2{d2, colSize};
+  auto const cast2 = rewriter.create<memref::ReinterpretCastOp>(
       loc, resultType, source, wrappedAroundOff, sizes2,
       ValueRange{strideRow, strideCol});
 
@@ -246,7 +246,7 @@ PtrState::createSideBySideCastOps(ArrayRef<int64_t> resultShape,
   assert(getRank() == 2 && !modulos[0].has_value() && modulos[1].has_value());
 
   // Accumulate final offset
-  Value targetOffset =
+  Value const targetOffset =
       ofrToIndexValue(accumulateTargetOffset(loc, rewriter), loc, rewriter);
 
   //////////////////////////////////////////////////////////////////////////////
@@ -283,7 +283,7 @@ PtrState::createSideBySideCastOps(ArrayRef<int64_t> resultShape,
   //
   //////////////////////////////////////////////////////////////////////////////
 
-  SmallVector<memref::ReinterpretCastOp> casts;
+  SmallVector<memref::ReinterpretCastOp> const casts;
 
   auto resultType = getResultMemrefType(
       rewriter.getContext(), /* offset */ ShapedType::kDynamic,
@@ -296,29 +296,29 @@ PtrState::createSideBySideCastOps(ArrayRef<int64_t> resultShape,
       },
       true /*useDynamicStrides*/);
 
-  Value rowSize = ofrToIndexValue(sizes[0], loc, rewriter);
-  Value colSize = ofrToIndexValue(sizes[1], loc, rewriter);
+  Value const rowSize = ofrToIndexValue(sizes[0], loc, rewriter);
+  Value const colSize = ofrToIndexValue(sizes[1], loc, rewriter);
 
-  Value modN = rewriter.create<arith::IndexCastOp>(loc, rewriter.getIndexType(),
+  Value const modN = rewriter.create<arith::IndexCastOp>(loc, rewriter.getIndexType(),
                                                    modulos[1]->size);
 
-  Value x = rewriter.create<arith::RemSIOp>(loc, targetOffset, modN);
-  Value y = rewriter.create<arith::SubIOp>(loc, targetOffset, x);
+  Value const x = rewriter.create<arith::RemSIOp>(loc, targetOffset, modN);
+  Value const y = rewriter.create<arith::SubIOp>(loc, targetOffset, x);
 
-  SmallVector<Value> strideVals = ofrsToIndexValues(strides, loc, rewriter);
+  SmallVector<Value> const strideVals = ofrsToIndexValues(strides, loc, rewriter);
 
   // First chunk
-  Value nextOffset = rewriter.create<arith::AddIOp>(loc, x, colSize);
-  Value clampedOffset = rewriter.create<arith::MinSIOp>(loc, nextOffset, modN);
-  Value d1 = rewriter.create<arith::SubIOp>(loc, clampedOffset, x);
-  SmallVector<Value> sizes1{rowSize, d1};
+  Value const nextOffset = rewriter.create<arith::AddIOp>(loc, x, colSize);
+  Value const clampedOffset = rewriter.create<arith::MinSIOp>(loc, nextOffset, modN);
+  Value const d1 = rewriter.create<arith::SubIOp>(loc, clampedOffset, x);
+  SmallVector<Value> const sizes1{rowSize, d1};
 
   auto cast1 = rewriter.create<memref::ReinterpretCastOp>(
       loc, resultType, source, targetOffset, sizes1, strideVals);
 
   // Second chunk
-  Value d2 = rewriter.create<arith::SubIOp>(loc, colSize, d1);
-  SmallVector<Value> sizes2{rowSize, d2};
+  Value const d2 = rewriter.create<arith::SubIOp>(loc, colSize, d1);
+  SmallVector<Value> const sizes2{rowSize, d2};
 
   auto cast2 = rewriter.create<memref::ReinterpretCastOp>(
       loc, resultType, source, y, sizes2, strideVals);
@@ -330,7 +330,7 @@ memref::ReinterpretCastOp
 PtrState::createCastOp(ArrayRef<int64_t> resultShape, const Location loc,
                        ConversionPatternRewriter &rewriter) const {
   // Accumulate final offset
-  OpFoldResult targetOffset = accumulateTargetOffset(loc, rewriter);
+  OpFoldResult const targetOffset = accumulateTargetOffset(loc, rewriter);
 
   // Create result MemRefType
   SmallVector<int64_t> staticOffset;
@@ -424,9 +424,9 @@ void PtrAnalysis::visitOperandRem(
 }
 
 void PtrAnalysis::visitOperandMakeRange(
-    triton::MakeRangeOp rangeOp, PtrState &state, Location loc,
+    triton::MakeRangeOp rangeOp, PtrState &state, Location  /*loc*/,
     ConversionPatternRewriter &rewriter,
-    const llvm::SmallDenseMap<Value, PtrState> &knownPtrs) {
+    const llvm::SmallDenseMap<Value, PtrState> & /*knownPtrs*/) {
   assert(state.isEmpty());
 
   auto shape = cast<ShapedType>(rangeOp.getType()).getShape();
@@ -497,7 +497,7 @@ void PtrAnalysis::visitOperandBroadcast(
   for (size_t i = 0; i < srcShape.size(); i++) {
     if (srcShape[i] == dstShape[i])
       continue;
-    else if (srcShape[i] < dstShape[i])
+    if (srcShape[i] < dstShape[i])
       state.sizes[i] = rewriter.getIndexAttr(dstShape[i]);
     else
       llvm_unreachable("unexpected dimensions used in broadcast");
@@ -571,7 +571,7 @@ void PtrAnalysis::visitOperandMakeTensorPtr(
 }
 
 void PtrAnalysis::visitOperandAddptr(
-    triton::AddPtrOp addptrOp, PtrState &state, const Location loc,
+    triton::AddPtrOp addptrOp, PtrState &state, const Location  /*loc*/,
     ConversionPatternRewriter &rewriter,
     const llvm::SmallDenseMap<Value, PtrState> &knownPtrs) {
   assert(state.isEmpty());
@@ -605,9 +605,9 @@ void PtrAnalysis::visitOperandAddptr(
 }
 
 void PtrAnalysis::visitOperandReintCast(
-    memref::ReinterpretCastOp reintCastOp, PtrState &state, const Location loc,
+    memref::ReinterpretCastOp reintCastOp, PtrState &state, const Location  /*loc*/,
     ConversionPatternRewriter &rewriter,
-    const llvm::SmallDenseMap<Value, PtrState> &knownPtrs) {
+    const llvm::SmallDenseMap<Value, PtrState> & /*knownPtrs*/) {
   assert(state.isEmpty());
 
   state.offsets = reintCastOp.getMixedOffsets();
@@ -660,7 +660,7 @@ void PtrAnalysis::visitOperand(
 
     // A scalar pointer can either be produced by AddPtrOp or a block
     // argument
-    if (auto op = operand.getDefiningOp()) {
+    if (auto *op = operand.getDefiningOp()) {
       if (auto addPtrOp = dyn_cast<triton::AddPtrOp>(op)) {
         visitOperandAddptr(cast<triton::AddPtrOp>(op), state, loc, rewriter,
                            knownPtrs);
@@ -704,7 +704,7 @@ void PtrAnalysis::visitOperand(
 void PtrAnalysis::visitOperandConstSplat(
     arith::ConstantOp op, PtrState &state, const Location loc,
     ConversionPatternRewriter &rewriter,
-    const llvm::SmallDenseMap<Value, PtrState> &knownPtrs) {
+    const llvm::SmallDenseMap<Value, PtrState> & /*knownPtrs*/) {
   assert(state.isEmpty());
   // this condition is to handle cases where tt.broadcast and tt.splat are
   // folded
@@ -745,14 +745,14 @@ void PtrAnalysis::rewriteAddptrOp(
 
   // If the result is a scalar pointer, visitOperandAddptr will not populate
   // sizes, strides, and offsets. We need to do it here.
-  if (state.sizes.size() == 0) {
+  if (state.sizes.empty()) {
     state.sizes.push_back(rewriter.getIndexAttr(1));
     state.strides.push_back(rewriter.getIndexAttr(0));
     state.offsets.push_back(state.scalar);
     state.modulos.push_back(std::nullopt);
   }
 
-  SmallVector<int64_t> scalarShape(1, 1);
+  SmallVector<int64_t> const scalarShape(1, 1);
   ArrayRef<int64_t> resultShape;
   if (auto shapedType = dyn_cast<ShapedType>(op.getResult().getType())) {
     resultShape = shapedType.getShape();
@@ -785,7 +785,7 @@ void PtrAnalysis::rewriteAddptrOp(
 
   if (llvm::any_of(state.modulos, [](auto mod) { return mod.has_value(); })) {
     assert(state.modulos.size() == 2);
-    ConversionPatternRewriter::InsertionGuard guard(rewriter);
+    ConversionPatternRewriter::InsertionGuard const guard(rewriter);
     rewriter.setInsertionPointAfter(op);
 
     SmallVector<memref::ReinterpretCastOp> casts;
@@ -804,7 +804,7 @@ void PtrAnalysis::rewriteAddptrOp(
     auto resultType = state.getResultMemrefType(
         rewriter.getContext(), ShapedType::kDynamic, resultShape);
 
-    UnrealizedConversionCastOp combinedCast =
+    auto combinedCast =
         rewriter.create<UnrealizedConversionCastOp>(
             op.getLoc(), resultType,
             ValueRange{casts[0].getResult(), casts[1].getResult(),
@@ -844,7 +844,7 @@ void PtrAnalysis::rewriteAddptrOp(
 void PtrAnalysis::rewriteAdvanceOp(
     triton::AdvanceOp op, ConversionPatternRewriter &rewriter,
     llvm::SmallDenseMap<Value, PtrState> &knownPtrs) {
-  OpBuilder::InsertionGuard insertionGuard{rewriter};
+  OpBuilder::InsertionGuard const insertionGuard{rewriter};
   rewriter.setInsertionPoint(op);
   auto loc = op.getLoc();
 
@@ -879,7 +879,7 @@ void PtrAnalysis::rewriteAdvanceOp(
     ptrState.offsets.push_back(offset);
   }
 
-  SmallVector<int64_t> scalarShape(1, 1);
+  SmallVector<int64_t> const scalarShape(1, 1);
   ArrayRef<int64_t> resultShape;
   auto pointerType = cast<mlir::triton::PointerType>(op.getResult().getType());
   if (auto shapedType = dyn_cast<ShapedType>(pointerType.getPointeeType())) {
@@ -902,7 +902,7 @@ void PtrAnalysis::rewriteYieldOp(
     const IndexMapSet &levelToBlockArgIndex, const int level,
     const llvm::SmallDenseMap<Value, PtrState> &knownPtrs) {
   // any inserted instruction should be before this yield
-  OpBuilder::InsertionGuard insertionGuard{rewriter};
+  OpBuilder::InsertionGuard const insertionGuard{rewriter};
   rewriter.setInsertionPoint(op);
 
   auto adaptor = scf::YieldOp::Adaptor(op);
@@ -987,7 +987,7 @@ void PtrAnalysis::rewriteYieldOp(
   // For each of the PtrState recorded in the last step, extract value
   // that correspond to offset and stride for each dimension and append
   // them to yield operands.
-  for (auto state : initArgState) {
+  for (const auto& state : initArgState) {
     for (auto s : state.offsets) {
       // offsets can be IntAttr zeroes, since reinterpret_cast collapses
       // them for the input memref, and the for loop may not update
@@ -1109,7 +1109,7 @@ void PtrAnalysis::rewriteForOp(
         unrealizedCastOp = op;
         auto inputs = unrealizedCastOp.getInputs();
 
-        SmallVector<ModuloChunkInitArg> initArgData{
+        SmallVector<ModuloChunkInitArg> const initArgData{
             ModuloChunkInitArg{inputs[0], i},
             ModuloChunkInitArg{inputs[1]},
         };
@@ -1262,10 +1262,10 @@ void PtrAnalysis::rewriteForOp(
         // and size information, we have to manually insert two additional
         // reinterpret_cast ops as input to this unrealized_cast_op so that the
         // load have enough information to generate the corresponding copy.
-        OpBuilder::InsertionGuard g(b);
+        OpBuilder::InsertionGuard const g(b);
         b.setInsertionPointToStart(b.getBlock());
 
-        Value zero =
+        Value const zero =
             rewriter.create<arith::ConstantOp>(loc, rewriter.getIndexAttr(0));
 
         for (auto &[unrealizedCastOp, chunkData, state] : moduloStates) {
@@ -1293,13 +1293,13 @@ void PtrAnalysis::rewriteForOp(
   // arg
   int cnt = op.getRegionIterArgs().size();
   for (auto [i, state] : knownPtrsTmp) {
-    for (auto it = state.offsets.begin(); it != state.offsets.end(); it++) {
-      *it = newOp.getRegionIterArgs()[cnt];
+    for (auto & offset : state.offsets) {
+      offset = newOp.getRegionIterArgs()[cnt];
       cnt++;
     }
 
-    for (auto it = state.strides.begin(); it != state.strides.end(); it++) {
-      *it = newOp.getRegionIterArgs()[cnt];
+    for (auto & stride : state.strides) {
+      stride = newOp.getRegionIterArgs()[cnt];
       cnt++;
     }
 
@@ -1331,7 +1331,7 @@ void PtrAnalysis::rewriteForOp(
     }
   }
 
-  if (op.getNumRegionIterArgs()) {
+  if (op.getNumRegionIterArgs() != 0u) {
     auto yieldOp = cast<scf::YieldOp>(newOp.getBody()->getTerminator());
     rewriteYieldOp(yieldOp, rewriter, levelToBlockArgIndex, level, knownPtrs);
   }
@@ -1354,9 +1354,8 @@ Value PtrAnalysis::getScalarMemRef(Value ptr, Value memRef, const Location loc,
   if (ptr.getDefiningOp<triton::AddPtrOp>()) {
     if (auto castOp = memRef.getDefiningOp<memref::ReinterpretCastOp>()) {
       return castOp.getResult();
-    } else {
-      llvm_unreachable("pointer value is defined by an unexpected op");
-    }
+    }       llvm_unreachable("pointer value is defined by an unexpected op");
+   
   }
 
   assert(isa<BlockArgument>(ptr) &&
@@ -1371,5 +1370,5 @@ Value PtrAnalysis::getScalarMemRef(Value ptr, Value memRef, const Location loc,
   return castOp.getResult();
 }
 
-} // namespace triton
-} // namespace mlir
+} // namespace mlir::triton
+
