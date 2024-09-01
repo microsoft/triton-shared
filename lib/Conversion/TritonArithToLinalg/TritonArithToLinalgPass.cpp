@@ -13,6 +13,7 @@
 #include "mlir/Dialect/Affine/IR/AffineOps.h"
 #include "mlir/Dialect/Bufferization/IR/Bufferization.h"
 #include "mlir/Dialect/Linalg/IR/Linalg.h"
+#include "mlir/Dialect/Tensor/Transforms/Transforms.h"
 #include "mlir/Pass/PassManager.h"
 #include "mlir/Transforms/GreedyPatternRewriteDriver.h"
 
@@ -69,6 +70,19 @@ class TritonArithToLinalgPass
     for (unsigned int i = 0; i < TRITON_PROGRAM_INFO_ARG_COUNT; i++) {
       func.getBody().front().addArgument(b.getI32Type(), func.getLoc());
     }
+  }
+
+  LogicalResult applyTensorConcatDecomposition() {
+    auto moduleOp = getOperation();
+    MLIRContext *context = &getContext();
+    RewritePatternSet patterns(context);
+
+    tensor::populateDecomposeTensorConcatPatterns(patterns);
+
+    if (failed(applyPatternsAndFoldGreedily(moduleOp, std::move(patterns)))) {
+      return failure();
+    }
+    return success();
   }
 
 public:
@@ -156,6 +170,10 @@ public:
     }
 
     if (failed(applyPartialConversion(moduleOp, target, std::move(patterns)))) {
+      signalPassFailure();
+    }
+
+    if (failed(applyTensorConcatDecomposition())) {
       signalPassFailure();
     }
 
