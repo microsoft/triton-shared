@@ -225,7 +225,6 @@ public:
 
   LogicalResult convertArgsToMemrefType() {
     auto moduleOp = getOperation();
-
     RewritePatternSet patterns(&getContext());
     ConversionTarget target(getContext());
     TritonFunctionSignatureConverter typeConverter;
@@ -357,25 +356,6 @@ public:
     return success();
   }
 
-  LogicalResult decomposeTensorConcat() {
-    ModuleOp module = getOperation();
-    MLIRContext *context = &getContext();
-    OpBuilder builder(module.getBodyRegion());
-
-    // Iterate over all functions in the module
-    for (auto funcOp : module.getOps<func::FuncOp>()) {
-      builder.setInsertionPointToStart(&module.getBodyRegion().front());
-      auto transformOp = builder.create<transform::ApplyDecomposeTensorConcatPatternsOp>(
-          funcOp.getLoc(), funcOp.getOperation());
-
-      if (!transformOp) {
-        module.emitError("Failed to apply decompose concat patterns to function: " + funcOp.getName().str());
-        return failure();
-      }
-      return success();
-    }
-  }
-
   void runOnOperation() override {
     auto moduleOp = getOperation();
 
@@ -385,11 +365,6 @@ public:
     }
 
     if (failed(convertAddPtrToReinterpretCast())) {
-      signalPassFailure();
-      return;
-    }
-
-    if (failed(decomposeTensorConcat())) {
       signalPassFailure();
       return;
     }
