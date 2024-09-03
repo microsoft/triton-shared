@@ -79,13 +79,14 @@ OpFoldResult addOFRs(const OpFoldResult lhs, const OpFoldResult rhs,
     return b.getIndexAttr(lhsIntAttr.value() + rhsIntAttr.value());
 
   // otherwise, need to create instructions to calculate new attribute value
-  auto lhsValue = dyn_cast<Value>(lhs);
+  Value lhsValue;
   if (lhsIntAttr) {
     auto lhsOp =
         b.create<arith::ConstantOp>(loc, b.getIndexAttr(lhsIntAttr.value()));
     lhsValue = lhsOp.getResult();
   } else {
-    assert(lhsValue && isa<IndexType>(lhsValue.getType()));
+    lhsValue = cast<Value>(lhs);
+    assert(isa<IndexType>(lhsValue.getType()));
   }
 
   auto rhsValue = dyn_cast<Value>(rhs);
