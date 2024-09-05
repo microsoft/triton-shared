@@ -42,7 +42,8 @@ LogicalResult MaskState::parse(Value operand, const Location loc,
   } else if (auto op = operand.getDefiningOp<arith::ExtSIOp>()) {
     return this->parseExtSI(op, loc, builder);
   } else {
-
+    operand.dump();
+    assert(0);
     return failure();
   }
 }
@@ -299,8 +300,9 @@ LogicalResult MaskState::parseCmp(arith::CmpIOp cmpOp, const Location loc,
                                   OpBuilder &builder) {
   assert(this->isEmpty());
 
-  if (cmpOp.getPredicate() != arith::CmpIPredicate::slt) {
-    InFlightDiagnostic diag = emitError(loc) << "Unsupported cmpi predicate";
+  if (cmpOp.getPredicate() != arith::CmpIPredicate::slt &&
+      cmpOp.getPredicate() != arith::CmpIPredicate::ult) {
+    InFlightDiagnostic diag = emitError(loc) << "Unsupported cmpi zzz";
     return failure();
   }
 

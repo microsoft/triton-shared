@@ -1098,7 +1098,7 @@ LogicalResult PtrAnalysis::rewriteLoadOp(triton::LoadOp op) {
 
   auto ptrType = dyn_cast<triton::PointerType>(ptr.getType());
   if (ptrType && !isa<ShapedType>(ptrType.getPointeeType())) {
-    op->emitRemark("PtrAnalysis: scalar loadOp will not be rewritten");
+    // op->emitRemark("PtrAnalysis: scalar loadOp will not be rewritten");
     return failure();
   }
 
@@ -1154,7 +1154,7 @@ LogicalResult PtrAnalysis::rewriteStoreOp(triton::StoreOp op) {
 
   auto ptrType = dyn_cast<triton::PointerType>(ptr.getType());
   if (ptrType && !isa<ShapedType>(ptrType.getPointeeType())) {
-    op->emitRemark("PtrAnalysis: scalar storeOp will not be rewritten");
+    // op->emitRemark("PtrAnalysis: scalar storeOp will not be rewritten");
     return failure();
   }
 
