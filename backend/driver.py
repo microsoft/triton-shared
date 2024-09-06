@@ -222,6 +222,9 @@ def compile_module(launcher_src, kernel_placeholder_name):
     if scheme == 'posix_local':
         scheme = 'posix_prefix'
     py_include_dir = sysconfig.get_paths(scheme=scheme)["include"]
+    py_lib_dir = sysconfig.get_config_var("LIBDIR")
+    py_version = sysconfig.get_config_var("LDVERSION")
+    py_lib = '{name}{py_version}'.format(name="python", py_version=py_version)
     cpu_backend_path = Path(__file__).resolve().parent
     include_dir = os.path.join(cpu_backend_path, "include")
 
@@ -252,9 +255,9 @@ def compile_module(launcher_src, kernel_placeholder_name):
               Path(launcher_src_path).write_text(src)
               # Compile it together.
               subprocess.check_call([
-                "g++", launcher_src_path, asm_src_path,
-                f"-I{py_include_dir}", f"-I{include_dir}",
-                "-shared", "-fPIC", "-o", so_path
+                "g++", "-std=c++17", launcher_src_path, asm_src_path,
+                f"-I{py_include_dir}", f"-I{include_dir}", f"-L{py_lib_dir}",
+                "-shared", f"-l{py_lib}", "-fPIC", "-o", so_path
               ])
 
               with open(so_path, "rb") as f:
