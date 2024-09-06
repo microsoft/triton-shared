@@ -3,6 +3,10 @@ import torch
 import triton
 import triton.language as tl
 
+from triton.backends.triton_shared.driver import CPUDriver
+
+triton.runtime.driver.set_active(CPUDriver())
+
 
 @triton.jit
 def addptr(in0, out0):
@@ -41,3 +45,5 @@ def test(device):
         src,
     )
     print(ret.asm["ttir"])
+
+test("cpu")
