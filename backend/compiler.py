@@ -1,7 +1,8 @@
 from triton.backends.compiler import BaseBackend, GPUTarget
 from triton._C.libtriton import ir, passes
 from dataclasses import dataclass
-from typing import Any, Tuple
+from typing import Any, Dict, Tuple
+from types import ModuleType
 import hashlib
 import tempfile
 import os
@@ -192,3 +193,6 @@ class CPUBackend(BaseBackend):
     @functools.lru_cache()
     def hash(self):
         return self.target
+
+    def get_module_map(self) -> Dict[str, ModuleType]:
+        return {}
