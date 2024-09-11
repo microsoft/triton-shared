@@ -160,6 +160,32 @@ struct Analysis {
       llvm::dbgs() << "OffsetState: "
                    << (offsetParseResult.succeeded() ? "succeeded" : "failed")
                    << "\n";
+
+      if (ptrParseResult.succeeded()) {
+        llvm::dbgs() << "PtrState:\n";
+        llvm::dbgs() << "  - sizes:\n";
+        for (auto s : ptrState.sizes) {
+          s.dump();
+        }
+        llvm::dbgs() << "  - strides:\n";
+        for (auto s : ptrState.strides) {
+          s.dump();
+        }
+      }
+
+      if (offsetParseResult.succeeded()) {
+        llvm::dbgs() << "OffsetState:\n";
+        llvm::dbgs() << "sizes:\n";
+        for (auto s : offsetState.sizes) {
+          s.dump();
+        }
+        llvm::dbgs() << "strides:\n";
+        for (auto s : offsetState.strides) {
+          s.dump();
+        }
+      }
+
+      llvm::dbgs() << "~~~~~~~~~~~~~~~\n";
     });
 
     // op->walk([&](triton::ExpandDimsOp op) { process(op); });
