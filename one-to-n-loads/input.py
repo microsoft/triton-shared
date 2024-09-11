@@ -29,7 +29,7 @@ def one_to_n_loads_simplified(In, GatherIndx, Out, stride_x_m, stride_x_k, BLOCK
     # 2. Simplified the first load (no modulo)
     # 3. Simplified no div
     offs_x_m = tl.arange(0, BLOCK_M)
-    # offs_x_m = tl.load(GatherIndx + offs_x_m)
+    offs_x_m = tl.load(GatherIndx + offs_x_m)
 
     offs_x_k = tl.arange(0, BLOCK_K)
 
@@ -49,7 +49,7 @@ def one_to_n_loads_simplified_flipped(In, GatherIndx, Out, stride_x_m, stride_x_
     # 2. Simplified the first load (no modulo)
     # 3. Simplified no div
     offs_x_m = tl.arange(0, BLOCK_M)
-    # offs_x_m = tl.load(GatherIndx + offs_x_m)
+    offs_x_m = tl.load(GatherIndx + offs_x_m)
 
     offs_x_k = tl.arange(0, BLOCK_K)
 
