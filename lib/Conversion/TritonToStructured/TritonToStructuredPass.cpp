@@ -8,6 +8,7 @@
 #include "mlir/Conversion/ReconcileUnrealizedCasts/ReconcileUnrealizedCasts.h"
 #include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/SCF/Transforms/Patterns.h"
+#include "mlir/IR/Builders.h"
 #include "mlir/IR/BuiltinAttributes.h"
 #include "mlir/IR/BuiltinOps.h"
 #include "mlir/IR/BuiltinTypes.h"
@@ -146,22 +147,48 @@ struct Analysis {
 
       tts::PtrState ptrState;
       OpBuilder builder1(ptrBroadcast);
-      auto ptrParseResult = ptrAnalysis.visitOperandBroadcast(
-          ptrBroadcast, ptrState, op->getLoc(), builder1);
+
+      // this is the previous addtr
+      auto addPtr = ptrBroadcast.getSrc().getDefiningOp<triton::AddPtrOp>();
+      auto ptrParseResult =
+          ptrAnalysis.visitOperand(addPtr, ptrState, op->getLoc(), builder1);
 
       tts::PtrState offsetState;
       OpBuilder builder2(offsetBroadcast);
-      auto offsetParseResult = ptrAnalysis.visitOperandBroadcast(
-          offsetBroadcast, offsetState, op->getLoc(), builder2);
+      auto offsetParseResult = ptrAnalysis.visitOperand(
+          offsetBroadcast.getSrc(), offsetState, op->getLoc(), builder2);
 
-      llvm::dbgs() << "PtrState: "
-                   << (ptrParseResult.succeeded() ? "succeeded" : "failed")
-                   << "\n";
-      llvm::dbgs() << "OffsetState: "
-                   << (offsetParseResult.succeeded() ? "succeeded" : "failed")
-                   << "\n";
+      if (ptrParseResult.succeeded() && offsetParseResult.succeeded()) {
+        return;
+      }
 
-      if (ptrParseResult.succeeded()) {
+      // "simplified.mlir"
+      if (!ptrParseResult.succeeded() && offsetParseResult.succeeded()) {
+        // get the src
+
+        tts::PtrState srcState;
+        if (failed(ptrAnalysis.visitOperand(addPtr.getPtr(), srcState,
+                                            op->getLoc(), builder1))) {
+          return;
+        }
+
+        // this means the offsets cause the failures, use it directly
+        llvm::dbgs() << "Offset tensors: " << addPtr.getOffset() << "\n";
+
+        llvm::dbgs() << "OffsetState:\n";
+        llvm::dbgs() << "sizes:\n";
+        for (auto s : offsetState.sizes) {
+          s.dump();
+        }
+        llvm::dbgs() << "strides:\n";
+        for (auto s : offsetState.strides) {
+          s.dump();
+        }
+      }
+
+      if (ptrParseResult.succeeded() && !offsetParseResult.succeeded()) {
+        llvm::dbgs() << "Offset tensors: " << offsetBroadcast.getSrc() << "\n";
+
         llvm::dbgs() << "PtrState:\n";
         llvm::dbgs() << "  - sizes:\n";
         for (auto s : ptrState.sizes) {
@@ -173,17 +200,39 @@ struct Analysis {
         }
       }
 
-      if (offsetParseResult.succeeded()) {
-        llvm::dbgs() << "OffsetState:\n";
-        llvm::dbgs() << "sizes:\n";
-        for (auto s : offsetState.sizes) {
-          s.dump();
-        }
-        llvm::dbgs() << "strides:\n";
-        for (auto s : offsetState.strides) {
-          s.dump();
-        }
-      }
+      // llvm::dbgs() << "PtrState: "
+      //              << (ptrParseResult.succeeded() ? "succeeded" : "failed")
+      //              << "\n";
+      // llvm::dbgs() << "OffsetState: "
+      //              << (offsetParseResult.succeeded() ? "succeeded" :
+      //              "failed")
+      //              << "\n";
+
+      // llvm::dbgs() << "ptr source:\n";
+      // ptrState.source.dump();
+      // if (ptrParseResult.succeeded()) {
+      //   llvm::dbgs() << "PtrState:\n";
+      //   llvm::dbgs() << "  - sizes:\n";
+      //   for (auto s : ptrState.sizes) {
+      //     s.dump();
+      //   }
+      //   llvm::dbgs() << "  - strides:\n";
+      //   for (auto s : ptrState.strides) {
+      //     s.dump();
+      //   }
+      // }
+
+      // if (offsetParseResult.succeeded()) {
+      //   llvm::dbgs() << "OffsetState:\n";
+      //   llvm::dbgs() << "sizes:\n";
+      //   for (auto s : offsetState.sizes) {
+      //     s.dump();
+      //   }
+      //   llvm::dbgs() << "strides:\n";
+      //   for (auto s : offsetState.strides) {
+      //     s.dump();
+      //   }
+      // }
 
       llvm::dbgs() << "~~~~~~~~~~~~~~~\n";
     });
