@@ -41,3 +41,9 @@ def test(device):
         src,
     )
     print(ret.asm["ttir"])
+
+from triton.backends.triton_shared.driver import CPUDriver
+
+triton.runtime.driver.set_active(CPUDriver())
+
+test("cpu")

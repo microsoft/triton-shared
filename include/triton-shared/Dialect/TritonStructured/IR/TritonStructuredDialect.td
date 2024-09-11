@@ -120,6 +120,97 @@ def TTS_MakeTensorPtrOp
   //let hasCanonicalizer = 1;
 }
 
+def TTS_MakeGatherTensorPtrOp
+  : TTS_Op<"make_gather_tptr", [AttrSizedOperandSegments, Pure]> {
+  let summary = "create a pointer that points to a tensor in memory";
+
+  // base:    Base pointer used to contruct the tensor of pointers or pointer to tensor.
+  // sizes:   Size of the data being loaded or stored.
+  // strides: The strides of the parent tensor, which means how much to increase the pointer
+  //          by when moving by 1 element in a specific axis.
+  // order:   The order of the block, which means how the block is laid out in memory.
+  //          It contains the same info as order in tt.make_tensor_ptr.
+  // shape:   If order is present, this field signifies the shape of the parent tensor in
+  //          memory; if order is not present, it signifies the boundary by which addresses
+  //          wraps around (constant zero indicates no wrap-around in the corresponding dimension).
+  // offsets: Offset of the block along each dimension from base.
+  // result:  If order is present, this op produces a pointer to a tensor; otherwise,
+  //          it produces a tensor of pointers.
+
+  let arguments = (ins TT_Ptr:$base,
+                       DenseI64ArrayAttr:$sizes,
+                       Variadic<Index>:$strides,
+                       Variadic<Index>:$offsets,
+                       Variadic<Index>:$shape,
+                       DenseI64ArrayAttr:$static_strides,
+                       DenseI64ArrayAttr:$static_offsets,
+                       DenseI64ArrayAttr:$static_shape,
+                       DenseI32ArrayAttr:$order);
+
+  let results = (outs TT_PtrLike:$result);
+
+  let assemblyFormat = [{
+    $base `to` `sizes` `` `:` $sizes
+    `` `,` `strides` `` `:`
+    custom<DynamicIndexList>($strides, $static_strides)
+    `` `,` `offsets` `` `:`
+    custom<DynamicIndexList>($offsets, $static_offsets)
+    `` `,` `shape` `` `:`
+    custom<DynamicIndexList>($shape, $static_shape)
+    `` `,` `order` `` `:` $order
+    attr-dict `:` type($base) `to` type($result)
+  }];
+
+
+  let builders = [
+    // Build with mixed static and dynamic entries.
+    OpBuilder<(ins
+      "Value":$base,
+      "ArrayRef<int64_t>":$sizes,
+      "ArrayRef<OpFoldResult>":$strides,
+      "ArrayRef<OpFoldResult>":$offsets,
+      "ArrayRef<OpFoldResult>":$shape,
+      "ArrayRef<int32_t>":$order)>,
+  ];
+
+  let extraClassDeclaration = [{
+    /// Return a vector of all the static or dynamic fields
+    SmallVector<OpFoldResult> getMixedSizes() {
+      Builder b(getContext());
+      SmallVector<Value> dynSizes; // sizes are always static
+      return ::mlir::getMixedValues(getSizes(), dynSizes, b);
+    }
+    SmallVector<OpFoldResult> getMixedStrides() {
+      Builder b(getContext());
+      return ::mlir::getMixedValues(getStaticStrides(), getStrides(), b);
+    }
+    SmallVector<OpFoldResult> getMixedOffsets() {
+      Builder b(getContext());
+      return ::mlir::getMixedValues(getStaticOffsets(), getOffsets(), b);
+    }
+    SmallVector<OpFoldResult> getMixedShape() {
+      Builder b(getContext());
+      return ::mlir::getMixedValues(getStaticShape(), getShape(), b);
+    }
+    bool isBlockPtr() {
+      return !getOrder().empty();
+    }
+    bool isStructuredPtr() {
+      return !isBlockPtr() &&
+             llvm::all_of(getStaticShape(), [](auto shape) { return shape == 0; });
+    }
+    bool isSplitPtr() {
+      return !isBlockPtr() &&
+             !isStructuredPtr();
+    }
+  }];
+
+  // TODO
+  //let hasVerifier = 1;
+  //let hasCanonicalizer = 1;
+}
+
+
 // SameVariadicResultSize
 // AttrSizedResultSegments
 def TTS_GetStructuredStateOp : TTS_Op<"get_structured_state", [AttrSizedResultSegments, Pure]> {

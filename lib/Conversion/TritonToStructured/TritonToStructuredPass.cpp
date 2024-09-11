@@ -6,6 +6,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "mlir/Conversion/ReconcileUnrealizedCasts/ReconcileUnrealizedCasts.h"
+#include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/SCF/Transforms/Patterns.h"
 #include "mlir/IR/BuiltinAttributes.h"
 #include "mlir/IR/BuiltinOps.h"
@@ -13,6 +14,7 @@
 #include "mlir/IR/MLIRContext.h"
 #include "mlir/IR/TypeRange.h"
 #include "mlir/IR/Types.h"
+#include "mlir/IR/Value.h"
 #include "mlir/IR/ValueRange.h"
 #include "mlir/Support/LogicalResult.h"
 #include "triton-shared/Analysis/OpFoldResultUtils.h"
@@ -35,6 +37,7 @@
 #include "llvm/Support/Casting.h"
 #include "llvm/Support/Debug.h"
 #include <cassert>
+#include <cstdint>
 #include <optional>
 
 #define DEBUG_TYPE "triton-to-structured"
@@ -44,6 +47,126 @@ using namespace triton;
 
 #define GEN_PASS_CLASSES
 #include "triton-shared/Conversion/TritonToStructured/Passes.h.inc"
+
+/*
+when combining:
+- whether it is dynamic or structured
+- dimensions?
+
+basically:
+tolerate the dynamicism, when adding the ptrs (combining the dimensions),
+realize that one other dimension is still structured? so then can i reuse the
+ptr-analysis pass?
+
+but there's a load in the middle which i need to leave for ptranalysis to
+analyze this is so tricky :-o
+what if i define a set of dynamic ops to handle:
+
++ div
++ load
++
+
+
+at the end:
+- tensor of offsets
+- dimensions of each load:
+  - strides
+  - offsets (always 0 apparently)
+  - sizes
+*/
+
+enum class OffsetType { ROW, COLUMN };
+
+struct State {
+  OffsetType type;
+  TypedValue<RankedTensorType> dynamicValue = nullptr;
+  int64_t start = -1;
+  int64_t end = -1;
+};
+
+struct Analysis {
+
+  std::unordered_map<triton::ExpandDimsOp, State> m;
+
+  void process(triton::ExpandDimsOp expandDimOp) {
+    auto axis = expandDimOp.getAxis();
+    auto src = expandDimOp.getSrc();
+
+    OffsetType type;
+    if (axis == 0) {
+      // these offsets will be used for columns
+      type = OffsetType::COLUMN;
+    } else {
+      // rows
+      type = OffsetType::ROW;
+    }
+
+    // assume an expand dim can only lead to a mul?
+    if (auto makeRange = src.getDefiningOp<triton::MakeRangeOp>()) {
+
+      auto start = makeRange.getStart();
+      auto end = makeRange.getEnd();
+      m[expandDimOp] = State{type, nullptr, start, end};
+    } else {
+      m[expandDimOp] = State{type, nullptr, -1, -1};
+    }
+  }
+
+  void categorize(Value val) {
+    if (auto mulOp = val.getDefiningOp<arith::MulIOp>()) {
+
+    } else if (auto subOp = val.getDefiningOp<arith::SubIOp>()) {
+
+    } else if (auto addOp = val.getDefiningOp<arith::AddIOp>()) {
+
+    } else {
+
+    }
+  }
+
+  void traverse(ModuleOp op) {
+    op->walk([&](triton::AddPtrOp op) {
+      auto resultType = dyn_cast<RankedTensorType>(op.getResult());
+      if (!resultType || resultType.getRank() != 2) {
+        return;
+      }
+
+      auto ptr = op.getPtr();
+      auto offset = op.getOffset();
+
+      auto ptrBroadcast = ptr.getDefiningOp<triton::BroadcastOp>();
+      auto offsetBroadcast = offset.getDefiningOp<triton::BroadcastOp>();
+
+      if (!ptrBroadcast || !offsetBroadcast) {
+        return;
+      }
+
+
+    });
+
+    op->walk([&](triton::ExpandDimsOp op) { process(op); });
+
+    // match
+    /*
+    %13 = tt.broadcast %9 : tensor<2x1x!tt.ptr<f32>> -> tensor<2x4x!tt.ptr<f32>>
+    %14 = tt.broadcast %12 : tensor<1x4xi32> -> tensor<2x4xi32>
+    %15 = tt.addptr %13, %14 : tensor<2x4x!tt.ptr<f32>>, tensor<2x4xi32>
+    */
+
+    /*
+    so this would involve a tt.addptr of a ptr (already broadcast) + offsets
+    this ptr would have dynamic offset
+    and the offset here would have to be static
+
+    question: how do i pattern match?
+
+    basically i want to find all the offsets (rhs operand) of tt.addptr that is
+    dynamic so mapping of tt.addptr (offset) -> State?
+
+
+    */
+  }
+};
 
 namespace {
 
