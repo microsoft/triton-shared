@@ -12,6 +12,7 @@ module {
     %2 = tt.addptr %1, %0 : tensor<2x!tt.ptr<i32>>, tensor<2xi32>
     %3 = tt.load %2 : tensor<2x!tt.ptr<i32>>
     %10 = tt.expand_dims %3 {axis = 1 : i32} : tensor<2xi32> -> tensor<2x1xi32>
+    %11 = tt.splat %arg3 : i32 -> tensor<2x1xi32>
     %12 = arith.muli %10, %11 : tensor<2x1xi32>
 
     // offs_x_k[None, :] * stride_x_k
@@ -30,7 +31,6 @@ module {
     %15 = tt.addptr %13, %14 : tensor<2x4x!tt.ptr<f32>>, tensor<2x4xi32>
 
 
-    %11 = tt.splat %arg3 : i32 -> tensor<2x1xi32>
     %16 = tt.expand_dims %0 {axis = 1 : i32} : tensor<2xi32> -> tensor<2x1xi32>
     %17 = arith.muli %16, %11 : tensor<2x1xi32>
     %18 = tt.splat %arg2 : !tt.ptr<f32> -> tensor<2x1x!tt.ptr<f32>>

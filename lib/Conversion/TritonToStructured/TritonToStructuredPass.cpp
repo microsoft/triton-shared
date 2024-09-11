@@ -86,7 +86,7 @@ struct State {
 
 struct Analysis {
 
-  std::unordered_map<triton::ExpandDimsOp, State> m;
+  // std::unordered_map<triton::ExpandDimsOp, State> m;
 
   void process(triton::ExpandDimsOp expandDimOp) {
     auto axis = expandDimOp.getAxis();
@@ -106,9 +106,9 @@ struct Analysis {
 
       auto start = makeRange.getStart();
       auto end = makeRange.getEnd();
-      m[expandDimOp] = State{type, nullptr, start, end};
+      // m[expandDimOp] = State{type, nullptr, start, end};
     } else {
-      m[expandDimOp] = State{type, nullptr, -1, -1};
+      // m[expandDimOp] = State{type, nullptr, -1, -1};
     }
   }
 
@@ -120,13 +120,12 @@ struct Analysis {
     } else if (auto addOp = val.getDefiningOp<arith::AddIOp>()) {
 
     } else {
-
     }
   }
 
   void traverse(ModuleOp op) {
     op->walk([&](triton::AddPtrOp op) {
-      auto resultType = dyn_cast<RankedTensorType>(op.getResult());
+      auto resultType = dyn_cast<RankedTensorType>(op.getResult().getType());
       if (!resultType || resultType.getRank() != 2) {
         return;
       }
@@ -141,10 +140,29 @@ struct Analysis {
         return;
       }
 
+      op->dump();
 
+      mlir::tts::PtrAnalysis ptrAnalysis;
+
+      tts::PtrState ptrState;
+      OpBuilder builder1(ptrBroadcast);
+      auto ptrParseResult = ptrAnalysis.visitOperandBroadcast(
+          ptrBroadcast, ptrState, op->getLoc(), builder1);
+
+      tts::PtrState offsetState;
+      OpBuilder builder2(offsetBroadcast);
+      auto offsetParseResult = ptrAnalysis.visitOperandBroadcast(
+          offsetBroadcast, offsetState, op->getLoc(), builder2);
+
+      llvm::dbgs() << "PtrState: "
+                   << (ptrParseResult.succeeded() ? "succeeded" : "failed")
+                   << "\n";
+      llvm::dbgs() << "OffsetState: "
+                   << (offsetParseResult.succeeded() ? "succeeded" : "failed")
+                   << "\n";
     });
 
-    op->walk([&](triton::ExpandDimsOp op) { process(op); });
+    // op->walk([&](triton::ExpandDimsOp op) { process(op); });
 
     // match
     /*
@@ -409,6 +427,10 @@ public:
   }
 
   void runOnOperation() override {
+    Analysis a;
+    a.traverse(getOperation());
+    return;
+
     if (failed(runTritonToStructuredPrepass())) {
       signalPassFailure();
       return;
