@@ -17,7 +17,7 @@ module {
     %10 = arith.muli %8, %9 : tensor<1x4xi32>
     %11 = arith.index_cast %arg4 : i32 to index
     %12 = tt.broadcast %10 : tensor<1x4xi32> -> tensor<2x4xi32>
-    %13 = "tts.make_gather_tptr"(%arg0, %6, %11) <{sizes = array<i64: 1, 4>, static_strides = array<i64: 0, -9223372036854775808>}> : (!tt.ptr<f32>, tensor<2x1xi32>, index) -> tensor<2x4x!tt.ptr<f32>>
+    %13 = tts.make_gather_tptr offsets: %6, %arg0 to sizes: [1, 4], strides: [0, %11] : tensor<2x1xi32> <f32> to tensor<2x4x!tt.ptr<f32>>
     %14 = tt.expand_dims %0 {axis = 1 : i32} : tensor<2xi32> -> tensor<2x1xi32>
     %15 = arith.muli %14, %5 : tensor<2x1xi32>
     %16 = tt.splat %arg2 : !tt.ptr<f32> -> tensor<2x1x!tt.ptr<f32>>

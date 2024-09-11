@@ -145,12 +145,13 @@ def TTS_MakeGatherTensorPtrOp
 
   let results = (outs TT_PtrLike:$result);
 
-  // let assemblyFormat = [{
-  //   $base `to` `sizes` `` `:` $sizes
-  //   `` `,` `strides` `` `:`
-  //   custom<DynamicIndexList>($strides, $static_strides)
-  //   attr-dict `:` type($base) `to` type($result)
-  // }];
+  let assemblyFormat = [{
+    `offsets` `` `:` $offsets
+    `` `,` $base `to` `sizes` `` `:` $sizes
+    `` `,` `strides` `` `:`
+    custom<DynamicIndexList>($strides, $static_strides)
+    attr-dict `:` type($offsets) type($base) `to` type($result)
+  }];
 
 
   let builders = [

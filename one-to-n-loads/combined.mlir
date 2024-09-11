@@ -10,7 +10,7 @@ module {
     %3 = tt.splat %arg3 : i32 -> tensor<2x1xi32>
     %4 = arith.muli %2, %3 : tensor<2x1xi32>
     %5 = arith.index_cast %arg4 : i32 to index
-    %6 = "tts.make_gather_tptr"(%arg0, %4, %5) <{sizes = array<i64: 1, 4>, static_strides = array<i64: 0, -9223372036854775808>}> : (!tt.ptr<f32>, tensor<2x1xi32>, index) -> tensor<2x4x!tt.ptr<f32>>
+    %6 = tts.make_gather_tptr offsets: %4, %arg0 to sizes: [1, 4], strides: [0, %5] : tensor<2x1xi32> <f32> to tensor<2x4x!tt.ptr<f32>>
     %7 = arith.index_cast %arg3 : i32 to index
     %8 = arith.index_cast %arg4 : i32 to index
     %9 = tts.make_tptr %arg2 to sizes: [2, 4], strides: [%7, %8], offsets: [0, 0], shape: [0, 0], order: [] : <f32> to tensor<2x4x!tt.ptr<f32>>
