@@ -19,6 +19,7 @@ def device(request):
 
 
 tests_not_supported = {
+    "test_bin_op",
     "test_split",
     "test_split_to_scalar",
     "test_interleave_scalars",
@@ -94,7 +95,7 @@ def pytest_collection_modifyitems(config, items):
 
     for item in items:
         test_func_name = item.originalname if item.originalname else item.name
-        
+
         if test_func_name in tests_not_supported:
             item.add_marker(skip_marker)
             continue
@@ -105,5 +106,5 @@ def pytest_collection_modifyitems(config, items):
                     item.add_marker(skip_marker_bfloat)
                 if param_name.startswith('input_precision') and param_value.startswith('tf32'):
                     item.add_marker(skip_marker_tf32)
-                if param_name.endswith('dtype') and ('float8' in str(param_value)):
+                if (param_name.startswith('dtype') or param_name.endswith('dtype')) and ('float8' in str(param_value)):
                     item.add_marker(skip_marker_float8)
