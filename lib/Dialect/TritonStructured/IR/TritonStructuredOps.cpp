@@ -56,6 +56,23 @@ void MakeTensorPtrOp::build(OpBuilder &b, OperationState &state, Value base,
         b.getDenseI64ArrayAttr(staticShape), order);
 }
 
+void MakeGatherTensorPtrOp::build(OpBuilder &b, OperationState &state,
+                                  Type origType, Value base, Value offsets,
+                                  ArrayRef<int64_t> sizes,
+                                  ArrayRef<OpFoldResult> strides) {
+  SmallVector<int64_t> staticStrides;
+  SmallVector<Value> dynamicStrides;
+
+  dispatchIndexOpFoldResults(strides, dynamicStrides, staticStrides);
+
+  auto basePtr = cast<triton::PointerType>(base.getType());
+  auto elemType = basePtr.getPointeeType();
+  Type resType = RankedTensorType::get(sizes, basePtr);
+
+  build(b, state, origType, base, offsets, sizes, dynamicStrides,
+        b.getDenseI64ArrayAttr(staticStrides));
+}
+
 void LoadOp::build(OpBuilder &b, OperationState &state, Value ptr,
                    ArrayRef<OpFoldResult> dims, Value other) {
   SmallVector<int64_t> staticDims;

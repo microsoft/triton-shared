@@ -121,7 +121,7 @@ def TTS_MakeTensorPtrOp
 }
 
 def TTS_MakeGatherTensorPtrOp
-  : TTS_Op<"make_gather_tptr", [AttrSizedOperandSegments, Pure]> {
+  : TTS_Op<"make_gather_tptr", [Pure]> {
   let summary = "create a pointer that points to a tensor in memory";
 
   // base:    Base pointer used to contruct the tensor of pointers or pointer to tensor.
@@ -138,71 +138,34 @@ def TTS_MakeGatherTensorPtrOp
   //          it produces a tensor of pointers.
 
   let arguments = (ins TT_Ptr:$base,
+                       I32Tensor:$offsets,
                        DenseI64ArrayAttr:$sizes,
                        Variadic<Index>:$strides,
-                       Variadic<Index>:$offsets,
-                       Variadic<Index>:$shape,
-                       DenseI64ArrayAttr:$static_strides,
-                       DenseI64ArrayAttr:$static_offsets,
-                       DenseI64ArrayAttr:$static_shape,
-                       DenseI32ArrayAttr:$order);
+                       DenseI64ArrayAttr:$static_strides);
 
   let results = (outs TT_PtrLike:$result);
 
-  let assemblyFormat = [{
-    $base `to` `sizes` `` `:` $sizes
-    `` `,` `strides` `` `:`
-    custom<DynamicIndexList>($strides, $static_strides)
-    `` `,` `offsets` `` `:`
-    custom<DynamicIndexList>($offsets, $static_offsets)
-    `` `,` `shape` `` `:`
-    custom<DynamicIndexList>($shape, $static_shape)
-    `` `,` `order` `` `:` $order
-    attr-dict `:` type($base) `to` type($result)
-  }];
+  // let assemblyFormat = [{
+  //   $base `to` `sizes` `` `:` $sizes
+  //   `` `,` `strides` `` `:`
+  //   custom<DynamicIndexList>($strides, $static_strides)
+  //   attr-dict `:` type($base) `to` type($result)
+  // }];
 
 
   let builders = [
     // Build with mixed static and dynamic entries.
     OpBuilder<(ins
+      "Type":$origType,
       "Value":$base,
+      "Value":$offsets,
       "ArrayRef<int64_t>":$sizes,
-      "ArrayRef<OpFoldResult>":$strides,
-      "ArrayRef<OpFoldResult>":$offsets,
-      "ArrayRef<OpFoldResult>":$shape,
-      "ArrayRef<int32_t>":$order)>,
+      "ArrayRef<OpFoldResult>":$strides
+    )>,
   ];
 
   let extraClassDeclaration = [{
-    /// Return a vector of all the static or dynamic fields
-    SmallVector<OpFoldResult> getMixedSizes() {
-      Builder b(getContext());
-      SmallVector<Value> dynSizes; // sizes are always static
-      return ::mlir::getMixedValues(getSizes(), dynSizes, b);
-    }
-    SmallVector<OpFoldResult> getMixedStrides() {
-      Builder b(getContext());
-      return ::mlir::getMixedValues(getStaticStrides(), getStrides(), b);
-    }
-    SmallVector<OpFoldResult> getMixedOffsets() {
-      Builder b(getContext());
-      return ::mlir::getMixedValues(getStaticOffsets(), getOffsets(), b);
-    }
-    SmallVector<OpFoldResult> getMixedShape() {
-      Builder b(getContext());
-      return ::mlir::getMixedValues(getStaticShape(), getShape(), b);
-    }
-    bool isBlockPtr() {
-      return !getOrder().empty();
-    }
-    bool isStructuredPtr() {
-      return !isBlockPtr() &&
-             llvm::all_of(getStaticShape(), [](auto shape) { return shape == 0; });
-    }
-    bool isSplitPtr() {
-      return !isBlockPtr() &&
-             !isStructuredPtr();
-    }
+
   }];
 
   // TODO

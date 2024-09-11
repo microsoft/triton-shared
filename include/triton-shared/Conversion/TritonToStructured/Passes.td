@@ -8,6 +8,8 @@ def TritonToStructured : Pass<"triton-to-structured", "mlir::ModuleOp"> {
   let constructor = "triton::createTritonToStructuredPass()";
   let options = [
       Option<"runPrepassOnly", "run-prepass-only", "bool", /*default*/"false",
+             "Only run the pre-processing pass which inserts tts.get_structured_state ops used in scf.for">,
+      Option<"testPassOnly", "test-only", "bool", /*default*/"false",
              "Only run the pre-processing pass which inserts tts.get_structured_state ops used in scf.for">
   ];
 }

@@ -184,6 +184,20 @@ struct Analysis {
         for (auto s : offsetState.strides) {
           s.dump();
         }
+
+        OpBuilder b(op);
+        SmallVector<int64_t> staticSizes;
+        for (size_t i = 0; i < offsetState.getRank(); i++) {
+          auto s = getIntAttr(offsetState.sizes[i]);
+          assert(s.has_value());
+          staticSizes.push_back(s.value());
+        }
+        auto r = b.create<tts::MakeGatherTensorPtrOp>(
+            op->getLoc(), op.getResult().getType(), srcState.source,
+            addPtr.getOffset(), staticSizes, offsetState.strides);
+        for (auto &use : op->getUses()) {
+          use.set(r);
+        }
       }
 
       if (ptrParseResult.succeeded() && !offsetParseResult.succeeded()) {
@@ -502,9 +516,11 @@ public:
   }
 
   void runOnOperation() override {
-    Analysis a;
-    a.traverse(getOperation());
-    return;
+    if (testPassOnly) {
+      Analysis a;
+      a.traverse(getOperation());
+      return;
+    }
 
     if (failed(runTritonToStructuredPrepass())) {
       signalPassFailure();
