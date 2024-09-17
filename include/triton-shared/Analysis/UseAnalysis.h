@@ -80,8 +80,8 @@ struct UseInfo : public dataflow::AbstractSparseLattice {
 class UseAnalysis : public dataflow::SparseBackwardDataFlowAnalysis<UseInfo> {
 public:
   using SparseBackwardDataFlowAnalysis::SparseBackwardDataFlowAnalysis;
-  void visitOperation(Operation *op, ArrayRef<UseInfo *> operands,
-                      ArrayRef<const UseInfo *> results) override;
+  LogicalResult visitOperation(Operation *op, ArrayRef<UseInfo *> operands,
+                               ArrayRef<const UseInfo *> results) override;
 
   void visitBranchOperand(OpOperand &operand) override { return; }
 
