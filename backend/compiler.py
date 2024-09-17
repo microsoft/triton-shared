@@ -194,5 +194,6 @@ class CPUBackend(BaseBackend):
     def hash(self):
         return self.target
 
+    # The CPU backend does not use any extra python modules, return an empty dictionary
     def get_module_map(self) -> Dict[str, ModuleType]:
         return {}
