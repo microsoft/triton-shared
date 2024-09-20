@@ -3,6 +3,11 @@
 
 include "mlir/Pass/PassBase.td"
 
+def DecomposeDivOps : Pass<"decompose-div-ops", "mlir::ModuleOp"> {
+  let summary = "Convert Triton non-block pointer to TritonStructured dialect";
+  let constructor = "triton::createDecomposeDivOpsPass()";
+}
+
 def TritonToStructured : Pass<"triton-to-structured", "mlir::ModuleOp"> {
   let summary = "Convert Triton non-block pointer to TritonStructured dialect";
   let constructor = "triton::createTritonToStructuredPass()";
