@@ -21,8 +21,8 @@
 using namespace mlir;
 using namespace mlir::tts;
 
-namespace mlir {
-namespace tts {
+
+namespace mlir::tts {
 
 void MakeTensorPtrOp::build(OpBuilder &b, OperationState &state, Value base,
                             ArrayRef<int64_t> sizes,
@@ -30,8 +30,12 @@ void MakeTensorPtrOp::build(OpBuilder &b, OperationState &state, Value base,
                             ArrayRef<OpFoldResult> offsets,
                             ArrayRef<OpFoldResult> shape,
                             ArrayRef<int32_t> order) {
-  SmallVector<int64_t> staticStrides, staticOffsets, staticShape;
-  SmallVector<Value> dynamicStrides, dynamicOffsets, dynamicShape;
+  SmallVector<int64_t> staticStrides;
+  SmallVector<int64_t> staticOffsets;
+  SmallVector<int64_t> staticShape;
+  SmallVector<Value> dynamicStrides;
+  SmallVector<Value> dynamicOffsets;
+  SmallVector<Value> dynamicShape;
 
   dispatchIndexOpFoldResults(offsets, dynamicOffsets, staticOffsets);
   dispatchIndexOpFoldResults(strides, dynamicStrides, staticStrides);
@@ -169,5 +173,5 @@ GetStructuredStateOp::getOffsetAndStrideSegmentSizes(Type ptrLikeType) {
   return std::make_pair(offsetSegmentSize, strideSegmentSize);
 }
 
-} // namespace tts
-} // namespace mlir
+} // namespace mlir::tts
+

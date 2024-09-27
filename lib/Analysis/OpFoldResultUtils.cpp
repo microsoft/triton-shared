@@ -23,10 +23,7 @@ std::optional<int64_t> getIntAttr(const OpFoldResult ofr) {
 bool hasConstZero(const OpFoldResult ofr) {
   auto intAttr = getIntAttr(ofr);
   if (intAttr.has_value()) {
-    if (intAttr.value() == 0) {
-      return true;
-    }
-    return false;
+    return intAttr.value() == 0;
   }
 
   auto val = dyn_cast<Value>(ofr);
@@ -37,10 +34,7 @@ bool hasConstZero(const OpFoldResult ofr) {
 
   intAttr = getIntAttr(constOp.getValue());
   if (intAttr.has_value()) {
-    if (intAttr.value() == 0) {
-      return true;
-    }
-    return false;
+    return intAttr.value() == 0;
   }
 
   return false;
@@ -85,12 +79,13 @@ OpFoldResult addOFRs(const OpFoldResult lhs, const OpFoldResult rhs,
     return b.getIndexAttr(lhsIntAttr.value() + rhsIntAttr.value());
 
   // otherwise, need to create instructions to calculate new attribute value
-  auto lhsValue = dyn_cast<Value>(lhs);
+  Value lhsValue;
   if (lhsIntAttr) {
     auto lhsOp =
         b.create<arith::ConstantOp>(loc, b.getIndexAttr(lhsIntAttr.value()));
     lhsValue = lhsOp.getResult();
   } else {
+    lhsValue = cast<Value>(lhs);
     assert(isa<IndexType>(lhsValue.getType()));
   }
 

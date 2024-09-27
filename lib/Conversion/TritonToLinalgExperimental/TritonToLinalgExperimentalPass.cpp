@@ -42,8 +42,7 @@ public:
   }
 
   void runOnOperation() override {
-    auto moduleOp = getOperation();
-    PassManager pm(&getContext(), moduleOp.getOperationName());
+    PassManager pm(&getContext(), mlir::ModuleOp::getOperationName());
     pm.addPass(createTritonToStructuredPass());
 
     // Erase dead code and fold constants created during lowering

@@ -30,7 +30,7 @@ void mlir::triton::populateTritonToLinalgCanonicalizationPatterns(
 
 void mlir::triton::populateTritonToLinalgConversionPatterns(
     TypeConverter &typeConverter, RewritePatternSet &patterns,
-    unsigned int launchGridRank) {
+    unsigned int  /*launchGridRank*/) {
   populateFunctionOpInterfaceTypeConversionPattern<triton::FuncOp>(
       patterns, typeConverter);
 

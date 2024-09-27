@@ -23,12 +23,12 @@
 using namespace mlir;
 using namespace triton;
 
-namespace mlir {
-namespace triton {
+
+namespace mlir::triton {
 #define GEN_PASS_DEF_TRITONARITHTOLINALG
 #include "triton-shared/Conversion/TritonArithToLinalg/Passes.h.inc"
-} // namespace triton
-} // namespace mlir
+} // namespace mlir::triton
+
 
 namespace {
 
@@ -124,7 +124,7 @@ public:
             return true;
           }
 
-          bool operateOnTensors =
+          bool const operateOnTensors =
               llvm::all_of(op->getOperandTypes(), [](Type type) {
                 return isa<RankedTensorType>(type);
               });
@@ -167,7 +167,8 @@ public:
         auto name = func.getName();
         auto type = func.getFunctionType();
 
-        SmallVector<DictionaryAttr> argAttrs, resAttrs;
+        SmallVector<DictionaryAttr> argAttrs;
+        SmallVector<DictionaryAttr> resAttrs;
         func.getAllArgAttrs(argAttrs);
         func.getAllResultAttrs(resAttrs);
 
@@ -182,7 +183,7 @@ public:
         funcBody.cloneInto(&funcFuncBody, map);
 
         for (Block &block : funcFuncBody.getBlocks()) {
-          auto term = block.getTerminator();
+          auto *term = block.getTerminator();
           builder.setInsertionPoint(term);
           builder.create<func::ReturnOp>(func.getLoc(), term->getOperands());
           term->erase();

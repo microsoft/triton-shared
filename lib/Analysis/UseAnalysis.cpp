@@ -35,7 +35,7 @@ triton::UseAnalysis::visitOperation(Operation *op, ArrayRef<UseInfo *> operands,
   if (op->getResults().size() == 1) {
     auto resultType = dyn_cast<ShapedType>(op->getResult(0).getType());
     if (resultType && isa<triton::PointerType>(resultType.getElementType())) {
-      for (auto opnd : operands)
+      for (auto *opnd : operands)
         propagateUse(opnd, UseType::MetaUse);
     }
   }
@@ -79,9 +79,9 @@ triton::UseAnalysis::visitOperation(Operation *op, ArrayRef<UseInfo *> operands,
         else
           propagateUse(operands[2], UseType::DataUse);
       })
-      .Default([&](Operation *op) {
+      .Default([&](Operation * /*op*/) {
         // this condition account for tt.addptr
-        for (auto operand : operands) {
+        for (auto *operand : operands) {
           propagateResults(operand, results);
         }
       });
@@ -103,7 +103,7 @@ LogicalResult triton::runUseAnalysis(triton::FuncOp &funcOp) {
   funcOp.walk([&](Operation *op) {
     UseType useType = UseType::Undefined;
     for (auto result : op->getResults()) {
-      auto use = solver.lookupState<UseInfo>(result);
+      const auto *use = solver.lookupState<UseInfo>(result);
       assert(use && "Lattice value not found");
       auto thisUseType = use->type;
       if (thisUseType == UseType::Undefined)
@@ -119,7 +119,8 @@ LogicalResult triton::runUseAnalysis(triton::FuncOp &funcOp) {
     if (useType == UseType::Undefined) {
       LLVM_DEBUG({ op->setAttr("Undefined", UnitAttr::get(context)); });
       return;
-    } else if (useType == UseType::MetaUse) {
+    }
+    if (useType == UseType::MetaUse) {
       assert(op->getNumResults() == 1 &&
              "Ops used for meta computation are expected to have one result");
       // Only set the tag if the operation uses tensors
@@ -128,7 +129,8 @@ LogicalResult triton::runUseAnalysis(triton::FuncOp &funcOp) {
         op->setAttr("MetaUse", UnitAttr::get(context));
       }
       return;
-    } else if (useType == UseType::DataUse) {
+    }
+    if (useType == UseType::DataUse) {
       LLVM_DEBUG({ op->setAttr("DataUse", UnitAttr::get(context)); });
       return;
     }
@@ -152,7 +154,7 @@ LogicalResult triton::runUseAnalysis(triton::FuncOp &funcOp) {
     // - If not, do nothing; this operation will still be materlized.
     llvm::SetVector<Operation *> metaUsers;
     for (auto result : op->getResults()) {
-      for (auto user : result.getUsers()) {
+      for (auto *user : result.getUsers()) {
         TypeSwitch<Operation *>(user)
             .Case<triton::LoadOp>([&](auto load) {
               auto ptr = load.getPtr();
@@ -183,7 +185,7 @@ LogicalResult triton::runUseAnalysis(triton::FuncOp &funcOp) {
               // output only feeds into addptr
               bool allMeta = true;
               for (auto res : op->getResults()) {
-                auto resUse = solver.lookupState<UseInfo>(res);
+                const auto *resUse = solver.lookupState<UseInfo>(res);
                 if (resUse->type != UseType::MetaUse) {
                   allMeta = false;
                   break;
@@ -203,14 +205,14 @@ LogicalResult triton::runUseAnalysis(triton::FuncOp &funcOp) {
 
     // Clone the operation; switch all meta users to use the clone
     OpBuilder builder(op);
-    auto clone = builder.clone(*op);
+    auto *clone = builder.clone(*op);
     LLVM_DEBUG({ op->setAttr("MixUse", UnitAttr::get(context)); });
 
     // Setting tag for erasing op later
     clone->setAttr("MetaUse", UnitAttr::get(context));
 
     for (auto [res_i, result] : llvm::enumerate(op->getResults()))
-      for (auto user : metaUsers)
+      for (auto *user : metaUsers)
         for (auto &operand : user->getOpOperands())
           if (operand.get() == result)
             operand.set(clone->getResult(res_i));

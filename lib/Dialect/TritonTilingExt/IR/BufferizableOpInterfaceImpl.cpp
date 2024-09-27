@@ -34,11 +34,11 @@ using namespace mlir::bufferization;
 namespace {
 
 /// Generic conversion for any DestinationStyleOpInterface on tensors.
-static LogicalResult bufferizeTritonTilingExtDestinationStyleOpInterface(
+LogicalResult bufferizeTritonTilingExtDestinationStyleOpInterface(
     RewriterBase &rewriter, DestinationStyleOpInterface op,
     const BufferizationOptions &options) {
   // Take a guard before anything else.
-  OpBuilder::InsertionGuard g(rewriter);
+  OpBuilder::InsertionGuard const g(rewriter);
   rewriter.setInsertionPoint(op);
 
   // Nothing to do. This op is already bufferized.
@@ -66,7 +66,7 @@ static LogicalResult bufferizeTritonTilingExtDestinationStyleOpInterface(
 
   // New output operands for the cloned op.
   SmallVector<Value> newOutputBuffers;
-  for (OpResult opResult : op->getOpResults()) {
+  for (OpResult const opResult : op->getOpResults()) {
     OpOperand *opOperand = op.getDpsInitOperand(opResult.getResultNumber());
     FailureOr<Value> resultBuffer =
         getBuffer(rewriter, opOperand->get(), options);
@@ -84,7 +84,7 @@ static LogicalResult bufferizeTritonTilingExtDestinationStyleOpInterface(
   // Clone the op, but use the new operands. Move the existing block into the
   // new op. Since the new op does not have any tensor results, it does not
   // return anything.
-  clone(rewriter, op, /*resultTypes=*/TypeRange{}, newOperands);
+  clone(rewriter, op, /*newResultTypes=*/TypeRange{}, newOperands);
 
   // Replace the results of the old op with the new output buffers.
   replaceOpWithBufferizedValues(rewriter, op, newOutputBuffers);
@@ -96,14 +96,12 @@ template <typename OpTy>
 struct TritonTilingExtOpInterface
     : public DstBufferizableOpInterfaceExternalModel<
           TritonTilingExtOpInterface<OpTy>, OpTy> {
-  bool bufferizesToMemoryRead(Operation *op, OpOperand &opOperand,
-                              const AnalysisState &state) const {
+  bool bufferizesToMemoryRead(Operation *op, OpOperand &opOperand) const {
     // Operand is read if it is used in the computation.
     return cast<DestinationStyleOpInterface>(op).isDpsInput(&opOperand);
   }
 
-  bool bufferizesToMemoryWrite(Operation *op, OpOperand &opOperand,
-                               const AnalysisState &state) const {
+  bool bufferizesToMemoryWrite(Operation *op, OpOperand &opOperand) const {
     // Operand is written to if it is not an input/init.
     return cast<DestinationStyleOpInterface>(op).isDpsInit(&opOperand);
   }
@@ -125,7 +123,7 @@ template <typename... Ops> struct TritonTilingExtOpInterfaceHelper {
 void mlir::ttx::registerBufferizableOpInterfaceExternalModels(
     DialectRegistry &registry) {
   // clang-format off
-  registry.addExtension(+[](MLIRContext *ctx, ttx::TritonTilingExtDialect *dialect) {
+  registry.addExtension(+[](MLIRContext *ctx, ttx::TritonTilingExtDialect * /*dialect*/) {
     TritonTilingExtOpInterfaceHelper<
       ttx::CumSumOp
     >::registerOpInterface(ctx);

@@ -12,41 +12,48 @@
 
 #include "mlir/Transforms/DialectConversion.h"
 
-namespace mlir {
 
-namespace triton {
+
+namespace mlir::triton {
 
 LogicalResult MaskState::parse(Value operand, const Location loc,
                                OpBuilder &builder) {
   if (auto op = operand.getDefiningOp<arith::ConstantOp>()) {
     return this->parseConstant(op, loc, builder);
-  } else if (isa<IntegerType>(operand.getType())) {
-    return this->parseIntScalar(operand, loc, builder);
-  } else if (auto op = operand.getDefiningOp<arith::AddIOp>()) {
-    return this->parseAdd(op, loc, builder);
-  } else if (auto op = operand.getDefiningOp<arith::AndIOp>()) {
-    return this->parseAnd(op, loc, builder);
-  } else if (auto op = operand.getDefiningOp<arith::CmpIOp>()) {
-    return this->parseCmp(op, loc, builder);
-  } else if (auto op = operand.getDefiningOp<triton::MakeRangeOp>()) {
-    return this->parseMakeRange(op, loc, builder);
-  } else if (auto op = operand.getDefiningOp<triton::BroadcastOp>()) {
-    return this->parseBroadcast(op, loc, builder);
-  } else if (auto op = operand.getDefiningOp<triton::SplatOp>()) {
-    return this->parseSplat(op, loc, builder);
-  } else if (auto op = operand.getDefiningOp<triton::ExpandDimsOp>()) {
-    return this->parseExpandDims(op, loc, builder);
-  } else {
-    return failure();
   }
+  if (isa<IntegerType>(operand.getType())) {
+    return this->parseIntScalar(operand, loc, builder);
+  }
+  if (auto op = operand.getDefiningOp<arith::AddIOp>()) {
+    return this->parseAdd(op, loc, builder);
+  }
+  if (auto op = operand.getDefiningOp<arith::AndIOp>()) {
+    return this->parseAnd(op, loc, builder);
+  }
+  if (auto op = operand.getDefiningOp<arith::CmpIOp>()) {
+    return this->parseCmp(op, loc, builder);
+  }
+  if (auto op = operand.getDefiningOp<triton::MakeRangeOp>()) {
+    return this->parseMakeRange(op, loc, builder);
+  }
+  if (auto op = operand.getDefiningOp<triton::BroadcastOp>()) {
+    return this->parseBroadcast(op, loc, builder);
+  }
+  if (auto op = operand.getDefiningOp<triton::SplatOp>()) {
+    return this->parseSplat(op, loc, builder);
+  }
+  if (auto op = operand.getDefiningOp<triton::ExpandDimsOp>()) {
+    return this->parseExpandDims(op, loc, builder);
+  }
+  return failure();
 }
 
 tensor::ExtractSliceOp MaskState::getExtractSlice(Value source,
                                                   const Location loc,
                                                   OpBuilder &builder) const {
   auto sourceType = cast<RankedTensorType>(source.getType());
-  SmallVector<OpFoldResult> offsets(getRank(), builder.getIndexAttr(0));
-  SmallVector<OpFoldResult> strides(getRank(), builder.getIndexAttr(1));
+  SmallVector<OpFoldResult> const offsets(getRank(), builder.getIndexAttr(0));
+  SmallVector<OpFoldResult> const strides(getRank(), builder.getIndexAttr(1));
 
   auto dstType = tensor::ExtractSliceOp::inferResultType(sourceType, offsets,
                                                          dims, strides);
@@ -58,8 +65,8 @@ tensor::ExtractSliceOp MaskState::getExtractSlice(Value source,
 memref::SubViewOp MaskState::getSubview(Value source, const Location loc,
                                         OpBuilder &builder) const {
   auto sourceType = cast<MemRefType>(source.getType());
-  SmallVector<OpFoldResult> offsets(getRank(), builder.getIndexAttr(0));
-  SmallVector<OpFoldResult> strides(getRank(), builder.getIndexAttr(1));
+  SmallVector<OpFoldResult> const offsets(getRank(), builder.getIndexAttr(0));
+  SmallVector<OpFoldResult> const strides(getRank(), builder.getIndexAttr(1));
   auto dstType =
       memref::SubViewOp::inferResultType(sourceType, offsets, dims, strides);
 
@@ -136,14 +143,14 @@ static memref::SubViewOp createSubview(Value src, Location loc, OpBuilder &b,
 std::pair<memref::SubViewOp, memref::SubViewOp>
 MaskState::getSideBySideSubviews(Value block1, Value block2, const Location loc,
                                  OpBuilder &builder) const {
-  OpFoldResult subviewRowFull = dims[0];
-  OpFoldResult subviewColFull = dims[1];
-  OpFoldResult col1 = builder.create<memref::DimOp>(loc, block1, 1).getResult();
-  OpFoldResult subviewCol1 = minOFRs(col1, subviewColFull, loc, builder);
-  OpFoldResult subviewCol2 = subOFRs(subviewColFull, subviewCol1, loc, builder);
+  OpFoldResult const subviewRowFull = dims[0];
+  OpFoldResult const subviewColFull = dims[1];
+  OpFoldResult const col1 = builder.create<memref::DimOp>(loc, block1, 1).getResult();
+  OpFoldResult const subviewCol1 = minOFRs(col1, subviewColFull, loc, builder);
+  OpFoldResult const subviewCol2 = subOFRs(subviewColFull, subviewCol1, loc, builder);
 
-  SmallVector<OpFoldResult> offsets(getRank(), builder.getIndexAttr(0));
-  SmallVector<OpFoldResult> strides(getRank(), builder.getIndexAttr(1));
+  SmallVector<OpFoldResult> const offsets(getRank(), builder.getIndexAttr(0));
+  SmallVector<OpFoldResult> const strides(getRank(), builder.getIndexAttr(1));
   auto sv1 = createSubview(block1, loc, builder, offsets,
                            {subviewRowFull, subviewCol1}, strides);
   auto sv2 = createSubview(block2, loc, builder, offsets,
@@ -155,14 +162,14 @@ MaskState::getSideBySideSubviews(Value block1, Value block2, const Location loc,
 std::pair<memref::SubViewOp, memref::SubViewOp>
 MaskState::getStackedSubviews(Value block1, Value block2, const Location loc,
                               OpBuilder &builder) const {
-  OpFoldResult subviewRowFull = dims[0];
-  OpFoldResult subviewColFull = dims[1];
-  OpFoldResult row1 = builder.create<memref::DimOp>(loc, block1, 0).getResult();
-  OpFoldResult subviewRow1 = minOFRs(row1, subviewRowFull, loc, builder);
-  OpFoldResult subviewRow2 = subOFRs(subviewRowFull, subviewRow1, loc, builder);
+  OpFoldResult const subviewRowFull = dims[0];
+  OpFoldResult const subviewColFull = dims[1];
+  OpFoldResult const row1 = builder.create<memref::DimOp>(loc, block1, 0).getResult();
+  OpFoldResult const subviewRow1 = minOFRs(row1, subviewRowFull, loc, builder);
+  OpFoldResult const subviewRow2 = subOFRs(subviewRowFull, subviewRow1, loc, builder);
 
-  SmallVector<OpFoldResult> offsets(getRank(), builder.getIndexAttr(0));
-  SmallVector<OpFoldResult> strides(getRank(), builder.getIndexAttr(1));
+  SmallVector<OpFoldResult> const offsets(getRank(), builder.getIndexAttr(0));
+  SmallVector<OpFoldResult> const strides(getRank(), builder.getIndexAttr(1));
   auto sv1 = createSubview(block1, loc, builder, offsets,
                            {subviewRow1, subviewColFull}, strides);
   auto sv2 = createSubview(block2, loc, builder, offsets,
@@ -183,13 +190,13 @@ LogicalResult MaskState::addStates(const MaskState &lhsState,
                                    const MaskState &rhsState, Location loc,
                                    OpBuilder &builder) {
   if (lhsState.scalar && rhsState.scalar) {
-    InFlightDiagnostic diag =
+    InFlightDiagnostic const diag =
         emitError(loc) << "Unexpected case where both lhs and rhs are scalars";
     return failure();
   }
 
   if (!lhsState.scalar && !rhsState.scalar) {
-    InFlightDiagnostic diag =
+    InFlightDiagnostic const diag =
         emitError(loc)
         << "Unsupported scenario where neither lhs nor rhs is a scalar";
     return failure();
@@ -197,15 +204,14 @@ LogicalResult MaskState::addStates(const MaskState &lhsState,
 
   if (lhsState.scalar)
     return addStateScalar(rhsState, lhsState.scalar, loc, builder);
-  else
-    return addStateScalar(lhsState, rhsState.scalar, loc, builder);
+      return addStateScalar(lhsState, rhsState.scalar, loc, builder);
 }
 
 LogicalResult MaskState::minStates(const MaskState &lhsState,
                                    const MaskState &rhsState, Location loc,
                                    OpBuilder &builder) {
   if (lhsState.getRank() != rhsState.getRank()) {
-    InFlightDiagnostic diag =
+    InFlightDiagnostic const diag =
         emitError(loc)
         << "Unexpected case where lhs and rhs have different ranks";
     return failure();
@@ -288,7 +294,7 @@ LogicalResult MaskState::parseCmp(arith::CmpIOp cmpOp, const Location loc,
   assert(this->isEmpty());
 
   if (cmpOp.getPredicate() != arith::CmpIPredicate::slt) {
-    InFlightDiagnostic diag = emitError(loc) << "Unsupported cmpi predicate";
+    InFlightDiagnostic const diag = emitError(loc) << "Unsupported cmpi predicate";
     return failure();
   }
 
@@ -307,7 +313,7 @@ LogicalResult MaskState::parseCmp(arith::CmpIOp cmpOp, const Location loc,
     auto dimIntAttr = getIntAttr(lhsState.dims[i]);
     if (!dimIntAttr || dimIntAttr.value() != 1) {
       if (cmpDim != -1) {
-        InFlightDiagnostic diag = emitError(loc)
+        InFlightDiagnostic const diag = emitError(loc)
                                   << "Unsupported cmpi with more than one "
                                      "dimension with size larger than 1";
         return failure();
@@ -342,7 +348,7 @@ LogicalResult MaskState::parseMakeRange(triton::MakeRangeOp rangeOp,
   auto stride = (end - start + shape[0] - 1) / shape[0];
 
   if (stride != 1) {
-    InFlightDiagnostic diag =
+    InFlightDiagnostic const diag =
         emitError(loc)
         << "stride must be 1 for make_range whose result is used "
            "as load or store masks";
@@ -377,7 +383,7 @@ LogicalResult MaskState::parseBroadcast(triton::BroadcastOp broadcastOp,
   for (size_t i = 0; i < srcShape.size(); i++) {
     if (srcShape[i] == dstShape[i])
       continue;
-    else if (srcShape[i] < dstShape[i])
+    if (srcShape[i] < dstShape[i])
       this->dims[i] = builder.getIndexAttr(dstShape[i]);
     else
       llvm_unreachable("unexpected dimensions used in broadcast");
@@ -395,7 +401,7 @@ LogicalResult MaskState::parseSplat(triton::SplatOp splatOp, const Location loc,
   auto dstShape = cast<ShapedType>(dst.getType()).getShape();
 
   if (!isa<IntegerType>(src.getType())) {
-    InFlightDiagnostic diag =
+    InFlightDiagnostic const diag =
         emitError(loc)
         << "splat source must be an integer scalar for load/store masks";
     return failure();
@@ -428,5 +434,5 @@ LogicalResult MaskState::parseExpandDims(triton::ExpandDimsOp expandDimsOp,
   return success();
 }
 
-} // namespace triton
-} // namespace mlir
+} // namespace mlir::triton
+

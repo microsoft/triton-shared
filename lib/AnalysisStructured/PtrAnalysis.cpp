@@ -62,7 +62,7 @@ static Value getScalarValue(Value operand, Location loc, OpBuilder &builder) {
                   }
                   return builder.create<arith::TruncFOp>(loc, resType, src);
                 })
-                .Default([](Operation *op) {
+                .Default([](Operation * /*op*/) {
                   llvm_unreachable("unsupported op in generating ");
                   return nullptr;
                 });
@@ -73,12 +73,11 @@ static Value getScalarValue(Value operand, Location loc, OpBuilder &builder) {
   while (true) {
     if (!dyn_cast<ShapedType>(operand.getType())) {
       return reconstructScalarValue(operand);
-    } else if (auto op = operand.getDefiningOp<arith::ConstantOp>()) {
+    } if (auto op = operand.getDefiningOp<arith::ConstantOp>()) {
       if (auto attr = dyn_cast<DenseElementsAttr>(op.getValue())) {
         if (!attr.isSplat()) {
-          InFlightDiagnostic diag = emitError(loc)
-                                    << "other value used in masked load "
-                                       "produced by unsupported instruction";
+          emitError(loc) << "other value used in masked load "
+                            "produced by unsupported instruction";
           return nullptr;
         }
         auto elemValue = attr.getSplatValue<Attribute>();
@@ -95,9 +94,8 @@ static Value getScalarValue(Value operand, Location loc, OpBuilder &builder) {
       ops.push_back(op.getOperation());
       operand = op.getIn();
     } else {
-      InFlightDiagnostic diag = emitError(loc)
-                                << "other value used in masked load produced "
-                                   "by unsupported instruction";
+      emitError(loc) << "other value used in masked load produced "
+                        "by unsupported instruction";
       return nullptr;
     }
   }
@@ -220,9 +218,7 @@ LogicalResult PtrState::addState(const PtrState &lhsState,
   }
 
   for (uint64_t i = 0; i < lhs->getRank(); i++) {
-    if (!lhs->dimHasModulo(i)) {
-      shape.push_back(lhs->shape[i]);
-    } else if (hasConstZero(rhs->offsets[i])) {
+    if (!lhs->dimHasModulo(i) || hasConstZero(rhs->offsets[i])) {
       shape.push_back(lhs->shape[i]);
     } else if (i == 0 && lhs->getRank() == 2 && rhs->scalar) {
       shape.push_back(lhs->shape[1]);
@@ -278,11 +274,11 @@ LogicalResult PtrState::mulState(const PtrState &lhsState,
   }
 
   for (uint64_t i = 0; i < lhs->sizes.size(); i++) {
-    OpFoldResult newOffset =
+    OpFoldResult const newOffset =
         mulOFRValue(lhs->offsets[i], rhs->scalar, loc, builder);
-    OpFoldResult newStride =
+    OpFoldResult const newStride =
         mulOFRValue(lhs->strides[i], rhs->scalar, loc, builder);
-    OpFoldResult newShape =
+    OpFoldResult const newShape =
         mulOFRValue(lhs->shape[i], rhs->scalar, loc, builder);
     offsets.push_back(newOffset);
     strides.push_back(newStride);
@@ -420,7 +416,7 @@ LogicalResult PtrAnalysis::visitOperandRem(arith::RemSIOp remOp,
 }
 
 LogicalResult PtrAnalysis::visitOperandMakeRange(triton::MakeRangeOp rangeOp,
-                                                 PtrState &state, Location loc,
+                                                 PtrState &state, Location  /*loc*/,
                                                  OpBuilder &builder) {
   assert(state.isEmpty());
 
@@ -499,7 +495,7 @@ PtrAnalysis::visitOperandBroadcast(triton::BroadcastOp broadcastOp,
   for (size_t i = 0; i < dstShape.size(); i++) {
     if (srcShape[i] == dstShape[i]) {
       continue;
-    } else if (srcShape[i] < dstShape[i]) {
+    } if (srcShape[i] < dstShape[i]) {
       state.sizes[i] = builder.getIndexAttr(dstShape[i]);
     } else {
       llvm_unreachable("unexpected dimensions used in broadcast");
@@ -550,7 +546,7 @@ LogicalResult PtrAnalysis::visitOperandSplat(triton::SplatOp splatOp,
 
 LogicalResult PtrAnalysis::visitOperandAddptr(triton::AddPtrOp addptrOp,
                                               PtrState &state,
-                                              const Location loc,
+                                              const Location  /*loc*/,
                                               OpBuilder &builder) {
   assert(state.isEmpty());
 
@@ -611,8 +607,8 @@ LogicalResult PtrAnalysis::visitOperandConstSplat(arith::ConstantOp op,
 
 LogicalResult PtrAnalysis::visitOperandMakeTPtr(tts::MakeTensorPtrOp makeTPtrOp,
                                                 PtrState &state,
-                                                const Location loc,
-                                                OpBuilder &builder) {
+                                                const Location  /*loc*/,
+                                                OpBuilder & /*builder*/) {
 
   assert(state.isEmpty());
   state.source = makeTPtrOp.getBase();
@@ -669,8 +665,8 @@ PtrAnalysis::visitOperandMakeTensorPtr(triton::MakeTensorPtrOp makeTPtrOp,
 
 LogicalResult PtrAnalysis::visitOperandForOp(scf::ForOp forOp, Value operand,
                                              PtrState &state,
-                                             const Location loc,
-                                             OpBuilder &builder) {
+                                             const Location  /*loc*/,
+                                             OpBuilder & /*builder*/) {
 
   auto it = llvm::find(forOp->getResults(), operand);
   auto index = std::distance(forOp->getResults().begin(), it);
@@ -697,15 +693,15 @@ LogicalResult PtrAnalysis::visitOperand(Value operand, PtrState &state,
   }
 
   if (isa<IntegerType>(operand.getType())) {
-    OpBuilder::InsertionGuard guard(builder);
-    if (!isa<BlockArgument>(operand) && operand.getDefiningOp()) {
+    OpBuilder::InsertionGuard const guard(builder);
+    if (!isa<BlockArgument>(operand) && (operand.getDefiningOp() != nullptr)) {
       builder.setInsertionPointAfter(operand.getDefiningOp());
     }
     auto castOp = builder.create<arith::IndexCastOp>(
         loc, builder.getIndexType(), operand);
     state.scalar = castOp.getResult();
     return success();
-  } else if (isa<IndexType>(operand.getType())) {
+  } if (isa<IndexType>(operand.getType())) {
     state.scalar = operand;
     return success();
   }
@@ -713,11 +709,11 @@ LogicalResult PtrAnalysis::visitOperand(Value operand, PtrState &state,
   if (isa<triton::PointerType>(operand.getType())) {
     // A scalar pointer can either be produced by AddPtrOp or a block
     // argument
-    if (auto op = operand.getDefiningOp()) {
+    if (auto *op = operand.getDefiningOp()) {
       if (auto addPtrOp = dyn_cast<triton::AddPtrOp>(op)) {
         return visitOperandAddptr(cast<triton::AddPtrOp>(op), state, loc,
                                   builder);
-      } else if (auto makeTensorOp = dyn_cast<triton::MakeTensorPtrOp>(op)) {
+      } if (auto makeTensorOp = dyn_cast<triton::MakeTensorPtrOp>(op)) {
         llvm_unreachable("Unexpected operand defining operation tts.make_tptr");
       } else {
         llvm_unreachable("Unexpected operand defining operation");
@@ -730,37 +726,46 @@ LogicalResult PtrAnalysis::visitOperand(Value operand, PtrState &state,
 
   if (auto op = operand.getDefiningOp<arith::AddIOp>()) {
     return visitOperandAdd(op, state, loc, builder);
-  } else if (auto op = operand.getDefiningOp<arith::MulIOp>()) {
+  }
+  if (auto op = operand.getDefiningOp<arith::MulIOp>()) {
     return visitOperandMul(op, state, loc, builder);
-  } else if (auto op = operand.getDefiningOp<triton::MakeRangeOp>()) {
+  }
+  if (auto op = operand.getDefiningOp<triton::MakeRangeOp>()) {
     return visitOperandMakeRange(op, state, loc, builder);
-  } else if (auto op = operand.getDefiningOp<triton::BroadcastOp>()) {
+  }
+  if (auto op = operand.getDefiningOp<triton::BroadcastOp>()) {
     return visitOperandBroadcast(op, state, loc, builder);
-  } else if (auto op = operand.getDefiningOp<triton::SplatOp>()) {
+  }
+  if (auto op = operand.getDefiningOp<triton::SplatOp>()) {
     return visitOperandSplat(op, state, loc, builder);
-  } else if (auto op = operand.getDefiningOp<triton::ExpandDimsOp>()) {
+  }
+  if (auto op = operand.getDefiningOp<triton::ExpandDimsOp>()) {
     return visitOperandExpandDims(op, state, loc, builder);
-  } else if (auto op = operand.getDefiningOp<triton::AddPtrOp>()) {
+  }
+  if (auto op = operand.getDefiningOp<triton::AddPtrOp>()) {
     return visitOperandAddptr(op, state, loc, builder);
-  } else if (auto op = operand.getDefiningOp<arith::ConstantOp>()) {
+  }
+  if (auto op = operand.getDefiningOp<arith::ConstantOp>()) {
     return visitOperandConstSplat(op, state, loc, builder);
-  } else if (auto op = operand.getDefiningOp<arith::RemSIOp>()) {
+  }
+  if (auto op = operand.getDefiningOp<arith::RemSIOp>()) {
     return visitOperandRem(op, state, loc, builder);
-  } else if (auto op = operand.getDefiningOp<scf::ForOp>()) {
+  }
+  if (auto op = operand.getDefiningOp<scf::ForOp>()) {
     return visitOperandForOp(op, operand, state, loc, builder);
-  } else if (!operand.getDefiningOp()) {
+  }
+  if (operand.getDefiningOp() == nullptr) {
     // This operand must be an iter-arg of an inner-loop in a multiple-level
     // nested loop, which means its PtrState must have already been populated
     // during rewriteForOp of the parent loop.
     assert(knownPtrs.contains(operand));
     state = knownPtrs[operand];
     return success();
-  } else {
-    llvm::dbgs() << "PtrAnalysis: encountered addptr operand produced by an "
-                    "unsupported operation\n";
-    operand.dump();
-    return failure();
   }
+  llvm::dbgs() << "PtrAnalysis: encountered addptr operand produced by an "
+                  "unsupported operation\n";
+  operand.dump();
+  return failure();
 }
 
 LogicalResult PtrAnalysis::rewriteAddptrOp(triton::AddPtrOp op) {
@@ -859,7 +864,7 @@ FailureOr<PtrState> PtrAnalysis::getLoopInitArgPtrState(scf::ForOp forOp,
   // scf.for ... (%ptr) {...}
   if (auto getStateOp = ptr.getDefiningOp<tts::GetStructuredStateOp>()) {
     auto originalPtr = getStateOp->getOperand(0);
-    if (knownPtrs.count(originalPtr)) {
+    if (knownPtrs.count(originalPtr) != 0u) {
       return knownPtrs[originalPtr];
     }
   }
@@ -896,7 +901,7 @@ FailureOr<PtrState> PtrAnalysis::getLoopInitArgPtrState(scf::ForOp forOp,
   //          ...
   //    }
   // }
-  if (knownPtrs.count(ptr)) {
+  if (knownPtrs.count(ptr) != 0u) {
     assert(!ptr.getDefiningOp() && "Expect the ptr to be an iterarg");
     return knownPtrs[ptr];
   }
@@ -1026,7 +1031,7 @@ PtrAnalysis::rewriteGetStructuredStateOp(tts::GetStructuredStateOp op) {
 
   tts::PtrState state = knownPtrs[tritonPtr];
   assert(ptrMap.contains(tritonPtr));
-  Value remappedPtr = ptrMap.lookup(tritonPtr);
+  Value const remappedPtr = ptrMap.lookup(tritonPtr);
 
   SmallVector<Value> replacements{remappedPtr};
 
@@ -1064,7 +1069,7 @@ PtrAnalysis::rewriteGetStructuredStateOp(tts::GetStructuredStateOp op) {
   return success();
 }
 
-LogicalResult PtrAnalysis::rewriteLoadOp(triton::LoadOp op) {
+LogicalResult PtrAnalysis::rewriteLoadOp(triton::LoadOp op) const {
   auto ptr = ptrMap.lookupOrNull(op.getPtr());
   auto mask = op.getMask();
   auto other = op.getOther();
@@ -1120,7 +1125,7 @@ LogicalResult PtrAnalysis::rewriteLoadOp(triton::LoadOp op) {
   return success();
 }
 
-LogicalResult PtrAnalysis::rewriteStoreOp(triton::StoreOp op) {
+LogicalResult PtrAnalysis::rewriteStoreOp(triton::StoreOp op) const {
   auto ptr = ptrMap.lookupOrNull(op.getPtr());
   auto val = op.getValue();
   auto mask = op.getMask();

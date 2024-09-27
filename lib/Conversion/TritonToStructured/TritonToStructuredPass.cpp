@@ -68,11 +68,9 @@ public:
   }
 
   LogicalResult convertToPointerTupleWithOffsetsAndStrides() {
-    auto moduleOp = getOperation();
-
     RewritePatternSet patterns(&getContext());
 
-    auto context = &getContext();
+    auto *context = &getContext();
     OneToNTypeConverter converter;
     converter.addConversion([](Type type) { return type; });
 
@@ -153,7 +151,7 @@ public:
       return failure();
     }
 
-    PassManager pm(&getContext(), moduleOp.getOperationName());
+    PassManager pm(&getContext(), mlir::ModuleOp::getOperationName());
     pm.addPass(createCanonicalizerPass());
     if (failed(runPipeline(pm, getOperation()))) {
       return failure();
@@ -163,9 +161,7 @@ public:
   }
 
   LogicalResult decomposePointerTuple() {
-    auto moduleOp = getOperation();
-
-    auto context = &getContext();
+    auto *context = &getContext();
     OneToNTypeConverter converter;
     converter.addConversion([](Type type) { return type; });
 
@@ -189,9 +185,9 @@ public:
     // intended because the ops that currently take "pointer tuple type" are
     // `unrealized_conversion_cast` ops which will get removed below during
     // reconcile-unrealized-conversion-casts.
-    auto materialize = [](OpBuilder &builder, Type resultType,
+    auto materialize = [](OpBuilder & /*builder*/, Type  /*resultType*/,
                           ValueRange inputs,
-                          Location loc) { return inputs[0]; };
+                          Location  /*loc*/) { return inputs[0]; };
     converter.addArgumentMaterialization(materialize);
     converter.addSourceMaterialization(materialize);
 
@@ -221,7 +217,7 @@ public:
     // Be careful not to run canonicalization here, because the
     // tts.get_structured_state ops created above are just placeholders and
     // don't have any effects. Canonicalization will remove them altogether.
-    PassManager pm(&getContext(), moduleOp.getOperationName());
+    PassManager pm(&getContext(), mlir::ModuleOp::getOperationName());
     pm.addPass(mlir::createReconcileUnrealizedCastsPass());
     if (failed(runPipeline(pm, getOperation()))) {
       signalPassFailure();
