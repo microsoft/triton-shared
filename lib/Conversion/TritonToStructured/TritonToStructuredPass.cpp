@@ -154,7 +154,7 @@ public:
     }
 
     PassManager pm(&getContext(), moduleOp.getOperationName());
-    pm.addPass(createCanonicalizerPass());
+    // pm.addPass(createCanonicalizerPass());
     if (failed(runPipeline(pm, getOperation()))) {
       return failure();
     }

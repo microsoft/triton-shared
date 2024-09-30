@@ -9,6 +9,7 @@
 #include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/SCF/IR/SCF.h"
 #include "mlir/Dialect/Utils/StaticValueUtils.h"
+#include "mlir/IR/Builders.h"
 #include "mlir/IR/BuiltinOps.h"
 #include "mlir/IR/BuiltinTypes.h"
 #include "mlir/IR/ValueRange.h"
@@ -772,6 +773,7 @@ LogicalResult PtrAnalysis::visitOperand(Value operand, PtrState &state,
       state = knownPtrs[operand];
       return success();
     } else {
+
       return failure();
     }
 
@@ -882,6 +884,13 @@ FailureOr<PtrState> PtrAnalysis::getLoopInitArgPtrState(scf::ForOp forOp,
     if (knownPtrs.count(originalPtr)) {
       return knownPtrs[originalPtr];
     }
+
+    PtrState state;
+    OpBuilder b(forOp);
+    if (failed(visitOperand(originalPtr, state, forOp->getLoc(), b))) {
+      return failure();
+    }
+    return state;
   }
 
   // For nested loops scenarios, a pointer in init-args can be returned from
@@ -921,7 +930,14 @@ FailureOr<PtrState> PtrAnalysis::getLoopInitArgPtrState(scf::ForOp forOp,
     return knownPtrs[ptr];
   }
 
-  return failure();
+  // Try one last time :)
+  PtrState state;
+  OpBuilder b(forOp);
+  if (failed(visitOperand(ptr, state, forOp->getLoc(), b))) {
+    ptr.dump();
+    return failure();
+  }
+  return state;
 }
 
 PtrState PtrAnalysis::reconcileLoopPtrState(
@@ -972,9 +988,19 @@ FailureOr<PtrState> PtrAnalysis::getLoopResultPtrState(scf::ForOp forOp,
       [](scf::ForOp op, size_t index) { return op->getResult(index); });
 }
 
+static bool usedByAddPtr(Value v) {
+  // TODO: this needs to check for transitive uses
+  for (auto user : v.getUsers()) {
+    if (isa<triton::AddPtrOp>(user)) {
+      return true;
+    }
+  }
+  return false;
+}
+
 LogicalResult PtrAnalysis::rewriteForOp(scf::ForOp op) {
   for (auto [i, arg] : llvm::enumerate(op.getInitArgs())) {
-    if (!isPointerType(arg.getType())) {
+    if (!usedByAddPtr(arg) && !isPointerType(arg.getType())) {
       continue;
     }
 
@@ -1016,7 +1042,9 @@ LogicalResult PtrAnalysis::rewriteForOp(scf::ForOp op) {
     if (state->getRank() != 0) {
       OpBuilder builder(op.getRegion());
       auto maketptrOp = state->createTTSMakeTensorPtrOp(builder, op.getLoc());
-      ptrMap.map(key, maketptrOp.getResult());
+      if (isPointerType(arg.getType())) {
+        ptrMap.map(key, maketptrOp.getResult());
+      }
     }
   }
 

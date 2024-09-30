@@ -182,8 +182,11 @@ buildCastAndOffsetOps(OpBuilder &builder, TypeRange resultTypes, Value input,
   //    We assert that there can only be input that comes from
   //    unrealized_conversion_cast.
   auto castOp = input.getDefiningOp<UnrealizedConversionCastOp>();
-  input.dump();
-  assert(input.getDefiningOp());
+  // input.dump();
+  // if (!castOp) {
+  //   return std::nullopt;
+  // }
+  // assert(input.getDefiningOp());
   assert(castOp && "Unexpected defining op for input of type tt.ptr");
 
   // Compute the memref type
@@ -358,6 +361,8 @@ public:
       signalPassFailure();
       return;
     }
+
+    // return;
 
     if (failed(convertAddPtrToReinterpretCast())) {
       signalPassFailure();
