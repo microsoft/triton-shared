@@ -11,6 +11,7 @@
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/Support/Casting.h"
+#include "llvm/Support/LogicalResult.h"
 #include <cstdint>
 #include <optional>
 #include <utility>
@@ -95,25 +96,25 @@ void StoreOp::build(OpBuilder &b, OperationState &state, Value ptr, Value value,
 
 LogicalResult GetStructuredStateOp::verify() {
   return success();
-  auto expectedOffsetAndStrideTypes =
-      getOffsetAndStrideTypes(getContext(), getStructuredPtr().getType());
+  // auto expectedOffsetAndStrideTypes =
+  //     getOffsetAndStrideTypes(getContext(), getStructuredPtr().getType());
 
-  if (!expectedOffsetAndStrideTypes.has_value()) {
-    return failure();
-  }
+  // if (!expectedOffsetAndStrideTypes.has_value()) {
+  //   return failure();
+  // }
 
-  auto [expectedOffsetTypes, expectedStrideTypes] =
-      *expectedOffsetAndStrideTypes;
+  // auto [expectedOffsetTypes, expectedStrideTypes] =
+  //     *expectedOffsetAndStrideTypes;
 
-  return success(expectedOffsetTypes.size() == getOffsets().size() &&
-                 llvm::equal(expectedOffsetTypes, getOffsets().getTypes()) &&
-                 expectedStrideTypes.size() == getStrides().size() &&
-                 llvm::equal(expectedStrideTypes, getStrides().getTypes()));
+  // return success(expectedOffsetTypes.size() == getOffsets().size() &&
+  //                llvm::equal(expectedOffsetTypes, getOffsets().getTypes()) &&
+  //                expectedStrideTypes.size() == getStrides().size() &&
+  //                llvm::equal(expectedStrideTypes, getStrides().getTypes()));
 }
 
 void GetStructuredStateOp::build(OpBuilder &b, OperationState &state,
-                                 Value ptr) {
-  auto type = ptr.getType();
+                                 Value val) {
+  auto type = val.getType();
 
   // Builder cannot fail, so we default to empty offset and stride types.
   // The invalid op will be rejected by the verifier later.
@@ -121,13 +122,12 @@ void GetStructuredStateOp::build(OpBuilder &b, OperationState &state,
       getOffsetAndStrideTypes(b.getContext(), type)
           .value_or(std::make_pair(SmallVector<Type>{}, SmallVector<Type>{}));
 
-  build(b, state, ptr.getType(), offsetTypes, strideTypes, ptr);
+  build(b, state, val.getType(), offsetTypes, strideTypes, val);
 }
 
 std::optional<std::pair<SmallVector<Type>, SmallVector<Type>>>
-GetStructuredStateOp::getOffsetAndStrideTypes(MLIRContext *context,
-                                              Type ptrLikeType) {
-  auto sizes = getOffsetAndStrideSegmentSizes(ptrLikeType);
+GetStructuredStateOp::getOffsetAndStrideTypes(MLIRContext *context, Type type) {
+  auto sizes = getOffsetAndStrideSegmentSizes(type);
   if (!sizes.has_value()) {
     return std::nullopt;
   }
@@ -137,12 +137,21 @@ GetStructuredStateOp::getOffsetAndStrideTypes(MLIRContext *context,
 }
 
 std::optional<std::pair<int32_t, int32_t>>
-GetStructuredStateOp::getOffsetAndStrideSegmentSizes(Type ptrLikeType) {
+GetStructuredStateOp::getOffsetAndStrideSegmentSizes(Type type) {
   int32_t offsetSegmentSize = 0;
   int32_t strideSegmentSize = 0;
 
+  // Tensors of offsets
+  if (auto tensorType = llvm::dyn_cast<RankedTensorType>(type)) {
+    if (tensorType.getElementType().isIntOrIndex()) {
+      // Each tensor of rank k gets k values for its offsets and k values for
+      // its strides, all of which has Index type.
+      offsetSegmentSize = strideSegmentSize = tensorType.getRank();
+    }
+  }
+
   // Unstructured pointers (tensor<!tt.ptr<type>>)
-  if (auto tensorType = llvm::dyn_cast<RankedTensorType>(ptrLikeType)) {
+  else if (auto tensorType = llvm::dyn_cast<RankedTensorType>(type)) {
     if (auto ptrType =
             dyn_cast<triton::PointerType>(tensorType.getElementType())) {
       // Each tensor of rank k gets k values for its offsets and k values for
@@ -151,7 +160,7 @@ GetStructuredStateOp::getOffsetAndStrideSegmentSizes(Type ptrLikeType) {
     }
   }
   // Block pointers (!tt.ptr<tensor<type>> or !tt.ptr<type>)
-  else if (auto ptrType = llvm::dyn_cast<triton::PointerType>(ptrLikeType)) {
+  else if (auto ptrType = llvm::dyn_cast<triton::PointerType>(type)) {
     if (auto tensorType =
             llvm::dyn_cast<RankedTensorType>(ptrType.getPointeeType())) {
       // Each tensor of rank k gets k values for its offsets and k values for
