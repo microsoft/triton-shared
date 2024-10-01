@@ -998,7 +998,8 @@ LogicalResult PtrAnalysis::rewriteForOp(scf::ForOp op) {
       if (arg != getStateOp->getResult(0)) {
         continue;
       }
-      // continue;
+    } else {
+      continue;
     }
 
     auto state = getLoopIterArgPtrState(op, i);
@@ -1070,7 +1071,7 @@ PtrAnalysis::rewriteGetStructuredStateOp(tts::GetStructuredStateOp op) {
     PtrState tmp;
     OpBuilder b(op);
     if (failed(visitOperand(tritonPtr, tmp, op->getLoc(), b))) {
-      assert(0);
+      // assert(0);
       return failure();
     }
     state = tmp;
