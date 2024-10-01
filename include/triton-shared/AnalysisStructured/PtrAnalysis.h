@@ -90,6 +90,8 @@ class PtrAnalysis {
       scf::ForOp forOp, size_t ptrArgIndex, const PtrState &state,
       llvm::function_ref<Value(scf::ForOp op, size_t)> getReplacementVal);
 
+  FailureOr<PtrState> getState(tts::GetStructuredStateOp);
+
 public:
   using IndexMapSet = std::map<int, std::set<int>>;
 

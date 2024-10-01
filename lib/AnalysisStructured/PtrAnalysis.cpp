@@ -28,6 +28,7 @@
 #include "llvm/ADT/TypeSwitch.h"
 #include "llvm/Support/Casting.h"
 #include "llvm/Support/Debug.h"
+#include "llvm/Support/LogicalResult.h"
 #include <cassert>
 #include <cstddef>
 #include <functional>
@@ -566,6 +567,7 @@ LogicalResult PtrAnalysis::visitOperandAddptr(triton::AddPtrOp addptrOp,
   PtrState ptrState;
   if (visitOperand(addptrOp.getPtr(), ptrState, addptrOp.getLoc(), builder)
           .failed()) {
+    assert(0);
     return failure();
   }
 
@@ -573,6 +575,7 @@ LogicalResult PtrAnalysis::visitOperandAddptr(triton::AddPtrOp addptrOp,
   if (visitOperand(addptrOp.getOffset(), offsetState, addptrOp.getLoc(),
                    builder)
           .failed()) {
+    assert(0);
     return failure();
   }
 
@@ -881,6 +884,16 @@ FailureOr<PtrState> PtrAnalysis::getLoopInitArgPtrState(scf::ForOp forOp,
     auto originalPtr = getStateOp->getOperand(0);
     if (knownPtrs.count(originalPtr)) {
       return knownPtrs[originalPtr];
+    } else {
+      // this could be an offset, visit the operand to populate the state
+      // TODO: figure out a better way
+      PtrState state;
+      OpBuilder b(forOp);
+      if (failed(visitOperand(originalPtr, state, forOp->getLoc(), b))) {
+        assert(0);
+        return failure();
+      }
+      return state;
     }
   }
 
@@ -935,6 +948,9 @@ PtrState PtrAnalysis::reconcileLoopPtrState(
     // relevant newState that could be updated by the loop.
     newState.scalar = getReplacementVal(forOp, cnt);
   } else {
+    llvm::dbgs() << "rank: " << newState.getRank() << "\n";
+    llvm::dbgs() << "offsets sizes: " << newState.offsets.size() << "\n";
+    llvm::dbgs() << "stride sizes: " << newState.strides.size() << "\n";
     for (auto &offset : newState.offsets) {
       offset = getReplacementVal(forOp, cnt++);
     }
@@ -955,8 +971,10 @@ FailureOr<PtrState> PtrAnalysis::getLoopIterArgPtrState(scf::ForOp forOp,
   }
 
   return reconcileLoopPtrState(
-      forOp, index, state.value(),
-      [](scf::ForOp op, size_t index) { return op.getRegionIterArg(index); });
+      forOp, index, state.value(), [](scf::ForOp op, size_t index) {
+        llvm::dbgs() << "getting iter arg index " << index << "\n";
+        return op.getRegionIterArg(index);
+      });
 }
 
 FailureOr<PtrState> PtrAnalysis::getLoopResultPtrState(scf::ForOp forOp,
@@ -974,8 +992,13 @@ FailureOr<PtrState> PtrAnalysis::getLoopResultPtrState(scf::ForOp forOp,
 
 LogicalResult PtrAnalysis::rewriteForOp(scf::ForOp op) {
   for (auto [i, arg] : llvm::enumerate(op.getInitArgs())) {
-    if (!isPointerType(arg.getType())) {
-      continue;
+    // Nhat TODO: Fix this condition
+
+    if (auto getStateOp = arg.getDefiningOp<tts::GetStructuredStateOp>()) {
+      if (arg != getStateOp->getResult(0)) {
+        continue;
+      }
+      // continue;
     }
 
     auto state = getLoopIterArgPtrState(op, i);
@@ -1013,10 +1036,14 @@ LogicalResult PtrAnalysis::rewriteForOp(scf::ForOp op) {
     // beginning of the loop body. We don't lower tt.load and tt.store on
     // scalars in this pass; pointer arithmetics can also just use the
     // original pointer.
-    if (state->getRank() != 0) {
-      OpBuilder builder(op.getRegion());
-      auto maketptrOp = state->createTTSMakeTensorPtrOp(builder, op.getLoc());
-      ptrMap.map(key, maketptrOp.getResult());
+
+    if (isPointerType(arg.getType())) {
+      // Nhat TODO: Crashes without the above condition, why?
+      if (state->getRank() != 0) {
+        OpBuilder builder(op.getRegion());
+        auto maketptrOp = state->createTTSMakeTensorPtrOp(builder, op.getLoc());
+        ptrMap.map(key, maketptrOp.getResult());
+      }
     }
   }
 
@@ -1030,33 +1057,52 @@ LogicalResult PtrAnalysis::rewriteForOp(scf::ForOp op) {
   return success();
 }
 
+FailureOr<PtrState> getState(tts::GetStructuredStateOp op) { return failure(); }
+
 LogicalResult
 PtrAnalysis::rewriteGetStructuredStateOp(tts::GetStructuredStateOp op) {
   auto tritonPtr = op->getOperand(0);
 
-  // If this pointer isn't known, it means PtrAnalysis has failed to analyze
-  // this pointer. In such cases, simply remap all uses of the
-  // structured-pointer back to its original pointer.
-  if (!knownPtrs.contains(tritonPtr)) {
+  std::optional<tts::PtrState> state;
+  SmallVector<Value> replacements;
+
+  if (!isPointerType(tritonPtr.getType())) {
+    PtrState tmp;
+    OpBuilder b(op);
+    if (failed(visitOperand(tritonPtr, tmp, op->getLoc(), b))) {
+      assert(0);
+      return failure();
+    }
+    state = tmp;
+    replacements.push_back(tritonPtr);
+  }
+
+  else if (knownPtrs.contains(tritonPtr)) {
+
+    state = knownPtrs[tritonPtr];
+    assert(ptrMap.contains(tritonPtr));
+    Value remappedPtr = ptrMap.lookup(tritonPtr);
+    replacements.push_back(remappedPtr);
+
+  } else {
+
+    // If this pointer isn't known, it means PtrAnalysis has failed to analyze
+    // this pointer. In such cases, simply remap all uses of the
+    // structured-pointer back to its original pointer.
+
     op.emitRemark(
         "Rewrite GetStructuredStateOp failed. Could not find PtrState.");
     op.getResult(0).replaceAllUsesWith(tritonPtr);
     return failure();
   }
 
-  tts::PtrState state = knownPtrs[tritonPtr];
-  assert(ptrMap.contains(tritonPtr));
-  Value remappedPtr = ptrMap.lookup(tritonPtr);
-
-  SmallVector<Value> replacements{remappedPtr};
-
-  if (state.getRank() == 0) {
+  if (state->getRank() == 0) {
     // For scalar pointers, the scalar contains the offset and is the only
     // relevant state that could be updated by the loop.
-    replacements.push_back(state.scalar);
+    replacements.push_back(state->scalar);
   } else {
     OpBuilder builder(op);
-    for (auto [j, s] : llvm::enumerate(state.offsets)) {
+    for (auto [j, s] : llvm::enumerate(state->offsets)) {
       auto sIntAttr = getIntAttr(s);
       if (sIntAttr) {
         auto constOp = builder.create<arith::ConstantOp>(
@@ -1067,7 +1113,7 @@ PtrAnalysis::rewriteGetStructuredStateOp(tts::GetStructuredStateOp op) {
       }
     }
 
-    for (auto [j, s] : llvm::enumerate(state.strides)) {
+    for (auto [j, s] : llvm::enumerate(state->strides)) {
       auto sIntAttr = getIntAttr(s);
       if (sIntAttr) {
         auto constOp = builder.create<arith::ConstantOp>(
@@ -1238,6 +1284,7 @@ LogicalResult PtrAnalysis::rewriteOp(Operation *rootOp) {
           }
           return WalkResult::skip();
         })
+        // .Case<tts::>(CallableT &&caseFn)
         .Default([&](auto) { return WalkResult::advance(); });
   });
 

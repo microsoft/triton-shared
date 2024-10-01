@@ -287,9 +287,11 @@ public:
   }
 
   void runOnOperation() override {
-    if (failed(runTritonToStructuredPrepass())) {
-      signalPassFailure();
-      return;
+    if (!skipPrepass) {
+      if (failed(runTritonToStructuredPrepass())) {
+        signalPassFailure();
+        return;
+      }
     }
 
     if (runPrepassOnly) {
