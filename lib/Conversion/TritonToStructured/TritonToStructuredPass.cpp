@@ -84,7 +84,8 @@ public:
     converter.addConversion([context](RankedTensorType tensorType,
                                       SmallVectorImpl<Type> &types)
                                 -> std::optional<LogicalResult> {
-      if (!isa<triton::PointerType>(tensorType.getElementType())) {
+      if (!isa<triton::PointerType>(tensorType.getElementType()) &&
+          !tensorType.getElementType().isIntOrIndex()) {
         // There's a subtle difference between returning failure() and
         // std::nullopt. From the documentation:
         //

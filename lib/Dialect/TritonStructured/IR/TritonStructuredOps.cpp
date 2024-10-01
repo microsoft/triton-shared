@@ -95,21 +95,20 @@ void StoreOp::build(OpBuilder &b, OperationState &state, Value ptr, Value value,
 }
 
 LogicalResult GetStructuredStateOp::verify() {
-  return success();
-  // auto expectedOffsetAndStrideTypes =
-  //     getOffsetAndStrideTypes(getContext(), getStructuredPtr().getType());
+  auto expectedOffsetAndStrideTypes =
+      getOffsetAndStrideTypes(getContext(), getInput().getType());
 
-  // if (!expectedOffsetAndStrideTypes.has_value()) {
-  //   return failure();
-  // }
+  if (!expectedOffsetAndStrideTypes.has_value()) {
+    return failure();
+  }
 
-  // auto [expectedOffsetTypes, expectedStrideTypes] =
-  //     *expectedOffsetAndStrideTypes;
+  auto [expectedOffsetTypes, expectedStrideTypes] =
+      *expectedOffsetAndStrideTypes;
 
-  // return success(expectedOffsetTypes.size() == getOffsets().size() &&
-  //                llvm::equal(expectedOffsetTypes, getOffsets().getTypes()) &&
-  //                expectedStrideTypes.size() == getStrides().size() &&
-  //                llvm::equal(expectedStrideTypes, getStrides().getTypes()));
+  return success(expectedOffsetTypes.size() == getOffsets().size() &&
+                 llvm::equal(expectedOffsetTypes, getOffsets().getTypes()) &&
+                 expectedStrideTypes.size() == getStrides().size() &&
+                 llvm::equal(expectedStrideTypes, getStrides().getTypes()));
 }
 
 void GetStructuredStateOp::build(OpBuilder &b, OperationState &state,
