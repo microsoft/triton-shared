@@ -567,6 +567,7 @@ LogicalResult PtrAnalysis::visitOperandAddptr(triton::AddPtrOp addptrOp,
   PtrState ptrState;
   if (visitOperand(addptrOp.getPtr(), ptrState, addptrOp.getLoc(), builder)
           .failed()) {
+    assert(0);
     return failure();
   }
 
@@ -994,9 +995,13 @@ LogicalResult PtrAnalysis::rewriteForOp(scf::ForOp op) {
 
     if (auto getStateOp = arg.getDefiningOp<tts::GetStructuredStateOp>()) {
       if (arg != getStateOp->getResult(0)) {
+        llvm::dbgs() << "skip populating state for index " << i << "\n";
+        arg.dump();
         continue;
       }
-    } else {
+    } else if (!isPointerType(arg.getType())) {
+      llvm::dbgs() << "skip populating state for index " << i << "\n";
+      arg.dump();
       continue;
     }
 
