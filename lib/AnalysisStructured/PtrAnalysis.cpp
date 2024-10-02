@@ -11,6 +11,7 @@
 #include "mlir/Dialect/Utils/StaticValueUtils.h"
 #include "mlir/IR/BuiltinOps.h"
 #include "mlir/IR/BuiltinTypes.h"
+#include "mlir/IR/Value.h"
 #include "mlir/IR/ValueRange.h"
 #include "mlir/IR/Visitors.h"
 #include "mlir/Support/LogicalResult.h"
@@ -32,6 +33,7 @@
 #include <cassert>
 #include <cstddef>
 #include <functional>
+#include <optional>
 #include <string>
 
 #define DEBUG_TYPE "triton-ptr-analysis"
@@ -873,6 +875,9 @@ FailureOr<PtrState> PtrAnalysis::getLoopInitArgPtrState(scf::ForOp forOp,
                                                         size_t index) {
   auto ptr = forOp.getInitArgs()[index];
 
+  llvm::dbgs() << "here is the ptr dump\n";
+  ptr.dump();
+
   // If the pointer into the scf.for was defined by tts.get_structured_state,
   // we can get the pointer state from the original pointer (the op's input):
   //
@@ -915,6 +920,7 @@ FailureOr<PtrState> PtrAnalysis::getLoopInitArgPtrState(scf::ForOp forOp,
   // clang-format on
   // Notice %arg8 = %23 comes from the return value of the first loop.
   if (auto forOp = ptr.getDefiningOp<scf::ForOp>()) {
+    assert(0);
     return getLoopResultPtrState(forOp, index);
   }
 
@@ -978,7 +984,9 @@ FailureOr<PtrState> PtrAnalysis::getLoopIterArgPtrState(scf::ForOp forOp,
 
 FailureOr<PtrState> PtrAnalysis::getLoopResultPtrState(scf::ForOp forOp,
                                                        size_t index) {
-
+  llvm::dbgs() << "loop result ptr state index " << index << "\n";
+  auto res = *forOp.getLoopResults();
+  res[index].dump();
   auto state = getLoopInitArgPtrState(forOp, index);
   if (failed(state)) {
     return failure();
@@ -989,24 +997,57 @@ FailureOr<PtrState> PtrAnalysis::getLoopResultPtrState(scf::ForOp forOp,
       [](scf::ForOp op, size_t index) { return op->getResult(index); });
 }
 
+Value getOriginalValue(Value val) {
+  while (auto arg = dyn_cast<BlockArgument>(val)) {
+    auto parentOp = arg.getOwner()->getParentOp();
+    if (auto loopOp = dyn_cast<scf::ForOp>(parentOp)) {
+      for (unsigned int i = 0; i < loopOp.getRegionIterArgs().size(); i++) {
+        if (loopOp.getRegionIterArg(i) == arg) {
+          val = loopOp.getInitArgs()[i];
+          break;
+        }
+      }
+    } else {
+      return nullptr;
+    }
+  }
+  return val;
+}
+
 LogicalResult PtrAnalysis::rewriteForOp(scf::ForOp op) {
-  for (auto [i, arg] : llvm::enumerate(op.getInitArgs())) {
+  for (auto [i, arg] : llvm::enumerate(op.getRegionIterArgs())) {
     // Nhat TODO: Fix this condition
 
-    if (!isPointerType(arg.getType())) {
-    }
-
-    if (auto getStateOp = arg.getDefiningOp<tts::GetStructuredStateOp>()) {
-      if (arg != getStateOp->getResult(0)) {
-        llvm::dbgs() << "skip populating state for index " << i << "\n";
-        arg.dump();
-        continue;
-      }
-    } else if (!isPointerType(arg.getType())) {
-      llvm::dbgs() << "skip populating state for index " << i << "\n";
-      arg.dump();
+    auto originatingValue = getOriginalValue(arg);
+    if (!originatingValue) {
       continue;
     }
+
+    if (auto getStateOp =
+            originatingValue.getDefiningOp<tts::GetStructuredStateOp>()) {
+      auto v = getStateOp->getResult(0);
+      if (v != originatingValue) {
+        continue;
+      }
+    }
+
+    llvm::dbgs() << "here's the original value\n";
+    originatingValue.dump();
+    originatingValue.getType().dump();
+    arg.dump();
+    arg.getType().dump();
+
+    // if (auto getStateOp = arg.getDefiningOp<tts::GetStructuredStateOp>()) {
+    //   if (arg != getStateOp->getResult(0)) {
+    //     llvm::dbgs() << "skip populating state for index " << i << "\n";
+    //     arg.dump();
+    //     continue;
+    //   }
+    // } else if (!isPointerType(arg.getType())) {
+    //   llvm::dbgs() << "skip populating state for index " << i << "\n";
+    //   arg.dump();
+    //   continue;
+    // }
 
     auto state = getLoopIterArgPtrState(op, i);
     if (failed(state)) {
@@ -1017,8 +1058,7 @@ LogicalResult PtrAnalysis::rewriteForOp(scf::ForOp op) {
     }
 
     // Save the current init arg's PtrState
-    auto key = op.getRegionIterArgs()[i];
-    knownPtrs[key] = state.value();
+    knownPtrs[arg] = state.value();
 
     // For tensors of pointers, create a tts.make_tptr at the beginning of the
     // loop body that correspond to this region iter arg. In case it is used
@@ -1050,7 +1090,7 @@ LogicalResult PtrAnalysis::rewriteForOp(scf::ForOp op) {
       if (state->getRank() != 0) {
         OpBuilder builder(op.getRegion());
         auto maketptrOp = state->createTTSMakeTensorPtrOp(builder, op.getLoc());
-        ptrMap.map(key, maketptrOp.getResult());
+        ptrMap.map(arg, maketptrOp.getResult());
       }
     }
   }
@@ -1064,8 +1104,6 @@ LogicalResult PtrAnalysis::rewriteForOp(scf::ForOp op) {
 
   return success();
 }
-
-FailureOr<PtrState> getState(tts::GetStructuredStateOp op) { return failure(); }
 
 LogicalResult
 PtrAnalysis::rewriteGetStructuredStateOp(tts::GetStructuredStateOp op) {
@@ -1292,7 +1330,21 @@ LogicalResult PtrAnalysis::rewriteOp(Operation *rootOp) {
           }
           return WalkResult::skip();
         })
-        // .Case<tts::>(CallableT &&caseFn)
+        .Case<tts::GetStructuredStateOp>([&](auto getStateOp) {
+          // auto tritonPtr = op->getOperand(0);
+
+          // if (!knownPtrs.contains(tritonPtr)) {
+          //   PtrState tmp;
+          //   OpBuilder b(op);
+          //   if (failed(visitOperand(tritonPtr, tmp, op->getLoc(), b))) {
+          //     // assert(0);
+          //     return failure();
+          //   }
+          //   knownPtrs[tritonPtr] = tmp;
+          // }
+
+          return WalkResult::skip();
+        })
         .Default([&](auto) { return WalkResult::advance(); });
   });
 
