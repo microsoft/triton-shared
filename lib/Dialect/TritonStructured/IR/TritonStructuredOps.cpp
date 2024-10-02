@@ -140,19 +140,13 @@ GetStructuredStateOp::getOffsetAndStrideSegmentSizes(Type type) {
   int32_t offsetSegmentSize = 0;
   int32_t strideSegmentSize = 0;
 
-  // Tensors of offsets
   if (auto tensorType = llvm::dyn_cast<RankedTensorType>(type)) {
     if (tensorType.getElementType().isIntOrIndex()) {
-      // Each tensor of rank k gets k values for its offsets and k values for
-      // its strides, all of which has Index type.
+      // Tensors of offsets
       offsetSegmentSize = strideSegmentSize = tensorType.getRank();
-    }
-  }
-
-  // Unstructured pointers (tensor<!tt.ptr<type>>)
-  else if (auto tensorType = llvm::dyn_cast<RankedTensorType>(type)) {
-    if (auto ptrType =
-            dyn_cast<triton::PointerType>(tensorType.getElementType())) {
+    } else if (auto ptrType =
+                   dyn_cast<triton::PointerType>(tensorType.getElementType())) {
+      // Unstructured pointers (tensor<!tt.ptr<type>>)
       // Each tensor of rank k gets k values for its offsets and k values for
       // its strides, all of which has Index type.
       offsetSegmentSize = strideSegmentSize = tensorType.getRank();

@@ -567,7 +567,6 @@ LogicalResult PtrAnalysis::visitOperandAddptr(triton::AddPtrOp addptrOp,
   PtrState ptrState;
   if (visitOperand(addptrOp.getPtr(), ptrState, addptrOp.getLoc(), builder)
           .failed()) {
-    assert(0);
     return failure();
   }
 
@@ -575,7 +574,6 @@ LogicalResult PtrAnalysis::visitOperandAddptr(triton::AddPtrOp addptrOp,
   if (visitOperand(addptrOp.getOffset(), offsetState, addptrOp.getLoc(),
                    builder)
           .failed()) {
-    assert(0);
     return failure();
   }
 
@@ -890,7 +888,7 @@ FailureOr<PtrState> PtrAnalysis::getLoopInitArgPtrState(scf::ForOp forOp,
       PtrState state;
       OpBuilder b(forOp);
       if (failed(visitOperand(originalPtr, state, forOp->getLoc(), b))) {
-        assert(0);
+        // assert(0);
         return failure();
       }
       return state;
