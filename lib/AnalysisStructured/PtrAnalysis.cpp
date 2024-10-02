@@ -993,6 +993,9 @@ LogicalResult PtrAnalysis::rewriteForOp(scf::ForOp op) {
   for (auto [i, arg] : llvm::enumerate(op.getInitArgs())) {
     // Nhat TODO: Fix this condition
 
+    if (!isPointerType(arg.getType())) {
+    }
+
     if (auto getStateOp = arg.getDefiningOp<tts::GetStructuredStateOp>()) {
       if (arg != getStateOp->getResult(0)) {
         llvm::dbgs() << "skip populating state for index " << i << "\n";
@@ -1043,6 +1046,7 @@ LogicalResult PtrAnalysis::rewriteForOp(scf::ForOp op) {
 
     if (isPointerType(arg.getType())) {
       // Nhat TODO: Crashes without the above condition, why?
+      // It's because the state doesn't yet have the source i think
       if (state->getRank() != 0) {
         OpBuilder builder(op.getRegion());
         auto maketptrOp = state->createTTSMakeTensorPtrOp(builder, op.getLoc());
