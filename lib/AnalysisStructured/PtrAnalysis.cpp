@@ -890,16 +890,6 @@ FailureOr<PtrState> PtrAnalysis::getLoopInitArgPtrState(scf::ForOp forOp,
     auto originalPtr = getStateOp->getOperand(0);
     if (knownPtrs.count(originalPtr)) {
       return knownPtrs[originalPtr];
-    } else {
-      // this could be an offset, visit the operand to populate the state
-      // TODO: figure out a better way
-      PtrState state;
-      OpBuilder b(forOp);
-      if (failed(visitOperand(originalPtr, state, forOp->getLoc(), b))) {
-        // assert(0);
-        return failure();
-      }
-      return state;
     }
   }
 
