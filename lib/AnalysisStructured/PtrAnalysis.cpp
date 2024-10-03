@@ -14,6 +14,7 @@
 #include "mlir/IR/Value.h"
 #include "mlir/IR/ValueRange.h"
 #include "mlir/IR/Visitors.h"
+#include "mlir/Support/LLVM.h"
 #include "mlir/Support/LogicalResult.h"
 #include "triton-shared/Analysis/MaskAnalysis.h"
 #include "triton-shared/Analysis/OpFoldResultUtils.h"
@@ -1021,35 +1022,19 @@ LogicalResult PtrAnalysis::rewriteForOp(scf::ForOp op) {
   for (auto [i, arg] : llvm::enumerate(op.getRegionIterArgs())) {
     // Nhat TODO: Fix this condition
 
-    auto originatingValue = getOriginalValue(arg);
-    if (!originatingValue) {
+    if (!stateArgs.contains(arg)) {
       continue;
     }
 
-    if (auto getStateOp =
-            originatingValue.getDefiningOp<tts::GetStructuredStateOp>()) {
-      auto v = getStateOp->getResult(0);
-      if (v != originatingValue) {
-        continue;
-      }
-    } else if (!isPointerType(arg.getType())) {
-      // the arg can come from the result of another loop, we must visit pointer
-      // type anyway?
-      // what if the tensor of indices come from the result of another loop?
-      // how do we detect that case?
-      // i think the comment here is wrong?
-      continue;
-    }
-
-    llvm::dbgs() << "block arg index " << i << "\n";
-    arg.dump();
-    llvm::dbgs() << "type: \n";
-    arg.getType().dump();
-    llvm::dbgs() << "original value for index " << i << "\n";
-    originatingValue.dump();
-    // llvm::dbgs() originatingValue.getType().dump();
+    // llvm::dbgs() << "block arg index " << i << "\n";
+    // arg.dump();
+    // llvm::dbgs() << "type: \n";
     // arg.getType().dump();
-    llvm::dbgs() << "~~~\n";
+    // llvm::dbgs() << "original value for index " << i << "\n";
+    // originatingValue.dump();
+    // // llvm::dbgs() originatingValue.getType().dump();
+    // // arg.getType().dump();
+    // llvm::dbgs() << "~~~\n";
 
     // if (auto getStateOp = arg.getDefiningOp<tts::GetStructuredStateOp>()) {
     //   if (arg != getStateOp->getResult(0)) {
@@ -1268,7 +1253,13 @@ scf.for (%arg0 = %structured) {
 */
 void PtrAnalysis::populate(Operation *op, DenseSet<Value> &stateArgs) {
   std::queue<Value> q;
-  op->walk([&q](tts::GetStructuredStateOp op) { q.push(op->getResult(0)); });
+  DenseSet<Value> visited;
+
+  op->walk([&q, &visited](tts::GetStructuredStateOp op) {
+    Value value = op->getResult(0);
+    visited.insert(value);
+    q.push(value);
+  });
 
   while (!q.empty()) {
     auto v = q.front();
@@ -1289,21 +1280,41 @@ void PtrAnalysis::populate(Operation *op, DenseSet<Value> &stateArgs) {
         // set up the loop result
         auto tiedLoopRes = forOp.getTiedLoopResult(iterArg);
 
-        stateArgs.insert(iterArg);
-        stateArgs.insert(tiedLoopRes);
-        q.push(iterArg);
-        q.push(tiedLoopRes);
+        SmallVector<Value> neighbors{iterArg, tiedLoopRes};
+
+        llvm::dbgs() << "adding iter-arg\n";
+        iterArg.dump();
+        llvm::dbgs() << "adding loop-res num " << tiedLoopRes.getResultNumber()
+                     << "\n";
+        tiedLoopRes.dump();
+        for (auto neighbor : neighbors) {
+          stateArgs.insert(neighbor);
+          if (!visited.contains(neighbor)) {
+            visited.insert(neighbor);
+            q.push(neighbor);
+          }
+        }
+
       } else {
-        if (user->getNumResults() == 1) {
-          auto res = user->getResult(0);
-          if (res.getType() == v.getType()) {
-            stateArgs.insert(res);
+        for (auto res : user->getResults()) {
+          if (res.getType() != v.getType()) {
+            continue;
+          }
+          stateArgs.insert(res);
+          if (!visited.contains(res)) {
+            visited.insert(res);
             q.push(res);
+            llvm::dbgs() << "adding res\n";
+            res.dump();
+          } else {
+            llvm::dbgs() << "this res has already been handled\n";
+            res.dump();
           }
         }
       }
     }
   }
+  llvm::dbgs() << "+++++\n";
 }
 
 LogicalResult PtrAnalysis::rewriteStoreOp(triton::StoreOp op) {
