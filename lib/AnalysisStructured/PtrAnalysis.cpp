@@ -34,6 +34,7 @@
 #include <cstddef>
 #include <functional>
 #include <optional>
+#include <queue>
 #include <string>
 
 #define DEBUG_TYPE "triton-ptr-analysis"
@@ -1249,6 +1250,62 @@ LogicalResult PtrAnalysis::rewriteLoadOp(triton::LoadOp op) {
   return success();
 }
 
+// what is the goal here?
+// i want to set this up so that rewriteForOp knows which argument it should set
+// up the pointer state for. so what was i thinking? if i have
+//
+/*
+
+%structured, ... = tts.get_structured_state
+scf.for (%arg0 = %structured) {
+
+  %a = %arg0 + 1
+  %b = %b + 2
+  scf.for (%arg1 = %b) {
+
+  }
+}
+*/
+void PtrAnalysis::populate(Operation *op, DenseSet<Value> &stateArgs) {
+  std::queue<Value> q;
+  op->walk([&q](tts::GetStructuredStateOp op) { q.push(op->getResult(0)); });
+
+  while (!q.empty()) {
+    auto v = q.front();
+    q.pop();
+    for (auto user : v.getUsers()) {
+      if (auto forOp = dyn_cast<scf::ForOp>(user)) {
+        auto it = llvm::find(forOp.getInitArgs(), v);
+
+        if (it == forOp.getInitArgs().end()) {
+          continue;
+        }
+
+        auto argIndex = std::distance(forOp.getInitArgs().begin(), it);
+
+        // set up iter-arg
+        auto iterArg = forOp.getRegionIterArg(argIndex);
+
+        // set up the loop result
+        auto tiedLoopRes = forOp.getTiedLoopResult(iterArg);
+
+        stateArgs.insert(iterArg);
+        stateArgs.insert(tiedLoopRes);
+        q.push(iterArg);
+        q.push(tiedLoopRes);
+      } else {
+        if (user->getNumResults() == 1) {
+          auto res = user->getResult(0);
+          if (res.getType() == v.getType()) {
+            stateArgs.insert(res);
+            q.push(res);
+          }
+        }
+      }
+    }
+  }
+}
+
 LogicalResult PtrAnalysis::rewriteStoreOp(triton::StoreOp op) {
   auto ptr = ptrMap.lookupOrNull(op.getPtr());
   auto val = op.getValue();
@@ -1299,6 +1356,8 @@ LogicalResult PtrAnalysis::rewriteOp(Operation *rootOp) {
     rootOp->dump();
   });
 
+  populate(rootOp, stateArgs);
+
   rootOp->walk<WalkOrder::PreOrder>([&](Operation *op) {
     if (op == rootOp) {
       return WalkResult::advance();
@@ -1340,8 +1399,8 @@ LogicalResult PtrAnalysis::rewriteOp(Operation *rootOp) {
         .Case<scf::ForOp>([&](auto forOp) {
           // `rewriteForOp` recursively visits its children, so regardless
           // whether the rewrite succeeds or not, we need to return "skip" so
-          // that the the walk does not visit the for-op's child operations the
-          // second time.
+          // that the the walk does not visit the for-op's child operations
+          // the second time.
           if (rewriteForOp(forOp).failed()) {
             forOp->emitRemark("PtrAnalysis: Failed to rewrite ForOp");
           }
