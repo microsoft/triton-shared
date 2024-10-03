@@ -1036,6 +1036,7 @@ LogicalResult PtrAnalysis::rewriteForOp(scf::ForOp op) {
       // type anyway?
       // what if the tensor of indices come from the result of another loop?
       // how do we detect that case?
+      // i think the comment here is wrong?
       continue;
     }
 
@@ -1138,9 +1139,13 @@ PtrAnalysis::rewriteGetStructuredStateOp(tts::GetStructuredStateOp op) {
   // else
   if (knownPtrs.contains(tritonPtr)) {
     state = knownPtrs[tritonPtr];
-    assert(ptrMap.contains(tritonPtr));
-    Value remappedPtr = ptrMap.lookup(tritonPtr);
-    replacements.push_back(remappedPtr);
+
+    if (ptrMap.contains(tritonPtr)) {
+      Value remappedPtr = ptrMap.lookup(tritonPtr);
+      replacements.push_back(remappedPtr);
+    } else {
+      replacements.push_back(tritonPtr);
+    }
 
   } else {
 
@@ -1342,22 +1347,29 @@ LogicalResult PtrAnalysis::rewriteOp(Operation *rootOp) {
           }
           return WalkResult::skip();
         })
-        .Case<tts::GetStructuredStateOp>([&](auto getStateOp) {
-          auto tritonPtr = getStateOp->getOperand(0);
+        .Case<tts::GetStructuredStateOp>(
+            [&](tts::GetStructuredStateOp getStateOp) {
+              auto tritonPtr = getStateOp->getOperand(0);
+              llvm::dbgs() << "rewriting tts op\n";
+              getStateOp->dump();
 
-          if (!knownPtrs.contains(tritonPtr)) {
-            PtrState state;
-            OpBuilder b(getStateOp);
-            if (succeeded(
-                    visitOperand(tritonPtr, state, getStateOp->getLoc(), b))) {
-              knownPtrs[tritonPtr] = state;
-            } else {
-              getStateOp->emitRemark("failed to populate ptr state tts");
-            }
-          }
+              if (!knownPtrs.contains(tritonPtr)) {
+                PtrState state;
+                OpBuilder b(getStateOp);
+                tritonPtr.getType().dump();
+                tritonPtr.dump();
+                tritonPtr.getDefiningOp()->dump();
+                if (succeeded(visitOperand(tritonPtr, state,
+                                           getStateOp->getLoc(), b))) {
+                  knownPtrs[tritonPtr] = state;
+                } else {
+                  llvm::dbgs() << "fail\n";
+                  getStateOp->emitRemark("failed to populate ptr state tts");
+                }
+              }
 
-          return WalkResult::skip();
-        })
+              return WalkResult::skip();
+            })
         .Default([&](auto) { return WalkResult::advance(); });
   });
 
