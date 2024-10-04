@@ -857,9 +857,6 @@ FailureOr<PtrState> PtrAnalysis::getLoopInitArgPtrState(scf::ForOp forOp,
                                                         size_t index) {
   auto ptr = forOp.getInitArgs()[index];
 
-  // llvm::dbgs() << "here is the ptr dump\n";
-  // ptr.dump();
-
   // If the pointer into the scf.for was defined by tts.get_structured_state,
   // we can get the pointer state from the original pointer (the op's input):
   //
@@ -892,7 +889,6 @@ FailureOr<PtrState> PtrAnalysis::getLoopInitArgPtrState(scf::ForOp forOp,
   // clang-format on
   // Notice %arg8 = %23 comes from the return value of the first loop.
   if (auto forOp = ptr.getDefiningOp<scf::ForOp>()) {
-    // assert(0);
     return getLoopResultPtrState(forOp, index);
   }
 
@@ -925,9 +921,6 @@ PtrState PtrAnalysis::reconcileLoopPtrState(
     // relevant newState that could be updated by the loop.
     newState.scalar = getReplacementVal(forOp, cnt);
   } else {
-    // llvm::dbgs() << "rank: " << newState.getRank() << "\n";
-    // llvm::dbgs() << "offsets sizes: " << newState.offsets.size() << "\n";
-    // llvm::dbgs() << "stride sizes: " << newState.strides.size() << "\n";
     for (auto &offset : newState.offsets) {
       offset = getReplacementVal(forOp, cnt++);
     }
@@ -956,7 +949,6 @@ FailureOr<PtrState> PtrAnalysis::getLoopIterArgPtrState(scf::ForOp forOp,
 
 FailureOr<PtrState> PtrAnalysis::getLoopResultPtrState(scf::ForOp forOp,
                                                        size_t index) {
-  // llvm::dbgs() << "loop result ptr state index " << index << "\n";
   auto res = *forOp.getLoopResults();
   res[index].dump();
   auto state = getLoopInitArgPtrState(forOp, index);
@@ -987,36 +979,10 @@ Value getOriginalValue(Value val) {
 }
 
 LogicalResult PtrAnalysis::rewriteForOp(scf::ForOp op) {
-  llvm::dbgs() << "rewriting op\n";
-  op->dump();
   for (auto [i, arg] : llvm::enumerate(op.getRegionIterArgs())) {
-    // Nhat TODO: Fix this condition
-
     if (!stateArgs.contains(arg)) {
       continue;
     }
-
-    // llvm::dbgs() << "block arg index " << i << "\n";
-    // arg.dump();
-    // llvm::dbgs() << "type: \n";
-    // arg.getType().dump();
-    // llvm::dbgs() << "original value for index " << i << "\n";
-    // originatingValue.dump();
-    // // llvm::dbgs() originatingValue.getType().dump();
-    // // arg.getType().dump();
-    // llvm::dbgs() << "~~~\n";
-
-    // if (auto getStateOp = arg.getDefiningOp<tts::GetStructuredStateOp>()) {
-    //   if (arg != getStateOp->getResult(0)) {
-    //     llvm::dbgs() << "skip populating state for index " << i << "\n";
-    //     arg.dump();
-    //     continue;
-    //   }
-    // } else if (!isPointerType(arg.getType())) {
-    //   llvm::dbgs() << "skip populating state for index " << i << "\n";
-    //   arg.dump();
-    //   continue;
-    // }
 
     auto state = getLoopIterArgPtrState(op, i);
     if (failed(state)) {
@@ -1052,10 +1018,9 @@ LogicalResult PtrAnalysis::rewriteForOp(scf::ForOp op) {
     // beginning of the loop body. We don't lower tt.load and tt.store on
     // scalars in this pass; pointer arithmetics can also just use the
     // original pointer.
-
+    // Note that there can be tensor of indices in iter-arg, so we only create
+    // the make_tensor_ptr op when the arg is of pointer type.
     if (isPointerType(arg.getType())) {
-      // Nhat TODO: Crashes without the above condition, why?
-      // It's because the state doesn't yet have the source i think
       if (state->getRank() != 0) {
         OpBuilder builder(op.getRegion());
         auto maketptrOp = state->createTTSMakeTensorPtrOp(builder, op.getLoc());
@@ -1081,18 +1046,6 @@ PtrAnalysis::rewriteGetStructuredStateOp(tts::GetStructuredStateOp op) {
   std::optional<tts::PtrState> state;
   SmallVector<Value> replacements;
 
-  // if (!isPointerType(tritonPtr.getType())) {
-  //   PtrState tmp;
-  //   OpBuilder b(op);
-  //   if (failed(visitOperand(tritonPtr, tmp, op->getLoc(), b))) {
-  //     // assert(0);
-  //     return failure();
-  //   }
-  //   state = tmp;
-  //   replacements.push_back(tritonPtr);
-  // }
-
-  // else
   if (knownPtrs.contains(tritonPtr)) {
     state = knownPtrs[tritonPtr];
 
@@ -1104,11 +1057,9 @@ PtrAnalysis::rewriteGetStructuredStateOp(tts::GetStructuredStateOp op) {
     }
 
   } else {
-
     // If this pointer isn't known, it means PtrAnalysis has failed to analyze
     // this pointer. In such cases, simply remap all uses of the
     // structured-pointer back to its original pointer.
-
     op.emitRemark(
         "Rewrite GetStructuredStateOp failed. Could not find PtrState.");
     op.getResult(0).replaceAllUsesWith(tritonPtr);

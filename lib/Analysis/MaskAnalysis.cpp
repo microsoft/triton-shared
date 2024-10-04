@@ -335,13 +335,10 @@ LogicalResult MaskState::parseCmp(arith::CmpIOp cmpOp, const Location loc,
   auto newDim = subOFRs(newEnd, lhsState.start, loc, builder);
 
   for (int32_t i = 0; i < lhsState.getRank(); i++) {
-    if (i == cmpDim) {
-      llvm::dbgs() << "pushing new dim, sub\n";
+    if (i == cmpDim)
       this->dims.push_back(newDim);
-    } else {
-      llvm::dbgs() << "pushing lhs dim\n";
+    else
       this->dims.push_back(lhsState.dims[i]);
-    }
   }
 
   return success();
