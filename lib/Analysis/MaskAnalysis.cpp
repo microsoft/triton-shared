@@ -362,35 +362,39 @@ LogicalResult MaskState::parseDynamicRange(Value v, const Location loc,
   auto forOp = llvm::dyn_cast<scf::ForOp>(v.getParentRegion()->getParentOp());
 
   if (!forOp) {
-    return llvm::failure();
+    return failure();
+  }
+
+  // This implementation does not work with nested loops
+  if (forOp->getParentOfType<scf::ForOp>()) {
+    return failure();
   }
 
   // all i'm really doing is combine the offset with the make range
   // check the init-arg
-  for (auto [i, arg] : llvm::enumerate(forOp.getInitArgs())) {
-    auto key = forOp.getRegionIterArgs()[i];
-    if (key != v) {
-      continue;
-    }
-
-    if (auto getStateOp = arg.getDefiningOp<tts::GetStructuredStateOp>()) {
-      auto passthru = getStateOp->getOperand(0);
-      if (auto makeRangeOp =
-              dyn_cast<triton::MakeRangeOp>(passthru.getDefiningOp())) {
-        // Nhat TODO: should probably skip checking for make-range
-        MaskState lhsState;
-        if (failed(lhsState.parse(passthru, loc, builder))) {
-          return failure();
-        }
-
-        if (failed(this->addStateScalar(
-                lhsState, forOp.getRegionIterArgs()[i + 1], loc, builder))) {
-          return failure();
-        }
-      }
-    }
+  auto it = llvm::find(forOp.getRegionIterArgs(), v);
+  if (it == forOp.getRegionIterArgs().end()) {
+    return failure();
   }
-  return success();
+
+  auto argIndex = std::distance(forOp.getRegionIterArgs().begin(), it);
+  auto initArg = forOp.getInitArgs()[argIndex];
+  if (auto getStateOp = initArg.getDefiningOp<tts::GetStructuredStateOp>()) {
+    auto passthru = getStateOp->getOperand(0);
+    MaskState lhsState;
+    if (failed(lhsState.parse(passthru, loc, builder))) {
+      return failure();
+    }
+
+    if (failed(this->addStateScalar(
+            lhsState, forOp.getRegionIterArgs()[argIndex + 1], loc, builder))) {
+      return failure();
+    }
+
+    return success();
+  }
+
+  return failure();
 }
 
 LogicalResult MaskState::parseMakeRange(triton::MakeRangeOp rangeOp,
