@@ -21,6 +21,7 @@
 
 #include "llvm/Support/Casting.h"
 #include "llvm/Support/Debug.h"
+#include "llvm/Support/LogicalResult.h"
 #include <cassert>
 
 namespace mlir {
@@ -369,9 +370,9 @@ LogicalResult MaskState::parseLoopIterArg(Value v, const Location loc,
   auto argIndex = std::distance(forOp.getRegionIterArgs().begin(), it);
   auto initArg = forOp.getInitArgs()[argIndex];
   if (auto getStateOp = initArg.getDefiningOp<tts::GetStructuredStateOp>()) {
-    auto passthru = getStateOp->getOperand(0);
+    auto tritonValue = getStateOp->getOperand(0);
     MaskState lhsState;
-    if (failed(lhsState.parse(passthru, loc, builder))) {
+    if (failed(lhsState.parse(tritonValue, loc, builder))) {
       return failure();
     }
 
