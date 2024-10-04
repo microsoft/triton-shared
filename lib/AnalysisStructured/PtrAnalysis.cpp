@@ -941,10 +941,8 @@ FailureOr<PtrState> PtrAnalysis::getLoopIterArgPtrState(scf::ForOp forOp,
   }
 
   return reconcileLoopPtrState(
-      forOp, index, state.value(), [](scf::ForOp op, size_t index) {
-        llvm::dbgs() << "getting iter arg index " << index << "\n";
-        return op.getRegionIterArg(index);
-      });
+      forOp, index, state.value(),
+      [](scf::ForOp op, size_t index) { return op.getRegionIterArg(index); });
 }
 
 FailureOr<PtrState> PtrAnalysis::getLoopResultPtrState(scf::ForOp forOp,
