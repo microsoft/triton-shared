@@ -6,19 +6,11 @@
 //===----------------------------------------------------------------------===//
 
 #include "triton-shared/Analysis/MaskAnalysis.h"
-#include "mlir/Dialect/Arith/IR/Arith.h"
-#include "mlir/Dialect/SCF/IR/SCF.h"
-#include "mlir/Support/LogicalResult.h"
 #include "triton-shared/Analysis/OpFoldResultUtils.h"
 
-#include "triton-shared/Dialect/TritonStructured/IR/TritonStructuredDialect.h"
 #include "triton/Dialect/Triton/IR/Dialect.h"
 
 #include "mlir/Transforms/DialectConversion.h"
-#include "llvm/Support/Casting.h"
-#include "llvm/Support/Debug.h"
-#include "llvm/Support/LogicalResult.h"
-#include <cassert>
 
 namespace mlir {
 
@@ -44,13 +36,7 @@ LogicalResult MaskState::parse(Value operand, const Location loc,
     return this->parseSplat(op, loc, builder);
   } else if (auto op = operand.getDefiningOp<triton::ExpandDimsOp>()) {
     return this->parseExpandDims(op, loc, builder);
-  } else if (auto op = operand.getDefiningOp<arith::ExtSIOp>()) {
-    return this->parseExtSI(op, loc, builder);
-  } else if (!operand.getDefiningOp()) {
-    return this->parseDynamicRange(operand, loc, builder);
   } else {
-    operand.dump();
-    assert(0);
     return failure();
   }
 }
@@ -297,19 +283,12 @@ LogicalResult MaskState::parseAnd(arith::AndIOp andOp, const Location loc,
   return this->minStates(lhsState, rhsState, loc, builder);
 }
 
-LogicalResult MaskState::parseExtSI(arith::ExtSIOp op, const Location loc,
-                                    OpBuilder &builder) {
-  assert(this->isEmpty());
-  return parse(op.getIn(), loc, builder);
-}
-
 LogicalResult MaskState::parseCmp(arith::CmpIOp cmpOp, const Location loc,
                                   OpBuilder &builder) {
   assert(this->isEmpty());
 
-  if (cmpOp.getPredicate() != arith::CmpIPredicate::slt &&
-      cmpOp.getPredicate() != arith::CmpIPredicate::ult) {
-    InFlightDiagnostic diag = emitError(loc) << "Unsupported cmpi zzz";
+  if (cmpOp.getPredicate() != arith::CmpIPredicate::slt) {
+    InFlightDiagnostic diag = emitError(loc) << "Unsupported cmpi predicate";
     return failure();
   }
 
@@ -343,58 +322,13 @@ LogicalResult MaskState::parseCmp(arith::CmpIOp cmpOp, const Location loc,
   auto newDim = subOFRs(newEnd, lhsState.start, loc, builder);
 
   for (int32_t i = 0; i < lhsState.getRank(); i++) {
-    if (i == cmpDim) {
-      llvm::dbgs() << "pushing new dim, sub\n";
+    if (i == cmpDim)
       this->dims.push_back(newDim);
-    } else {
-      llvm::dbgs() << "pushing lhs dim\n";
+    else
       this->dims.push_back(lhsState.dims[i]);
-    }
   }
 
   return success();
-}
-
-LogicalResult MaskState::parseDynamicRange(Value v, const Location loc,
-                                           OpBuilder &builder) {
-  assert(!v.getDefiningOp());
-
-  auto forOp = llvm::dyn_cast<scf::ForOp>(v.getParentRegion()->getParentOp());
-
-  if (!forOp) {
-    return failure();
-  }
-
-  // This implementation does not work with nested loops
-  if (forOp->getParentOfType<scf::ForOp>()) {
-    return failure();
-  }
-
-  // all i'm really doing is combine the offset with the make range
-  // check the init-arg
-  auto it = llvm::find(forOp.getRegionIterArgs(), v);
-  if (it == forOp.getRegionIterArgs().end()) {
-    return failure();
-  }
-
-  auto argIndex = std::distance(forOp.getRegionIterArgs().begin(), it);
-  auto initArg = forOp.getInitArgs()[argIndex];
-  if (auto getStateOp = initArg.getDefiningOp<tts::GetStructuredStateOp>()) {
-    auto passthru = getStateOp->getOperand(0);
-    MaskState lhsState;
-    if (failed(lhsState.parse(passthru, loc, builder))) {
-      return failure();
-    }
-
-    if (failed(this->addStateScalar(
-            lhsState, forOp.getRegionIterArgs()[argIndex + 1], loc, builder))) {
-      return failure();
-    }
-
-    return success();
-  }
-
-  return failure();
 }
 
 LogicalResult MaskState::parseMakeRange(triton::MakeRangeOp rangeOp,
