@@ -1196,7 +1196,6 @@ void PtrAnalysis::populate(Operation *op, DenseSet<Value> &stateArgs) {
       }
     }
   }
-  llvm::dbgs() << "+++++\n";
 }
 
 LogicalResult PtrAnalysis::rewriteStoreOp(triton::StoreOp op) {
