@@ -12,12 +12,16 @@
 #include "mlir/Dialect/MemRef/IR/MemRef.h"
 #include "mlir/Dialect/SCF/IR/SCF.h"
 
+#include "mlir/IR/Value.h"
+#include "mlir/Support/LLVM.h"
 #include "mlir/Support/LogicalResult.h"
 #include "triton-shared/Dialect/TritonStructured/IR/TritonStructuredDialect.h"
 #include "triton/Dialect/Triton/IR/Dialect.h"
 
 #include <cstddef>
 #include <set>
+#include <unordered_map>
+#include <unordered_set>
 
 namespace mlir {
 
@@ -90,7 +94,11 @@ class PtrAnalysis {
       scf::ForOp forOp, size_t ptrArgIndex, const PtrState &state,
       llvm::function_ref<Value(scf::ForOp op, size_t)> getReplacementVal);
 
+  DenseSet<Value> stateArgs;
+
 public:
+  void populate(Operation *op, DenseSet<Value> &stateArgs);
+
   using IndexMapSet = std::map<int, std::set<int>>;
 
   IndexMapSet levelToBlockArgIndex;

@@ -34,6 +34,7 @@
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/Support/Casting.h"
 #include "llvm/Support/Debug.h"
+#include "llvm/Support/LogicalResult.h"
 #include <cassert>
 #include <optional>
 
@@ -84,7 +85,8 @@ public:
     converter.addConversion([context](RankedTensorType tensorType,
                                       SmallVectorImpl<Type> &types)
                                 -> std::optional<LogicalResult> {
-      if (!isa<triton::PointerType>(tensorType.getElementType())) {
+      if (!isa<triton::PointerType>(tensorType.getElementType()) &&
+          !tensorType.getElementType().isIntOrIndex()) {
         // There's a subtle difference between returning failure() and
         // std::nullopt. From the documentation:
         //
@@ -286,9 +288,11 @@ public:
   }
 
   void runOnOperation() override {
-    if (failed(runTritonToStructuredPrepass())) {
-      signalPassFailure();
-      return;
+    if (!skipPrepass) {
+      if (failed(runTritonToStructuredPrepass())) {
+        signalPassFailure();
+        return;
+      }
     }
 
     if (runPrepassOnly) {
