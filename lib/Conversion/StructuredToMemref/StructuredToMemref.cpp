@@ -849,43 +849,12 @@ public:
   }
 };
 
-struct AtomicRmwConverter : public OpConversionPattern<triton::AtomicRMWOp> {
-private:
-  using OpConversionPattern<triton::AtomicRMWOp>::OpConversionPattern;
-
-public:
-  AtomicRmwConverter(TypeConverter &typeConverter, MLIRContext *context)
-      : OpConversionPattern<triton::AtomicRMWOp>(typeConverter, context) {}
-
-  LogicalResult
-  matchAndRewrite(triton::AtomicRMWOp op, OpAdaptor adaptor,
-                  ConversionPatternRewriter &rewriter) const override {
-
-    auto ptr = op.getPtr();
-    if (isa<RankedTensorType>(ptr.getType())) {
-      return failure();
-    }
-
-    auto elemType = cast<triton::PointerType>(ptr.getType()).getPointeeType();
-    Value zero = rewriter.create<arith::ConstantOp>(op->getLoc(),
-                                                    rewriter.getIndexAttr(0));
-
-    auto memrefAtomic = rewriter.create<memref::AtomicRMWOp>(
-        op->getLoc(), arith::AtomicRMWKind::addi, adaptor.getVal(),
-        adaptor.getPtr(), ValueRange{zero});
-
-    rewriter.replaceOp(op, memrefAtomic);
-
-    return success();
-  }
-};
-
 } // namespace
 
 void mlir::triton::populateStructuredToMemrefConversionPatterns(
     RewritePatternSet &patterns, TypeConverter &typeConverter) {
   patterns.add<UnrealizedCastConverter>(typeConverter, patterns.getContext());
   patterns.add<MakeTensorPtrConverter, LoadConverter, StoreConverter,
-               ScalarLoadConverter, ScalarStoreConverter, AtomicRmwConverter>(
+               ScalarLoadConverter, ScalarStoreConverter>(
       patterns.getContext());
 }
