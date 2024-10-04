@@ -961,23 +961,6 @@ FailureOr<PtrState> PtrAnalysis::getLoopResultPtrState(scf::ForOp forOp,
       [](scf::ForOp op, size_t index) { return op->getResult(index); });
 }
 
-Value getOriginalValue(Value val) {
-  while (auto arg = dyn_cast<BlockArgument>(val)) {
-    auto parentOp = arg.getOwner()->getParentOp();
-    if (auto loopOp = dyn_cast<scf::ForOp>(parentOp)) {
-      for (unsigned int i = 0; i < loopOp.getRegionIterArgs().size(); i++) {
-        if (loopOp.getRegionIterArg(i) == arg) {
-          val = loopOp.getInitArgs()[i];
-          break;
-        }
-      }
-    } else {
-      return nullptr;
-    }
-  }
-  return val;
-}
-
 LogicalResult PtrAnalysis::rewriteForOp(scf::ForOp op) {
   for (auto [i, arg] : llvm::enumerate(op.getRegionIterArgs())) {
     if (!stateArgs.contains(arg)) {
