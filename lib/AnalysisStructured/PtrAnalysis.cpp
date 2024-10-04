@@ -1170,20 +1170,10 @@ void PtrAnalysis::populate(Operation *op, DenseSet<Value> &stateArgs) {
         }
 
         auto argIndex = std::distance(forOp.getInitArgs().begin(), it);
-
-        // set up iter-arg
         auto iterArg = forOp.getRegionIterArg(argIndex);
-
-        // set up the loop result
         auto tiedLoopRes = forOp.getTiedLoopResult(iterArg);
 
         SmallVector<Value> neighbors{iterArg, tiedLoopRes};
-
-        llvm::dbgs() << "adding iter-arg\n";
-        iterArg.dump();
-        llvm::dbgs() << "adding loop-res num " << tiedLoopRes.getResultNumber()
-                     << "\n";
-        tiedLoopRes.dump();
         for (auto neighbor : neighbors) {
           stateArgs.insert(neighbor);
           if (!visited.contains(neighbor)) {
@@ -1201,11 +1191,6 @@ void PtrAnalysis::populate(Operation *op, DenseSet<Value> &stateArgs) {
           if (!visited.contains(res)) {
             visited.insert(res);
             q.push(res);
-            llvm::dbgs() << "adding res\n";
-            res.dump();
-          } else {
-            llvm::dbgs() << "this res has already been handled\n";
-            res.dump();
           }
         }
       }
