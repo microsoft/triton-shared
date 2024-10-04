@@ -1024,38 +1024,31 @@ LogicalResult PtrAnalysis::rewriteForOp(scf::ForOp op) {
 
 LogicalResult
 PtrAnalysis::rewriteGetStructuredStateOp(tts::GetStructuredStateOp op) {
-  auto tritonPtr = op->getOperand(0);
+  auto tritonValue = op->getOperand(0);
 
-  std::optional<tts::PtrState> state;
-  SmallVector<Value> replacements;
-
-  if (knownPtrs.contains(tritonPtr)) {
-    state = knownPtrs[tritonPtr];
-
-    if (ptrMap.contains(tritonPtr)) {
-      Value remappedPtr = ptrMap.lookup(tritonPtr);
-      replacements.push_back(remappedPtr);
-    } else {
-      replacements.push_back(tritonPtr);
-    }
-
-  } else {
-    // If this pointer isn't known, it means PtrAnalysis has failed to analyze
-    // this pointer. In such cases, simply remap all uses of the
-    // structured-pointer back to its original pointer.
+  // If this triton value isn't known, it means PtrAnalysis has failed to
+  // analyze this pointer. In such cases, simply remap all uses of the
+  // structured value back to its original triton value.
+  if (!knownPtrs.contains(tritonValue)) {
     op.emitRemark(
         "Rewrite GetStructuredStateOp failed. Could not find PtrState.");
-    op.getResult(0).replaceAllUsesWith(tritonPtr);
+    op.getResult(0).replaceAllUsesWith(tritonValue);
     return failure();
   }
 
-  if (state->getRank() == 0) {
+  tts::PtrState state = knownPtrs[tritonValue];
+  Value remappedValue =
+      ptrMap.contains(tritonValue) ? ptrMap.lookup(tritonValue) : tritonValue;
+
+  SmallVector<Value> replacements{remappedValue};
+
+  if (state.getRank() == 0) {
     // For scalar pointers, the scalar contains the offset and is the only
     // relevant state that could be updated by the loop.
-    replacements.push_back(state->scalar);
+    replacements.push_back(state.scalar);
   } else {
     OpBuilder builder(op);
-    for (auto [j, s] : llvm::enumerate(state->offsets)) {
+    for (auto [j, s] : llvm::enumerate(state.offsets)) {
       auto sIntAttr = getIntAttr(s);
       if (sIntAttr) {
         auto constOp = builder.create<arith::ConstantOp>(
@@ -1066,7 +1059,7 @@ PtrAnalysis::rewriteGetStructuredStateOp(tts::GetStructuredStateOp op) {
       }
     }
 
-    for (auto [j, s] : llvm::enumerate(state->strides)) {
+    for (auto [j, s] : llvm::enumerate(state.strides)) {
       auto sIntAttr = getIntAttr(s);
       if (sIntAttr) {
         auto constOp = builder.create<arith::ConstantOp>(
@@ -1323,22 +1316,16 @@ LogicalResult PtrAnalysis::rewriteOp(Operation *rootOp) {
         })
         .Case<tts::GetStructuredStateOp>(
             [&](tts::GetStructuredStateOp getStateOp) {
-              auto tritonPtr = getStateOp->getOperand(0);
-              llvm::dbgs() << "rewriting tts op\n";
-              getStateOp->dump();
-
-              if (!knownPtrs.contains(tritonPtr)) {
+              auto tritonValue = getStateOp->getOperand(0);
+              if (!knownPtrs.contains(tritonValue)) {
                 PtrState state;
                 OpBuilder b(getStateOp);
-                tritonPtr.getType().dump();
-                tritonPtr.dump();
-                tritonPtr.getDefiningOp()->dump();
-                if (succeeded(visitOperand(tritonPtr, state,
+                if (succeeded(visitOperand(tritonValue, state,
                                            getStateOp->getLoc(), b))) {
-                  knownPtrs[tritonPtr] = state;
+                  knownPtrs[tritonValue] = state;
                 } else {
-                  llvm::dbgs() << "fail\n";
-                  getStateOp->emitRemark("failed to populate ptr state tts");
+                  getStateOp->emitRemark("PtrAnalysis: Failed to populate ptr "
+                                         "state for tensor of pointers");
                 }
               }
 
