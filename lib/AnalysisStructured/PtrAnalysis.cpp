@@ -948,7 +948,6 @@ FailureOr<PtrState> PtrAnalysis::getLoopIterArgPtrState(scf::ForOp forOp,
 FailureOr<PtrState> PtrAnalysis::getLoopResultPtrState(scf::ForOp forOp,
                                                        size_t index) {
   auto res = *forOp.getLoopResults();
-  res[index].dump();
   auto state = getLoopInitArgPtrState(forOp, index);
   if (failed(state)) {
     return failure();
