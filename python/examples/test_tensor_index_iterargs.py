@@ -5,7 +5,7 @@ import triton.language as tl
 
 from triton.backends.triton_shared.driver import CPUDriver
 
-def test_addptr_mask(device):
+def test_tensor_indices_nested_with_mask(device):
     @triton.jit
     def addptr_with_masks(in0, out0, mask_bound):
         offs = tl.arange(0, 4)
@@ -41,9 +41,9 @@ def test_addptr_mask(device):
     print(output)
 
 
-def test(device):
+def test_tensor_indices_nested(device):
     @triton.jit
-    def addptr(in0, out0):
+    def tensor_indices_nested(in0, out0):
         offs = tl.arange(0, 4)
         out_offs = tl.arange(0, 4)
         for i in range(0, 2):
@@ -69,7 +69,7 @@ def test(device):
     grid = lambda meta: (1,)
 
     print(output)
-    addptr[grid](input, output)
+    tensor_indices_nested[grid](input, output)
     expected_output = torch.tensor([ 0,  1,  2,  3,  4,  5,  6,  7, 11, 12, 13, 14, 21, 22, 23, 24, 27, 28,
         29, 30, 31, 32, 33, 34, 38, 39, 40, 41, 48, 49, 50, 51, -1, -1, -1, -1,
         -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
@@ -78,9 +78,3 @@ def test(device):
     torch.testing.assert_close(output, expected_output)
     print(input)
     print(output)
-
-# test('cpu')
-# test_addptr_mask('cpu')
-# test('cpu')
-# test_nested_mask()
-# test_addptr_mask_complex('cpu')
