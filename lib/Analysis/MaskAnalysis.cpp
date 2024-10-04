@@ -7,12 +7,17 @@
 
 #include "triton-shared/Analysis/MaskAnalysis.h"
 #include "mlir/Dialect/Arith/IR/Arith.h"
+#include "mlir/Dialect/SCF/IR/SCF.h"
 #include "mlir/Support/LogicalResult.h"
 #include "triton-shared/Analysis/OpFoldResultUtils.h"
 
+#include "triton-shared/Dialect/TritonStructured/IR/TritonStructuredDialect.h"
 #include "triton/Dialect/Triton/IR/Dialect.h"
 
 #include "mlir/Transforms/DialectConversion.h"
+#include "llvm/Support/Casting.h"
+#include "llvm/Support/Debug.h"
+#include "llvm/Support/LogicalResult.h"
 #include <cassert>
 
 namespace mlir {
@@ -41,6 +46,8 @@ LogicalResult MaskState::parse(Value operand, const Location loc,
     return this->parseExpandDims(op, loc, builder);
   } else if (auto op = operand.getDefiningOp<arith::ExtSIOp>()) {
     return this->parseExtSI(op, loc, builder);
+  } else if (!operand.getDefiningOp()) {
+    return this->parseDynamicRange(operand, loc, builder);
   } else {
     operand.dump();
     assert(0);
@@ -336,13 +343,58 @@ LogicalResult MaskState::parseCmp(arith::CmpIOp cmpOp, const Location loc,
   auto newDim = subOFRs(newEnd, lhsState.start, loc, builder);
 
   for (int32_t i = 0; i < lhsState.getRank(); i++) {
-    if (i == cmpDim)
+    if (i == cmpDim) {
+      llvm::dbgs() << "pushing new dim, sub\n";
       this->dims.push_back(newDim);
-    else
+    } else {
+      llvm::dbgs() << "pushing lhs dim\n";
       this->dims.push_back(lhsState.dims[i]);
+    }
   }
 
   return success();
+}
+
+LogicalResult MaskState::parseDynamicRange(Value v, const Location loc,
+                                           OpBuilder &builder) {
+  assert(!v.getDefiningOp());
+
+  auto forOp = llvm::dyn_cast<scf::ForOp>(v.getParentRegion()->getParentOp());
+
+  if (!forOp) {
+    return failure();
+  }
+
+  // This implementation does not work with nested loops
+  if (forOp->getParentOfType<scf::ForOp>()) {
+    return failure();
+  }
+
+  // all i'm really doing is combine the offset with the make range
+  // check the init-arg
+  auto it = llvm::find(forOp.getRegionIterArgs(), v);
+  if (it == forOp.getRegionIterArgs().end()) {
+    return failure();
+  }
+
+  auto argIndex = std::distance(forOp.getRegionIterArgs().begin(), it);
+  auto initArg = forOp.getInitArgs()[argIndex];
+  if (auto getStateOp = initArg.getDefiningOp<tts::GetStructuredStateOp>()) {
+    auto passthru = getStateOp->getOperand(0);
+    MaskState lhsState;
+    if (failed(lhsState.parse(passthru, loc, builder))) {
+      return failure();
+    }
+
+    if (failed(this->addStateScalar(
+            lhsState, forOp.getRegionIterArgs()[argIndex + 1], loc, builder))) {
+      return failure();
+    }
+
+    return success();
+  }
+
+  return failure();
 }
 
 LogicalResult MaskState::parseMakeRange(triton::MakeRangeOp rangeOp,
