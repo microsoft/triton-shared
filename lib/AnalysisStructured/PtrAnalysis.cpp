@@ -1308,6 +1308,16 @@ LogicalResult PtrAnalysis::rewriteOp(Operation *rootOp) {
         })
         .Case<tts::GetStructuredStateOp>(
             [&](tts::GetStructuredStateOp getStateOp) {
+              // For tensor of indices potentially being used in pointer
+              // arithmetic sequence, we need to manually populate the state of
+              // none already exists.
+              // This process is necessary because unlike triton pointers in a
+              // loop which always have a `tt.addptr` that triggers the rewrite
+              // process which includes generating the ops for updating offsets
+              // and strides, tensor of indices only have a simple `arith.addi`
+              // (or other arith ops).
+              // Without visiting these ops manually, the ops to update the
+              // offsets and strides would not be generated.
               auto tritonValue = getStateOp->getOperand(0);
               if (!knownPtrs.contains(tritonValue)) {
                 PtrState state;
@@ -1317,7 +1327,7 @@ LogicalResult PtrAnalysis::rewriteOp(Operation *rootOp) {
                   knownPtrs[tritonValue] = state;
                 } else {
                   getStateOp->emitRemark("PtrAnalysis: Failed to populate ptr "
-                                         "state for tensor of pointers");
+                                         "state for tensor of indices");
                 }
               }
 
