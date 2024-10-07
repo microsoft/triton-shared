@@ -79,6 +79,41 @@ def test_tensor_indices_nested(device):
     print(input)
     print(output)
 
+def test_integer_tensor(device):
+    @triton.jit
+    def test_1(out0):
+        offs = tl.arange(0, 4)
+        out_offs = tl.arange(0, 4)
+        for i in range(0, 2):
+            tl.store(out0 + out_offs, offs)
+            out_offs += 4
+            offs += 4
+
+
+    SIZE = 8
+    input = torch.arange(0, SIZE, device=device, dtype=torch.int32)
+    output = torch.full((SIZE,), -1, device=device, dtype=torch.int32)
+
+    if device == 'cpu':
+        triton.runtime.driver.set_active(CPUDriver())
+
+    grid = lambda meta: (1,)
+
+    print(output)
+    test_1[grid](output)
+    print(input)
+    print(output)
+    torch.testing.assert_close(input, output)
+    src = triton.compiler.ASTSource(
+        fn=test_1,
+        signature="*fp32",
+    )
+    ret = triton.compile(
+        src,
+    )
+    print(ret.asm["ttir"])
+
+
 
 def disabled_test_mask(device):
     # TODO: This fails to compile in StructuredToMemref
