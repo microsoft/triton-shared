@@ -78,3 +78,37 @@ def test_tensor_indices_nested(device):
     torch.testing.assert_close(output, expected_output)
     print(input)
     print(output)
+
+
+def disabled_test_mask(device):
+    # TODO: This fails to compile in StructuredToMemref
+    @triton.jit
+    def test_1(in0, out0, batch):
+        offs = 4 + tl.arange(0, 4)
+        out_offs = tl.arange(0, 4)
+        a = tl.load(in0 + offs, mask=offs < 0, other=-1)
+        tl.store(out0 + out_offs, a)
+
+    # TODO: This segfauls in the CPU backend
+    # Crashes when the batch value will mask off all of the tensors
+    @triton.jit
+    def test_2(in0, out0, batch):
+        offs = 4 + tl.arange(0, 4)
+        out_offs = tl.arange(0, 4)
+        a = tl.load(in0 + offs, mask=offs < 0, other=-1)
+        tl.store(out0 + out_offs, a)
+
+
+    SIZE = 8
+    input = torch.arange(0, SIZE, device=device, dtype=torch.int32)
+    output = torch.full((SIZE,), -1, device=device, dtype=torch.int32)
+
+    if device == 'cpu':
+        triton.runtime.driver.set_active(CPUDriver())
+
+    grid = lambda meta: (1,)
+
+    print(output)
+    test_1[grid](input, output, 0)
+    print(input)
+    print(output)

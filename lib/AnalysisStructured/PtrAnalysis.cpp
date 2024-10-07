@@ -959,7 +959,7 @@ FailureOr<PtrState> PtrAnalysis::getLoopResultPtrState(scf::ForOp forOp,
 
 LogicalResult PtrAnalysis::rewriteForOp(scf::ForOp op) {
   for (auto [i, arg] : llvm::enumerate(op.getRegionIterArgs())) {
-    if (!stateArgs.contains(arg)) {
+    if (!maybeStructuredArgs.contains(arg)) {
       continue;
     }
 
@@ -1128,23 +1128,31 @@ LogicalResult PtrAnalysis::rewriteLoadOp(triton::LoadOp op) {
   return success();
 }
 
-// what is the goal here?
-// i want to set this up so that rewriteForOp knows which argument it should set
-// up the pointer state for. so what was i thinking? if i have
+// Structured values from the TritonStructuredDialect have offsets and strides
+// that might change in each loop iteration and hence will appear in an scf.for
+// iter-args like so:
 //
-/*
-
-%structured, ... = tts.get_structured_state
-scf.for (%arg0 = %structured) {
-
-  %a = %arg0 + 1
-  %b = %b + 2
-  scf.for (%arg1 = %b) {
-
-  }
-}
-*/
-void PtrAnalysis::populate(Operation *op, DenseSet<Value> &stateArgs) {
+// %structured, %offsets, %strides  = tts.get_structured_state
+// scf.for (%arg0 = %structured, %arg1 = %offsets, %arg2 = %strides) {
+//   %a = %arg0 + 1
+//   %b = %b + 2
+//   scf.for (%arg1 = %b) {
+//      ...
+//   }
+// }
+//
+// In `rewriteForOp`, we have to recognize such structured values in order to
+// rewrite their PtrState accordingly. Previously, only values of Pointer-like
+// type (e.g.: tensor<tt.ptr<>> or tt.ptr<tensor<>>), so detecting these values
+// is as easy as checking the type.
+//
+// Now, tensor of indices could also appear in a loop's iter-arg. To reliably
+// detect all such cases, we perform a BFS-like traversal of the IR where the
+// sources are the results of `tts.get_structured_state`. All values that
+// originate from the results of `tts.get_structured_state` are consider
+// "maybeStructured". If a loop's iter-arg is considered "maybeStructured", we
+// must set up their PtrState during `rewriteForOp`.
+void PtrAnalysis::initializeMaybeStructuredArgs(Operation *op) {
   std::queue<Value> q;
   DenseSet<Value> visited;
 
@@ -1158,6 +1166,12 @@ void PtrAnalysis::populate(Operation *op, DenseSet<Value> &stateArgs) {
     auto v = q.front();
     q.pop();
     for (auto user : v.getUsers()) {
+      // scf.for is a special case. We have 2 set of values to consider:
+      // - iter-args
+      // - loop results
+      // for every init arg that originates from a `tts.get_structured_state`
+      // op, its corresponding iter-arg and loop result will also be considered
+      // "maybeStructured".
       if (auto forOp = dyn_cast<scf::ForOp>(user)) {
         auto it = llvm::find(forOp.getInitArgs(), v);
 
@@ -1171,7 +1185,7 @@ void PtrAnalysis::populate(Operation *op, DenseSet<Value> &stateArgs) {
 
         SmallVector<Value> neighbors{iterArg, tiedLoopRes};
         for (auto neighbor : neighbors) {
-          stateArgs.insert(neighbor);
+          maybeStructuredArgs.insert(neighbor);
           if (!visited.contains(neighbor)) {
             visited.insert(neighbor);
             q.push(neighbor);
@@ -1183,7 +1197,7 @@ void PtrAnalysis::populate(Operation *op, DenseSet<Value> &stateArgs) {
           if (res.getType() != v.getType()) {
             continue;
           }
-          stateArgs.insert(res);
+          maybeStructuredArgs.insert(res);
           if (!visited.contains(res)) {
             visited.insert(res);
             q.push(res);
@@ -1243,8 +1257,6 @@ LogicalResult PtrAnalysis::rewriteOp(Operation *rootOp) {
     llvm::dbgs() << "rewriting rootOp\n";
     rootOp->dump();
   });
-
-  populate(rootOp, stateArgs);
 
   rootOp->walk<WalkOrder::PreOrder>([&](Operation *op) {
     if (op == rootOp) {

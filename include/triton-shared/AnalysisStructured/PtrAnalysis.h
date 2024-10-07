@@ -92,15 +92,10 @@ class PtrAnalysis {
       scf::ForOp forOp, size_t ptrArgIndex, const PtrState &state,
       llvm::function_ref<Value(scf::ForOp op, size_t)> getReplacementVal);
 
-  DenseSet<Value> stateArgs;
+  DenseSet<Value> maybeStructuredArgs;
 
 public:
-  void populate(Operation *op, DenseSet<Value> &stateArgs);
-
-  using IndexMapSet = std::map<int, std::set<int>>;
-
-  IndexMapSet levelToBlockArgIndex;
-  int level = 0;
+  void initializeMaybeStructuredArgs(Operation *op);
 
   llvm::SmallDenseMap<Value, PtrState> knownPtrs;
 
