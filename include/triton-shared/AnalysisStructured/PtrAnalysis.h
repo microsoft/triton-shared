@@ -12,6 +12,8 @@
 #include "mlir/Dialect/MemRef/IR/MemRef.h"
 #include "mlir/Dialect/SCF/IR/SCF.h"
 
+#include "mlir/IR/Value.h"
+#include "mlir/Support/LLVM.h"
 #include "mlir/Support/LogicalResult.h"
 #include "triton-shared/Dialect/TritonStructured/IR/TritonStructuredDialect.h"
 #include "triton/Dialect/Triton/IR/Dialect.h"
@@ -90,11 +92,10 @@ class PtrAnalysis {
       scf::ForOp forOp, size_t ptrArgIndex, const PtrState &state,
       llvm::function_ref<Value(scf::ForOp op, size_t)> getReplacementVal);
 
-public:
-  using IndexMapSet = std::map<int, std::set<int>>;
+  DenseSet<Value> maybeStructuredArgs;
 
-  IndexMapSet levelToBlockArgIndex;
-  int level = 0;
+public:
+  void initializeMaybeStructuredArgs(Operation *op);
 
   llvm::SmallDenseMap<Value, PtrState> knownPtrs;
 

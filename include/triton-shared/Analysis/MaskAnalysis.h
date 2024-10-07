@@ -13,6 +13,7 @@
 #include "mlir/Dialect/Tensor/IR/Tensor.h"
 
 #include "triton/Dialect/Triton/IR/Dialect.h"
+#include "llvm/Support/LogicalResult.h"
 
 #include <utility>
 
@@ -58,9 +59,8 @@ struct MaskState {
   // defining operation and Value type
   LogicalResult parse(Value operand, const Location loc, OpBuilder &builder);
 
-  tensor::ExtractSliceOp
-  getExtractSlice(Value source, const Location loc,
-                  OpBuilder &builder) const;
+  tensor::ExtractSliceOp getExtractSlice(Value source, const Location loc,
+                                         OpBuilder &builder) const;
 
   memref::SubViewOp getSubview(Value source, const Location loc,
                                OpBuilder &builder) const;
@@ -134,6 +134,9 @@ private:
   // dimension that contains the range.
   LogicalResult parseExpandDims(triton::ExpandDimsOp expandDimsOp,
                                 const Location loc, OpBuilder &builder);
+
+  LogicalResult parseLoopIterArg(Value v, const Location loc,
+                                 OpBuilder &builder);
 };
 
 } // namespace triton
