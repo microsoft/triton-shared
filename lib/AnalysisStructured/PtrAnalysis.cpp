@@ -755,10 +755,13 @@ LogicalResult PtrAnalysis::visitOperand(Value operand, PtrState &state,
   } else if (auto op = operand.getDefiningOp<scf::ForOp>()) {
     return visitOperandForOp(op, operand, state, loc, builder);
   } else if (!operand.getDefiningOp()) {
+    if (!knownPtrs.contains(operand)) {
+      return failure();
+    }
+
     // This operand must be an iter-arg of an inner-loop in a multiple-level
     // nested loop, which means its PtrState must have already been populated
     // during rewriteForOp of the parent loop.
-    assert(knownPtrs.contains(operand));
     state = knownPtrs[operand];
     return success();
   } else {
@@ -969,7 +972,7 @@ LogicalResult PtrAnalysis::rewriteForOp(scf::ForOp op) {
       // considered structured by PtrAnalysis, failing to retrieve the PtrState
       // should not fail the rewrite process.
       // We emit an error for diagnostics and debugging purposes.
-      op.emitError(
+      op->emitWarning(
           "Rewrite for-op failed. Could not find PtrState for iter-arg index " +
           std::to_string(i));
       continue;
