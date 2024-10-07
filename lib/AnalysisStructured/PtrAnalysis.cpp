@@ -965,10 +965,14 @@ LogicalResult PtrAnalysis::rewriteForOp(scf::ForOp op) {
 
     auto state = getLoopIterArgPtrState(op, i);
     if (failed(state)) {
+      // Because the maybeStructuredArgs may contain values that are not
+      // considered structured by PtrAnalysis, failing to retrieve the PtrState
+      // should not fail the rewrite process.
+      // We emit an error for diagnostics and debugging purposes.
       op.emitError(
           "Rewrite for-op failed. Could not find PtrState for iter-arg index " +
           std::to_string(i));
-      return failure();
+      continue;
     }
 
     // Save the current init arg's PtrState
