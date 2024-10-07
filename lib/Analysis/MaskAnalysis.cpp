@@ -360,8 +360,6 @@ LogicalResult MaskState::parseLoopIterArg(Value v, const Location loc,
     return failure();
   }
 
-  // all i'm really doing is combine the offset with the make range
-  // check the init-arg
   auto it = llvm::find(forOp.getRegionIterArgs(), v);
   if (it == forOp.getRegionIterArgs().end()) {
     return failure();
@@ -376,6 +374,18 @@ LogicalResult MaskState::parseLoopIterArg(Value v, const Location loc,
       return failure();
     }
 
+    // This is a bit of a hack!!
+    //
+    // The offsets and dimensions of a MaskState can now depend on a loop's
+    // iter-arg.
+    //
+    // Because the PtrAnalysis's pre-pass already sets up the offsets,
+    // we can create a new MaskState for each loop iteration by adding the
+    // original MaskState with the current iter-arg, which is at `argIndex +
+    // 1`.
+    //
+    // This will not work for nested loop scenarios, which would need a
+    // more robust implementation.
     if (failed(this->addStateScalar(
             lhsState, forOp.getRegionIterArgs()[argIndex + 1], loc, builder))) {
       return failure();
