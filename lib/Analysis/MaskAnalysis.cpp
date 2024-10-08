@@ -13,7 +13,6 @@
 #include "triton/Dialect/Triton/IR/Dialect.h"
 
 #include "mlir/Transforms/DialectConversion.h"
-#include <cassert>
 
 namespace mlir {
 
@@ -42,8 +41,6 @@ LogicalResult MaskState::parse(Value operand, const Location loc,
   } else if (auto op = operand.getDefiningOp<arith::ExtSIOp>()) {
     return this->parseExtSI(op, loc, builder);
   } else {
-    operand.dump();
-    assert(0);
     return failure();
   }
 }
@@ -302,7 +299,7 @@ LogicalResult MaskState::parseCmp(arith::CmpIOp cmpOp, const Location loc,
 
   if (cmpOp.getPredicate() != arith::CmpIPredicate::slt &&
       cmpOp.getPredicate() != arith::CmpIPredicate::ult) {
-    InFlightDiagnostic diag = emitError(loc) << "Unsupported cmpi zzz";
+    InFlightDiagnostic diag = emitError(loc) << "Unsupported cmpi";
     return failure();
   }
 

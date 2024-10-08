@@ -755,26 +755,17 @@ LogicalResult PtrAnalysis::visitOperand(Value operand, PtrState &state,
     return visitOperandConstSplat(op, state, loc, builder);
   } else if (auto op = operand.getDefiningOp<arith::RemSIOp>()) {
     return visitOperandRem(op, state, loc, builder);
-  }
-
-  else if (auto op = operand.getDefiningOp<arith::ExtSIOp>()) {
+  } else if (auto op = operand.getDefiningOp<arith::ExtSIOp>()) {
     return visitOperandExtSI(op, state, loc, builder);
-  }
-
-  else if (auto op = operand.getDefiningOp<scf::ForOp>()) {
+  } else if (auto op = operand.getDefiningOp<scf::ForOp>()) {
     return visitOperandForOp(op, operand, state, loc, builder);
   } else if (!operand.getDefiningOp()) {
     // This operand must be an iter-arg of an inner-loop in a multiple-level
     // nested loop, which means its PtrState must have already been populated
-    // during rewriteForOp of the parent loop. If the entry doesn't exist,
-    // it means the analysis has failed.
-    if (knownPtrs.contains(operand)) {
-      state = knownPtrs[operand];
-      return success();
-    } else {
-      return failure();
-    }
-
+    // during rewriteForOp of the parent loop.
+    assert(knownPtrs.contains(operand));
+    state = knownPtrs[operand];
+    return success();
   } else {
     llvm::dbgs() << "PtrAnalysis: encountered addptr operand produced by an "
                     "unsupported operation\n";
@@ -1098,7 +1089,7 @@ LogicalResult PtrAnalysis::rewriteLoadOp(triton::LoadOp op) {
 
   auto ptrType = dyn_cast<triton::PointerType>(ptr.getType());
   if (ptrType && !isa<ShapedType>(ptrType.getPointeeType())) {
-    // op->emitRemark("PtrAnalysis: scalar loadOp will not be rewritten");
+    op->emitRemark("PtrAnalysis: scalar loadOp will not be rewritten");
     return failure();
   }
 
@@ -1154,7 +1145,7 @@ LogicalResult PtrAnalysis::rewriteStoreOp(triton::StoreOp op) {
 
   auto ptrType = dyn_cast<triton::PointerType>(ptr.getType());
   if (ptrType && !isa<ShapedType>(ptrType.getPointeeType())) {
-    // op->emitRemark("PtrAnalysis: scalar storeOp will not be rewritten");
+    op->emitRemark("PtrAnalysis: scalar storeOp will not be rewritten");
     return failure();
   }
 
