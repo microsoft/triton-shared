@@ -5,6 +5,8 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "mlir/Dialect/ControlFlow/IR/ControlFlow.h"
+#include "mlir/Dialect/ControlFlow/IR/ControlFlowOps.h"
 #include "triton-shared/Conversion/TritonArithToLinalg/TritonArithToLinalg.h"
 #include "triton-shared/Dialect/TritonStructured/IR/TritonStructuredDialect.h"
 #include "triton-shared/Dialect/TritonTilingExt/IR/TritonTilingExtDialect.h"
@@ -183,9 +185,14 @@ public:
 
         for (Block &block : funcFuncBody.getBlocks()) {
           auto term = block.getTerminator();
-          builder.setInsertionPoint(term);
-          builder.create<func::ReturnOp>(func.getLoc(), term->getOperands());
-          term->erase();
+          // Only convert to func.return if the terminator is a tt.return.
+          // Otherwise, we will accidentally convert cf.br ops which are also
+          // considered terminators.
+          if (isa<triton::ReturnOp>(term)) {
+            builder.setInsertionPoint(term);
+            builder.create<func::ReturnOp>(func.getLoc(), term->getOperands());
+            term->erase();
+          }
         }
         func.erase();
       });
