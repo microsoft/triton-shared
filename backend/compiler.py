@@ -52,7 +52,12 @@ def _ttsharedir_to_llir(ttsharedir: str):
         # TritonShared-MLIR to LLVM-MLIR
         subprocess.check_call([mlir_opt_path, ttshared_path,
             "--convert-linalg-to-affine-loops",
-            "--eliminate-empty-tensors",
+            # Note: eliminate-empty-tensors fails when there are multiple func.return ops
+            # in a single kernel which are the results of early returns.
+            # See python/examples/test_early_return.py for examples.
+            # We disable this pass for now since performance on CPU isn't the main
+            # focus at the moment.
+            # "--eliminate-empty-tensors",
             "--empty-tensor-to-alloc-tensor",
             "--one-shot-bufferize=allow-return-allocs-from-loops=true",
             "--lower-affine",
