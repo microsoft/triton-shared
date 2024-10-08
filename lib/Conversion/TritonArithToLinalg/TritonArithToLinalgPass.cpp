@@ -185,6 +185,9 @@ public:
 
         for (Block &block : funcFuncBody.getBlocks()) {
           auto term = block.getTerminator();
+          // Only convert to func.return if the terminator is a tt.return.
+          // Otherwise, we will accidentally convert cf.br ops which are also
+          // considered terminators.
           if (isa<triton::ReturnOp>(term)) {
             builder.setInsertionPoint(term);
             builder.create<func::ReturnOp>(func.getLoc(), term->getOperands());
