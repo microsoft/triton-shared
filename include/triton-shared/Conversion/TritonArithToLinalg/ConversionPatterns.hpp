@@ -1756,8 +1756,9 @@ class CumSumConverter : public OpConversionPattern<triton::ScanOp> {
       return false;
     }
 
-    if (auto addOp = dyn_cast<arith::AddFOp>(ops.front())) {
-      if (addOp.getResult() != scanBlock->getTerminator()->getOperand(0)) {
+    auto addOp = ops.front();
+    if (isa<arith::AddFOp, arith::AddIOp>(addOp)) {
+      if (addOp->getResult(0) != scanBlock->getTerminator()->getOperand(0)) {
         return false;
       }
 
@@ -1766,7 +1767,7 @@ class CumSumConverter : public OpConversionPattern<triton::ScanOp> {
             return dyn_cast<Value>(arg);
           });
 
-      auto addArgs = addOp.getOperands();
+      auto addArgs = addOp->getOperands();
 
       return DenseSet<Value>(blockArgs.begin(), blockArgs.end()) ==
              DenseSet<Value>(addArgs.begin(), addArgs.end());
