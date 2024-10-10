@@ -6,6 +6,8 @@
 //===----------------------------------------------------------------------===//
 
 #include "triton-shared/Analysis/MaskAnalysis.h"
+#include "mlir/Dialect/Arith/IR/Arith.h"
+#include "mlir/Support/LogicalResult.h"
 #include "triton-shared/Analysis/OpFoldResultUtils.h"
 
 #include "triton/Dialect/Triton/IR/Dialect.h"
@@ -36,6 +38,8 @@ LogicalResult MaskState::parse(Value operand, const Location loc,
     return this->parseSplat(op, loc, builder);
   } else if (auto op = operand.getDefiningOp<triton::ExpandDimsOp>()) {
     return this->parseExpandDims(op, loc, builder);
+  } else if (auto op = operand.getDefiningOp<arith::ExtSIOp>()) {
+    return this->parseExtSI(op, loc, builder);
   } else {
     return failure();
   }
@@ -283,12 +287,19 @@ LogicalResult MaskState::parseAnd(arith::AndIOp andOp, const Location loc,
   return this->minStates(lhsState, rhsState, loc, builder);
 }
 
+LogicalResult MaskState::parseExtSI(arith::ExtSIOp op, const Location loc,
+                                    OpBuilder &builder) {
+  assert(this->isEmpty());
+  return parse(op.getIn(), loc, builder);
+}
+
 LogicalResult MaskState::parseCmp(arith::CmpIOp cmpOp, const Location loc,
                                   OpBuilder &builder) {
   assert(this->isEmpty());
 
-  if (cmpOp.getPredicate() != arith::CmpIPredicate::slt) {
-    InFlightDiagnostic diag = emitError(loc) << "Unsupported cmpi predicate";
+  if (cmpOp.getPredicate() != arith::CmpIPredicate::slt &&
+      cmpOp.getPredicate() != arith::CmpIPredicate::ult) {
+    InFlightDiagnostic diag = emitError(loc) << "Unsupported cmpi";
     return failure();
   }
 

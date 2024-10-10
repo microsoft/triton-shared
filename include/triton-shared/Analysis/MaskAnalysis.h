@@ -12,6 +12,7 @@
 #include "mlir/Dialect/MemRef/IR/MemRef.h"
 #include "mlir/Dialect/Tensor/IR/Tensor.h"
 
+#include "mlir/Support/LogicalResult.h"
 #include "triton/Dialect/Triton/IR/Dialect.h"
 
 #include <utility>
@@ -58,9 +59,8 @@ struct MaskState {
   // defining operation and Value type
   LogicalResult parse(Value operand, const Location loc, OpBuilder &builder);
 
-  tensor::ExtractSliceOp
-  getExtractSlice(Value source, const Location loc,
-                  OpBuilder &builder) const;
+  tensor::ExtractSliceOp getExtractSlice(Value source, const Location loc,
+                                         OpBuilder &builder) const;
 
   memref::SubViewOp getSubview(Value source, const Location loc,
                                OpBuilder &builder) const;
@@ -89,6 +89,9 @@ private:
   // -------
   // Helper functions to parse values to populate MaskState
   // -------
+
+  LogicalResult parseExtSI(arith::ExtSIOp op, const Location loc,
+                           OpBuilder &builder);
 
   // Operand is the result of a constant
   // Get the value of the constant and assign it to scalar.
