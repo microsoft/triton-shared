@@ -8,6 +8,8 @@
 #include "triton-shared/Analysis/OpFoldResultUtils.h"
 
 #include "mlir/Dialect/Arith/IR/Arith.h"
+#include "mlir/IR/BuiltinAttributes.h"
+#include "mlir/IR/BuiltinTypes.h"
 #include "mlir/IR/OpDefinition.h"
 #include "mlir/Transforms/DialectConversion.h"
 
@@ -49,7 +51,10 @@ bool hasConstZero(const OpFoldResult ofr) {
 Value ofrToIndexValue(const OpFoldResult ofr, const Location loc,
                       OpBuilder &b) {
   if (Value val = dyn_cast<Value>(ofr)) {
-    assert(val.getType().isIndex() && "Provided ofr is of type index");
+    assert(val.getType().isIntOrIndex());
+    if (!val.getType().isIndex()) {
+      val = b.create<arith::IndexCastOp>(loc, b.getIndexType(), val);
+    }
     return val;
   }
 
