@@ -1174,8 +1174,8 @@ void PtrAnalysis::initializeMaybeStructuredArgs(Operation *op) {
   std::queue<Value> q;
   DenseSet<Value> visited;
 
-  op->walk([&q, &visited](tts::GetStructuredStateOp op) {
-    Value value = op->getResult(0);
+  op->walk([&q, &visited](tts::GetStructuredStateOp getStateOp) {
+    Value value = getStateOp->getResult(0);
     visited.insert(value);
     q.push(value);
   });

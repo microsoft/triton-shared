@@ -364,7 +364,7 @@ LogicalResult MaskState::parseLoopIterArg(Value v, const Location loc,
     return failure();
   }
 
-  // This implementation does not work with nested loops
+  // TODO: This implementation does not work with nested loops
   if (forOp->getParentOfType<scf::ForOp>()) {
     return failure();
   }

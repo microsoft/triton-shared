@@ -143,6 +143,10 @@ GetStructuredStateOp::getOffsetAndStrideSegmentSizes(Type type) {
   if (auto tensorType = llvm::dyn_cast<RankedTensorType>(type)) {
     if (tensorType.getElementType().isIntOrIndex()) {
       // Tensors of offsets
+      // Important note:
+      // We only care about tensor of index / int (in addition to pointer type)
+      // because only values of int and index type can potentially be part of a
+      // pointer arithmetic sequence.
       offsetSegmentSize = strideSegmentSize = tensorType.getRank();
     } else if (auto ptrType =
                    dyn_cast<triton::PointerType>(tensorType.getElementType())) {

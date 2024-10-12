@@ -85,6 +85,10 @@ public:
     converter.addConversion([context](RankedTensorType tensorType,
                                       SmallVectorImpl<Type> &types)
                                 -> std::optional<LogicalResult> {
+      // Important note:
+      // We only care about tensor of index / int (in addition to pointer type)
+      // because only values of int and index type can potentially be part of a
+      // pointer arithmetic sequence.
       if (!isa<triton::PointerType>(tensorType.getElementType()) &&
           !tensorType.getElementType().isIntOrIndex()) {
         // There's a subtle difference between returning failure() and
@@ -302,11 +306,9 @@ public:
   }
 
   void runOnOperation() override {
-    if (!skipPrepass) {
-      if (failed(runTritonToStructuredPrepass())) {
-        signalPassFailure();
-        return;
-      }
+    if (!skipPrepass && failed(runTritonToStructuredPrepass())) {
+      signalPassFailure();
+      return;
     }
 
     if (runPrepassOnly) {
