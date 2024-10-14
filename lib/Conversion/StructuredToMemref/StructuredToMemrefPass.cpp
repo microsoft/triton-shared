@@ -7,6 +7,7 @@
 
 #include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/MemRef/IR/MemRef.h"
+#include "mlir/Dialect/SCF/IR/SCF.h"
 #include "mlir/Dialect/Utils/StaticValueUtils.h"
 #include "mlir/IR/Builders.h"
 #include "mlir/IR/BuiltinAttributes.h"
@@ -160,6 +161,35 @@ struct ScalarAddptrConverter
         ArrayRef<OpFoldResult>{rewriter.getIndexAttr(1)} /*strides*/);
 
     rewriter.replaceOp(op, SmallVector<Value>{castOp.getResult(), newOffset},
+                       adaptor.getResultMapping());
+
+    return success();
+  }
+};
+
+struct SelectScalarPtrConverter
+    : public OneToNOpConversionPattern<arith::SelectOp> {
+  using OneToNOpConversionPattern::OneToNOpConversionPattern;
+
+  LogicalResult
+  matchAndRewrite(arith::SelectOp op, OpAdaptor adaptor,
+                  OneToNPatternRewriter &rewriter) const override {
+    if (!isa<triton::PointerType>(op.getType())) {
+      return failure();
+    }
+
+    auto loc = op->getLoc();
+
+    auto replacement = rewriter.create<scf::IfOp>(
+        loc, op.getCondition(),
+        [&](OpBuilder &builder, Location loc) {
+          builder.create<scf::YieldOp>(loc, adaptor.getTrueValue());
+        },
+        [&](OpBuilder &builder, Location loc) {
+          builder.create<scf::YieldOp>(loc, adaptor.getFalseValue());
+        });
+
+    rewriter.replaceOp(op, replacement->getResults(),
                        adaptor.getResultMapping());
 
     return success();
@@ -331,7 +361,8 @@ public:
     // convert that value to a pair of {memref, index} type.
     converter.addTargetMaterialization(buildCastAndOffsetOps);
 
-    patterns.add<ScalarAddptrConverter>(converter, context);
+    patterns.add<ScalarAddptrConverter, SelectScalarPtrConverter>(converter,
+                                                                  context);
 
     scf::populateSCFStructuralOneToNTypeConversions(converter, patterns);
 

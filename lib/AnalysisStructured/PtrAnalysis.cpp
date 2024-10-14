@@ -728,6 +728,12 @@ LogicalResult PtrAnalysis::visitOperand(Value operand, PtrState &state,
                                   builder);
       } else if (auto makeTensorOp = dyn_cast<triton::MakeTensorPtrOp>(op)) {
         llvm_unreachable("Unexpected operand defining operation tts.make_tptr");
+      } else if (auto ifOp = dyn_cast<scf::IfOp>(op)) {
+        // TODO: This is only correct if the scf.if yields pointers directly
+        // from the kernel arguments. If there are preceding tt.addptr, we will
+        // lose the offsets. Will need to implement some quick checks here.
+        state.source = operand;
+        return success();
       } else {
         llvm_unreachable("Unexpected operand defining operation");
       }
