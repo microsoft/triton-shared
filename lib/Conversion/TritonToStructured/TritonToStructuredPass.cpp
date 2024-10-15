@@ -34,6 +34,7 @@
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/Support/Casting.h"
 #include "llvm/Support/Debug.h"
+#include "llvm/Support/LogicalResult.h"
 #include <cassert>
 #include <optional>
 
@@ -84,7 +85,12 @@ public:
     converter.addConversion([context](RankedTensorType tensorType,
                                       SmallVectorImpl<Type> &types)
                                 -> std::optional<LogicalResult> {
-      if (!isa<triton::PointerType>(tensorType.getElementType())) {
+      // Important note:
+      // We only care about tensor of index / int (in addition to pointer type)
+      // because only values of int and index type can potentially be part of a
+      // pointer arithmetic sequence.
+      if (!isa<triton::PointerType>(tensorType.getElementType()) &&
+          !tensorType.getElementType().isIntOrIndex()) {
         // There's a subtle difference between returning failure() and
         // std::nullopt. From the documentation:
         //
@@ -235,8 +241,15 @@ public:
   // init args easier, especially with multiple levels of loops.
   //
   // Background:
-  // If a triton pointer is updated and returned in a scf.for op, it means
+  //
+  // PtrAnalysis computes a PtrState for every operand (or triton value)
+  // involved in a sequence of pointer arithmetic; some examples include: triton
+  // pointer, offsets (which could be a tensor of indices or just a simple index
+  // value).
+  //
+  // If a triton value is updated and returned in a scf.for op, it means
   // that we have to carry its offsets and strides in the scf.for's iterargs.
+  //
   // Previously, we have to manually rewrite the loops to include the
   // relevant information from a PtrState which was rather involved and
   // error-prone; this was also hard to scale up to multiple level of loops
@@ -244,39 +257,46 @@ public:
   // maintain.
   //
   // With the introduction of the prepass that inserts
-  // `tts.get_structured_state`, the return values of these ops, which include a
-  // triton pointer and its corresponding offsets and strides, will be used as
-  // "placeholders" into the scf.for's init-args. We leverage standard MLIR
-  // infrastructure 1->N conversion to perform this rewrite, which helps
-  // simplify the logic significantly.
+  // `tts.get_structured_state`. The return values of these ops, which include a
+  // triton value with its original result type and its corresponding offsets
+  // and strides, will be used as "placeholders" into the scf.for's init-args.
+  // We leverage standard MLIR infrastructure 1->N conversion to perform this
+  // rewrite, which helps simplify the logic significantly.
   //
   // After PtrAnalysis finishes, the return values of these
   // `tts.get_structured_state` ops will be remapped to the correct
-  // initialization of the pointer's offsets and strides through the pointer's
+  // initialization of the value's offsets and strides through the value's
   // computed PtrState.
   //
   // Implementation details:
   // In essence, what we really want to do in the prepass is, for every value
-  // of triton-pointer-like type (tt.ptr or tensor<tt.ptr<>>), we want to
-  // create an op `tts.get_structured_state` that takes in the original triton
-  // pointer value and returns a series of values:
+  // of triton-pointer-like type (tt.ptr or tensor<tt.ptr<>>) and tensor of
+  // indices (tensor<i32>) which might be used in a sequence of pointer
+  // arithmetic, we want to create an op `tts.get_structured_state` that takes
+  // in the original triton value and returns a series of values:
   //
-  // {triton_ptr, offset_0, offset_1, ..., stride_0, stride_1,...}
+  // {triton_value, offset_0, offset_1, ..., stride_0, stride_1,...}
   //
   // Applying the above conversion will also mean that any structural ops such
   // as scf.for and scf.yield that originally takes the triton pointer will
-  // then take {triton_ptr, offset_0, offset_1, ..., stride_0, stride_1,...}.
+  // then take {triton_value, offset_0, offset_1, ..., stride_0, stride_1,...}.
   //
   // The 1->N type conversion is a perfect fit for this transformation.
   // Unfortunately, we cannot do this is one pass, because the current 1->N
   // type conversion implementation for scf.for ops doesn't provide us with a
-  // way to detect that a type conversion is recursive. So a triton_ptr type
-  // that gets converted to a {triton_ptr, offset_0, offset_1, ..., stride_0,
+  // way to detect that a type conversion is recursive. So a triton_value type
+  // that gets converted to a {triton_value, offset_0, offset_1, ..., stride_0,
   // stride_1,...} will recursively trigger other conversions.
   //
-  // To fix this issue, we have to first convert triton_ptr to
-  // tuple<triton_ptr, offset_0, offset_1, ..., stride_0, stride_1,...>.
+  // To fix this issue, we have to first convert triton_value to
+  // tuple<triton_value, offset_0, offset_1, ..., stride_0, stride_1,...>.
   // Finally, we decompose these tuples into the desired sequence.
+  //
+  // Note that even though the type conversion happens for every integer tensor
+  // appearing in loops' iter-args, this conversion is reversible. If the
+  // integer tensor isn't used in a pointer arithmetic sequence,
+  // canonicalization will remove all the `tts.get_structured_state` ops and
+  // revert the IR back to its original form.
   LogicalResult runTritonToStructuredPrepass() {
     if (failed(convertToPointerTupleWithOffsetsAndStrides())) {
       return failure();
@@ -286,7 +306,7 @@ public:
   }
 
   void runOnOperation() override {
-    if (failed(runTritonToStructuredPrepass())) {
+    if (!skipPrepass && failed(runTritonToStructuredPrepass())) {
       signalPassFailure();
       return;
     }
@@ -297,6 +317,8 @@ public:
 
     auto moduleOp = getOperation();
     mlir::tts::PtrAnalysis ptrAnalysis;
+    ptrAnalysis.initializeMaybeStructuredArgs(moduleOp);
+
     if (failed(ptrAnalysis.rewriteOp(moduleOp))) {
       moduleOp->emitWarning("PtrAnalysis failed");
     }

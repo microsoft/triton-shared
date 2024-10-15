@@ -8,11 +8,21 @@
 #include "triton-shared/Analysis/MaskAnalysis.h"
 #include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Support/LogicalResult.h"
+#include "mlir/Dialect/Arith/IR/Arith.h"
+#include "mlir/Dialect/SCF/IR/SCF.h"
+#include "mlir/Support/LogicalResult.h"
+
 #include "triton-shared/Analysis/OpFoldResultUtils.h"
 
+#include "triton-shared/Dialect/TritonStructured/IR/TritonStructuredDialect.h"
 #include "triton/Dialect/Triton/IR/Dialect.h"
 
 #include "mlir/Transforms/DialectConversion.h"
+
+#include "llvm/Support/Casting.h"
+#include "llvm/Support/Debug.h"
+#include "llvm/Support/LogicalResult.h"
+#include <cassert>
 
 namespace mlir {
 
@@ -38,6 +48,8 @@ LogicalResult MaskState::parse(Value operand, const Location loc,
     return this->parseSplat(op, loc, builder);
   } else if (auto op = operand.getDefiningOp<triton::ExpandDimsOp>()) {
     return this->parseExpandDims(op, loc, builder);
+  } else if (!operand.getDefiningOp()) {
+    return this->parseLoopIterArg(operand, loc, builder);
   } else if (auto op = operand.getDefiningOp<arith::ExtSIOp>()) {
     return this->parseExtSI(op, loc, builder);
   } else {
@@ -109,8 +121,8 @@ static memref::SubViewOp createSubview(Value src, Location loc, OpBuilder &b,
 // +               +      |
 // +++++++++++++++++-------
 //
-// If we simply take the subview of `buffer_tmp`, this requires an extra buffer
-// to just hold the temporary result.
+// If we simply take the subview of `buffer_tmp`, this requires an extra
+// buffer to just hold the temporary result.
 //
 // So we can subview into block1 and block2 directly. There are 2 cases:
 //   + subview only spans block1
@@ -131,8 +143,8 @@ static memref::SubViewOp createSubview(Value src, Location loc, OpBuilder &b,
 // Let (row, col1) and (row, col2) be the dimensions of block1 and block2,
 // respectively.
 //
-// Let (rowFull, colFull), (rowView1, colView1) and (rowView2, colView2) be the
-// dimensions of the full subview, sv1, and sv2, respectively.
+// Let (rowFull, colFull), (rowView1, colView1) and (rowView2, colView2) be
+// the dimensions of the full subview, sv1, and sv2, respectively.
 //
 // + colView1 = min(colFull, col1)
 // + colView2 = colFull - colView1
@@ -340,6 +352,58 @@ LogicalResult MaskState::parseCmp(arith::CmpIOp cmpOp, const Location loc,
   }
 
   return success();
+}
+
+LogicalResult MaskState::parseLoopIterArg(Value v, const Location loc,
+                                          OpBuilder &builder) {
+  assert(!v.getDefiningOp());
+
+  auto forOp = llvm::dyn_cast<scf::ForOp>(v.getParentRegion()->getParentOp());
+
+  if (!forOp) {
+    return failure();
+  }
+
+  // TODO: This implementation does not work with nested loops
+  if (forOp->getParentOfType<scf::ForOp>()) {
+    return failure();
+  }
+
+  auto it = llvm::find(forOp.getRegionIterArgs(), v);
+  if (it == forOp.getRegionIterArgs().end()) {
+    return failure();
+  }
+
+  auto argIndex = std::distance(forOp.getRegionIterArgs().begin(), it);
+  auto initArg = forOp.getInitArgs()[argIndex];
+  if (auto getStateOp = initArg.getDefiningOp<tts::GetStructuredStateOp>()) {
+    auto tritonValue = getStateOp->getOperand(0);
+    MaskState lhsState;
+    if (failed(lhsState.parse(tritonValue, loc, builder))) {
+      return failure();
+    }
+
+    // This is a bit of a hack!!
+    //
+    // The offsets and dimensions of a MaskState can now depend on a loop's
+    // iter-arg.
+    //
+    // Because the PtrAnalysis's pre-pass already sets up the offsets,
+    // we can create a new MaskState for each loop iteration by adding the
+    // original MaskState with the current iter-arg, which is at `argIndex +
+    // 1`.
+    //
+    // This will not work for nested loop scenarios, which would need a
+    // more robust implementation.
+    if (failed(this->addStateScalar(
+            lhsState, forOp.getRegionIterArgs()[argIndex + 1], loc, builder))) {
+      return failure();
+    }
+
+    return success();
+  }
+
+  return failure();
 }
 
 LogicalResult MaskState::parseMakeRange(triton::MakeRangeOp rangeOp,

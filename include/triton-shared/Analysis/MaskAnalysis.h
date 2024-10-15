@@ -14,6 +14,7 @@
 
 #include "mlir/Support/LogicalResult.h"
 #include "triton/Dialect/Triton/IR/Dialect.h"
+#include "llvm/Support/LogicalResult.h"
 
 #include <utility>
 
@@ -137,6 +138,9 @@ private:
   // dimension that contains the range.
   LogicalResult parseExpandDims(triton::ExpandDimsOp expandDimsOp,
                                 const Location loc, OpBuilder &builder);
+
+  LogicalResult parseLoopIterArg(Value v, const Location loc,
+                                 OpBuilder &builder);
 };
 
 } // namespace triton
