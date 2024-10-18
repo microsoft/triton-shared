@@ -350,7 +350,7 @@ LogicalResult MaskState::parseCmp(arith::CmpIOp cmpOp, const Location loc,
   // newEnd = min(end, scalar) = scalar
   // Now scalar < start, so simply doing dim = newEnd - start is incorrect.
   //
-  // To fix this issue, we additionally move `newDim` back to `start` by doing
+  // The correct formula is to optionally move `newDim` back to `start` using
   // max(newEnd, start).
   auto newEnd = minOFRs(lhsState.end, rhsState.scalar, loc, builder);
   newEnd = maxOFRs(newEnd, lhsState.start, loc, builder);
