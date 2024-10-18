@@ -9,15 +9,7 @@ from triton.backends.triton_shared.driver import CPUDriver
 def test_mask(device):
     @triton.jit
     def test(in0, out0):
-        # TODO: Having a constant + tl.arange here crashes the StructuredToMemref pass
-        offs = 4 + tl.arange(0, 4)
-        out_offs = tl.arange(0, 4)
-        a = tl.load(in0 + offs, mask=offs < 4, other=-1)
-        tl.store(out0 + out_offs, a)
-
-    @triton.jit
-    def test_1(in0, out0, off):
-        offs = off + tl.arange(0, 4)
+        offs = 100 + tl.arange(0, 4)
         out_offs = tl.arange(0, 4)
         a = tl.load(in0 + offs, mask=offs < 4, other=-1)
         tl.store(out0 + out_offs, a)
@@ -32,7 +24,7 @@ def test_mask(device):
     grid = lambda meta: (1,)
 
     src = triton.compiler.ASTSource(
-        fn=test_1,
+        fn=test,
         signature="*fp32,*fp32,i32",
     )
     ret = triton.compile(
@@ -41,7 +33,7 @@ def test_mask(device):
     print(ret.asm["ttir"])
 
     print(output)
-    test_1[grid](input, output, 5)
+    test[grid](input, output)
     print(input)
     print(output)
     torch.testing.assert_close(output, torch.tensor([-1, -1, -1, -1, -2, -2, -2, -2], device=device, dtype=torch.int32))
