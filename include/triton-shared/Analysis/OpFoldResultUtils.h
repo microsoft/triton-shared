@@ -55,6 +55,8 @@ OpFoldResult mulOFRValue(const OpFoldResult lhs, const Value rhs,
 OpFoldResult minOFRs(const OpFoldResult lhs, const OpFoldResult rhs,
                      const Location loc, OpBuilder &b);
 
+OpFoldResult maxOFRs(const OpFoldResult lhs, const OpFoldResult rhs,
+                     const Location loc, OpBuilder &b);
 } // namespace mlir
 
 #endif
