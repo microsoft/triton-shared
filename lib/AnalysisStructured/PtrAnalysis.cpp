@@ -1090,7 +1090,8 @@ PtrAnalysis::rewriteGetStructuredStateOp(tts::GetStructuredStateOp op) {
   return success();
 }
 
-LogicalResult PtrAnalysis::rewriteLoadOp(triton::LoadOp op) {
+LogicalResult PtrAnalysis::rewriteLoadOp(triton::LoadOp op,
+                                         bool useUnsafeMask) {
   auto ptr = ptrMap.lookupOrNull(op.getPtr());
   auto mask = op.getMask();
   auto other = op.getOther();
@@ -1109,7 +1110,7 @@ LogicalResult PtrAnalysis::rewriteLoadOp(triton::LoadOp op) {
   }
 
   ArrayRef<OpFoldResult> dims;
-  mlir::triton::MaskState mstate;
+  mlir::triton::MaskState mstate(useUnsafeMask);
   Value scalarOther;
 
   OpBuilder builder(op);
@@ -1226,7 +1227,8 @@ void PtrAnalysis::initializeMaybeStructuredArgs(Operation *op) {
   }
 }
 
-LogicalResult PtrAnalysis::rewriteStoreOp(triton::StoreOp op) {
+LogicalResult PtrAnalysis::rewriteStoreOp(triton::StoreOp op,
+                                          bool useUnsafeMask) {
   auto ptr = ptrMap.lookupOrNull(op.getPtr());
   auto val = op.getValue();
   auto mask = op.getMask();
@@ -1245,7 +1247,7 @@ LogicalResult PtrAnalysis::rewriteStoreOp(triton::StoreOp op) {
   }
 
   ArrayRef<OpFoldResult> dims;
-  mlir::triton::MaskState mstate;
+  mlir::triton::MaskState mstate(useUnsafeMask);
 
   OpBuilder builder(op);
 
@@ -1270,7 +1272,7 @@ LogicalResult PtrAnalysis::rewriteStoreOp(triton::StoreOp op) {
   return success();
 }
 
-LogicalResult PtrAnalysis::rewriteOp(Operation *rootOp) {
+LogicalResult PtrAnalysis::rewriteOp(Operation *rootOp, bool useUnsafeMask) {
   LLVM_DEBUG({
     llvm::dbgs() << "rewriting rootOp\n";
     rootOp->dump();
@@ -1301,14 +1303,14 @@ LogicalResult PtrAnalysis::rewriteOp(Operation *rootOp) {
           return WalkResult::advance();
         })
         .Case<triton::LoadOp>([&](auto load) {
-          if (rewriteLoadOp(load).failed()) {
+          if (rewriteLoadOp(load, useUnsafeMask).failed()) {
             load->emitRemark("PtrAnalysis: Failed to rewrite LoadOp");
             return WalkResult::advance();
           }
           return WalkResult::skip();
         })
         .Case<triton::StoreOp>([&](auto store) {
-          if (rewriteStoreOp(store).failed()) {
+          if (rewriteStoreOp(store, useUnsafeMask).failed()) {
             store->emitRemark("PtrAnalysis: Failed to rewrite StoreOp");
             return WalkResult::advance();
           }

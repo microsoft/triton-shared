@@ -319,7 +319,7 @@ public:
     mlir::tts::PtrAnalysis ptrAnalysis;
     ptrAnalysis.initializeMaybeStructuredArgs(moduleOp);
 
-    if (failed(ptrAnalysis.rewriteOp(moduleOp))) {
+    if (failed(ptrAnalysis.rewriteOp(moduleOp, useUnsafeMask))) {
       moduleOp->emitWarning("PtrAnalysis failed");
     }
 
