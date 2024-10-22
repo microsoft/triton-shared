@@ -123,6 +123,52 @@ struct BroadcastConverter : public OpConversionPattern<triton::BroadcastOp> {
   }
 };
 
+struct LoadConverter : public OpConversionPattern<triton::LoadOp> {
+  using OpConversionPattern<triton::LoadOp>::OpConversionPattern;
+
+  LogicalResult
+  matchAndRewrite(triton::LoadOp op, OpAdaptor adaptor,
+                  ConversionPatternRewriter &rewriter) const override {
+    auto loc = op->getLoc();
+    auto ptrType = op.getPtr().getType();
+
+    auto cast =
+        rewriter
+            .create<UnrealizedConversionCastOp>(loc, ptrType, adaptor.getPtr())
+            ->getResult(0);
+
+    auto replacement =
+        dyn_cast<triton::LoadOp>(rewriter.clone(*op.getOperation()));
+    // replacement
+    replacement.getPtrMutable().set(cast);
+    rewriter.replaceOp(op, replacement);
+    return success();
+  }
+};
+
+struct StoreConverter : public OpConversionPattern<triton::StoreOp> {
+  using OpConversionPattern<triton::StoreOp>::OpConversionPattern;
+
+  LogicalResult
+  matchAndRewrite(triton::StoreOp op, OpAdaptor adaptor,
+                  ConversionPatternRewriter &rewriter) const override {
+    auto loc = op->getLoc();
+    auto ptrType = op.getPtr().getType();
+
+    auto cast =
+        rewriter
+            .create<UnrealizedConversionCastOp>(loc, ptrType, adaptor.getPtr())
+            ->getResult(0);
+
+    auto replacement =
+        dyn_cast<triton::StoreOp>(rewriter.clone(*op.getOperation()));
+    // replacement
+    replacement.getPtrMutable().set(cast);
+    rewriter.replaceOp(op, replacement);
+    return success();
+  }
+};
+
 struct AddPtrConverter : public OpConversionPattern<triton::AddPtrOp> {
   using OpConversionPattern<triton::AddPtrOp>::OpConversionPattern;
 
@@ -220,8 +266,10 @@ public:
         });
 
     TritonTypeConverter converter(&getContext());
-    patterns.add<AddPtrConverter, SplatConverter, BroadcastConverter>(
-        converter, &getContext());
+    patterns.add<AddPtrConverter, SplatConverter, BroadcastConverter,
+                 StoreConverter, LoadConverter>(converter, &getContext());
+    scf::populateSCFStructuralTypeConversionsAndLegality(converter, patterns,
+                                                         target);
 
     if (failed(applyPartialConversion(moduleOp, target, std::move(patterns)))) {
       signalPassFailure();
