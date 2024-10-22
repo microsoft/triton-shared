@@ -338,8 +338,6 @@ LogicalResult MaskState::parseCmp(arith::CmpIOp cmpOp, const Location loc,
       cmpDim = i;
     }
   }
-  assert(cmpDim != -1 &&
-         "Unexpected case where no dimension has size larger than 1");
 
   auto newEnd = minOFRs(lhsState.end, rhsState.scalar, loc, builder);
   auto newDim = subOFRs(newEnd, lhsState.start, loc, builder);
