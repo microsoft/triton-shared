@@ -68,13 +68,13 @@ public:
       if (auto ptrType =
               dyn_cast<triton::PointerType>(tensorType.getElementType())) {
         return RankedTensorType::get(tensorType.getShape(),
-                                     IntegerType::get(context, 32));
+                                     IntegerType::get(context, 64));
       }
       return std::nullopt;
     });
 
     addConversion([context](triton::PointerType ptrType) -> Type {
-      return IntegerType::get(context, 32);
+      return IntegerType::get(context, 64);
     });
 
     addSourceMaterialization([&](OpBuilder &builder, Type type,
@@ -175,9 +175,9 @@ struct AddPtrConverter : public OpConversionPattern<triton::AddPtrOp> {
   Type getType(Type t) const {
     if (auto shapedType = dyn_cast<ShapedType>(t)) {
       return RankedTensorType::get(shapedType.getShape(),
-                                   IntegerType::get(getContext(), 32));
+                                   IntegerType::get(getContext(), 64));
     }
-    return IntegerType::get(getContext(), 32);
+    return IntegerType::get(getContext(), 64);
   }
 
   LogicalResult
@@ -198,11 +198,9 @@ struct AddPtrConverter : public OpConversionPattern<triton::AddPtrOp> {
 
     auto targetType = getType(op.getType());
     Value off = op.getOffset();
-    // if (targetType != op.getType()) {
-    //   off =
-    //       rewriter.create<arith::IndexCastOp>(loc, targetType,
-    //       op.getOffset());
-    // }
+    if (targetType != op.getOffset().getType()) {
+      off = rewriter.create<arith::ExtSIOp>(loc, targetType, op.getOffset());
+    }
     if (isArg) {
       // starts from 0
       rewriter.replaceOp(op, off);
