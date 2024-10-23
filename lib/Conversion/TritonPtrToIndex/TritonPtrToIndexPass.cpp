@@ -15,7 +15,9 @@
 #include "mlir/IR/MLIRContext.h"
 #include "mlir/IR/TypeRange.h"
 #include "mlir/IR/Types.h"
+#include "mlir/IR/Value.h"
 #include "mlir/IR/ValueRange.h"
+#include "mlir/Support/LLVM.h"
 #include "mlir/Support/LogicalResult.h"
 #include "triton-shared/Analysis/OpFoldResultUtils.h"
 #include "triton-shared/AnalysisStructured/PtrAnalysis.h"
@@ -203,7 +205,10 @@ struct AddPtrConverter : public OpConversionPattern<triton::AddPtrOp> {
     }
     if (isArg) {
       // starts from 0
-      rewriter.replaceOp(op, off);
+      auto cast = rewriter.create<UnrealizedConversionCastOp>(
+          loc, off.getType(), ValueRange{op.getPtr(), off});
+      cast->setAttr("arg", UnitAttr::get(op->getContext()));
+      rewriter.replaceOp(op, cast);
       // rewriter.eraseOp(op);
     } else {
       auto prevOff = adaptor.getPtr();
@@ -217,6 +222,90 @@ struct AddPtrConverter : public OpConversionPattern<triton::AddPtrOp> {
 };
 
 class TritonPtrToIndexPass : public TritonPtrToIndexBase<TritonPtrToIndexPass> {
+
+  void bfs(Operation *op) {
+    std::queue<std::pair<Value, Value>> q;
+    DenseSet<Value> visited;
+
+    op->walk([&q, &visited](UnrealizedConversionCastOp op) {
+      if (op->getOperands().size() == 2) {
+        auto value = op->getResult(0);
+        q.push({value, op.getInputs()[0]});
+        visited.insert(value);
+      }
+    });
+
+    while (!q.empty()) {
+      auto [v, arg] = q.front();
+      // llvm::dbgs() << "visiting: \n";
+      // v.dump();
+      q.pop();
+      for (auto user : v.getUsers()) {
+        // scf.for is a special case. We have 2 set of values to consider:
+        // - iter-args
+        // - loop results
+        // for every init arg that originates from a `tts.get_structured_state`
+        // op, its corresponding iter-arg and loop result will also be
+        // considered "maybeStructured".
+        if (auto castOp = dyn_cast<UnrealizedConversionCastOp>(user)) {
+
+          assert(castOp.getInputs().size() == 1);
+          assert(castOp->getResults().size() == 1);
+          for (auto user : castOp->getUsers()) {
+            auto isLoadStore = llvm::isa<triton::LoadOp, triton::StoreOp>(user);
+            assert(isLoadStore);
+          }
+
+          // assert(expr)
+          // castOp->dump();
+          castOp->setOperands({arg, castOp->getOperands()[0]});
+          // castOp.setOperand(1, arg);
+          // castOp->dump();
+
+        } else if (auto forOp = dyn_cast<scf::ForOp>(user)) {
+          auto it = llvm::find(forOp.getInitArgs(), v);
+          // assert(0);
+
+          if (it == forOp.getInitArgs().end()) {
+            continue;
+          }
+
+          // assert(0);
+          auto argIndex = std::distance(forOp.getInitArgs().begin(), it);
+          auto iterArg = forOp.getRegionIterArg(argIndex);
+          auto tiedLoopRes = forOp.getTiedLoopResult(iterArg);
+
+          SmallVector<Value> neighbors{iterArg, tiedLoopRes};
+          for (auto neighbor : neighbors) {
+            if (!visited.contains(neighbor)) {
+              visited.insert(neighbor);
+              q.push({neighbor, arg});
+            }
+          }
+
+        } else {
+          for (auto res : user->getResults()) {
+            if (res.getType() != v.getType()) {
+              // continue;
+            }
+            if (!visited.contains(res)) {
+              visited.insert(res);
+              q.push({res, arg});
+            }
+          }
+        }
+      }
+    }
+
+    op->walk([&q, &visited](UnrealizedConversionCastOp cast) {
+      if (cast.getInputs().size() == 2 && cast->hasAttr("arg")) {
+        auto arg = cast.getInputs()[0];
+        auto offset = cast.getInputs()[1];
+        cast.getResult(0).replaceAllUsesWith(offset);
+        cast->erase();
+      }
+    });
+  }
 
 public:
   void getDependentDialects(DialectRegistry &registry) const override {
@@ -272,6 +361,8 @@ public:
     if (failed(applyPartialConversion(moduleOp, target, std::move(patterns)))) {
       signalPassFailure();
     }
+
+    bfs(moduleOp.getOperation());
   }
 };
 } // namespace
