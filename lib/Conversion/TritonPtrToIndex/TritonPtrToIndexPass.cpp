@@ -266,8 +266,8 @@ public:
         });
 
     TritonTypeConverter converter(&getContext());
-    patterns.add<AddPtrConverter, SplatConverter, BroadcastConverter,
-                 StoreConverter, LoadConverter>(converter, &getContext());
+    patterns.add<AddPtrConverter, SplatConverter, BroadcastConverter>(
+        converter, &getContext());
     scf::populateSCFStructuralTypeConversionsAndLegality(converter, patterns,
                                                          target);
 
