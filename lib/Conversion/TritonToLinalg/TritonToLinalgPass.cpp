@@ -5,6 +5,8 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "mlir/Dialect/Arith/IR/Arith.h"
+#include "mlir/Dialect/SCF/IR/SCF.h"
 #include "mlir/IR/BuiltinOps.h"
 #include "mlir/IR/BuiltinTypeInterfaces.h"
 #include "mlir/IR/BuiltinTypes.h"
@@ -84,9 +86,8 @@ public:
     auto op = loadOp.getPtr().getDefiningOp<UnrealizedConversionCastOp>();
 
     auto results = op->getResultTypes();
-    auto inputs = op.getInputs();
 
-    if (inputs.size() != 2) {
+    if (op.getInputs().size() != 2) {
       return failure();
     }
 
@@ -127,23 +128,55 @@ public:
                            .getResult();
 
     SmallVector<AffineMap, 2> affineMaps(
-        2, rewriter.getMultiDimIdentityMap(resultType.getRank()));
+        loadOp.getMask() ? 3 : 2,
+        rewriter.getMultiDimIdentityMap(resultType.getRank()));
 
     // auto genericOp = rewriter.create<linalg::GenericOp>(loc);
 
+    SmallVector<Value> inputs{offset};
+    if (loadOp.getMask()) {
+      inputs.push_back(loadOp.getMask());
+    }
+
     auto genericOp = rewriter.create<linalg::GenericOp>(
-        loc, ArrayRef<Type>({resultType}), ValueRange{offset},
-        ValueRange{emptyTensor}, affineMaps,
+        loc, ArrayRef<Type>({resultType}), inputs, ValueRange{emptyTensor},
+        affineMaps,
         SmallVector<utils::IteratorType>(resultType.getRank(),
                                          utils::IteratorType::parallel),
         [&](OpBuilder &b, Location loc, ValueRange args) {
-          auto indexValue = args[0];
-          // auto index0 = rewriter.create<linalg::IndexOp>(loc, 0);
-          Value index0 = rewriter.create<arith::IndexCastOp>(
-              loc, rewriter.getIndexType(), indexValue);
-          Value extract = rewriter.create<tensor::ExtractOp>(
-              loc, tensor, ValueRange{index0});
-          rewriter.create<linalg::YieldOp>(loc, extract);
+          if (!loadOp.getMask()) {
+
+            auto indexValue = args[0];
+            // auto index0 = rewriter.create<linalg::IndexOp>(loc, 0);
+            Value index0 = rewriter.create<arith::IndexCastOp>(
+                loc, rewriter.getIndexType(), indexValue);
+
+            Value extract = rewriter.create<tensor::ExtractOp>(
+                loc, tensor, ValueRange{index0});
+            rewriter.create<linalg::YieldOp>(loc, extract);
+          } else {
+            auto mask = args[1];
+
+            auto ifOp = rewriter.create<scf::IfOp>(
+                loc, mask,
+                [&](OpBuilder &b, Location loc) {
+                  auto indexValue = args[0];
+                  // auto index0 = rewriter.create<linalg::IndexOp>(loc, 0);
+                  Value index0 = rewriter.create<arith::IndexCastOp>(
+                      loc, rewriter.getIndexType(), indexValue);
+
+                  Value extract = rewriter.create<tensor::ExtractOp>(
+                      loc, tensor, ValueRange{index0});
+                  b.create<scf::YieldOp>(loc, extract);
+                },
+                [&](OpBuilder &b, Location loc) {
+                  Value extract = rewriter.create<arith::ConstantOp>(
+                      loc, b.getF32FloatAttr(0));
+                  b.create<scf::YieldOp>(loc, extract);
+                });
+
+            rewriter.create<linalg::YieldOp>(loc, ifOp->getResult(0));
+          }
         });
 
     rewriter.replaceOp(loadOp, genericOp);
