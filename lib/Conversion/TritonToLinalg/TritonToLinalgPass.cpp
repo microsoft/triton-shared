@@ -58,7 +58,7 @@ public:
   }
 };
 
-struct UnrealizedCastConverter : public OpConversionPattern<triton::LoadOp> {
+struct LoadOpConverter : public OpConversionPattern<triton::LoadOp> {
 private:
   using OpConversionPattern<triton::LoadOp>::OpConversionPattern;
 
@@ -74,7 +74,7 @@ private:
   }
 
 public:
-  UnrealizedCastConverter(TypeConverter &typeConverter, MLIRContext *context)
+  LoadOpConverter(TypeConverter &typeConverter, MLIRContext *context)
       : OpConversionPattern<triton::LoadOp>(typeConverter, context) {}
 
   LogicalResult
@@ -214,7 +214,7 @@ public:
     });
 
     TritonTypeConverter converter;
-    patterns.add<UnrealizedCastConverter>(converter, patterns.getContext());
+    patterns.add<LoadOpConverter>(converter, patterns.getContext());
 
     if (failed(applyPartialConversion(moduleOp, target, std::move(patterns))))
       signalPassFailure();
