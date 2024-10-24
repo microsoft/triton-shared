@@ -828,21 +828,7 @@ public:
       return failure();
     }
 
-    if (auto reinterpretCast =
-            input.getDefiningOp<memref::ReinterpretCastOp>()) {
-      rewriter.replaceOp(op, reinterpretCast);
-    } else {
-      auto ptrType = cast<triton::PointerType>(resType);
-      auto memrefType =
-          cast<MemRefType>(getTypeConverter()->convertType(ptrType));
-
-      auto cast = rewriter.create<memref::ReinterpretCastOp>(
-          op->getLoc(), memrefType, op.getInputs()[0], 0 /*offset*/,
-          SmallVector<int64_t>{1} /*sizes*/,
-          SmallVector<int64_t>{1} /*strides*/);
-
-      rewriter.replaceOp(op, cast);
-    }
+    rewriter.replaceOp(op, input);
 
     return success();
   }
@@ -853,7 +839,6 @@ public:
 void mlir::triton::populateStructuredToMemrefConversionPatterns(
     RewritePatternSet &patterns, TypeConverter &typeConverter) {
   patterns.add<UnrealizedCastConverter>(typeConverter, patterns.getContext());
-  patterns.add<MakeTensorPtrConverter, LoadConverter, StoreConverter,
-               ScalarLoadConverter, ScalarStoreConverter>(
+  patterns.add<MakeTensorPtrConverter, LoadConverter, StoreConverter>(
       patterns.getContext());
 }

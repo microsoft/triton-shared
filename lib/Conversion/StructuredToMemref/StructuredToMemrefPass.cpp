@@ -89,9 +89,6 @@ public:
   LoopTypeConverter(MLIRContext *context) {
     // The order of type conversion is important: later ones are tried earlier.
     addConversion([](Type type) { return type; });
-    addConversion([context](triton::PointerType ptrType) {
-      return getMemrefTypeForScalarPtr(ptrType, context);
-    });
 
     // A tensor of pointers can be passed in as scf.for's init-args, in such
     // cases, we convert the type to a memref with dynamic offsets and
@@ -115,14 +112,10 @@ public:
     // strides through another reinterpret_cast with the same offsets.
     // Canonicalization will simplify this sequence by removing the inital
     // reinterpret_cast.
-    addTargetMaterialization([&](OpBuilder &builder, MemRefType memrefType,
-                                 ValueRange inputs,
+    addSourceMaterialization([&](OpBuilder &builder, Type t, ValueRange inputs,
                                  Location loc) -> std::optional<Value> {
-      auto reinterpretCast =
-          inputs[0].getDefiningOp<memref::ReinterpretCastOp>();
-      return builder.create<memref::ReinterpretCastOp>(
-          loc, memrefType, inputs[0], reinterpretCast.getMixedOffsets()[0],
-          reinterpretCast.getMixedSizes(), reinterpretCast.getMixedStrides());
+      return builder.create<UnrealizedConversionCastOp>(loc, t, inputs)
+          ->getResult(0);
     });
   }
 };
@@ -357,10 +350,10 @@ public:
       return;
     }
 
-    if (failed(convertAddPtrToReinterpretCast())) {
-      signalPassFailure();
-      return;
-    }
+    // if (failed(convertAddPtrToReinterpretCast())) {
+    //   signalPassFailure();
+    //   return;
+    // }
 
     RewritePatternSet patterns(&getContext());
     ConversionTarget target(getContext());
@@ -374,15 +367,16 @@ public:
 
     target.addIllegalDialect<tts::TritonStructuredDialect>();
 
-    target.addDynamicallyLegalOp<UnrealizedConversionCastOp>([](Operation *op) {
-      auto resType = op->getResultTypes()[0];
-      return !isa<triton::PointerType>(resType);
-    });
+    // target.addDynamicallyLegalOp<UnrealizedConversionCastOp>([](Operation
+    // *op) {
+    //   auto resType = op->getResultTypes()[0];
+    //   return !isa<triton::PointerType>(resType);
+    // });
 
     LoopTypeConverter loopTypeConverter(patterns.getContext());
 
-    mlir::scf::populateSCFStructuralTypeConversionsAndLegality(
-        loopTypeConverter, patterns, target);
+    // mlir::scf::populateSCFStructuralTypeConversionsAndLegality(
+    //     loopTypeConverter, patterns, target);
 
     triton::populateStructuredToMemrefConversionPatterns(patterns,
                                                          loopTypeConverter);
@@ -392,11 +386,11 @@ public:
     }
 
     // Erase dead code and fold constants created during lowering
-    PassManager pm(&getContext(), moduleOp.getOperationName());
-    pm.addPass(createCanonicalizerPass());
-    if (failed(runPipeline(pm, getOperation()))) {
-      signalPassFailure();
-    }
+    // PassManager pm(&getContext(), moduleOp.getOperationName());
+    // pm.addPass(createCanonicalizerPass());
+    // if (failed(runPipeline(pm, getOperation()))) {
+    //   signalPassFailure();
+    // }
   }
 };
 } // namespace
