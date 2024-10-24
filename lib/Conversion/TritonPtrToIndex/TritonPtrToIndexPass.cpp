@@ -8,6 +8,7 @@
 #include "mlir/Conversion/ReconcileUnrealizedCasts/ReconcileUnrealizedCasts.h"
 #include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/SCF/Transforms/Patterns.h"
+#include "mlir/IR/Builders.h"
 #include "mlir/IR/BuiltinAttributes.h"
 #include "mlir/IR/BuiltinOps.h"
 #include "mlir/IR/BuiltinTypeInterfaces.h"
@@ -89,8 +90,20 @@ public:
     addTargetMaterialization([&](OpBuilder &builder, Type type,
                                  ValueRange inputs,
                                  Location loc) -> std::optional<Value> {
-      return builder.create<UnrealizedConversionCastOp>(loc, type, inputs)
-          ->getResult(0);
+      // return builder.create<arith::ConstantOp>(loc,
+      //                                          builder.getI64IntegerAttr(0));
+
+      auto op = builder.create<UnrealizedConversionCastOp>(loc, type, inputs);
+      op->setAttr("target-mat", UnitAttr::get(builder.getContext()));
+      return op->getResult(0);
+    });
+
+    addArgumentMaterialization([&](OpBuilder &builder, Type type,
+                                   ValueRange inputs,
+                                   Location loc) -> std::optional<Value> {
+      auto op = builder.create<UnrealizedConversionCastOp>(loc, type, inputs);
+      op->setAttr("arg-mat", UnitAttr::get(builder.getContext()));
+      return op->getResult(0);
     });
   }
 };
@@ -203,19 +216,10 @@ struct AddPtrConverter : public OpConversionPattern<triton::AddPtrOp> {
     if (targetType != op.getOffset().getType()) {
       off = rewriter.create<arith::ExtSIOp>(loc, targetType, op.getOffset());
     }
-    if (isArg) {
-      // starts from 0
-      auto cast = rewriter.create<UnrealizedConversionCastOp>(
-          loc, off.getType(), ValueRange{op.getPtr(), off});
-      cast->setAttr("arg", UnitAttr::get(op->getContext()));
-      rewriter.replaceOp(op, cast);
-      // rewriter.eraseOp(op);
-    } else {
-      auto prevOff = adaptor.getPtr();
-      auto accumulatedOff = rewriter.create<arith::AddIOp>(loc, prevOff, off);
-      rewriter.replaceOp(op, accumulatedOff);
-      // rewriter.eraseOp(op);
-    }
+
+    auto prevOff = adaptor.getPtr();
+    auto accumulatedOff = rewriter.create<arith::AddIOp>(loc, prevOff, off);
+    rewriter.replaceOp(op, accumulatedOff);
 
     return success();
   }
@@ -228,12 +232,21 @@ class TritonPtrToIndexPass : public TritonPtrToIndexBase<TritonPtrToIndexPass> {
     DenseSet<Value> visited;
 
     op->walk([&q, &visited](UnrealizedConversionCastOp op) {
-      if (op->getOperands().size() == 2) {
+      if (op->hasAttr("target-mat")) {
         auto value = op->getResult(0);
         q.push({value, op.getInputs()[0]});
         visited.insert(value);
       }
     });
+
+    // // Consider ptrs used directly without addptr
+    // op->walk([&q, &visited](triton::FuncOp op) {
+    //   for (auto arg : op.getArguments()) {
+    //     if (isa<triton::PointerType>(arg.getType())) {
+    //       q.push({arg, arg});
+    //     }
+    //   }
+    // });
 
     while (!q.empty()) {
       auto [v, arg] = q.front();
@@ -244,16 +257,18 @@ class TritonPtrToIndexPass : public TritonPtrToIndexBase<TritonPtrToIndexPass> {
         // scf.for is a special case. We have 2 set of values to consider:
         // - iter-args
         // - loop results
-        // for every init arg that originates from a `tts.get_structured_state`
-        // op, its corresponding iter-arg and loop result will also be
-        // considered "maybeStructured".
+        // for every init arg that originates from a
+        // `tts.get_structured_state` op, its corresponding iter-arg and loop
+        // result will also be considered "maybeStructured".
         if (auto castOp = dyn_cast<UnrealizedConversionCastOp>(user)) {
-
-          assert(castOp.getInputs().size() == 1);
-          assert(castOp->getResults().size() == 1);
+          castOp->dump();
+          // assert(castOp.getInputs().size() == 1);
+          // assert(castOp->getResults().size() == 1);
           for (auto user : castOp->getUsers()) {
             auto isLoadStore = llvm::isa<triton::LoadOp, triton::StoreOp>(user);
-            assert(isLoadStore);
+            if (!isLoadStore) {
+              user->dump();
+            }
           }
 
           // assert(expr)
@@ -298,10 +313,10 @@ class TritonPtrToIndexPass : public TritonPtrToIndexBase<TritonPtrToIndexPass> {
     }
 
     op->walk([&q, &visited](UnrealizedConversionCastOp cast) {
-      if (cast.getInputs().size() == 2 && cast->hasAttr("arg")) {
-        auto arg = cast.getInputs()[0];
-        auto offset = cast.getInputs()[1];
-        cast.getResult(0).replaceAllUsesWith(offset);
+      if (cast->hasAttr("target-mat")) {
+        OpBuilder b(cast);
+        cast.getResult(0).replaceAllUsesWith(b.create<arith::ConstantOp>(
+            cast->getLoc(), b.getI64IntegerAttr(0)));
         cast->erase();
       }
     });
@@ -313,6 +328,20 @@ public:
         .insert<arith::ArithDialect, math::MathDialect, affine::AffineDialect,
                 scf::SCFDialect, tensor::TensorDialect, triton::TritonDialect,
                 tts::TritonStructuredDialect>();
+  }
+
+  void convertLoop() {
+    auto moduleOp = getOperation();
+    RewritePatternSet patterns(&getContext());
+    ConversionTarget target(getContext());
+
+    TritonTypeConverter converter(&getContext());
+    scf::populateSCFStructuralTypeConversionsAndLegality(converter, patterns,
+                                                         target);
+
+    if (failed(applyPartialConversion(moduleOp, target, std::move(patterns)))) {
+      signalPassFailure();
+    }
   }
 
   void runOnOperation() override {
@@ -353,14 +382,27 @@ public:
         });
 
     TritonTypeConverter converter(&getContext());
+    // scf::populateSCFStructuralTypeConversionsAndLegality(converter, patterns,
+    //                                                      target);
+
+    // patterns.add<AddPtrConverter>(converter, &getContext());
+
     patterns.add<AddPtrConverter, SplatConverter, BroadcastConverter>(
         converter, &getContext());
-    scf::populateSCFStructuralTypeConversionsAndLegality(converter, patterns,
-                                                         target);
 
     if (failed(applyPartialConversion(moduleOp, target, std::move(patterns)))) {
       signalPassFailure();
     }
+
+    convertLoop();
+
+    PassManager pm(&getContext(), moduleOp.getOperationName());
+    pm.addPass(createReconcileUnrealizedCastsPass());
+    if (failed(runPipeline(pm, getOperation()))) {
+      signalPassFailure();
+    }
+
+    moduleOp->dump();
 
     bfs(moduleOp.getOperation());
   }

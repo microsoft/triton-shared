@@ -1,7 +1,7 @@
 // RUN: triton-shared-opt --canonicalize --triton-arith-to-linalg --structured-to-memref %s | FileCheck %s
 
 module {
-  func.func @reduce_kernel_2d_0d1d2de3de(%arg0: !tt.ptr<f32> {tt.divisibility = 16 : i32}, %arg1: !tt.ptr<f32> {tt.divisibility = 16 : i32}, %arg2: i32 {tt.divisibility = 16 : i32, tt.max_divisibility = 16 : i32}, %arg3: i32 {tt.divisibility = 16 : i32, tt.max_divisibility = 16 : i32}, %arg4: i32, %arg5: i32, %arg6: i32, %arg7: i32, %arg8: i32, %arg9: i32) {
+  tt.func @reduce_kernel_2d_0d1d2de3de(%arg0: !tt.ptr<f32> {tt.divisibility = 16 : i32}, %arg1: !tt.ptr<f32> {tt.divisibility = 16 : i32}, %arg2: i32 {tt.divisibility = 16 : i32, tt.max_divisibility = 16 : i32}, %arg3: i32 {tt.divisibility = 16 : i32, tt.max_divisibility = 16 : i32}, %arg4: i32, %arg5: i32, %arg6: i32, %arg7: i32, %arg8: i32, %arg9: i32) {
     %c1_i32 = arith.constant 1 : i32
     %c5_i32 = arith.constant 5 : i32
     %c0_i32 = arith.constant 0 : i32
@@ -11,7 +11,7 @@ module {
       %2 = tt.addptr %0, %arg10 : !tt.ptr<f32>, i32
       tt.store %2, %1 : !tt.ptr<f32>
     }
-    return
+    tt.return
   }
 }
 
