@@ -5,6 +5,7 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "mlir/IR/BuiltinOps.h"
 #include "triton-shared/Analysis/UseAnalysis.h"
 #include "triton-shared/Conversion/TritonToLinalg/TritonToLinalg.h"
 #include "triton-shared/Dialect/TritonTilingExt/IR/TritonTilingExtDialect.h"
@@ -20,6 +21,7 @@
 #include "mlir/Transforms/Passes.h"
 
 #include "llvm/Support/Debug.h"
+#include <cassert>
 
 #define DEBUG_TYPE "triton-to-linalg"
 
@@ -46,6 +48,40 @@ public:
       }
       return MemRefType::get(tensorType.getShape(), elemType);
     });
+  }
+};
+
+struct UnrealizedCastConverter
+    : public OpConversionPattern<UnrealizedConversionCastOp> {
+private:
+  using OpConversionPattern<UnrealizedConversionCastOp>::OpConversionPattern;
+
+  Value getOriginalBuffer(Value v) {
+    while (auto op = v.getDefiningOp()) {
+      
+    }
+    return v;
+  }
+
+public:
+  UnrealizedCastConverter(TypeConverter &typeConverter, MLIRContext *context)
+      : OpConversionPattern<UnrealizedConversionCastOp>(typeConverter,
+                                                        context) {}
+
+  LogicalResult
+  matchAndRewrite(UnrealizedConversionCastOp op, OpAdaptor adaptor,
+                  ConversionPatternRewriter &rewriter) const override {
+    auto results = op->getResultTypes();
+    auto inputs = op.getInputs();
+
+    if (inputs.size() != 2) {
+      return failure();
+    }
+
+    auto ptr = op.getInputs()[0];
+    auto offset = op.getInputs()[1];
+
+    return success();
   }
 };
 
@@ -94,7 +130,24 @@ public:
                 memref::MemRefDialect, ttx::TritonTilingExtDialect>();
   }
 
+  void convert() {
+    auto moduleOp = getOperation();
+    RewritePatternSet patterns(&getContext());
+    ConversionTarget target(getContext());
+
+    target.addIllegalOp<UnrealizedConversionCastOp>();
+
+    TritonTypeConverter converter;
+    patterns.add<UnrealizedCastConverter>(converter, patterns.getContext());
+
+    if (failed(applyPartialConversion(moduleOp, target, std::move(patterns))))
+      signalPassFailure();
+  }
+
   void runOnOperation() override {
+    convert();
+    return;
+
     auto moduleOp = getOperation();
 
     {

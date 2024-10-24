@@ -367,11 +367,12 @@ public:
 
     target.addIllegalDialect<tts::TritonStructuredDialect>();
 
-    // target.addDynamicallyLegalOp<UnrealizedConversionCastOp>([](Operation
-    // *op) {
-    //   auto resType = op->getResultTypes()[0];
-    //   return !isa<triton::PointerType>(resType);
-    // });
+    target.addDynamicallyLegalOp<UnrealizedConversionCastOp>(
+        [](UnrealizedConversionCastOp op) {
+          auto inputs = op.getInputs();
+          return inputs.size() == 2 &&
+                 isa<UnrankedMemRefType>(inputs[0].getType());
+        });
 
     LoopTypeConverter loopTypeConverter(patterns.getContext());
 
@@ -386,11 +387,11 @@ public:
     }
 
     // Erase dead code and fold constants created during lowering
-    // PassManager pm(&getContext(), moduleOp.getOperationName());
-    // pm.addPass(createCanonicalizerPass());
-    // if (failed(runPipeline(pm, getOperation()))) {
-    //   signalPassFailure();
-    // }
+    PassManager pm(&getContext(), moduleOp.getOperationName());
+    pm.addPass(createCanonicalizerPass());
+    if (failed(runPipeline(pm, getOperation()))) {
+      signalPassFailure();
+    }
   }
 };
 } // namespace

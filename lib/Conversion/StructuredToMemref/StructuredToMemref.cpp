@@ -34,6 +34,7 @@
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/Support/Debug.h"
+#include "llvm/Support/LogicalResult.h"
 
 #include <algorithm>
 #include <cassert>
@@ -812,9 +813,9 @@ private:
   using OpConversionPattern<UnrealizedConversionCastOp>::OpConversionPattern;
 
 public:
-  UnrealizedCastConverter(TypeConverter &typeConverter, MLIRContext *context)
-      : OpConversionPattern<UnrealizedConversionCastOp>(typeConverter,
-                                                        context) {}
+  // UnrealizedCastConverter(TypeConverter &typeConverter, MLIRContext *context)
+  //     : OpConversionPattern<UnrealizedConversionCastOp>(typeConverter,
+  //                                                       context) {}
 
   LogicalResult
   matchAndRewrite(UnrealizedConversionCastOp op, OpAdaptor adaptor,
@@ -823,12 +824,22 @@ public:
     auto input = op.getInputs()[0];
     auto inputType = input.getType();
 
-    if (!isa<triton::PointerType>(resType) ||
-        !isa<MemRefType, UnrankedMemRefType>(inputType)) {
-      return failure();
+    if (isa<triton::PointerType>(resType) &&
+        isa<MemRefType, UnrankedMemRefType>(inputType)) {
+      // rewriter.replaceAllOpUsesWith(op, input);
+      // rewriter.eraseOp(op);
+      llvm::dbgs() << "ok case\n";
+      op->dump();
+      input.dump();
+      rewriter.replaceOp(op, input);
+    } else {
+      llvm::dbgs() << "weird case\n";
+      op->dump();
+      adaptor.getInputs()[0].dump();
+      auto clone = rewriter.clone(*op.getOperation());
+      clone->setOperand(0, adaptor.getInputs()[0]);
+      rewriter.replaceOp(op, clone);
     }
-
-    rewriter.replaceOp(op, input);
 
     return success();
   }
@@ -838,7 +849,7 @@ public:
 
 void mlir::triton::populateStructuredToMemrefConversionPatterns(
     RewritePatternSet &patterns, TypeConverter &typeConverter) {
-  patterns.add<UnrealizedCastConverter>(typeConverter, patterns.getContext());
+  patterns.add<UnrealizedCastConverter>(patterns.getContext());
   patterns.add<MakeTensorPtrConverter, LoadConverter, StoreConverter>(
       patterns.getContext());
 }
