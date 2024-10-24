@@ -389,12 +389,15 @@ public:
 
     patterns.add<AddPtrConverter, SplatConverter, BroadcastConverter>(
         converter, &getContext());
+    scf::populateSCFStructuralTypeConversionsAndLegality(converter, patterns,
+                                                         target);
 
     if (failed(applyPartialConversion(moduleOp, target, std::move(patterns)))) {
       signalPassFailure();
     }
 
-    convertLoop();
+    // not sure why we cannot run this together
+    // convertLoop();
 
     PassManager pm(&getContext(), moduleOp.getOperationName());
     pm.addPass(createReconcileUnrealizedCastsPass());
