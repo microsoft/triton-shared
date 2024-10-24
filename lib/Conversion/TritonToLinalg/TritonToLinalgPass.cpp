@@ -172,6 +172,7 @@ public:
                 [&](OpBuilder &b, Location loc) {
                   Value extract = rewriter.create<arith::ConstantOp>(
                       loc, b.getF32FloatAttr(0));
+                  // b.getFloatAttr()
                   b.create<scf::YieldOp>(loc, extract);
                 });
 
