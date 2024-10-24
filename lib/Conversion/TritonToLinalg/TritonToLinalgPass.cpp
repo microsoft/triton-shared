@@ -6,6 +6,8 @@
 //===----------------------------------------------------------------------===//
 
 #include "mlir/IR/BuiltinOps.h"
+#include "mlir/IR/BuiltinTypeInterfaces.h"
+#include "mlir/IR/BuiltinTypes.h"
 #include "triton-shared/Analysis/UseAnalysis.h"
 #include "triton-shared/Conversion/TritonToLinalg/TritonToLinalg.h"
 #include "triton-shared/Dialect/TritonTilingExt/IR/TritonTilingExtDialect.h"
@@ -19,9 +21,14 @@
 #include "mlir/Pass/PassManager.h"
 #include "mlir/Transforms/GreedyPatternRewriteDriver.h"
 #include "mlir/Transforms/Passes.h"
+#include "triton/Dialect/Triton/IR/Types.h"
 
+#include "llvm/ADT/SmallVector.h"
+#include "llvm/Support/Casting.h"
 #include "llvm/Support/Debug.h"
+#include "llvm/Support/LogicalResult.h"
 #include <cassert>
+#include <cstdint>
 
 #define DEBUG_TYPE "triton-to-linalg"
 
@@ -51,26 +58,31 @@ public:
   }
 };
 
-struct UnrealizedCastConverter
-    : public OpConversionPattern<UnrealizedConversionCastOp> {
+struct UnrealizedCastConverter : public OpConversionPattern<triton::LoadOp> {
 private:
-  using OpConversionPattern<UnrealizedConversionCastOp>::OpConversionPattern;
+  using OpConversionPattern<triton::LoadOp>::OpConversionPattern;
 
-  Value getOriginalBuffer(Value v) {
-    while (auto op = v.getDefiningOp()) {
-      
-    }
-    return v;
+  static MemRefType getMemrefTypeForScalarPtr(triton::PointerType ptrType,
+                                              MLIRContext *context) {
+    SmallVector<int64_t> strides{1};
+    auto layout =
+        StridedLayoutAttr::get(context, ShapedType::kDynamic, strides);
+
+    auto elemType = ptrType.getPointeeType();
+    auto memrefType = MemRefType::get({1}, elemType, layout);
+    return memrefType;
   }
 
 public:
   UnrealizedCastConverter(TypeConverter &typeConverter, MLIRContext *context)
-      : OpConversionPattern<UnrealizedConversionCastOp>(typeConverter,
-                                                        context) {}
+      : OpConversionPattern<triton::LoadOp>(typeConverter, context) {}
 
   LogicalResult
-  matchAndRewrite(UnrealizedConversionCastOp op, OpAdaptor adaptor,
+  matchAndRewrite(triton::LoadOp loadOp, OpAdaptor adaptor,
                   ConversionPatternRewriter &rewriter) const override {
+
+    auto op = loadOp.getPtr().getDefiningOp<UnrealizedConversionCastOp>();
+
     auto results = op->getResultTypes();
     auto inputs = op.getInputs();
 
@@ -78,8 +90,63 @@ public:
       return failure();
     }
 
+    auto loc = op->getLoc();
     auto ptr = op.getInputs()[0];
     auto offset = op.getInputs()[1];
+    auto offsetType = dyn_cast<ShapedType>(offset.getType());
+
+    if (!offsetType) {
+      return failure();
+    }
+
+    // auto ptrType =
+    // dyn_cast<triton::PointerType>(offsetType.getElementType());
+    // SmallVector<int64_t> strides(offsetType.getRank(), ShapedType::kDynamic);
+    // auto layout = StridedLayoutAttr::get(rewriter.getContext(), 0, strides);
+    // auto elemType = ptrType.getPointeeType();
+    // auto memrefType = MemRefType::get(offsetType.getShape(), elemType,
+    // layout);
+
+    auto resultType = dyn_cast<RankedTensorType>(loadOp.getResult().getType());
+
+    auto memref = rewriter.create<memref::CastOp>(
+        loc,
+        MemRefType::get({ShapedType::kDynamic}, resultType.getElementType()),
+        ptr);
+
+    // Treat this as a 1-d tensor
+    auto tensor = rewriter.create<bufferization::ToTensorOp>(
+        loc,
+        RankedTensorType::get(SmallVector<int64_t>(1, ShapedType::kDynamic),
+                              resultType.getElementType()),
+        memref, true /* restrict */, false /* writable */);
+
+    auto emptyTensor = rewriter
+                           .create<tensor::EmptyOp>(loc, resultType.getShape(),
+                                                    resultType.getElementType())
+                           .getResult();
+
+    SmallVector<AffineMap, 2> affineMaps(
+        2, rewriter.getMultiDimIdentityMap(resultType.getRank()));
+
+    // auto genericOp = rewriter.create<linalg::GenericOp>(loc);
+
+    auto genericOp = rewriter.create<linalg::GenericOp>(
+        loc, ArrayRef<Type>({resultType}), ValueRange{offset},
+        ValueRange{emptyTensor}, affineMaps,
+        SmallVector<utils::IteratorType>(resultType.getRank(),
+                                         utils::IteratorType::parallel),
+        [&](OpBuilder &b, Location loc, ValueRange args) {
+          auto indexValue = args[0];
+          // auto index0 = rewriter.create<linalg::IndexOp>(loc, 0);
+          Value index0 = rewriter.create<arith::IndexCastOp>(
+              loc, rewriter.getIndexType(), indexValue);
+          Value extract = rewriter.create<tensor::ExtractOp>(
+              loc, tensor, ValueRange{index0});
+          rewriter.create<linalg::YieldOp>(loc, extract);
+        });
+
+    rewriter.replaceOp(loadOp, genericOp);
 
     return success();
   }
@@ -135,7 +202,16 @@ public:
     RewritePatternSet patterns(&getContext());
     ConversionTarget target(getContext());
 
-    target.addIllegalOp<UnrealizedConversionCastOp>();
+    target.addLegalDialect<
+        func::FuncDialect, arith::ArithDialect, math::MathDialect,
+        linalg::LinalgDialect, affine::AffineDialect, scf::SCFDialect,
+        cf::ControlFlowDialect, tensor::TensorDialect,
+        bufferization::BufferizationDialect, memref::MemRefDialect,
+        ttx::TritonTilingExtDialect>();
+
+    target.addDynamicallyLegalOp<triton::LoadOp>([](triton::LoadOp op) {
+      return !isa<ShapedType>(op.getResult().getType());
+    });
 
     TritonTypeConverter converter;
     patterns.add<UnrealizedCastConverter>(converter, patterns.getContext());
