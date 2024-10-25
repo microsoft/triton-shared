@@ -49,6 +49,9 @@ struct MaskState {
   OpFoldResult end;
   SmallVector<OpFoldResult> dims;
   OpFoldResult scalar;
+  const bool useUnsafeMask;
+
+  MaskState(bool useUnsafeMask = false) : useUnsafeMask(useUnsafeMask) {}
 
   int64_t getRank() const { return dims.size(); }
 

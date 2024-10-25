@@ -22,18 +22,19 @@ module {
   }
 }
 
-// CHECK:         tt.func public @sign_extend([[arg0_:.+]]: !tt.ptr<i32>, [[arg1_:.+]]: !tt.ptr<f32>, [[arg2_:.+]]: !tt.ptr<f32>, [[arg3_:.+]]: i32) attributes {noinline = false} {
+// CHECK:         tt.func public @sign_extend([[PARAM_0_:%.+]]: !tt.ptr<i32>, [[PARAM_1_:%.+]]: !tt.ptr<f32>, [[PARAM_2_:%.+]]: !tt.ptr<f32>, [[PARAM_3_:%.+]]: i32) attributes {noinline = false} {
 // CHECK-DAG:       [[CST_1_dot_100000_:%.+]] = arith.constant 1.100000e+01 : f32
 // CHECK-DAG:       [[CST_4_:%.+]] = arith.constant 4 : index
-// CHECK-DAG:       [[LOAD_arg0_MEM_:%.+]] = tt.load [[arg0_]] : !tt.ptr<i32>
-// CHECK:           [[VAR_1_:%.+]] = arith.index_cast [[LOAD_arg0_MEM_]] : i32 to index
-// CHECK-DAG:       [[VAR_2_:%.+]] = tts.make_tptr [[arg1_]] to sizes: [4], strides: [1], offsets: {{.}}[[VAR_1_]]{{.}}, shape: [0], order: [] : <f32> to tensor<4x!tt.ptr<f32>>
+// CHECK-DAG:       [[LOAD_PARAM_0_MEM_:%.+]] = tt.load [[PARAM_0_]] : !tt.ptr<i32>
+// CHECK:           [[VAR_1_:%.+]] = arith.index_cast [[LOAD_PARAM_0_MEM_]] : i32 to index
+// CHECK-DAG:       [[VAR_2_:%.+]] = tts.make_tptr [[PARAM_1_]] to sizes: [4], strides: [1], offsets: {{.}}[[VAR_1_]]{{.}}, shape: [0], order: [] : <f32> to tensor<4x!tt.ptr<f32>>
 // CHECK-DAG:       [[VAR_3_:%.+]] = arith.addi [[VAR_1_]], [[CST_4_]] : index
-// CHECK-DAG:       [[VAR_4_:%.+]] = arith.index_cast [[arg3_]] : i32 to index
+// CHECK-DAG:       [[VAR_4_:%.+]] = arith.index_cast [[PARAM_3_]] : i32 to index
 // CHECK:           [[VAR_5_:%.+]] = arith.minsi [[VAR_3_]], [[VAR_4_]] : index
-// CHECK:           [[VAR_6_:%.+]] = arith.subi [[VAR_5_]], [[VAR_1_]] : index
-// CHECK-DAG:       [[VAR_7_:%.+]] = "tts.load"([[VAR_2_]], [[VAR_6_]], [[CST_1_dot_100000_]]) <{operandSegmentSizes = array<i32: 1, 1, 1>, static_mask_dims = array<i64: -9223372036854775808>}> : (tensor<4x!tt.ptr<f32>>, index, f32) -> tensor<4xf32>
-// CHECK-DAG:       [[VAR_8_:%.+]] = tts.make_tptr [[arg2_]] to sizes: [4], strides: [1], offsets: [0], shape: [0], order: [] : <f32> to tensor<4x!tt.ptr<f32>>
-// CHECK:           "tts.store"([[VAR_8_]], [[VAR_7_]]) <{static_mask_dims = array<i64>}> : (tensor<4x!tt.ptr<f32>>, tensor<4xf32>) -> ()
+// CHECK:           [[VAR_6_:%.+]] = arith.maxsi [[VAR_5_]], [[VAR_1_]] : index
+// CHECK:           [[VAR_7_:%.+]] = arith.subi [[VAR_6_]], [[VAR_1_]] : index
+// CHECK-DAG:       [[VAR_8_:%.+]] = "tts.load"([[VAR_2_]], [[VAR_7_]], [[CST_1_dot_100000_]]) <{operandSegmentSizes = array<i32: 1, 1, 1>, static_mask_dims = array<i64: -9223372036854775808>}> : (tensor<4x!tt.ptr<f32>>, index, f32) -> tensor<4xf32>
+// CHECK-DAG:       [[VAR_9_:%.+]] = tts.make_tptr [[PARAM_2_]] to sizes: [4], strides: [1], offsets: [0], shape: [0], order: [] : <f32> to tensor<4x!tt.ptr<f32>>
+// CHECK:           "tts.store"([[VAR_9_]], [[VAR_8_]]) <{static_mask_dims = array<i64>}> : (tensor<4x!tt.ptr<f32>>, tensor<4xf32>) -> ()
 // CHECK:           tt.return
 // CHECK:         }

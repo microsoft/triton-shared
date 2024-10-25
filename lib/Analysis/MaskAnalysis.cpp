@@ -7,8 +7,6 @@
 
 #include "triton-shared/Analysis/MaskAnalysis.h"
 #include "mlir/Dialect/Arith/IR/Arith.h"
-#include "mlir/Support/LogicalResult.h"
-#include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/SCF/IR/SCF.h"
 #include "mlir/Support/LogicalResult.h"
 
@@ -341,7 +339,21 @@ LogicalResult MaskState::parseCmp(arith::CmpIOp cmpOp, const Location loc,
   assert(cmpDim != -1 &&
          "Unexpected case where no dimension has size larger than 1");
 
+  // Important:
+  // In the case where the values we are loading are entirely masked off like
+  // the following:
+  //
+  // ---|-------|-----------|
+  //    ^       ^           ^
+  //   scalar  start       end
+  //
+  // newEnd = min(end, scalar) = scalar
+  // Now scalar < start, so simply doing dim = newEnd - start is incorrect.
+  //
+  // The correct formula is to optionally move `newDim` back to `start` using
+  // max(newEnd, start).
   auto newEnd = minOFRs(lhsState.end, rhsState.scalar, loc, builder);
+  newEnd = maxOFRs(newEnd, lhsState.start, loc, builder);
   auto newDim = subOFRs(newEnd, lhsState.start, loc, builder);
 
   for (int32_t i = 0; i < lhsState.getRank(); i++) {
