@@ -8,13 +8,11 @@
 #include "mlir/Conversion/ReconcileUnrealizedCasts/ReconcileUnrealizedCasts.h"
 #include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/SCF/Transforms/Patterns.h"
-#include "mlir/IR/Attributes.h"
 #include "mlir/IR/Builders.h"
 #include "mlir/IR/BuiltinAttributes.h"
 #include "mlir/IR/BuiltinOps.h"
 #include "mlir/IR/BuiltinTypeInterfaces.h"
 #include "mlir/IR/BuiltinTypes.h"
-#include "mlir/IR/Location.h"
 #include "mlir/IR/MLIRContext.h"
 #include "mlir/IR/TypeRange.h"
 #include "mlir/IR/Types.h"
@@ -68,18 +66,18 @@ class TritonTypeConverter : public TypeConverter {
 public:
   TritonTypeConverter(MLIRContext *context) {
     addConversion([](Type type) { return type; });
-    addConversion(
-        [context](IntegerType type) { return IndexType::get(context); });
     addConversion([context](RankedTensorType tensorType)
                       -> std::optional<RankedTensorType> {
-      if (isa<triton::PointerType, IntegerType>(tensorType.getElementType())) {
+      if (auto ptrType =
+              dyn_cast<triton::PointerType>(tensorType.getElementType())) {
         return RankedTensorType::get(tensorType.getShape(),
-                                     IndexType::get(context));
+                                     IntegerType::get(context, 64));
       }
       return std::nullopt;
     });
+
     addConversion([context](triton::PointerType ptrType) -> Type {
-      return IndexType::get(context);
+      return IntegerType::get(context, 64);
     });
 
     addSourceMaterialization([&](OpBuilder &builder, Type type,
@@ -94,13 +92,10 @@ public:
                                  Location loc) -> std::optional<Value> {
       // return builder.create<arith::ConstantOp>(loc,
       //                                          builder.getI64IntegerAttr(0));
-      if (inputs.size() == 1 && isa<triton::PointerType>(inputs[0].getType())) {
-        auto op = builder.create<UnrealizedConversionCastOp>(loc, type, inputs);
-        op->setAttr("target-mat", UnitAttr::get(builder.getContext()));
-        return op->getResult(0);
-      }
-      return builder.create<arith::IndexCastOp>(loc, type, inputs);
-      // return std::nullopt;
+
+      auto op = builder.create<UnrealizedConversionCastOp>(loc, type, inputs);
+      op->setAttr("target-mat", UnitAttr::get(builder.getContext()));
+      return op->getResult(0);
     });
 
     addArgumentMaterialization([&](OpBuilder &builder, Type type,
@@ -120,35 +115,9 @@ struct SplatConverter : public OpConversionPattern<triton::SplatOp> {
   matchAndRewrite(triton::SplatOp op, OpAdaptor adaptor,
                   ConversionPatternRewriter &rewriter) const override {
     auto loc = op->getLoc();
-    auto src = adaptor.getSrc();
-
-    // tt.splat only takes tensor of integer or integer, so we have to index
-    // cast back to the original type
-    auto i64SrcTargetType =
-        getTypeConverter()
-            ->convertType(src.getType())
-            .replace([&](IndexType t) {
-              return IntegerType::get(rewriter.getContext(), 64);
-            });
-
-    auto i64ResTargetType =
-        getTypeConverter()
-            ->convertType(op.getResult().getType())
-            .replace([&](IndexType t) {
-              return IntegerType::get(rewriter.getContext(), 64);
-            });
-
-    auto castSrc =
-        rewriter.create<arith::IndexCastOp>(loc, i64SrcTargetType, src);
-
-    auto splat =
-        rewriter.create<triton::SplatOp>(loc, i64ResTargetType, castSrc);
-
-    // index cast back again
-
-    auto replacement = rewriter.create<arith::IndexCastOp>(
-        loc, getTypeConverter()->convertType(op.getResult().getType()), splat);
-
+    auto replacement = rewriter.create<triton::SplatOp>(
+        loc, getTypeConverter()->convertType(op.getResult().getType()),
+        adaptor.getSrc());
     rewriter.replaceOp(op, replacement);
     return success();
   }
@@ -161,35 +130,9 @@ struct BroadcastConverter : public OpConversionPattern<triton::BroadcastOp> {
   matchAndRewrite(triton::BroadcastOp op, OpAdaptor adaptor,
                   ConversionPatternRewriter &rewriter) const override {
     auto loc = op->getLoc();
-    auto src = adaptor.getSrc();
-
-    // tt.splat only takes tensor of integer or integer, so we have to index
-    // cast back to the original type
-    auto i64SrcTargetType =
-        getTypeConverter()
-            ->convertType(src.getType())
-            .replace([&](IndexType t) {
-              return IntegerType::get(rewriter.getContext(), 64);
-            });
-
-    auto i64ResTargetType =
-        getTypeConverter()
-            ->convertType(op.getResult().getType())
-            .replace([&](IndexType t) {
-              return IntegerType::get(rewriter.getContext(), 64);
-            });
-
-    auto castSrc =
-        rewriter.create<arith::IndexCastOp>(loc, i64SrcTargetType, src);
-
-    auto splat =
-        rewriter.create<triton::SplatOp>(loc, i64ResTargetType, castSrc);
-
-    // index cast back again
-
-    auto replacement = rewriter.create<arith::IndexCastOp>(
-        loc, getTypeConverter()->convertType(op.getResult().getType()), splat);
-
+    auto replacement = rewriter.create<triton::BroadcastOp>(
+        loc, getTypeConverter()->convertType(op.getResult().getType()),
+        adaptor.getSrc());
     rewriter.replaceOp(op, replacement);
     return success();
   }
@@ -244,23 +187,37 @@ struct StoreConverter : public OpConversionPattern<triton::StoreOp> {
 struct AddPtrConverter : public OpConversionPattern<triton::AddPtrOp> {
   using OpConversionPattern<triton::AddPtrOp>::OpConversionPattern;
 
-  Value getIndexValue(Value v, Location loc, OpBuilder &b) const {
-    auto targetType = getTypeConverter()->convertType(v.getType());
-    if (targetType == v.getType()) {
-      return v;
+  Type getType(Type t) const {
+    if (auto shapedType = dyn_cast<ShapedType>(t)) {
+      return RankedTensorType::get(shapedType.getShape(),
+                                   IntegerType::get(getContext(), 64));
     }
-    return b.create<arith::IndexCastOp>(loc, targetType, v);
+    return IntegerType::get(getContext(), 64);
   }
 
   LogicalResult
   matchAndRewrite(triton::AddPtrOp op, OpAdaptor adaptor,
                   ConversionPatternRewriter &rewriter) const override {
 
+    auto ptr = op.getPtr();
     auto func = op->getParentOfType<triton::FuncOp>();
     auto loc = op->getLoc();
 
-    auto off = getIndexValue(adaptor.getOffset(), loc, rewriter);
-    auto prevOff = getIndexValue(adaptor.getPtr(), loc, rewriter);
+    bool isArg = false;
+    for (auto arg : func.getArguments()) {
+      if (arg == ptr) {
+        isArg = true;
+        break;
+      }
+    }
+
+    auto targetType = getType(op.getType());
+    Value off = op.getOffset();
+    if (targetType != op.getOffset().getType()) {
+      off = rewriter.create<arith::ExtSIOp>(loc, targetType, op.getOffset());
+    }
+
+    auto prevOff = adaptor.getPtr();
     auto accumulatedOff = rewriter.create<arith::AddIOp>(loc, prevOff, off);
     rewriter.replaceOp(op, accumulatedOff);
 
@@ -359,18 +316,7 @@ class TritonPtrToIndexPass : public TritonPtrToIndexBase<TritonPtrToIndexPass> {
       if (cast->hasAttr("target-mat")) {
         OpBuilder b(cast);
         cast.getResult(0).replaceAllUsesWith(b.create<arith::ConstantOp>(
-            cast->getLoc(), cast.getResult(0).getType(), b.getIndexAttr(0)));
-
-        // if (cast.getResult(0).getType().isIndex()) {
-        //   cast.getResult(0).replaceAllUsesWith(b.create<arith::ConstantOp>(
-        //       cast->getLoc(), cast.getResult(0).getType(),
-        //       b.getIndexTensorAttr({0})));
-        // } else {
-        //   cast.getResult(0).replaceAllUsesWith(b.create<arith::ConstantOp>(
-        //       cast->getLoc(), cast.getResult(0).getType(),
-        //       b.getIndexAttr(0)));
-        // }
-
+            cast->getLoc(), b.getI64IntegerAttr(0)));
         cast->erase();
       }
     });
