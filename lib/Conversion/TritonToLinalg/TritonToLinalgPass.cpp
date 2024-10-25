@@ -7,9 +7,13 @@
 
 #include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/SCF/IR/SCF.h"
+#include "mlir/Dialect/Tensor/IR/Tensor.h"
+#include "mlir/IR/Builders.h"
 #include "mlir/IR/BuiltinOps.h"
 #include "mlir/IR/BuiltinTypeInterfaces.h"
 #include "mlir/IR/BuiltinTypes.h"
+#include "mlir/IR/Value.h"
+#include "mlir/IR/ValueRange.h"
 #include "triton-shared/Analysis/UseAnalysis.h"
 #include "triton-shared/Conversion/TritonToLinalg/TritonToLinalg.h"
 #include "triton-shared/Dialect/TritonTilingExt/IR/TritonTilingExtDialect.h"
@@ -25,7 +29,9 @@
 #include "mlir/Transforms/Passes.h"
 #include "triton/Dialect/Triton/IR/Types.h"
 
+#include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SmallVector.h"
+#include "llvm/ADT/SmallVectorExtras.h"
 #include "llvm/Support/Casting.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/LogicalResult.h"
@@ -93,8 +99,8 @@ public:
 
     auto loc = op->getLoc();
     auto ptr = op.getInputs()[0];
-    auto offset = op.getInputs()[1];
-    auto offsetType = dyn_cast<ShapedType>(offset.getType());
+    auto offsets = op.getInputs()[1];
+    auto offsetType = dyn_cast<ShapedType>(offsets.getType());
 
     if (!offsetType) {
       return failure();
@@ -133,7 +139,7 @@ public:
 
     // auto genericOp = rewriter.create<linalg::GenericOp>(loc);
 
-    SmallVector<Value> inputs{offset};
+    SmallVector<Value> inputs{offsets};
     if (loadOp.getMask()) {
       inputs.push_back(loadOp.getMask());
     }
@@ -181,6 +187,109 @@ public:
         });
 
     rewriter.replaceOp(loadOp, genericOp);
+
+    return success();
+  }
+};
+
+struct StoreOpConverter : public OpConversionPattern<triton::StoreOp> {
+private:
+  using OpConversionPattern<triton::StoreOp>::OpConversionPattern;
+
+  static MemRefType getMemrefTypeForScalarPtr(triton::PointerType ptrType,
+                                              MLIRContext *context) {
+    SmallVector<int64_t> strides{1};
+    auto layout =
+        StridedLayoutAttr::get(context, ShapedType::kDynamic, strides);
+
+    auto elemType = ptrType.getPointeeType();
+    auto memrefType = MemRefType::get({1}, elemType, layout);
+    return memrefType;
+  }
+
+public:
+  StoreOpConverter(TypeConverter &typeConverter, MLIRContext *context)
+      : OpConversionPattern<triton::StoreOp>(typeConverter, context) {}
+
+  LogicalResult
+  matchAndRewrite(triton::StoreOp storeOp, OpAdaptor adaptor,
+                  ConversionPatternRewriter &rewriter) const override {
+
+    auto op = storeOp.getPtr().getDefiningOp<UnrealizedConversionCastOp>();
+
+    auto results = op->getResultTypes();
+
+    if (op.getInputs().size() != 2) {
+      return failure();
+    }
+
+    auto loc = op->getLoc();
+    auto ptr = op.getInputs()[0];
+    auto offsets = op.getInputs()[1];
+    auto offsetType = dyn_cast<ShapedType>(offsets.getType());
+
+    if (!offsetType) {
+      return failure();
+    }
+
+    auto resultType = dyn_cast<RankedTensorType>(storeOp.getValue().getType());
+
+    auto memref = rewriter.create<memref::CastOp>(
+        loc,
+        MemRefType::get({ShapedType::kDynamic}, resultType.getElementType()),
+        ptr);
+
+    // auto genericOp = rewriter.create<linalg::GenericOp>(loc);
+
+    auto zero =
+        rewriter.create<arith::ConstantOp>(loc, rewriter.getIndexAttr(0));
+
+    auto one =
+        rewriter.create<arith::ConstantOp>(loc, rewriter.getIndexAttr(1));
+
+    auto ip = rewriter.saveInsertionPoint();
+    SmallVector<Value> ivs;
+    for (auto dim : resultType.getShape()) {
+      auto ub =
+          rewriter.create<arith::ConstantOp>(loc, rewriter.getIndexAttr(dim));
+
+      // auto forOp = rewriter.create<scf::ForOp>(loc, zero, ub, one);
+      auto forOp = rewriter.create<affine::AffineForOp>(loc, 0, dim);
+      ivs.push_back(forOp.getInductionVar());
+      rewriter.setInsertionPointToStart(forOp.getBody());
+    }
+
+    if (!storeOp.getMask()) {
+      auto offsetValue = rewriter.create<tensor::ExtractOp>(loc, offsets, ivs);
+      auto storeValue =
+          rewriter.create<tensor::ExtractOp>(loc, storeOp.getValue(), ivs);
+      // auto index0 = rewriter.create<linalg::IndexOp>(loc, 0);
+      Value storeIndex = rewriter.create<arith::IndexCastOp>(
+          loc, rewriter.getIndexType(), offsetValue);
+
+      rewriter.create<memref::StoreOp>(loc, storeValue, memref, storeIndex);
+
+    } else {
+      auto maskValue =
+          rewriter.create<tensor::ExtractOp>(loc, storeOp.getMask(), ivs);
+
+      auto ifOp = rewriter.create<scf::IfOp>(loc, maskValue, false);
+      rewriter.setInsertionPointToStart(
+          &ifOp.getThenRegion().getBlocks().front());
+
+      auto storeValue =
+          rewriter.create<tensor::ExtractOp>(loc, storeOp.getValue(), ivs);
+
+      auto offsetValue = rewriter.create<tensor::ExtractOp>(loc, offsets, ivs);
+      Value storeIndex = rewriter.create<arith::IndexCastOp>(
+          loc, rewriter.getIndexType(), offsetValue);
+
+      rewriter.create<memref::StoreOp>(loc, storeValue, memref, storeIndex);
+    }
+
+    rewriter.restoreInsertionPoint(ip);
+
+    rewriter.eraseOp(storeOp);
 
     return success();
   }
@@ -248,7 +357,8 @@ public:
     });
 
     TritonTypeConverter converter;
-    patterns.add<LoadOpConverter>(converter, patterns.getContext());
+    patterns.add<LoadOpConverter, StoreOpConverter>(converter,
+                                                    patterns.getContext());
 
     if (failed(applyPartialConversion(moduleOp, target, std::move(patterns))))
       signalPassFailure();
