@@ -98,15 +98,12 @@ struct ScalarLoadConverter : public OpConversionPattern<triton::LoadOp> {
     auto basePtr = castOp.getInputs()[0];
     auto offsets = castOp.getInputs()[1];
 
-    Value loadIndex = rewriter.create<arith::IndexCastOp>(
-        loc, rewriter.getIndexType(), offsets);
-
     auto memref = rewriter.create<memref::ReinterpretCastOp>(
         loc,
         getMemrefTypeForScalarPtr(
             cast<triton::PointerType>(op.getPtr().getType()),
             rewriter.getContext()),
-        basePtr, getAsOpFoldResult(loadIndex) /*offset*/,
+        basePtr, getAsOpFoldResult(offsets) /*offset*/,
         ArrayRef<OpFoldResult>{rewriter.getIndexAttr(1)} /*sizes*/,
         ArrayRef<OpFoldResult>{rewriter.getIndexAttr(1)} /*strides*/);
 
@@ -145,15 +142,12 @@ public:
     auto basePtr = castOp.getInputs()[0];
     auto offsets = castOp.getInputs()[1];
 
-    Value storeIndex = rewriter.create<arith::IndexCastOp>(
-        loc, rewriter.getIndexType(), offsets);
-
     auto memref = rewriter.create<memref::ReinterpretCastOp>(
         loc,
         getMemrefTypeForScalarPtr(
             cast<triton::PointerType>(op.getPtr().getType()),
             rewriter.getContext()),
-        basePtr, getAsOpFoldResult(storeIndex) /*offset*/,
+        basePtr, getAsOpFoldResult(offsets) /*offset*/,
         ArrayRef<OpFoldResult>{rewriter.getIndexAttr(1)} /*sizes*/,
         ArrayRef<OpFoldResult>{rewriter.getIndexAttr(1)} /*strides*/);
 
@@ -239,14 +233,9 @@ struct LoadOpConverter : public OpConversionPattern<triton::LoadOp> {
                                          utils::IteratorType::parallel),
         [&](OpBuilder &b, Location loc, ValueRange args) {
           if (!loadOp.getMask()) {
-
-            auto indexValue = args[0];
-            // auto index0 = rewriter.create<linalg::IndexOp>(loc, 0);
-            Value index0 = rewriter.create<arith::IndexCastOp>(
-                loc, rewriter.getIndexType(), indexValue);
-
+            Value indexValue = args[0];
             Value extract = rewriter.create<tensor::ExtractOp>(
-                loc, tensor, ValueRange{index0});
+                loc, tensor, ValueRange{indexValue});
             rewriter.create<linalg::YieldOp>(loc, extract);
           } else {
             auto mask = args[1];
@@ -254,13 +243,9 @@ struct LoadOpConverter : public OpConversionPattern<triton::LoadOp> {
             auto ifOp = rewriter.create<scf::IfOp>(
                 loc, mask,
                 [&](OpBuilder &b, Location loc) {
-                  auto indexValue = args[0];
-                  // auto index0 = rewriter.create<linalg::IndexOp>(loc, 0);
-                  Value index0 = rewriter.create<arith::IndexCastOp>(
-                      loc, rewriter.getIndexType(), indexValue);
-
+                  Value indexValue = args[0];
                   Value extract = rewriter.create<tensor::ExtractOp>(
-                      loc, tensor, ValueRange{index0});
+                      loc, tensor, ValueRange{indexValue});
                   b.create<scf::YieldOp>(loc, extract);
                 },
                 [&](OpBuilder &b, Location loc) {
@@ -335,14 +320,12 @@ struct StoreOpConverter : public OpConversionPattern<triton::StoreOp> {
     }
 
     if (!storeOp.getMask()) {
-      auto offsetValue = rewriter.create<tensor::ExtractOp>(loc, offsets, ivs);
+      auto offsetValue =
+          rewriter.create<tensor::ExtractOp>(loc, offsets, ivs).getResult();
       auto storeValue =
-          rewriter.create<tensor::ExtractOp>(loc, storeOp.getValue(), ivs);
-      // auto index0 = rewriter.create<linalg::IndexOp>(loc, 0);
-      Value storeIndex = rewriter.create<arith::IndexCastOp>(
-          loc, rewriter.getIndexType(), offsetValue);
-
-      rewriter.create<memref::StoreOp>(loc, storeValue, memref, storeIndex);
+          rewriter.create<tensor::ExtractOp>(loc, storeOp.getValue(), ivs)
+              .getResult();
+      rewriter.create<memref::StoreOp>(loc, storeValue, memref, offsetValue);
 
     } else {
       auto maskValue =
@@ -353,13 +336,13 @@ struct StoreOpConverter : public OpConversionPattern<triton::StoreOp> {
           &ifOp.getThenRegion().getBlocks().front());
 
       auto storeValue =
-          rewriter.create<tensor::ExtractOp>(loc, storeOp.getValue(), ivs);
+          rewriter.create<tensor::ExtractOp>(loc, storeOp.getValue(), ivs)
+              .getResult();
 
-      auto offsetValue = rewriter.create<tensor::ExtractOp>(loc, offsets, ivs);
-      Value storeIndex = rewriter.create<arith::IndexCastOp>(
-          loc, rewriter.getIndexType(), offsetValue);
+      auto offsetValue =
+          rewriter.create<tensor::ExtractOp>(loc, offsets, ivs).getResult();
 
-      rewriter.create<memref::StoreOp>(loc, storeValue, memref, storeIndex);
+      rewriter.create<memref::StoreOp>(loc, storeValue, memref, offsetValue);
     }
 
     rewriter.restoreInsertionPoint(ip);
