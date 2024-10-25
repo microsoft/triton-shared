@@ -48,6 +48,16 @@ using namespace triton;
 
 namespace {
 
+static MemRefType getMemrefTypeForScalarPtr(triton::PointerType ptrType,
+                                            MLIRContext *context) {
+  SmallVector<int64_t> strides{1};
+  auto layout = StridedLayoutAttr::get(context, ShapedType::kDynamic, strides);
+
+  auto elemType = ptrType.getPointeeType();
+  auto memrefType = MemRefType::get({1}, elemType, layout);
+  return memrefType;
+}
+
 class TritonTypeConverter : public TypeConverter {
 public:
   TritonTypeConverter() {
@@ -66,22 +76,100 @@ public:
   }
 };
 
-struct LoadOpConverter : public OpConversionPattern<triton::LoadOp> {
-private:
+struct ScalarLoadConverter : public OpConversionPattern<triton::LoadOp> {
   using OpConversionPattern<triton::LoadOp>::OpConversionPattern;
 
-  static MemRefType getMemrefTypeForScalarPtr(triton::PointerType ptrType,
-                                              MLIRContext *context) {
-    SmallVector<int64_t> strides{1};
-    auto layout =
-        StridedLayoutAttr::get(context, ShapedType::kDynamic, strides);
+  LogicalResult
+  matchAndRewrite(triton::LoadOp op, OpAdaptor adaptor,
+                  ConversionPatternRewriter &rewriter) const override {
+    if (!op.getType().isIntOrIndexOrFloat()) {
+      return failure();
+    }
 
-    auto elemType = ptrType.getPointeeType();
-    auto memrefType = MemRefType::get({1}, elemType, layout);
-    return memrefType;
+    auto castOp = op.getPtr().getDefiningOp<UnrealizedConversionCastOp>();
+
+    auto results = op->getResultTypes();
+
+    if (castOp.getInputs().size() != 2) {
+      return failure();
+    }
+
+    auto loc = op->getLoc();
+    auto basePtr = castOp.getInputs()[0];
+    auto offsets = castOp.getInputs()[1];
+
+    Value loadIndex = rewriter.create<arith::IndexCastOp>(
+        loc, rewriter.getIndexType(), offsets);
+
+    auto memref = rewriter.create<memref::ReinterpretCastOp>(
+        loc,
+        getMemrefTypeForScalarPtr(
+            cast<triton::PointerType>(op.getPtr().getType()),
+            rewriter.getContext()),
+        basePtr, getAsOpFoldResult(loadIndex) /*offset*/,
+        ArrayRef<OpFoldResult>{rewriter.getIndexAttr(1)} /*sizes*/,
+        ArrayRef<OpFoldResult>{rewriter.getIndexAttr(1)} /*strides*/);
+
+    auto zeroMap = AffineMap::getConstantMap(0, rewriter.getContext());
+
+    auto loadOp = rewriter.create<affine::AffineLoadOp>(loc, memref, zeroMap,
+                                                        std::nullopt);
+    rewriter.replaceOp(op, loadOp.getResult());
+
+    return success();
   }
+};
+
+struct ScalarStoreConverter : public OpConversionPattern<triton::StoreOp> {
+private:
+  using OpConversionPattern<triton::StoreOp>::OpConversionPattern;
 
 public:
+  LogicalResult
+  matchAndRewrite(triton::StoreOp op, OpAdaptor adaptor,
+                  ConversionPatternRewriter &rewriter) const override {
+
+    if (!op.getValue().getType().isIntOrIndexOrFloat()) {
+      return failure();
+    }
+
+    auto castOp = op.getPtr().getDefiningOp<UnrealizedConversionCastOp>();
+
+    auto results = op->getResultTypes();
+
+    if (castOp.getInputs().size() != 2) {
+      return failure();
+    }
+
+    auto loc = op->getLoc();
+    auto basePtr = castOp.getInputs()[0];
+    auto offsets = castOp.getInputs()[1];
+
+    Value storeIndex = rewriter.create<arith::IndexCastOp>(
+        loc, rewriter.getIndexType(), offsets);
+
+    auto memref = rewriter.create<memref::ReinterpretCastOp>(
+        loc,
+        getMemrefTypeForScalarPtr(
+            cast<triton::PointerType>(op.getPtr().getType()),
+            rewriter.getContext()),
+        basePtr, getAsOpFoldResult(storeIndex) /*offset*/,
+        ArrayRef<OpFoldResult>{rewriter.getIndexAttr(1)} /*sizes*/,
+        ArrayRef<OpFoldResult>{rewriter.getIndexAttr(1)} /*strides*/);
+
+    auto val = op.getValue();
+    auto zeroMap = AffineMap::getConstantMap(0, rewriter.getContext());
+
+    rewriter.create<affine::AffineStoreOp>(loc, val, memref, zeroMap,
+                                           std::nullopt);
+    rewriter.eraseOp(op);
+
+    return success();
+  }
+};
+
+struct LoadOpConverter : public OpConversionPattern<triton::LoadOp> {
+  using OpConversionPattern<triton::LoadOp>::OpConversionPattern;
   LoadOpConverter(TypeConverter &typeConverter, MLIRContext *context)
       : OpConversionPattern<triton::LoadOp>(typeConverter, context) {}
 
@@ -193,21 +281,8 @@ public:
 };
 
 struct StoreOpConverter : public OpConversionPattern<triton::StoreOp> {
-private:
   using OpConversionPattern<triton::StoreOp>::OpConversionPattern;
 
-  static MemRefType getMemrefTypeForScalarPtr(triton::PointerType ptrType,
-                                              MLIRContext *context) {
-    SmallVector<int64_t> strides{1};
-    auto layout =
-        StridedLayoutAttr::get(context, ShapedType::kDynamic, strides);
-
-    auto elemType = ptrType.getPointeeType();
-    auto memrefType = MemRefType::get({1}, elemType, layout);
-    return memrefType;
-  }
-
-public:
   StoreOpConverter(TypeConverter &typeConverter, MLIRContext *context)
       : OpConversionPattern<triton::StoreOp>(typeConverter, context) {}
 
@@ -352,13 +427,11 @@ public:
         bufferization::BufferizationDialect, memref::MemRefDialect,
         ttx::TritonTilingExtDialect>();
 
-    target.addDynamicallyLegalOp<triton::LoadOp>([](triton::LoadOp op) {
-      return !isa<ShapedType>(op.getResult().getType());
-    });
+    target.addIllegalOp<triton::LoadOp, triton::StoreOp>();
 
     TritonTypeConverter converter;
-    patterns.add<LoadOpConverter, StoreOpConverter>(converter,
-                                                    patterns.getContext());
+    patterns.add<LoadOpConverter, StoreOpConverter, ScalarLoadConverter,
+                 ScalarStoreConverter>(converter, patterns.getContext());
 
     if (failed(applyPartialConversion(moduleOp, target, std::move(patterns))))
       signalPassFailure();

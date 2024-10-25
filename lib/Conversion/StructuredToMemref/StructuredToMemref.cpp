@@ -760,53 +760,6 @@ public:
   }
 };
 
-struct ScalarLoadConverter : public OpConversionPattern<triton::LoadOp> {
-  using OpConversionPattern<triton::LoadOp>::OpConversionPattern;
-
-  LogicalResult
-  matchAndRewrite(triton::LoadOp op, OpAdaptor adaptor,
-                  ConversionPatternRewriter &rewriter) const override {
-    if (!op.getType().isIntOrIndexOrFloat()) {
-      return failure();
-    }
-
-    auto loc = op->getLoc();
-    auto memrefPtr = adaptor.getPtr();
-    auto zeroMap = AffineMap::getConstantMap(0, rewriter.getContext());
-    auto loadOp = rewriter.create<affine::AffineLoadOp>(loc, memrefPtr, zeroMap,
-                                                        std::nullopt);
-    rewriter.replaceOp(op, loadOp.getResult());
-
-    return success();
-  }
-};
-
-struct ScalarStoreConverter : public OpConversionPattern<triton::StoreOp> {
-private:
-  using OpConversionPattern<triton::StoreOp>::OpConversionPattern;
-
-public:
-  LogicalResult
-  matchAndRewrite(triton::StoreOp op, OpAdaptor adaptor,
-                  ConversionPatternRewriter &rewriter) const override {
-
-    if (!op.getValue().getType().isIntOrIndexOrFloat()) {
-      return failure();
-    }
-
-    auto loc = op->getLoc();
-    auto memrefPtr = adaptor.getPtr();
-    auto val = op.getValue();
-    auto zeroMap = AffineMap::getConstantMap(0, rewriter.getContext());
-
-    rewriter.create<affine::AffineStoreOp>(loc, val, memrefPtr, zeroMap,
-                                           std::nullopt);
-    rewriter.eraseOp(op);
-
-    return success();
-  }
-};
-
 struct UnrealizedCastConverter
     : public OpConversionPattern<UnrealizedConversionCastOp> {
 private:
