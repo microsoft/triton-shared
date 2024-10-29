@@ -264,8 +264,9 @@ struct LoadOpConverter : public OpConversionPattern<triton::LoadOp> {
                   b.create<scf::YieldOp>(loc, extract);
                 },
                 [&](OpBuilder &b, Location loc) {
+                  // TODO: Get the same type as the one from extractOp
                   Value extract = rewriter.create<arith::ConstantOp>(
-                      loc, b.getF32FloatAttr(0));
+                      loc, b.getI32IntegerAttr(0));
                   // b.getFloatAttr()
                   b.create<scf::YieldOp>(loc, extract);
                 });
