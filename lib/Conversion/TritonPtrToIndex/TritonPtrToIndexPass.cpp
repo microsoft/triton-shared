@@ -408,6 +408,41 @@ public:
     moduleOp->dump();
 
     bfs(moduleOp.getOperation());
+    // return;
+
+    moduleOp.walk([&](triton::FuncOp func) {
+      for (auto arg : func.getArguments()) {
+        if (!isa<triton::PointerType>(arg.getType())) {
+          continue;
+        }
+
+        bool skip = false;
+        for (auto user : arg.getUsers()) {
+          if (auto cast = dyn_cast<UnrealizedConversionCastOp>(user)) {
+            assert(cast.getInputs().size() == 2);
+            skip = true;
+            break;
+          }
+        }
+
+        if (skip) {
+          continue;
+        }
+
+        OpBuilder b(func.getRegion());
+        auto loc = func->getLoc();
+        auto zero = b.create<arith::ConstantOp>(loc, b.getI64IntegerAttr(0));
+        auto cast = b.create<UnrealizedConversionCastOp>(loc, arg.getType(),
+                                                         ValueRange{arg, zero});
+        arg.replaceUsesWithIf(cast->getResult(0), [](OpOperand &opnd) {
+          auto op = opnd.getOwner();
+          if (isa<triton::TritonDialect>(op->getDialect())) {
+            return true;
+          }
+          return false;
+        });
+      }
+    });
   }
 };
 } // namespace
