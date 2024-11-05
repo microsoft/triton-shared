@@ -74,7 +74,7 @@ public:
     RewritePatternSet patterns(&getContext());
 
     auto context = &getContext();
-    OneToNTypeConverter converter;
+    TypeConverter converter;
     converter.addConversion([](Type type) { return type; });
 
     // We are doing a 1->1 type conversion here, where a triton pointer type
@@ -145,10 +145,10 @@ public:
     // Compute the target materialization, given a value with the pointer type,
     // convert that value to a tuple type.
     converter.addTargetMaterialization(
-        [](OpBuilder &builder, TypeRange resultTypes, Value input,
-           Location loc) -> std::optional<SmallVector<Value>> {
+        [](OpBuilder &builder, TypeRange resultTypes, ValueRange inputs,
+           Location loc) -> SmallVector<Value> {
           return builder
-              .create<UnrealizedConversionCastOp>(loc, resultTypes, input)
+              .create<UnrealizedConversionCastOp>(loc, resultTypes, inputs.front())
               ->getResults();
         });
 
@@ -172,7 +172,7 @@ public:
     auto moduleOp = getOperation();
 
     auto context = &getContext();
-    OneToNTypeConverter converter;
+    TypeConverter converter;
     converter.addConversion([](Type type) { return type; });
 
     // We are doing a 1->N type conversion here, where a pointer tuple type
@@ -208,10 +208,10 @@ public:
     // At the end of pointer analysis, we will use the PtrState to create the
     // correct offsets, strides, and remove these ops.
     converter.addTargetMaterialization([](OpBuilder &builder,
-                                          TypeRange resultTypes, Value input,
+                                          TypeRange resultTypes, ValueRange inputs,
                                           Location loc) {
       auto placeholder = builder.create<tts::GetStructuredStateOp>(
-          loc, input.getDefiningOp()->getOperand(0));
+          loc, inputs.front().getDefiningOp()->getOperand(0));
       assert(llvm::equal(placeholder.getResultTypes(), resultTypes));
       return placeholder.getResults();
     });
