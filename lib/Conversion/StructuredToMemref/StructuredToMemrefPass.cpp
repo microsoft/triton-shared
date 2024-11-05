@@ -84,7 +84,7 @@ public:
     // reinterpret_cast.
     addTargetMaterialization([&](OpBuilder &builder, MemRefType memrefType,
                                  ValueRange inputs,
-                                 Location loc) -> std::optional<Value> {
+                                 Location loc) -> Value {
       auto reinterpretCast =
           inputs[0].getDefiningOp<memref::ReinterpretCastOp>();
       if (!reinterpretCast) {
