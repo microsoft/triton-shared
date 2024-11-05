@@ -738,7 +738,11 @@ LogicalResult PtrAnalysis::visitOperand(Value operand, PtrState &state,
         llvm_unreachable("Unexpected operand defining operation");
       }
     } else {
+      // This operand is a pointer directly from the kernel arguments.
+      // Set the scalar to 0 to indicate that we're using offset 0.
       state.source = operand;
+      state.scalar =
+          builder.create<arith::ConstantOp>(loc, builder.getIndexAttr(0));
       return success();
     }
   }
