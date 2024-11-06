@@ -1055,13 +1055,21 @@ PtrAnalysis::rewriteGetStructuredStateOp(tts::GetStructuredStateOp op) {
       ptrMap.contains(tritonValue) ? ptrMap.lookup(tritonValue) : tritonValue;
 
   SmallVector<Value> replacements{remappedValue};
+  OpBuilder builder(op);
 
   if (state.getRank() == 0) {
     // For scalar pointers, the scalar contains the offset and is the only
     // relevant state that could be updated by the loop.
-    replacements.push_back(state.scalar);
+    if (state.scalar) {
+      replacements.push_back(state.scalar);
+    } else {
+      // This operand is a pointer directly from the kernel arguments.
+      // Use offset 0.
+      assert(!tritonValue.getDefiningOp());
+      replacements.push_back(builder.create<arith::ConstantOp>(
+          op.getLoc(), builder.getIndexAttr(0)));
+    }
   } else {
-    OpBuilder builder(op);
     for (auto [j, s] : llvm::enumerate(state.offsets)) {
       auto sIntAttr = getIntAttr(s);
       if (sIntAttr) {
