@@ -71,13 +71,13 @@ public:
       if (auto ptrType =
               dyn_cast<triton::PointerType>(tensorType.getElementType())) {
         return RankedTensorType::get(tensorType.getShape(),
-                                     IntegerType::get(context, 64));
+                                     IntegerType::get(context, 32));
       }
       return std::nullopt;
     });
 
     addConversion([context](triton::PointerType ptrType) -> Type {
-      return IntegerType::get(context, 64);
+      return IntegerType::get(context, 32);
     });
 
     addSourceMaterialization([&](OpBuilder &builder, Type type,
@@ -91,7 +91,7 @@ public:
                                  ValueRange inputs,
                                  Location loc) -> std::optional<Value> {
       // return builder.create<arith::ConstantOp>(loc,
-      //                                          builder.getI64IntegerAttr(0));
+      //                                          builder.getI32IntegerAttr(0));
 
       auto op = builder.create<UnrealizedConversionCastOp>(loc, type, inputs);
       op->setAttr("target-mat", UnitAttr::get(builder.getContext()));
@@ -190,9 +190,9 @@ struct AddPtrConverter : public OpConversionPattern<triton::AddPtrOp> {
   Type getType(Type t) const {
     if (auto shapedType = dyn_cast<ShapedType>(t)) {
       return RankedTensorType::get(shapedType.getShape(),
-                                   IntegerType::get(getContext(), 64));
+                                   IntegerType::get(getContext(), 32));
     }
-    return IntegerType::get(getContext(), 64);
+    return IntegerType::get(getContext(), 32);
   }
 
   LogicalResult
@@ -214,7 +214,7 @@ struct AddPtrConverter : public OpConversionPattern<triton::AddPtrOp> {
     auto targetType = getType(op.getType());
     Value off = op.getOffset();
     if (targetType != op.getOffset().getType()) {
-      off = rewriter.create<arith::ExtSIOp>(loc, targetType, op.getOffset());
+      // off = rewriter.create<arith::ExtSIOp>(loc, targetType, op.getOffset());
     }
 
     auto prevOff = adaptor.getPtr();
@@ -316,7 +316,7 @@ class TritonPtrToIndexPass : public TritonPtrToIndexBase<TritonPtrToIndexPass> {
       if (cast->hasAttr("target-mat")) {
         OpBuilder b(cast);
         cast.getResult(0).replaceAllUsesWith(b.create<arith::ConstantOp>(
-            cast->getLoc(), b.getI64IntegerAttr(0)));
+            cast->getLoc(), b.getI32IntegerAttr(0)));
         cast->erase();
       }
     });
@@ -431,7 +431,7 @@ public:
 
         OpBuilder b(func.getRegion());
         auto loc = func->getLoc();
-        auto zero = b.create<arith::ConstantOp>(loc, b.getI64IntegerAttr(0));
+        auto zero = b.create<arith::ConstantOp>(loc, b.getI32IntegerAttr(0));
         auto cast = b.create<UnrealizedConversionCastOp>(loc, arg.getType(),
                                                          ValueRange{arg, zero});
         arg.replaceUsesWithIf(cast->getResult(0), [](OpOperand &opnd) {

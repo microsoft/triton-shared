@@ -204,10 +204,17 @@ struct LoadOpConverter : public OpConversionPattern<triton::LoadOp> {
 
     auto resultType = dyn_cast<RankedTensorType>(loadOp.getResult().getType());
 
-    auto memref = rewriter.create<memref::CastOp>(
-        loc,
-        MemRefType::get({ShapedType::kDynamic}, resultType.getElementType()),
-        ptr);
+    memref::ReinterpretCastOp memref =
+        rewriter.create<memref::ReinterpretCastOp>(
+            loc,
+            MemRefType::get({ShapedType::kDynamic},
+                            resultType.getElementType()),
+            ptr, 0, SmallVector<int64_t>{1024}, SmallVector<int64_t>{1});
+
+    // auto memref = rewriter.create<memref::CastOp>(
+    //     loc,
+    //     MemRefType::get({ShapedType::kDynamic}, resultType.getElementType()),
+    //     ptr);
 
     // Treat this as a 1-d tensor
     auto tensor = rewriter.create<bufferization::ToTensorOp>(
