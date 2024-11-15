@@ -401,6 +401,21 @@ LogicalResult MaskState::parseSplat(triton::SplatOp splatOp, const Location loc,
     return failure();
   }
 
+  if (src.getType().isInteger(1)) {
+      Value indexValue = builder.create<arith::IndexCastOp>(loc, builder.getIndexType(), src);
+
+      for (auto s : dstShape) {
+          Value newConstantOp = builder.create<arith::ConstantOp>(loc, builder.getIndexAttr(s));
+
+          // 使用 MulIOp 进行乘法运算
+          auto mulOp = builder.create<arith::MulIOp>(loc, newConstantOp, indexValue);
+
+          this->dims.push_back(mulOp.getResult());
+      }
+
+      return success();
+  }
+
   if (failed(this->parse(src, loc, builder)))
     return failure();
 

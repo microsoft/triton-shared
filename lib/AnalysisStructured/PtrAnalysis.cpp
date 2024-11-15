@@ -1071,9 +1071,18 @@ LogicalResult PtrAnalysis::rewriteLoadOp(triton::LoadOp op) {
   auto loc = op.getLoc();
 
   if (!ptr) {
-    op->emitRemark("PtrAnalysis: pointer is not replace with tts.make_tptr so "
+    if (auto splatOp = op.getPtr().getDefiningOp<triton::SplatOp>()) {
+      PtrState state;
+      OpBuilder builder(splatOp);
+      visitOperandSplat(splatOp, state, splatOp.getLoc(), builder);
+      auto maketptrOp = state.createTTSMakeTensorPtrOp(builder, splatOp.getLoc());
+      ptr = maketptrOp.getResult();
+      
+    }else {
+     op->emitRemark("PtrAnalysis: pointer is not replace with tts.make_tptr so "
                    "loadOp cannot be rewritten");
-    return failure();
+     return failure(); 
+    }
   }
 
   auto ptrType = dyn_cast<triton::PointerType>(ptr.getType());
@@ -1127,9 +1136,17 @@ LogicalResult PtrAnalysis::rewriteStoreOp(triton::StoreOp op) {
   auto loc = op.getLoc();
 
   if (!ptr) {
-    op->emitRemark("PtrAnalysis: pointer is not replace with tts.make_tptr so "
+    if (auto splatOp = op.getPtr().getDefiningOp<triton::SplatOp>()) {
+      PtrState state;
+      OpBuilder builder(splatOp);
+      visitOperandSplat(splatOp, state, splatOp.getLoc(), builder);
+      auto maketptrOp = state.createTTSMakeTensorPtrOp(builder, splatOp.getLoc());
+      ptr = maketptrOp.getResult();
+    }else {
+      op->emitRemark("PtrAnalysis: pointer is not replace with tts.make_tptr so "
                    "storeOp cannot be rewritten");
-    return failure();
+      return failure();
+    }
   }
 
   auto ptrType = dyn_cast<triton::PointerType>(ptr.getType());
