@@ -74,6 +74,35 @@ public:
   }
 };
 
+class EmptyConverter : public TypeConverter {
+public:
+  EmptyConverter() {
+    // // The order of type conversion is important: later ones are tried
+    // earlier. addConversion([](Type type) { return type; });
+    // addConversion([](triton::PointerType ptrType) {
+    //   return UnrankedMemRefType::get(ptrType.getPointeeType(), 0);
+    // });
+    // // Used for converting memref<*> back to tt.ptr type, these ops will then
+    // be
+    // // handled when we convert addptr op later.
+    // addSourceMaterialization([&](OpBuilder &builder, Type resultType,
+    //                              ValueRange inputs,
+    //                              Location loc) -> std::optional<Value> {
+    //   return builder.create<UnrealizedConversionCastOp>(loc, resultType,
+    //   inputs)
+    //       .getResult(0);
+    // });
+
+    // addArgumentMaterialization([&](OpBuilder &builder, Type resultType,
+    //                                ValueRange inputs,
+    //                                Location loc) -> std::optional<Value> {
+    //   return builder.create<UnrealizedConversionCastOp>(loc, resultType,
+    //   inputs)
+    //       .getResult(0);
+    // });
+  }
+};
+
 class StructuredToMemrefPass
     : public triton::impl::StructuredToMemrefBase<StructuredToMemrefPass> {
   using StructuredToMemrefBase<StructuredToMemrefPass>::StructuredToMemrefBase;
@@ -108,8 +137,12 @@ public:
   void runOnOperation() override {
     auto moduleOp = getOperation();
 
-    if (failed(convertArgsToMemrefType())) {
+    if (!noConvertArgs && failed(convertArgsToMemrefType())) {
       signalPassFailure();
+      return;
+    }
+
+    if (convertArgsOnly) {
       return;
     }
 
@@ -125,7 +158,16 @@ public:
 
     target.addIllegalOp<tts::LoadOp, tts::StoreOp, tts::MakeTensorPtrOp>();
 
-    TritonFunctionSignatureConverter typeConverter;
+    target.addDynamicallyLegalOp<UnrealizedConversionCastOp>(
+        [](UnrealizedConversionCastOp op) {
+          if (op.getInputs().size() == 1 &&
+              isa<triton::PointerType>(op->getResult(0).getType())) {
+            return false;
+          }
+          return true;
+        });
+
+    EmptyConverter typeConverter;
 
     triton::populateStructuredToMemrefConversionPatterns(patterns,
                                                          typeConverter);
