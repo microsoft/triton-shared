@@ -4,11 +4,11 @@
 #
 #===------------------------------------------------------------------------===#
 
-add_triton_library(TritonToLinalgExperimental
-  TritonToLinalgExperimentalPass.cpp
+add_triton_library(TritonLoadStoreToMemref
+  TritonLoadStoreToMemrefPass.cpp
 
   DEPENDS
-  TritonToLinalgExperimentalConversionPassIncGen
+  TritonLoadStoreToMemrefConversionPassIncGen
 
   LINK_LIBS PUBLIC
   TritonTilingExtIR
@@ -24,10 +24,4 @@ add_triton_library(TritonToLinalgExperimental
   TritonIR
   TritonTransforms
   TritonSharedAnalysis
-
-  TritonArithToLinalg
-  StructuredToMemref
-  TritonToStructured
-  FoldUnstructuredTritonAddPtr
-  TritonToLinalg
 )

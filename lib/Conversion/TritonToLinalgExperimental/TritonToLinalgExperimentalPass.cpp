@@ -7,7 +7,7 @@
 
 #include "triton-shared/Conversion/StructuredToMemref/StructuredToMemref.h"
 #include "triton-shared/Conversion/TritonArithToLinalg/TritonArithToLinalg.h"
-#include "triton-shared/Conversion/TritonPtrToIndex/TritonPtrToIndex.h"
+#include "triton-shared/Conversion/FoldUnstructuredTritonAddPtr/FoldUnstructuredTritonAddPtr.h"
 #include "triton-shared/Conversion/TritonToLinalg/TritonToLinalg.h"
 #include "triton-shared/Conversion/TritonToLinalgExperimental/TritonToLinalgExperimental.h"
 #include "triton-shared/Conversion/TritonToStructured/TritonToStructured.h"
@@ -52,7 +52,7 @@ public:
     pm.addPass(createCSEPass());
     pm.addPass(createCanonicalizerPass());
 
-    pm.addPass(createTritonPtrToIndexPass());
+    pm.addPass(createFoldUnstructuredTritonAddPtrPass());
     pm.addPass(createTritonArithToLinalgPass());
     pm.addPass(createStructuredToMemrefPass());
     pm.addPass(createTritonToLinalgPass());

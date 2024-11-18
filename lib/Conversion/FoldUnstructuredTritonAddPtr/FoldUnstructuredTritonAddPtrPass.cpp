@@ -22,7 +22,7 @@
 #include "mlir/Support/LogicalResult.h"
 #include "triton-shared/Analysis/OpFoldResultUtils.h"
 #include "triton-shared/AnalysisStructured/PtrAnalysis.h"
-#include "triton-shared/Conversion/TritonPtrToIndex/TritonPtrToIndex.h"
+#include "triton-shared/Conversion/FoldUnstructuredTritonAddPtr/FoldUnstructuredTritonAddPtr.h"
 #include "triton-shared/Dialect/TritonStructured/IR/TritonStructuredDialect.h"
 
 #include "triton/Dialect/Triton/IR/Dialect.h"
@@ -49,7 +49,7 @@ using namespace mlir;
 using namespace triton;
 
 #define GEN_PASS_CLASSES
-#include "triton-shared/Conversion/TritonPtrToIndex/Passes.h.inc"
+#include "triton-shared/Conversion/FoldUnstructuredTritonAddPtr/Passes.h.inc"
 
 namespace {
 
@@ -225,7 +225,7 @@ struct AddPtrConverter : public OpConversionPattern<triton::AddPtrOp> {
   }
 };
 
-class TritonPtrToIndexPass : public TritonPtrToIndexBase<TritonPtrToIndexPass> {
+class FoldUnstructuredTritonAddPtrPass : public FoldUnstructuredTritonAddPtrBase<FoldUnstructuredTritonAddPtrPass> {
 
   void bfs(Operation *op) {
     std::queue<std::pair<Value, Value>> q;
@@ -447,6 +447,6 @@ public:
 };
 } // namespace
 
-std::unique_ptr<OperationPass<ModuleOp>> triton::createTritonPtrToIndexPass() {
-  return std::make_unique<TritonPtrToIndexPass>();
+std::unique_ptr<OperationPass<ModuleOp>> triton::createFoldUnstructuredTritonAddPtrPass() {
+  return std::make_unique<FoldUnstructuredTritonAddPtrPass>();
 }

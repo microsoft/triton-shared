@@ -1,9 +1,9 @@
-add_triton_library(TritonPtrToIndex
-  TritonPtrToIndexPass.cpp
+add_triton_library(FoldUnstructuredTritonAddPtr
+  FoldUnstructuredTritonAddPtrPass.cpp
 
   DEPENDS
   TritonStructuredTableGen
-  TritonPtrToIndexConversionPassIncGen
+  FoldUnstructuredTritonAddPtrConversionPassIncGen
 
   LINK_LIBS PUBLIC
   MLIRArithDialect
