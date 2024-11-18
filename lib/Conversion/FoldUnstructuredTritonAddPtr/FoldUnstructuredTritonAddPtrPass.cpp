@@ -444,7 +444,10 @@ public:
         auto loc = func->getLoc();
         auto zero = b.create<arith::ConstantOp>(loc, b.getI64IntegerAttr(0));
         auto cast = b.create<tts::CreatePtrOp>(loc, arg.getType(), arg, zero);
-        arg.replaceAllUsesExcept(cast->getResult(0), cast);
+        arg.replaceUsesWithIf(cast->getResult(0), [](OpOperand &operand) {
+          auto owner = operand.getOwner();
+          return isa<triton::TritonDialect>(owner->getDialect());
+        });
       }
     });
   }

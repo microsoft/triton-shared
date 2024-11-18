@@ -16,6 +16,7 @@
 #include "mlir/IR/ValueRange.h"
 #include "triton-shared/Analysis/UseAnalysis.h"
 #include "triton-shared/Conversion/TritonLoadStoreToMemref/TritonLoadStoreToMemref.h"
+#include "triton-shared/Dialect/TritonStructured/IR/TritonStructuredDialect.h"
 #include "triton-shared/Dialect/TritonTilingExt/IR/TritonTilingExtDialect.h"
 
 #include "triton/Dialect/Triton/IR/Dialect.h"
@@ -47,6 +48,13 @@ using namespace triton;
 #include "triton-shared/Conversion/TritonLoadStoreToMemref/Passes.h.inc"
 
 namespace {
+
+static Value getPtr(Value v) {
+  while (auto op = v.getDefiningOp()) {
+    v = op->getOperand(0);
+  }
+  return v;
+}
 
 static MemRefType getMemrefTypeForScalarPtr(triton::PointerType ptrType,
                                             MLIRContext *context) {
@@ -86,17 +94,13 @@ struct ScalarLoadConverter : public OpConversionPattern<triton::LoadOp> {
       return failure();
     }
 
-    auto castOp = op.getPtr().getDefiningOp<UnrealizedConversionCastOp>();
+    auto castOp = op.getPtr().getDefiningOp<tts::CreatePtrOp>();
 
     auto results = op->getResultTypes();
 
-    if (castOp.getInputs().size() != 2) {
-      return failure();
-    }
-
     auto loc = op->getLoc();
-    auto basePtr = castOp.getInputs()[0];
-    auto offsets = castOp.getInputs()[1];
+    auto basePtr = getPtr(castOp.getPtr());
+    auto offsets = castOp.getOffset();
 
     Value loadIndex = rewriter.create<arith::IndexCastOp>(
         loc, rewriter.getIndexType(), offsets);
@@ -133,17 +137,13 @@ public:
       return failure();
     }
 
-    auto castOp = op.getPtr().getDefiningOp<UnrealizedConversionCastOp>();
+    auto castOp = op.getPtr().getDefiningOp<tts::CreatePtrOp>();
 
     auto results = op->getResultTypes();
 
-    if (castOp.getInputs().size() != 2) {
-      return failure();
-    }
-
     auto loc = op->getLoc();
-    auto basePtr = castOp.getInputs()[0];
-    auto offsets = castOp.getInputs()[1];
+    auto basePtr = getPtr(castOp.getPtr());
+    auto offsets = castOp.getOffset();
 
     Value storeIndex = rewriter.create<arith::IndexCastOp>(
         loc, rewriter.getIndexType(), offsets);
@@ -177,17 +177,13 @@ struct LoadOpConverter : public OpConversionPattern<triton::LoadOp> {
   matchAndRewrite(triton::LoadOp loadOp, OpAdaptor adaptor,
                   ConversionPatternRewriter &rewriter) const override {
 
-    auto op = loadOp.getPtr().getDefiningOp<UnrealizedConversionCastOp>();
+    auto op = loadOp.getPtr().getDefiningOp<tts::CreatePtrOp>();
 
     auto results = op->getResultTypes();
 
-    if (op.getInputs().size() != 2) {
-      return failure();
-    }
-
     auto loc = op->getLoc();
-    auto ptr = op.getInputs()[0];
-    auto offsets = op.getInputs()[1];
+    auto ptr = getPtr(op.getPtr());
+    auto offsets = op.getOffset();
     auto offsetType = dyn_cast<ShapedType>(offsets.getType());
 
     if (!offsetType) {
@@ -305,17 +301,13 @@ struct StoreOpConverter : public OpConversionPattern<triton::StoreOp> {
   matchAndRewrite(triton::StoreOp storeOp, OpAdaptor adaptor,
                   ConversionPatternRewriter &rewriter) const override {
 
-    auto op = storeOp.getPtr().getDefiningOp<UnrealizedConversionCastOp>();
+    auto op = storeOp.getPtr().getDefiningOp<tts::CreatePtrOp>();
 
     auto results = op->getResultTypes();
 
-    if (op.getInputs().size() != 2) {
-      return failure();
-    }
-
     auto loc = op->getLoc();
-    auto ptr = op.getInputs()[0];
-    auto offsets = op.getInputs()[1];
+    auto ptr = getPtr(op.getPtr());
+    auto offsets = op.getOffset();
     auto offsetType = dyn_cast<ShapedType>(offsets.getType());
 
     if (!offsetType) {
@@ -385,7 +377,8 @@ struct StoreOpConverter : public OpConversionPattern<triton::StoreOp> {
   }
 };
 
-class TritonLoadStoreToMemrefPass : public TritonLoadStoreToMemrefBase<TritonLoadStoreToMemrefPass> {
+class TritonLoadStoreToMemrefPass
+    : public TritonLoadStoreToMemrefBase<TritonLoadStoreToMemrefPass> {
 
 public:
   void getDependentDialects(DialectRegistry &registry) const override {
@@ -420,6 +413,7 @@ public:
 };
 } // namespace
 
-std::unique_ptr<OperationPass<ModuleOp>> triton::createTritonLoadStoreToMemrefPass() {
+std::unique_ptr<OperationPass<ModuleOp>>
+triton::createTritonLoadStoreToMemrefPass() {
   return std::make_unique<TritonLoadStoreToMemrefPass>();
 }
