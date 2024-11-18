@@ -90,19 +90,19 @@ def test_gather_div(device):
 
     grid = lambda meta: (1,)
 
-    print(output)
-    gather_simple_mask[grid](input, output)
+    # print(output)
+    # gather_simple_mask[grid](input, output)
     # mask_off[grid](input, output)
     # print(input)
-    print(output)
+    # print(output)
     src = triton.compiler.ASTSource(
-        fn=gather_scatter,
+        fn=gather,
         signature="*fp32,*fp32",
     )
     ret = triton.compile(
         src,
     )
-    # print(ret.asm["ttir"])
+    print(ret.asm["ttir"])
 
 
-test_gather_div('cuda')
+test_gather_div('cpu')

@@ -365,7 +365,7 @@ public:
         bufferization::BufferizationDialect, ttx::TritonTilingExtDialect,
         memref::MemRefDialect>();
 
-    target.addIllegalDialect<tts::TritonStructuredDialect>();
+    target.addIllegalOp<tts::LoadOp, tts::StoreOp, tts::MakeTensorPtrOp>();
 
     target.addDynamicallyLegalOp<UnrealizedConversionCastOp>(
         [](UnrealizedConversionCastOp op) {

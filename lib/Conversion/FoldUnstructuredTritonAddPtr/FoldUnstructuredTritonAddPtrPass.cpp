@@ -14,6 +14,7 @@
 #include "mlir/IR/BuiltinTypeInterfaces.h"
 #include "mlir/IR/BuiltinTypes.h"
 #include "mlir/IR/MLIRContext.h"
+#include "mlir/IR/PatternMatch.h"
 #include "mlir/IR/TypeRange.h"
 #include "mlir/IR/Types.h"
 #include "mlir/IR/Value.h"
@@ -53,57 +54,66 @@ using namespace triton;
 
 namespace {
 
-// Type getIndexType() {
-//   auto pointeeType = ptrType.getPointeeType();
-//   if (auto shapedType = dyn_cast<ShapedType>(pointeeType)) {
-//     return RankedTensorType::get(shapedType.getShape(),
-//                                  IndexType::get(context));
-//   }
-//   return IndexType::get(context);
-// }
+static bool isPtrTypeLike(Type t) {
+  if (auto tensorType = dyn_cast<RankedTensorType>(t)) {
+    return isa<triton::PointerType>(tensorType.getElementType());
+  }
+  return isa<triton::PointerType>(t);
+}
 
 class TritonTypeConverter : public TypeConverter {
 public:
   TritonTypeConverter(MLIRContext *context) {
     addConversion([](Type type) { return type; });
+
     addConversion([context](RankedTensorType tensorType)
                       -> std::optional<RankedTensorType> {
       if (auto ptrType =
               dyn_cast<triton::PointerType>(tensorType.getElementType())) {
         return RankedTensorType::get(tensorType.getShape(),
-                                     IntegerType::get(context, 32));
+                                     IntegerType::get(context, 64));
       }
       return std::nullopt;
     });
 
     addConversion([context](triton::PointerType ptrType) -> Type {
-      return IntegerType::get(context, 32);
+      return IntegerType::get(context, 64);
     });
 
     addSourceMaterialization([&](OpBuilder &builder, Type type,
                                  ValueRange inputs,
                                  Location loc) -> std::optional<Value> {
-      return builder.create<UnrealizedConversionCastOp>(loc, type, inputs)
-          ->getResult(0);
+      if (inputs.size() == 1 && isPtrTypeLike(type)) {
+        auto op = builder.create<UnrealizedConversionCastOp>(loc, type, inputs);
+        op->setAttr("reconvert-offset-to-ptr",
+                    UnitAttr::get(builder.getContext()));
+        return op->getResult(0);
+      }
+      return std::nullopt;
     });
 
-    addTargetMaterialization([&](OpBuilder &builder, Type type,
+    addTargetMaterialization([&](OpBuilder &builder, IntegerType type,
                                  ValueRange inputs,
                                  Location loc) -> std::optional<Value> {
-      // return builder.create<arith::ConstantOp>(loc,
-      //                                          builder.getI32IntegerAttr(0));
-
-      auto op = builder.create<UnrealizedConversionCastOp>(loc, type, inputs);
-      op->setAttr("target-mat", UnitAttr::get(builder.getContext()));
-      return op->getResult(0);
+      if (inputs.size() == 1 && isa<triton::PointerType>(inputs[0].getType())) {
+        auto op = builder.create<UnrealizedConversionCastOp>(loc, type, inputs);
+        op->setAttr("convert-arg-ptr-to-offset",
+                    UnitAttr::get(builder.getContext()));
+        return op->getResult(0);
+      }
+      return std::nullopt;
     });
 
     addArgumentMaterialization([&](OpBuilder &builder, Type type,
                                    ValueRange inputs,
                                    Location loc) -> std::optional<Value> {
-      auto op = builder.create<UnrealizedConversionCastOp>(loc, type, inputs);
-      op->setAttr("arg-mat", UnitAttr::get(builder.getContext()));
-      return op->getResult(0);
+      if (inputs.size() == 1 && isPtrTypeLike(type)) {
+        auto op = builder.create<UnrealizedConversionCastOp>(loc, type, inputs);
+        op->setAttr("reconvert-offset-to-ptr",
+                    UnitAttr::get(builder.getContext()));
+        return op->getResult(0);
+      }
+      return std::nullopt;
     });
   }
 };
@@ -190,9 +200,9 @@ struct AddPtrConverter : public OpConversionPattern<triton::AddPtrOp> {
   Type getType(Type t) const {
     if (auto shapedType = dyn_cast<ShapedType>(t)) {
       return RankedTensorType::get(shapedType.getShape(),
-                                   IntegerType::get(getContext(), 32));
+                                   IntegerType::get(getContext(), 64));
     }
-    return IntegerType::get(getContext(), 32);
+    return IntegerType::get(getContext(), 64);
   }
 
   LogicalResult
@@ -214,7 +224,7 @@ struct AddPtrConverter : public OpConversionPattern<triton::AddPtrOp> {
     auto targetType = getType(op.getType());
     Value off = op.getOffset();
     if (targetType != op.getOffset().getType()) {
-      // off = rewriter.create<arith::ExtSIOp>(loc, targetType, op.getOffset());
+      off = rewriter.create<arith::ExtSIOp>(loc, targetType, op.getOffset());
     }
 
     auto prevOff = adaptor.getPtr();
@@ -234,7 +244,7 @@ class FoldUnstructuredTritonAddPtrPass
     DenseSet<Value> visited;
 
     op->walk([&q, &visited](UnrealizedConversionCastOp op) {
-      if (op->hasAttr("target-mat")) {
+      if (op->hasAttr("convert-arg-ptr-to-offset")) {
         auto value = op->getResult(0);
         q.push({value, op.getInputs()[0]});
         visited.insert(value);
@@ -264,21 +274,23 @@ class FoldUnstructuredTritonAddPtrPass
         // result will also be considered "maybeStructured".
         if (auto castOp = dyn_cast<UnrealizedConversionCastOp>(user)) {
           castOp->dump();
+          assert(castOp->hasAttr("reconvert-offset-to-ptr"));
           // assert(castOp.getInputs().size() == 1);
           // assert(castOp->getResults().size() == 1);
           for (auto user : castOp->getUsers()) {
             auto isLoadStore = llvm::isa<triton::LoadOp, triton::StoreOp>(user);
             if (!isLoadStore) {
               user->dump();
+              assert(false);
             }
           }
 
-          // assert(expr)
-          // castOp->dump();
-          castOp->setOperands({arg, castOp->getOperands()[0]});
-          // castOp.setOperand(1, arg);
-          // castOp->dump();
+          OpBuilder b(castOp);
+          auto createPtrOp = b.create<tts::CreatePtrOp>(
+              castOp->getLoc(), castOp->getResult(0).getType(), arg,
+              castOp->getOperands()[0]);
 
+          castOp.replaceAllUsesWith(createPtrOp);
         } else if (auto forOp = dyn_cast<scf::ForOp>(user)) {
           auto it = llvm::find(forOp.getInitArgs(), v);
           // assert(0);
@@ -315,11 +327,10 @@ class FoldUnstructuredTritonAddPtrPass
     }
 
     op->walk([&q, &visited](UnrealizedConversionCastOp cast) {
-      if (cast->hasAttr("target-mat")) {
-        OpBuilder b(cast);
-        cast.getResult(0).replaceAllUsesWith(b.create<arith::ConstantOp>(
-            cast->getLoc(), b.getI32IntegerAttr(0)));
-        cast->erase();
+      if (cast->hasAttr("convert-arg-ptr-to-offset")) {
+        IRRewriter b(cast);
+        b.replaceOp(cast, b.create<arith::ConstantOp>(cast->getLoc(),
+                                                      b.getI64IntegerAttr(0)));
       }
     });
   }
@@ -403,10 +414,10 @@ public:
       signalPassFailure();
     }
 
-    moduleOp->dump();
-
     bfs(moduleOp.getOperation());
     // return;
+
+    moduleOp->dump();
 
     moduleOp.walk([&](triton::FuncOp func) {
       for (auto arg : func.getArguments()) {
@@ -416,8 +427,7 @@ public:
 
         bool skip = false;
         for (auto user : arg.getUsers()) {
-          if (auto cast = dyn_cast<UnrealizedConversionCastOp>(user)) {
-            assert(cast.getInputs().size() == 2);
+          if (isa<tts::CreatePtrOp>(user)) {
             skip = true;
             break;
           }
@@ -427,18 +437,14 @@ public:
           continue;
         }
 
+        // ok i remember this now,
+        // this is for args that aren't in any of the addptr chain but used in
+        // load/store directly
         OpBuilder b(func.getRegion());
         auto loc = func->getLoc();
-        auto zero = b.create<arith::ConstantOp>(loc, b.getI32IntegerAttr(0));
-        auto cast = b.create<UnrealizedConversionCastOp>(loc, arg.getType(),
-                                                         ValueRange{arg, zero});
-        arg.replaceUsesWithIf(cast->getResult(0), [](OpOperand &opnd) {
-          auto op = opnd.getOwner();
-          if (isa<triton::TritonDialect>(op->getDialect())) {
-            return true;
-          }
-          return false;
-        });
+        auto zero = b.create<arith::ConstantOp>(loc, b.getI64IntegerAttr(0));
+        auto cast = b.create<tts::CreatePtrOp>(loc, arg.getType(), arg, zero);
+        arg.replaceAllUsesExcept(cast->getResult(0), cast);
       }
     });
   }
