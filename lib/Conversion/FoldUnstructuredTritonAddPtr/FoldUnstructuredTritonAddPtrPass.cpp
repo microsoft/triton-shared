@@ -225,7 +225,9 @@ struct AddPtrConverter : public OpConversionPattern<triton::AddPtrOp> {
   }
 };
 
-class FoldUnstructuredTritonAddPtrPass : public FoldUnstructuredTritonAddPtrBase<FoldUnstructuredTritonAddPtrPass> {
+class FoldUnstructuredTritonAddPtrPass
+    : public FoldUnstructuredTritonAddPtrBase<
+          FoldUnstructuredTritonAddPtrPass> {
 
   void bfs(Operation *op) {
     std::queue<std::pair<Value, Value>> q;
@@ -382,10 +384,6 @@ public:
         });
 
     TritonTypeConverter converter(&getContext());
-    // scf::populateSCFStructuralTypeConversionsAndLegality(converter, patterns,
-    //                                                      target);
-
-    // patterns.add<AddPtrConverter>(converter, &getContext());
 
     patterns.add<AddPtrConverter, SplatConverter, BroadcastConverter>(
         converter, &getContext());
@@ -447,6 +445,7 @@ public:
 };
 } // namespace
 
-std::unique_ptr<OperationPass<ModuleOp>> triton::createFoldUnstructuredTritonAddPtrPass() {
+std::unique_ptr<OperationPass<ModuleOp>>
+triton::createFoldUnstructuredTritonAddPtrPass() {
   return std::make_unique<FoldUnstructuredTritonAddPtrPass>();
 }

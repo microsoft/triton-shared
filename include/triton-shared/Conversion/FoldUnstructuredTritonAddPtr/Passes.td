@@ -3,7 +3,7 @@
 
 include "mlir/Pass/PassBase.td"
 
-def FoldUnstructuredTritonAddPtr : Pass<"simplify-unstructured-triton-ptr", "mlir::ModuleOp"> {
+def FoldUnstructuredTritonAddPtr : Pass<"fold-unstructured-triton-ptr", "mlir::ModuleOp"> {
   let summary = "Convert Triton non-block pointer to TritonStructured dialect";
   let constructor = "triton::createFoldUnstructuredTritonAddPtrPass()";
   let options = [
