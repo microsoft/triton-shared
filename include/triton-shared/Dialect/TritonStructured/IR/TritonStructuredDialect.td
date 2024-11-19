@@ -147,7 +147,7 @@ def TTS_CreatePtrOp : TTS_Op<"create_ptr", [Pure]> {
   let summary = "Placeholder for the structured pointer states computed during PtrAnalysis.";
   let description = "Used to pass the offsets and strides to scf.for op to simplify IR rewrites.";
 
-  let arguments = (ins TT_Ptr:$input, TT_I64Like:$offset);
+  let arguments = (ins TT_PtrLike:$input, TT_I64Like:$offset);
   let results = (outs TT_PtrLike:$ptr);
 
   // let builders = [

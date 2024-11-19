@@ -421,7 +421,15 @@ public:
 
     moduleOp.walk([&](triton::FuncOp func) {
       for (auto arg : func.getArguments()) {
-        if (!isa<triton::PointerType>(arg.getType())) {
+        bool shouldProcess = false;
+        if (isa<triton::PointerType>(arg.getType())) {
+          shouldProcess = true;
+        } else if (auto tensorType =
+                       dyn_cast<RankedTensorType>(arg.getType())) {
+          shouldProcess = isa<triton::PointerType>(tensorType.getElementType());
+        }
+
+        if (!shouldProcess) {
           continue;
         }
 

@@ -56,6 +56,13 @@ public:
     addConversion([](triton::PointerType ptrType) {
       return UnrankedMemRefType::get(ptrType.getPointeeType(), 0);
     });
+    addConversion([](RankedTensorType tensorType) -> std::optional<Type> {
+      if (auto ptrType =
+              dyn_cast<triton::PointerType>(tensorType.getElementType())) {
+        return MemRefType::get(tensorType.getShape(), ptrType.getPointeeType());
+      }
+      return std::nullopt;
+    });
     // Used for converting memref<*> back to tt.ptr type, these ops will then be
     // handled when we convert addptr op later.
     addSourceMaterialization([&](OpBuilder &builder, Type resultType,
