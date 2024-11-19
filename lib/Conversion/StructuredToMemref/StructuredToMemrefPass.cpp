@@ -158,14 +158,14 @@ public:
 
     target.addIllegalOp<tts::LoadOp, tts::StoreOp, tts::MakeTensorPtrOp>();
 
-    target.addDynamicallyLegalOp<UnrealizedConversionCastOp>(
-        [](UnrealizedConversionCastOp op) {
-          if (op.getInputs().size() == 1 &&
-              isa<triton::PointerType>(op->getResult(0).getType())) {
-            return false;
-          }
-          return true;
-        });
+    // target.addDynamicallyLegalOp<UnrealizedConversionCastOp>(
+    //     [](UnrealizedConversionCastOp op) {
+    //       if (op.getInputs().size() == 1 &&
+    //           isa<triton::PointerType>(op->getResult(0).getType())) {
+    //         return false;
+    //       }
+    //       return true;
+    //     });
 
     EmptyConverter typeConverter;
 

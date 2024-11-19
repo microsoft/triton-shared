@@ -52,6 +52,7 @@ static const std::string WRAP_STACKED = "wrap_stacked";
 
 static memref::SubViewOp getSubview(int rank, ArrayRef<OpFoldResult> dims,
                                     Value source, Location loc, OpBuilder &b) {
+  source.dump();
   auto sourceType = cast<MemRefType>(source.getType());
   SmallVector<OpFoldResult> offsets(rank, b.getIndexAttr(0));
   SmallVector<OpFoldResult> strides(rank, b.getIndexAttr(1));
@@ -60,6 +61,13 @@ static memref::SubViewOp getSubview(int rank, ArrayRef<OpFoldResult> dims,
 
   return b.create<memref::SubViewOp>(loc, cast<MemRefType>(dstType), source,
                                      offsets, dims, strides);
+}
+
+static Value getPtr(Value v) {
+  while (auto op = v.getDefiningOp()) {
+    v = op->getOperand(0);
+  }
+  return v;
 }
 
 namespace {
@@ -384,7 +392,7 @@ private:
     //
     // For non-block pointer cases, the base is the reinterpret_cast of a
     // function argument. Assert that the offset is a constant 0 in such cases.
-    auto ptr = adaptor.getBase();
+    auto ptr = getPtr(adaptor.getBase());
     if (auto reinterpretCast = ptr.getDefiningOp<memref::ReinterpretCastOp>()) {
       auto offset = reinterpretCast.getMixedOffsets()[0];
       auto intAttr = getIntAttr(offset);
@@ -807,7 +815,7 @@ public:
 
 void mlir::triton::populateStructuredToMemrefConversionPatterns(
     RewritePatternSet &patterns, TypeConverter &typeConverter) {
-  patterns.add<UnrealizedCastConverter>(patterns.getContext());
+  // patterns.add<UnrealizedCastConverter>(patterns.getContext());
   patterns.add<MakeTensorPtrConverter, LoadConverter, StoreConverter>(
       patterns.getContext());
 }
