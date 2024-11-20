@@ -386,7 +386,7 @@ public:
   void computePtrType(unsigned int defaultBitWidth = 32) {
     auto moduleOp = getOperation();
 
-    llvm::DenseMap<Value, PtrOffset> offsets;
+    llvm::DenseMap<Value, PtrOffset> offsetMap;
     std::queue<Value> workList;
 
     moduleOp.walk([&](triton::FuncOp func) {
@@ -402,21 +402,23 @@ public:
             b.getIntegerAttr(IntegerType::get(&getContext(), defaultBitWidth),
                              0));
 
-        auto initialOffsetMarker = b.create<UnrealizedConversionCastOp>(
-            arg.getLoc(), getPtrOffsetType(arg.getType(), defaultBitWidth), arg,
-            zero);
+        // auto initialOffsetMarker = b.create<UnrealizedConversionCastOp>(
+        //     arg.getLoc(), getPtrOffsetType(arg.getType(), defaultBitWidth),
+        //     arg, zero);
 
-        initialOffsetMarker->setAttr("src-ptr-marker",
-                                     UnitAttr::get(&getContext()));
+        // initialOffsetMarker->setAttr("src-ptr-marker",
+        //                              UnitAttr::get(&getContext()));
 
-        auto initialOffset = initialOffsetMarker->getResult(0);
+        // auto initialOffset = initialOffsetMarker->getResult(0);
+
+        auto initialOffset = zero;
 
         arg.replaceUsesWithIf(initialOffset, [](OpOperand &operand) {
           auto owner = operand.getOwner();
           return isa<triton::TritonDialect>(owner->getDialect());
         });
 
-        offsets.insert({initialOffset, {defaultBitWidth, initialOffset}});
+        offsetMap.insert({initialOffset, {defaultBitWidth, arg}});
         workList.push(arg);
       }
     });
@@ -435,7 +437,7 @@ public:
               auto prevOff = addptr.getPtr();
               auto off = addptr.getOffset();
 
-              auto lhsWidth = offsets.at(prevOff).bitWidth;
+              auto lhsWidth = offsetMap.at(prevOff).bitWidth;
               auto rhsWidth = off.getType().getIntOrFloatBitWidth();
               auto resWidth = std::max(lhsWidth, rhsWidth);
 
@@ -450,23 +452,28 @@ public:
 
               rewriter.replaceOp(addptr, accumulatedOff);
 
-              offsets.insert(
-                  {accumulatedOff, {resWidth, offsets.at(prevOff).srcPtr}});
+              offsetMap.insert(
+                  {accumulatedOff, {resWidth, offsetMap.at(prevOff).srcPtr}});
             })
             .Case<triton::SplatOp, triton::BroadcastOp>([&](Operation *op) {
               auto ptr = op->getOperand(0);
               auto res = op->getResult(0);
               res.setType(
-                  getPtrOffsetType(res.getType(), offsets.at(ptr).bitWidth));
-              offsets.insert({res, offsets.at(ptr)});
+                  getPtrOffsetType(res.getType(), offsetMap.at(ptr).bitWidth));
+              offsetMap.insert({res, offsetMap.at(ptr)});
             })
             .Case<triton::LoadOp, triton::StoreOp>([&](Operation *op) {
               IRRewriter rewriter{op};
               triton::LoadOp load;
-              auto ptr = op->getOperand(0);
+              auto offset = op->getOperand(0);
 
-              auto offsetInfo = offsets.at(ptr);
-              // offsetInfo.
+              auto offsetInfo = offsetMap.at(offset);
+              auto srcPtr = offsetInfo.srcPtr;
+
+              auto cast = rewriter.create<tts::CreatePtrOp>(
+                  op->getLoc(), srcPtr.getType(), srcPtr, offset);
+
+              op->setOperand(0, cast.getResult(0));
             })
             .Case<scf::ForOp>([&](scf::ForOp forOp) {
               IRRewriter rewriter{forOp};
