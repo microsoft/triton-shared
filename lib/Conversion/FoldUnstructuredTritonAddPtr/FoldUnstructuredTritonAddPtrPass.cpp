@@ -452,7 +452,7 @@ public:
         llvm::TypeSwitch<Operation *>(user)
             .Case<triton::AddPtrOp>([&](triton::AddPtrOp addptr) {
               // assert(0);
-              IRRewriter rewriter{addptr};
+              OpBuilder rewriter{addptr};
               auto prevOff = addptr.getPtr();
               auto off = addptr.getOffset();
 
@@ -471,7 +471,9 @@ public:
                   rewriter.create<arith::AddIOp>(loc, prevOff, off);
 
               auto type = addptr.getType();
-              rewriter.replaceOp(addptr, accumulatedOff);
+              addptr->replaceAllUsesWith(accumulatedOff);
+              addptr.erase();
+              // rewriter.replaceOp(addptr, accumulatedOff);
 
               offsetMap.insert(
                   {accumulatedOff,
@@ -503,7 +505,7 @@ public:
 
               offsetMap.at(offset).ptrType.dump();
 
-              IRRewriter rewriter{op};
+              OpBuilder rewriter{op};
               auto cast = rewriter.create<tts::CreatePtrOp>(
                   op->getLoc(), offsetMap.at(offset).ptrType, srcPtr, offset);
 
@@ -512,6 +514,42 @@ public:
             .Case<scf::ForOp>([&](scf::ForOp forOp) {
               // map init arg to iter-arg
               // map init arg to result
+              // forOp.getBody();
+              llvm::dbgs() << "arg number: " << use.getOperandNumber() << "\n";
+              use.get().dump();
+              llvm::dbgs() << "init arg size\n";
+              llvm::dbgs() << forOp.getInitArgsMutable().size() << "\n";
+              llvm::dbgs() << "num region iter-args\n";
+              llvm::dbgs() << forOp.getNumRegionIterArgs() << "\n";
+              llvm::dbgs() << "dump from that index\n";
+              auto init =
+                  // forOp->getBlock().get
+                  forOp.getInitArgs()[use.getOperandNumber() - 3];
+              init.dump();
+              // forOp.getInitArgs()[use.getOperandNumber()].dump();
+
+              llvm::dbgs() << "iter arg\n";
+
+              auto iterArg = forOp.getRegionIterArg(use.getOperandNumber() - 3);
+              iterArg.dump();
+
+              llvm::dbgs() << "init arg\n";
+
+              workList.push(iterArg);
+              offsetMap.insert({
+                  iterArg,
+                  offsetMap.at(init),
+              });
+
+              for (auto arg : forOp.getInitArgs()) {
+                arg.dump();
+                // if (isPtrTypeLike(arg))
+              }
+
+              // llvm::dbgs() << "inits\n";
+              // for (auto arg : forOp.getInits()) {
+              //   arg.dump();
+              // }
 
               // IRRewriter rewriter{forOp};
 
@@ -521,132 +559,219 @@ public:
 
               // return WalkResult::advance();
             })
+            // .Case<scf::YieldOp>(
+            //     [&](scf::YieldOp yieldOp) { IRRewriter rewriter{yieldOp}; })
 
-            .Case<scf::YieldOp>([&](scf::YieldOp yieldOp) {
-              IRRewriter rewriter{yieldOp};
-            })
+            // .Case<scf::IfOp>([&](scf::IfOp ifOp) { IRRewriter rewriter{ifOp};
+            // })
 
-            .Case<scf::IfOp>([&](scf::IfOp ifOp) { IRRewriter rewriter{ifOp}; })
+            // .Case<scf::WhileOp>(
+            //     [&](scf::WhileOp whileOp) { IRRewriter rewriter{whileOp}; })
 
-            .Case<scf::WhileOp>(
-                [&](scf::WhileOp whileOp) { IRRewriter rewriter{whileOp}; })
-
-            .Case<scf::ConditionOp>([&](scf::ConditionOp conditionOp) {
-              IRRewriter rewriter{conditionOp};
-            })
+            // .Case<scf::ConditionOp>([&](scf::ConditionOp conditionOp) {
+            //   IRRewriter rewriter{conditionOp};
+            // })
 
             .Default([&](auto) {});
       }
     }
-  });
-}
 
-  void runOnOperation() override {
-  computePtrType(32);
-  return;
-
-  auto moduleOp = getOperation();
-
-  RewritePatternSet patterns(&getContext());
-  ConversionTarget target(getContext());
-
-  target.addLegalDialect<
-      func::FuncDialect, arith::ArithDialect, math::MathDialect,
-      affine::AffineDialect, scf::SCFDialect, cf::ControlFlowDialect,
-      tensor::TensorDialect, bufferization::BufferizationDialect>();
-
-  target.addLegalOp<ModuleOp>();
-
-  target.addIllegalOp<triton::AddPtrOp>();
-
-  target.addDynamicallyLegalOp<UnrealizedConversionCastOp>([](Operation *op) {
-    auto resType = op->getResultTypes()[0];
-    return !isa<triton::PointerType>(resType);
-  });
-
-  target.addDynamicallyLegalOp<triton::SplatOp>([](triton::SplatOp op) {
-    auto resType = op.getResult().getType();
-    if (auto shapedType = dyn_cast<ShapedType>(resType)) {
-      return !isa<triton::PointerType>(shapedType.getElementType());
-    }
-    return !isa<triton::PointerType>(resType);
-  });
-
-  target.addDynamicallyLegalOp<triton::BroadcastOp>([](triton::BroadcastOp op) {
-    auto resType = op.getResult().getType();
-    if (auto shapedType = dyn_cast<ShapedType>(resType)) {
-      return !isa<triton::PointerType>(shapedType.getElementType());
-    }
-    return !isa<triton::PointerType>(resType);
-  });
-
-  TritonTypeConverter converter(&getContext());
-
-  patterns.add<AddPtrConverter, SplatConverter, BroadcastConverter>(
-      converter, &getContext());
-  scf::populateSCFStructuralTypeConversionsAndLegality(converter, patterns,
-                                                       target);
-
-  if (failed(applyPartialConversion(moduleOp, target, std::move(patterns)))) {
-    signalPassFailure();
+    moduleOp.walk([&](scf::ForOp op) {
+      llvm::dbgs() << "for op\n";
+      for (auto init : op.getInits()) {
+        init.dump();
+      }
+    });
   }
 
-  // not sure why we cannot run this together
-  // convertLoop();
+  struct ForConverter : public OpConversionPattern<scf::ForOp> {
+    using OpConversionPattern<scf::ForOp>::OpConversionPattern;
 
-  PassManager pm(&getContext(), moduleOp.getOperationName());
-  pm.addPass(createReconcileUnrealizedCastsPass());
-  if (failed(runPipeline(pm, getOperation()))) {
-    signalPassFailure();
-  }
+    LogicalResult
+    matchAndRewrite(scf::ForOp op, OpAdaptor adaptor,
+                    ConversionPatternRewriter &rewriter) const override {
+      rewriter.startOpModification(op);
 
-  bfs(moduleOp.getOperation());
-  // return;
+      auto loc = op->getLoc();
+      Region &region = op.getRegion();
+      llvm::dbgs() << "block count: " << region.getBlocks().size() << "\n";
 
-  moduleOp->dump();
+      for (Block &block : llvm::make_early_inc_range(region)) {
+        TypeConverter::SignatureConversion conversion(
+            /*numOrigInputs=*/block.getNumArguments());
 
-  moduleOp.walk([&](triton::FuncOp func) {
-    for (auto arg : func.getArguments()) {
-      bool shouldProcess = false;
-      if (isa<triton::PointerType>(arg.getType())) {
-        shouldProcess = true;
-      } else if (auto tensorType = dyn_cast<RankedTensorType>(arg.getType())) {
-        shouldProcess = isa<triton::PointerType>(tensorType.getElementType());
+        llvm::dbgs() << "block arg count: " << block.getNumArguments() << "\n";
+        llvm::dbgs() << "init arg count: " << op.getInitArgs().size() << "\n";
+        int diff = block.getNumArguments() - op.getInitArgs().size();
+        for (BlockArgument blockArgument : block.getArguments()) {
+          int idx = blockArgument.getArgNumber();
+
+          if (isPtrTypeLike(blockArgument.getType())) {
+            llvm::dbgs() << "mapping " << idx << " to\n";
+            // -1 for the induction var
+            op.getInitArgs()[idx - 1].getType().dump();
+            op.getInitArgs()[idx - 1].dump();
+            conversion.addInputs(idx, {op.getInitArgs()[idx - 1].getType()});
+          } else {
+            llvm::dbgs() << "reusing type for " << idx << " to\n";
+            block.getArgumentTypes()[idx].dump();
+            conversion.addInputs(idx, {block.getArgumentTypes()[idx]});
+          }
+        }
+
+        auto term = block.getTerminator();
+        for (auto r : term->getResults()) {
+          r.setType(op.getInitArgs()[r.getResultNumber()].getType());
+        }
+
+        rewriter.applySignatureConversion(&block, conversion, nullptr);
       }
 
-      if (!shouldProcess) {
-        continue;
-      }
+      rewriter.finalizeOpModification(op);
 
-      bool skip = false;
-      for (auto user : arg.getUsers()) {
-        if (isa<tts::CreatePtrOp>(user)) {
-          skip = true;
-          break;
+      return success();
+    }
+  };
+
+  void fixUp() {
+    auto moduleOp = getOperation();
+
+    RewritePatternSet patterns(&getContext());
+    ConversionTarget target(getContext());
+
+    target.addLegalDialect<
+        func::FuncDialect, arith::ArithDialect, math::MathDialect,
+        affine::AffineDialect, scf::SCFDialect, cf::ControlFlowDialect,
+        tensor::TensorDialect, bufferization::BufferizationDialect>();
+
+    target.addLegalOp<ModuleOp>();
+
+    target.addDynamicallyLegalOp<scf::ForOp>([](scf::ForOp op) {
+      for (auto arg : op.getRegionIterArgs()) {
+        if (isPtrTypeLike(arg.getType())) {
+          return false;
         }
       }
+      return true;
+    });
 
-      if (skip) {
-        continue;
-      }
+    patterns.add<ForConverter>(patterns.getContext());
 
-      triton::AddPtrOp op;
-      // op.getResult().setType(Type newType)
-
-      // ok i remember this now,
-      // this is for args that aren't in any of the addptr chain but used
-      // in load/store directly
-      OpBuilder b(func.getRegion());
-      auto loc = func->getLoc();
-      auto zero = b.create<arith::ConstantOp>(loc, b.getI64IntegerAttr(0));
-      auto cast = b.create<tts::CreatePtrOp>(loc, arg.getType(), arg, zero);
-      arg.replaceUsesWithIf(cast->getResult(0), [](OpOperand &operand) {
-        auto owner = operand.getOwner();
-        return isa<triton::TritonDialect>(owner->getDialect());
-      });
+    if (failed(applyPartialConversion(moduleOp, target, std::move(patterns)))) {
+      signalPassFailure();
     }
-  });
-}
+  }
+
+  void runOnOperation() override {
+    computePtrType(32);
+    getOperation().dump();
+    fixUp();
+    return;
+
+    auto moduleOp = getOperation();
+
+    RewritePatternSet patterns(&getContext());
+    ConversionTarget target(getContext());
+
+    target.addLegalDialect<
+        func::FuncDialect, arith::ArithDialect, math::MathDialect,
+        affine::AffineDialect, scf::SCFDialect, cf::ControlFlowDialect,
+        tensor::TensorDialect, bufferization::BufferizationDialect>();
+
+    target.addLegalOp<ModuleOp>();
+
+    target.addIllegalOp<triton::AddPtrOp>();
+
+    target.addDynamicallyLegalOp<UnrealizedConversionCastOp>([](Operation *op) {
+      auto resType = op->getResultTypes()[0];
+      return !isa<triton::PointerType>(resType);
+    });
+
+    target.addDynamicallyLegalOp<triton::SplatOp>([](triton::SplatOp op) {
+      auto resType = op.getResult().getType();
+      if (auto shapedType = dyn_cast<ShapedType>(resType)) {
+        return !isa<triton::PointerType>(shapedType.getElementType());
+      }
+      return !isa<triton::PointerType>(resType);
+    });
+
+    target.addDynamicallyLegalOp<triton::BroadcastOp>(
+        [](triton::BroadcastOp op) {
+          auto resType = op.getResult().getType();
+          if (auto shapedType = dyn_cast<ShapedType>(resType)) {
+            return !isa<triton::PointerType>(shapedType.getElementType());
+          }
+          return !isa<triton::PointerType>(resType);
+        });
+
+    TritonTypeConverter converter(&getContext());
+
+    patterns.add<AddPtrConverter, SplatConverter, BroadcastConverter>(
+        converter, &getContext());
+    scf::populateSCFStructuralTypeConversionsAndLegality(converter, patterns,
+                                                         target);
+
+    if (failed(applyPartialConversion(moduleOp, target, std::move(patterns)))) {
+      signalPassFailure();
+    }
+
+    // not sure why we cannot run this together
+    // convertLoop();
+
+    PassManager pm(&getContext(), moduleOp.getOperationName());
+    pm.addPass(createReconcileUnrealizedCastsPass());
+    if (failed(runPipeline(pm, getOperation()))) {
+      signalPassFailure();
+    }
+
+    bfs(moduleOp.getOperation());
+    // return;
+
+    moduleOp->dump();
+
+    moduleOp.walk([&](triton::FuncOp func) {
+      for (auto arg : func.getArguments()) {
+        bool shouldProcess = false;
+        if (isa<triton::PointerType>(arg.getType())) {
+          shouldProcess = true;
+        } else if (auto tensorType =
+                       dyn_cast<RankedTensorType>(arg.getType())) {
+          shouldProcess = isa<triton::PointerType>(tensorType.getElementType());
+        }
+
+        if (!shouldProcess) {
+          continue;
+        }
+
+        bool skip = false;
+        for (auto user : arg.getUsers()) {
+          if (isa<tts::CreatePtrOp>(user)) {
+            skip = true;
+            break;
+          }
+        }
+
+        if (skip) {
+          continue;
+        }
+
+        triton::AddPtrOp op;
+        // op.getResult().setType(Type newType)
+
+        // ok i remember this now,
+        // this is for args that aren't in any of the addptr chain but used
+        // in load/store directly
+        OpBuilder b(func.getRegion());
+        auto loc = func->getLoc();
+        auto zero = b.create<arith::ConstantOp>(loc, b.getI64IntegerAttr(0));
+        auto cast = b.create<tts::CreatePtrOp>(loc, arg.getType(), arg, zero);
+        arg.replaceUsesWithIf(cast->getResult(0), [](OpOperand &operand) {
+          auto owner = operand.getOwner();
+          return isa<triton::TritonDialect>(owner->getDialect());
+        });
+      }
+    });
+  }
 };
 } // namespace
 
