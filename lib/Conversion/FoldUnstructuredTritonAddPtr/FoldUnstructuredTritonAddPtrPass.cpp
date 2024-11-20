@@ -7,6 +7,7 @@
 
 #include "mlir/Conversion/ReconcileUnrealizedCasts/ReconcileUnrealizedCasts.h"
 #include "mlir/Dialect/Arith/IR/Arith.h"
+#include "mlir/Dialect/SCF/IR/SCF.h"
 #include "mlir/Dialect/SCF/Transforms/Patterns.h"
 #include "mlir/IR/Builders.h"
 #include "mlir/IR/BuiltinAttributes.h"
@@ -36,13 +37,19 @@
 #include "mlir/Transforms/Passes.h"
 #include "triton/Dialect/Triton/IR/Types.h"
 
+#include "llvm/ADT/APInt.h"
+#include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SmallVector.h"
+#include "llvm/ADT/TypeSwitch.h"
 #include "llvm/Support/Casting.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/LogicalResult.h"
+
+#include <algorithm>
 #include <cassert>
 #include <optional>
+#include <queue>
 
 #define DEBUG_TYPE "triton-ptr-to-index"
 
@@ -59,6 +66,20 @@ static bool isPtrTypeLike(Type t) {
     return isa<triton::PointerType>(tensorType.getElementType());
   }
   return isa<triton::PointerType>(t);
+}
+
+static Type getPtrOffsetType(Type type, unsigned int bitWidth) {
+  if (auto tensorType = dyn_cast<RankedTensorType>(type)) {
+    if (auto ptrType =
+            dyn_cast<triton::PointerType>(tensorType.getElementType())) {
+      return RankedTensorType::get(
+          tensorType.getShape(), IntegerType::get(type.getContext(), bitWidth));
+    }
+  } else if (auto ptrType =
+                 dyn_cast<triton::PointerType>(tensorType.getElementType())) {
+    return IntegerType::get(type.getContext(), bitWidth);
+  }
+  return nullptr;
 }
 
 class TritonTypeConverter : public TypeConverter {
@@ -357,6 +378,157 @@ public:
     }
   }
 
+  struct PtrOffset {
+    unsigned int bitWidth;
+    Value srcPtr;
+  };
+
+  void computePtrType(unsigned int defaultBitWidth = 32) {
+    auto moduleOp = getOperation();
+
+    llvm::DenseMap<Value, PtrOffset> offsets;
+    std::queue<Value> workList;
+
+    moduleOp.walk([&](triton::FuncOp func) {
+      for (auto arg : func.getArguments()) {
+        if (!isa<triton::PointerType>(arg.getType())) {
+          continue;
+        }
+
+        OpBuilder b(func.getRegion());
+
+        auto zero = b.create<arith::ConstantOp>(
+            arg.getLoc(),
+            b.getIntegerAttr(IntegerType::get(&getContext(), defaultBitWidth),
+                             0));
+
+        auto initialOffsetMarker = b.create<UnrealizedConversionCastOp>(
+            arg.getLoc(), getPtrOffsetType(arg.getType(), defaultBitWidth), arg,
+            zero);
+
+        initialOffsetMarker->setAttr("src-ptr-marker",
+                                     UnitAttr::get(&getContext()));
+
+        auto initialOffset = initialOffsetMarker->getResult(0);
+
+        arg.replaceUsesWithIf(initialOffset, [](OpOperand &operand) {
+          auto owner = operand.getOwner();
+          return isa<triton::TritonDialect>(owner->getDialect());
+        });
+
+        offsets.insert({initialOffset, {defaultBitWidth, initialOffset}});
+        workList.push(arg);
+      }
+    });
+
+    while (!workList.empty()) {
+      auto val = workList.front();
+      workList.pop();
+
+      for (auto &use : val.getUses()) {
+        auto user = use.getOwner();
+
+        llvm::TypeSwitch<Operation *>(user)
+            .Case<triton::AddPtrOp>([&](triton::AddPtrOp addptr) {
+              IRRewriter rewriter{addptr};
+
+              auto prevOff = addptr.getPtr();
+              auto off = addptr.getOffset();
+
+              auto lhsWidth = offsets.at(prevOff).bitWidth;
+              auto rhsWidth = off.getType().getIntOrFloatBitWidth();
+              auto resWidth = std::max(lhsWidth, rhsWidth);
+
+              auto loc = addptr->getLoc();
+
+              if (lhsWidth > rhsWidth) {
+                off = rewriter.create<arith::ExtSIOp>(loc, resWidth, off);
+              }
+
+              auto accumulatedOff =
+                  rewriter.create<arith::AddIOp>(loc, prevOff, off);
+
+              rewriter.replaceOp(addptr, accumulatedOff);
+
+              offsets.insert(
+                  {accumulatedOff, {resWidth, offsets.at(prevOff).srcPtr}});
+            })
+            .Case<triton::SplatOp, triton::BroadcastOp>([&](Operation *op) {
+              auto ptr = op->getOperand(0);
+              auto res = op->getResult(0);
+              res.setType(
+                  getPtrOffsetType(res.getType(), offsets.at(ptr).bitWidth));
+              offsets.insert({res, offsets.at(ptr)});
+            })
+            .Case<triton::LoadOp, triton::StoreOp>([&](Operation *op) {
+              IRRewriter rewriter{op};
+              triton::LoadOp load;
+              auto ptr = op->getOperand(0);
+
+              auto offsetInfo = offsets.at(ptr);
+              // offsetInfo.
+            })
+            .Case<scf::ForOp>([&](scf::ForOp forOp) {
+              IRRewriter rewriter{forOp};
+
+              return WalkResult::advance();
+            })
+            .Case<scf::IfOp>([&](scf::IfOp ifOp) {
+              IRRewriter rewriter{ifOp};
+
+              return WalkResult::advance();
+            })
+
+            .Case<scf::YieldOp>([&](scf::YieldOp yieldOp) {
+              IRRewriter rewriter{yieldOp};
+
+              return WalkResult::advance();
+            })
+
+            .Case<scf::WhileOp>([&](scf::WhileOp whileOp) {
+              IRRewriter rewriter{whileOp};
+
+              return WalkResult::advance();
+            })
+
+            .Case<scf::ConditionOp>([&](scf::ConditionOp conditionOp) {
+              IRRewriter rewriter{conditionOp};
+
+              return WalkResult::advance();
+            })
+
+            .Default([&](auto) { return WalkResult::advance(); });
+      }
+    }
+
+    moduleOp->walk<WalkOrder::PreOrder>([&](Operation *op) {
+      return llvm::TypeSwitch<Operation *, WalkResult>(op)
+          .Case<triton::AddPtrOp>([&](triton::AddPtrOp addptr) {
+            IRRewriter rewriter{addptr};
+
+            auto ptr = addptr.getPtr();
+            auto offset = addptr.getOffset();
+            // %new_ptr = addptr %ptr %offset -> tt.ptr
+            // %tmp1 = unrealized_cast %new_ptr -> tuple<tt.ptr, int>
+            // %tmp2 = unrealized_cast %tmp1 -> tt.ptr
+            ptr = 0;
+
+            return WalkResult::advance();
+          })
+          .Case<triton::SplatOp>([&](auto splat) {
+            IRRewriter rewriter{splat};
+
+            return WalkResult::advance();
+          })
+          .Case<triton::BroadcastOp>([&](auto broadcast) {
+            IRRewriter rewriter{broadcast};
+
+            return WalkResult::advance();
+          })
+          .Default([&](auto) { return WalkResult::advance(); });
+    });
+  }
+
   void runOnOperation() override {
     auto moduleOp = getOperation();
 
@@ -445,9 +617,12 @@ public:
           continue;
         }
 
+        triton::AddPtrOp op;
+        // op.getResult().setType(Type newType)
+
         // ok i remember this now,
-        // this is for args that aren't in any of the addptr chain but used in
-        // load/store directly
+        // this is for args that aren't in any of the addptr chain but used
+        // in load/store directly
         OpBuilder b(func.getRegion());
         auto loc = func->getLoc();
         auto zero = b.create<arith::ConstantOp>(loc, b.getI64IntegerAttr(0));
