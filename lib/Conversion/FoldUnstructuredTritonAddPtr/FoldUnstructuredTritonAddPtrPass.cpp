@@ -510,6 +510,9 @@ public:
               op->setOperand(0, cast.getResult());
             })
             .Case<scf::ForOp>([&](scf::ForOp forOp) {
+              // map init arg to iter-arg
+              // map init arg to result
+
               // IRRewriter rewriter{forOp};
 
               // scf::ForOp newOp = rewriter.create<scf::ForOp>(
@@ -521,168 +524,129 @@ public:
 
             .Case<scf::YieldOp>([&](scf::YieldOp yieldOp) {
               IRRewriter rewriter{yieldOp};
-
-              return WalkResult::advance();
             })
 
-            .Case<scf::IfOp>([&](scf::IfOp ifOp) {
-              IRRewriter rewriter{ifOp};
+            .Case<scf::IfOp>([&](scf::IfOp ifOp) { IRRewriter rewriter{ifOp}; })
 
-              return WalkResult::advance();
-            })
-
-            .Case<scf::WhileOp>([&](scf::WhileOp whileOp) {
-              IRRewriter rewriter{whileOp};
-
-              return WalkResult::advance();
-            })
+            .Case<scf::WhileOp>(
+                [&](scf::WhileOp whileOp) { IRRewriter rewriter{whileOp}; })
 
             .Case<scf::ConditionOp>([&](scf::ConditionOp conditionOp) {
               IRRewriter rewriter{conditionOp};
-
-              return WalkResult::advance();
             })
 
-            .Default([&](auto) { return WalkResult::advance(); });
+            .Default([&](auto) {});
       }
     }
-
-    moduleOp->walk<WalkOrder::PreOrder>([&](Operation *op) {
-      return llvm::TypeSwitch<Operation *, WalkResult>(op)
-          .Case<triton::AddPtrOp>([&](triton::AddPtrOp addptr) {
-            IRRewriter rewriter{addptr};
-
-            auto ptr = addptr.getPtr();
-            auto offset = addptr.getOffset();
-            // %new_ptr = addptr %ptr %offset -> tt.ptr
-            // %tmp1 = unrealized_cast %new_ptr -> tuple<tt.ptr, int>
-            // %tmp2 = unrealized_cast %tmp1 -> tt.ptr
-            ptr = 0;
-
-            return WalkResult::advance();
-          })
-          .Case<triton::SplatOp>([&](auto splat) {
-            IRRewriter rewriter{splat};
-
-            return WalkResult::advance();
-          })
-          .Case<triton::BroadcastOp>([&](auto broadcast) {
-            IRRewriter rewriter{broadcast};
-
-            return WalkResult::advance();
-          })
-          .Default([&](auto) { return WalkResult::advance(); });
-    });
-  }
+  });
+}
 
   void runOnOperation() override {
-    computePtrType(32);
-    return;
+  computePtrType(32);
+  return;
 
-    auto moduleOp = getOperation();
+  auto moduleOp = getOperation();
 
-    RewritePatternSet patterns(&getContext());
-    ConversionTarget target(getContext());
+  RewritePatternSet patterns(&getContext());
+  ConversionTarget target(getContext());
 
-    target.addLegalDialect<
-        func::FuncDialect, arith::ArithDialect, math::MathDialect,
-        affine::AffineDialect, scf::SCFDialect, cf::ControlFlowDialect,
-        tensor::TensorDialect, bufferization::BufferizationDialect>();
+  target.addLegalDialect<
+      func::FuncDialect, arith::ArithDialect, math::MathDialect,
+      affine::AffineDialect, scf::SCFDialect, cf::ControlFlowDialect,
+      tensor::TensorDialect, bufferization::BufferizationDialect>();
 
-    target.addLegalOp<ModuleOp>();
+  target.addLegalOp<ModuleOp>();
 
-    target.addIllegalOp<triton::AddPtrOp>();
+  target.addIllegalOp<triton::AddPtrOp>();
 
-    target.addDynamicallyLegalOp<UnrealizedConversionCastOp>([](Operation *op) {
-      auto resType = op->getResultTypes()[0];
-      return !isa<triton::PointerType>(resType);
-    });
+  target.addDynamicallyLegalOp<UnrealizedConversionCastOp>([](Operation *op) {
+    auto resType = op->getResultTypes()[0];
+    return !isa<triton::PointerType>(resType);
+  });
 
-    target.addDynamicallyLegalOp<triton::SplatOp>([](triton::SplatOp op) {
-      auto resType = op.getResult().getType();
-      if (auto shapedType = dyn_cast<ShapedType>(resType)) {
-        return !isa<triton::PointerType>(shapedType.getElementType());
-      }
-      return !isa<triton::PointerType>(resType);
-    });
-
-    target.addDynamicallyLegalOp<triton::BroadcastOp>(
-        [](triton::BroadcastOp op) {
-          auto resType = op.getResult().getType();
-          if (auto shapedType = dyn_cast<ShapedType>(resType)) {
-            return !isa<triton::PointerType>(shapedType.getElementType());
-          }
-          return !isa<triton::PointerType>(resType);
-        });
-
-    TritonTypeConverter converter(&getContext());
-
-    patterns.add<AddPtrConverter, SplatConverter, BroadcastConverter>(
-        converter, &getContext());
-    scf::populateSCFStructuralTypeConversionsAndLegality(converter, patterns,
-                                                         target);
-
-    if (failed(applyPartialConversion(moduleOp, target, std::move(patterns)))) {
-      signalPassFailure();
+  target.addDynamicallyLegalOp<triton::SplatOp>([](triton::SplatOp op) {
+    auto resType = op.getResult().getType();
+    if (auto shapedType = dyn_cast<ShapedType>(resType)) {
+      return !isa<triton::PointerType>(shapedType.getElementType());
     }
+    return !isa<triton::PointerType>(resType);
+  });
 
-    // not sure why we cannot run this together
-    // convertLoop();
-
-    PassManager pm(&getContext(), moduleOp.getOperationName());
-    pm.addPass(createReconcileUnrealizedCastsPass());
-    if (failed(runPipeline(pm, getOperation()))) {
-      signalPassFailure();
+  target.addDynamicallyLegalOp<triton::BroadcastOp>([](triton::BroadcastOp op) {
+    auto resType = op.getResult().getType();
+    if (auto shapedType = dyn_cast<ShapedType>(resType)) {
+      return !isa<triton::PointerType>(shapedType.getElementType());
     }
+    return !isa<triton::PointerType>(resType);
+  });
 
-    bfs(moduleOp.getOperation());
-    // return;
+  TritonTypeConverter converter(&getContext());
 
-    moduleOp->dump();
+  patterns.add<AddPtrConverter, SplatConverter, BroadcastConverter>(
+      converter, &getContext());
+  scf::populateSCFStructuralTypeConversionsAndLegality(converter, patterns,
+                                                       target);
 
-    moduleOp.walk([&](triton::FuncOp func) {
-      for (auto arg : func.getArguments()) {
-        bool shouldProcess = false;
-        if (isa<triton::PointerType>(arg.getType())) {
-          shouldProcess = true;
-        } else if (auto tensorType =
-                       dyn_cast<RankedTensorType>(arg.getType())) {
-          shouldProcess = isa<triton::PointerType>(tensorType.getElementType());
-        }
-
-        if (!shouldProcess) {
-          continue;
-        }
-
-        bool skip = false;
-        for (auto user : arg.getUsers()) {
-          if (isa<tts::CreatePtrOp>(user)) {
-            skip = true;
-            break;
-          }
-        }
-
-        if (skip) {
-          continue;
-        }
-
-        triton::AddPtrOp op;
-        // op.getResult().setType(Type newType)
-
-        // ok i remember this now,
-        // this is for args that aren't in any of the addptr chain but used
-        // in load/store directly
-        OpBuilder b(func.getRegion());
-        auto loc = func->getLoc();
-        auto zero = b.create<arith::ConstantOp>(loc, b.getI64IntegerAttr(0));
-        auto cast = b.create<tts::CreatePtrOp>(loc, arg.getType(), arg, zero);
-        arg.replaceUsesWithIf(cast->getResult(0), [](OpOperand &operand) {
-          auto owner = operand.getOwner();
-          return isa<triton::TritonDialect>(owner->getDialect());
-        });
-      }
-    });
+  if (failed(applyPartialConversion(moduleOp, target, std::move(patterns)))) {
+    signalPassFailure();
   }
+
+  // not sure why we cannot run this together
+  // convertLoop();
+
+  PassManager pm(&getContext(), moduleOp.getOperationName());
+  pm.addPass(createReconcileUnrealizedCastsPass());
+  if (failed(runPipeline(pm, getOperation()))) {
+    signalPassFailure();
+  }
+
+  bfs(moduleOp.getOperation());
+  // return;
+
+  moduleOp->dump();
+
+  moduleOp.walk([&](triton::FuncOp func) {
+    for (auto arg : func.getArguments()) {
+      bool shouldProcess = false;
+      if (isa<triton::PointerType>(arg.getType())) {
+        shouldProcess = true;
+      } else if (auto tensorType = dyn_cast<RankedTensorType>(arg.getType())) {
+        shouldProcess = isa<triton::PointerType>(tensorType.getElementType());
+      }
+
+      if (!shouldProcess) {
+        continue;
+      }
+
+      bool skip = false;
+      for (auto user : arg.getUsers()) {
+        if (isa<tts::CreatePtrOp>(user)) {
+          skip = true;
+          break;
+        }
+      }
+
+      if (skip) {
+        continue;
+      }
+
+      triton::AddPtrOp op;
+      // op.getResult().setType(Type newType)
+
+      // ok i remember this now,
+      // this is for args that aren't in any of the addptr chain but used
+      // in load/store directly
+      OpBuilder b(func.getRegion());
+      auto loc = func->getLoc();
+      auto zero = b.create<arith::ConstantOp>(loc, b.getI64IntegerAttr(0));
+      auto cast = b.create<tts::CreatePtrOp>(loc, arg.getType(), arg, zero);
+      arg.replaceUsesWithIf(cast->getResult(0), [](OpOperand &operand) {
+        auto owner = operand.getOwner();
+        return isa<triton::TritonDialect>(owner->getDialect());
+      });
+    }
+  });
+}
 };
 } // namespace
 
