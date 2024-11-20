@@ -405,7 +405,7 @@ public:
 
     moduleOp.walk([&](triton::FuncOp func) {
       for (auto arg : func.getArguments()) {
-        if (!isa<triton::PointerType>(arg.getType())) {
+        if (!isPtrTypeLike(arg.getType())) {
           continue;
         }
 
@@ -442,7 +442,6 @@ public:
       auto val = workList.front();
       llvm::dbgs() << "processing val\n";
       val.dump();
-      assert(!val.getUses().empty());
       workList.pop();
 
       for (auto &use : val.getUses()) {
