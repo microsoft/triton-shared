@@ -1162,9 +1162,9 @@ struct MatmulConverter : public OpConversionPattern<triton::DotOp> {
 
     if (!skipC) {
       if (integers) {
-        res = rewriter.create<arith::AddIOp>(loc, res, opc);
+        res = rewriter.create<arith::AddIOp>(loc, opc, res);
       } else {
-        res = rewriter.create<arith::AddFOp>(loc, res, opc);
+        res = rewriter.create<arith::AddFOp>(loc, opc, res);
       }
     }
 
