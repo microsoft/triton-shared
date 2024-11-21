@@ -152,6 +152,59 @@ public:
   }
 };
 
+class DummyTypeConverter : public TypeConverter {
+public:
+  DummyTypeConverter(MLIRContext *context) {
+    addConversion([](Type type) { return type; });
+
+    addSourceMaterialization([&](OpBuilder &builder, Type type,
+                                 ValueRange inputs,
+                                 Location loc) -> std::optional<Value> {
+      // assert(0);
+      auto op = builder.create<UnrealizedConversionCastOp>(loc, type, inputs);
+      op->setAttr("src-mat", UnitAttr::get(builder.getContext()));
+      return op->getResult(0);
+
+      if (inputs.size() == 1 && isPtrTypeLike(type)) {
+        auto op = builder.create<UnrealizedConversionCastOp>(loc, type, inputs);
+        op->setAttr("reconvert-offset-to-ptr",
+                    UnitAttr::get(builder.getContext()));
+        return op->getResult(0);
+      }
+      return std::nullopt;
+    });
+
+    addTargetMaterialization([&](OpBuilder &builder, IntegerType type,
+                                 ValueRange inputs,
+                                 Location loc) -> std::optional<Value> {
+      // assert(0);
+      auto op = builder.create<UnrealizedConversionCastOp>(loc, type, inputs);
+      op->setAttr("target-mat", UnitAttr::get(builder.getContext()));
+      return op->getResult(0);
+
+      if (inputs.size() == 1 && isa<triton::PointerType>(inputs[0].getType())) {
+        auto op = builder.create<UnrealizedConversionCastOp>(loc, type, inputs);
+        op->setAttr("convert-arg-ptr-to-offset",
+                    UnitAttr::get(builder.getContext()));
+        return op->getResult(0);
+      }
+      return std::nullopt;
+    });
+
+    addArgumentMaterialization([&](OpBuilder &builder, Type type,
+                                   ValueRange inputs,
+                                   Location loc) -> std::optional<Value> {
+      // assert(0);
+      // if (inputs.size() == 1 && isPtrTypeLike(type)) {
+      auto op = builder.create<UnrealizedConversionCastOp>(loc, type, inputs);
+      op->setAttr("arg-mat", UnitAttr::get(builder.getContext()));
+      return op->getResult(0);
+      // }
+      return std::nullopt;
+    });
+  }
+};
+
 struct SplatConverter : public OpConversionPattern<triton::SplatOp> {
   using OpConversionPattern<triton::SplatOp>::OpConversionPattern;
 
@@ -224,6 +277,17 @@ struct StoreConverter : public OpConversionPattern<triton::StoreOp> {
     // replacement
     replacement.getPtrMutable().set(cast);
     rewriter.replaceOp(op, replacement);
+    return success();
+  }
+};
+
+struct CastConverter : public OpConversionPattern<UnrealizedConversionCastOp> {
+  using OpConversionPattern<UnrealizedConversionCastOp>::OpConversionPattern;
+
+  LogicalResult
+  matchAndRewrite(UnrealizedConversionCastOp op, OpAdaptor adaptor,
+                  ConversionPatternRewriter &rewriter) const override {
+    rewriter.replaceOp(op, adaptor.getInputs()[0]);
     return success();
   }
 };
@@ -395,9 +459,10 @@ public:
     unsigned int bitWidth;
     Value srcPtr;
     Type ptrType;
+    Type offsetType;
   };
 
-  void computePtrType(unsigned int defaultBitWidth = 32) {
+  auto computePtrType(unsigned int defaultBitWidth = 32) {
     auto moduleOp = getOperation();
 
     llvm::DenseMap<Value, PtrOffset> offsetMap;
@@ -433,34 +498,44 @@ public:
         });
 
         offsetMap.insert(
-            {initialOffset, {defaultBitWidth, arg, arg.getType()}});
+            {initialOffset,
+             {defaultBitWidth, arg, arg.getType(), zero.getType()}});
         workList.push(initialOffset);
       }
     });
 
+    SmallVector<std::pair<triton::AddPtrOp, Value>> toDelete;
+
     while (!workList.empty()) {
       auto val = workList.front();
-      llvm::dbgs() << "processing val\n";
+      // llvm::dbgs() << "processing val\n";
       val.dump();
       workList.pop();
 
       for (auto &use : val.getUses()) {
         auto user = use.getOwner();
-        llvm::dbgs() << "processing user\n";
-        user->dump();
+        // llvm::dbgs() << "processing user\n";
+        // user->dump();
 
         llvm::TypeSwitch<Operation *>(user)
             .Case<triton::AddPtrOp>([&](triton::AddPtrOp addptr) {
               // assert(0);
               OpBuilder rewriter{addptr};
-              auto prevOff = addptr.getPtr();
               auto off = addptr.getOffset();
+              auto prevOff = addptr.getPtr();
+              auto offsetInfo = offsetMap.at(prevOff);
+              auto loc = addptr->getLoc();
 
-              auto lhsWidth = offsetMap.at(prevOff).bitWidth;
+              if (isPtrTypeLike(prevOff.getType())) {
+                prevOff = rewriter
+                              .create<UnrealizedConversionCastOp>(
+                                  loc, off.getType(), prevOff)
+                              ->getResult(0);
+              }
+
+              auto lhsWidth = offsetInfo.bitWidth;
               auto rhsWidth = getBitWidth(off.getType());
               auto resWidth = std::max(lhsWidth, rhsWidth);
-
-              auto loc = addptr->getLoc();
 
               if (lhsWidth > rhsWidth) {
                 off = rewriter.create<arith::ExtSIOp>(
@@ -471,15 +546,17 @@ public:
                   rewriter.create<arith::AddIOp>(loc, prevOff, off);
 
               auto type = addptr.getType();
-              addptr->replaceAllUsesWith(accumulatedOff);
-              addptr.erase();
+              toDelete.push_back({addptr, accumulatedOff.getResult()});
+              // addptr->replaceAllUsesWith(accumulatedOff);
+              // addptr.erase();
               // rewriter.replaceOp(addptr, accumulatedOff);
 
-              offsetMap.insert(
-                  {accumulatedOff,
-                   {resWidth, offsetMap.at(prevOff).srcPtr, type}});
+              PtrOffset newOffsetInfo{resWidth, offsetInfo.srcPtr, type,
+                                      accumulatedOff.getType()};
 
-              workList.push(accumulatedOff);
+              offsetMap.insert({addptr, newOffsetInfo});
+              offsetMap.insert({accumulatedOff, newOffsetInfo});
+              workList.push(addptr);
             })
             .Case<triton::SplatOp, triton::BroadcastOp>([&](Operation *op) {
               // assert(0);
@@ -488,9 +565,13 @@ public:
               auto res = op->getResult(0);
               auto ptrType = res.getType();
               auto offsetInfo = offsetMap.at(ptr);
+              auto offsetType =
+                  getPtrOffsetType(res.getType(), offsetInfo.bitWidth);
+
               offsetInfo.ptrType = ptrType;
-              res.setType(
-                  getPtrOffsetType(res.getType(), offsetMap.at(ptr).bitWidth));
+              offsetInfo.offsetType = offsetType;
+              res.setType(offsetType);
+
               offsetMap.insert({
                   res,
                   offsetInfo,
@@ -500,14 +581,27 @@ public:
               op->dump();
             })
             .Case<triton::LoadOp, triton::StoreOp>([&](Operation *op) {
-              auto offset = op->getOperand(0);
-              auto srcPtr = offsetMap.at(offset).srcPtr;
-
-              offsetMap.at(offset).ptrType.dump();
-
               OpBuilder rewriter{op};
+
+              auto offset = op->getOperand(0);
+              auto offsetInfo = offsetMap.at(offset);
+
+              if (isPtrTypeLike(offset.getType())) {
+                offset = rewriter
+                             .create<UnrealizedConversionCastOp>(
+                                 op->getLoc(),
+                                 getPtrOffsetType(offset.getType(),
+                                                  offsetInfo.bitWidth),
+                                 offset)
+                             ->getResult(0);
+              }
+
+              auto srcPtr = offsetInfo.srcPtr;
+
+              offsetInfo.ptrType.dump();
+
               auto cast = rewriter.create<tts::CreatePtrOp>(
-                  op->getLoc(), offsetMap.at(offset).ptrType, srcPtr, offset);
+                  op->getLoc(), offsetInfo.ptrType, srcPtr, offset);
 
               op->setOperand(0, cast.getResult());
             })
@@ -516,7 +610,7 @@ public:
               // map init arg to result
               // forOp.getBody();
               llvm::dbgs() << "arg number: " << use.getOperandNumber() << "\n";
-              use.get().dump();
+              // use.get().dump();
               llvm::dbgs() << "init arg size\n";
               llvm::dbgs() << forOp.getInitArgsMutable().size() << "\n";
               llvm::dbgs() << "num region iter-args\n";
@@ -525,19 +619,26 @@ public:
               auto init =
                   // forOp->getBlock().get
                   forOp.getInitArgs()[use.getOperandNumber() - 3];
-              init.dump();
+              // init.dump();
               // forOp.getInitArgs()[use.getOperandNumber()].dump();
 
               llvm::dbgs() << "iter arg\n";
 
               auto iterArg = forOp.getRegionIterArg(use.getOperandNumber() - 3);
-              iterArg.dump();
+              // iterArg.dump();
+
+              auto res = forOp.getResult(use.getOperandNumber() - 3);
 
               llvm::dbgs() << "init arg\n";
 
               workList.push(iterArg);
+              workList.push(res);
               offsetMap.insert({
                   iterArg,
+                  offsetMap.at(init),
+              });
+              offsetMap.insert({
+                  res,
                   offsetMap.at(init),
               });
 
@@ -576,21 +677,41 @@ public:
       }
     }
 
-    moduleOp.walk([&](scf::ForOp op) {
-      llvm::dbgs() << "for op\n";
-      for (auto init : op.getInits()) {
-        init.dump();
-      }
-    });
+    for (auto [op, replacement] : toDelete) {
+      op.replaceAllUsesWith(replacement);
+      op->erase();
+    }
+
+    return offsetMap;
   }
 
   struct ForConverter : public OpConversionPattern<scf::ForOp> {
     using OpConversionPattern<scf::ForOp>::OpConversionPattern;
 
+    const llvm::DenseMap<Value, PtrOffset> &offsetMap;
+
+    ForConverter(const llvm::DenseMap<Value, PtrOffset> &offsetMap,
+                 const TypeConverter &typeConverter, MLIRContext *context)
+        : OpConversionPattern<scf::ForOp>(typeConverter, context),
+          offsetMap(offsetMap) {}
+
+    void initialize() {
+      // This pattern recursively unpacks one dimension at a time. The recursion
+      // bounded as the rank is strictly decreasing.
+      setHasBoundedRewriteRecursion();
+    }
+
     LogicalResult
     matchAndRewrite(scf::ForOp op, OpAdaptor adaptor,
                     ConversionPatternRewriter &rewriter) const override {
       rewriter.startOpModification(op);
+
+      llvm::dbgs() << "~~~~~~~~~~~~~~~~~~~\n";
+      // op->dump();
+      // for (auto i : op.getInitArgs()) {
+      //   offsetMap.at(i).offsetType.dump();
+      // }
+      llvm::dbgs() << "~~~~~~~~~~~~~~~~~~~\n";
 
       auto loc = op->getLoc();
       Region &region = op.getRegion();
@@ -609,9 +730,11 @@ public:
           if (isPtrTypeLike(blockArgument.getType())) {
             llvm::dbgs() << "mapping " << idx << " to\n";
             // -1 for the induction var
-            op.getInitArgs()[idx - 1].getType().dump();
+            auto replacement =
+                offsetMap.at(op.getInitArgs()[idx - 1]).offsetType;
+            replacement.dump();
             op.getInitArgs()[idx - 1].dump();
-            conversion.addInputs(idx, {op.getInitArgs()[idx - 1].getType()});
+            conversion.addInputs(idx, {replacement});
           } else {
             llvm::dbgs() << "reusing type for " << idx << " to\n";
             block.getArgumentTypes()[idx].dump();
@@ -621,10 +744,23 @@ public:
 
         auto term = block.getTerminator();
         for (auto r : term->getResults()) {
-          r.setType(op.getInitArgs()[r.getResultNumber()].getType());
+          if (isPtrTypeLike(r.getType())) {
+            r.setType(
+                offsetMap.at(op.getInitArgs()[r.getResultNumber()]).offsetType);
+          }
         }
 
-        rewriter.applySignatureConversion(&block, conversion, nullptr);
+        // DummyTypeConverter converter(rewriter.getContext());
+        auto converter = getTypeConverter();
+        // converter = nullptr;
+        rewriter.applySignatureConversion(&block, conversion, converter);
+      }
+
+      for (auto r : op->getResults()) {
+        if (isPtrTypeLike(r.getType())) {
+          r.setType(
+              offsetMap.at(op.getInitArgs()[r.getResultNumber()]).offsetType);
+        }
       }
 
       rewriter.finalizeOpModification(op);
@@ -633,7 +769,7 @@ public:
     }
   };
 
-  void fixUp() {
+  void fixUp(const llvm::DenseMap<Value, PtrOffset> &offsetMap) {
     auto moduleOp = getOperation();
 
     RewritePatternSet patterns(&getContext());
@@ -655,17 +791,26 @@ public:
       return true;
     });
 
-    patterns.add<ForConverter>(patterns.getContext());
+    // target.addIllegalOp<UnrealizedConversionCastOp>();
+
+    DummyTypeConverter typeConverter(patterns.getContext());
+    patterns.add<ForConverter>(offsetMap, typeConverter, patterns.getContext());
+    // patterns.add<CastConverter>(patterns.getContext());
 
     if (failed(applyPartialConversion(moduleOp, target, std::move(patterns)))) {
       signalPassFailure();
     }
+    moduleOp.walk([](UnrealizedConversionCastOp op) {
+      // op.replaceAllUsesWith(ValuesT && values)
+      Value v = op.getInputs()[0];
+      op.replaceAllUsesWith(ValueRange{v});
+    });
   }
 
   void runOnOperation() override {
-    computePtrType(32);
+    auto z = computePtrType(32);
     getOperation().dump();
-    fixUp();
+    fixUp(z);
     return;
 
     auto moduleOp = getOperation();
