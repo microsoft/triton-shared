@@ -451,8 +451,11 @@ struct ForConverterNew : public OpConversionPattern<scf::ForOp> {
 
         if (isPtrTypeLike(blockArgument.getType())) {
           llvm::dbgs() << "mapping " << idx << " to\n";
+          op.getInitArgs()[idx - 1].dump();
           // -1 for the induction var
-          auto replacement = offsetMap.at(op.getInitArgs()[idx - 1]).offsetType;
+          auto replacement = getPtrOffsetType(
+              op.getInitArgs()[idx - 1].getType(),
+              offsetMap.at(op.getInitArgs()[idx - 1]).bitWidth);
           replacement.dump();
           op.getInitArgs()[idx - 1].dump();
           conversion.addInputs(idx, {replacement});
@@ -466,8 +469,9 @@ struct ForConverterNew : public OpConversionPattern<scf::ForOp> {
       auto term = block.getTerminator();
       for (auto r : term->getResults()) {
         if (isPtrTypeLike(r.getType())) {
-          r.setType(
-              offsetMap.at(op.getInitArgs()[r.getResultNumber()]).offsetType);
+          r.setType(getPtrOffsetType(
+              op.getInitArgs()[r.getResultNumber()].getType(),
+              offsetMap.at(op.getInitArgs()[r.getResultNumber()]).bitWidth));
         }
       }
 
@@ -479,8 +483,9 @@ struct ForConverterNew : public OpConversionPattern<scf::ForOp> {
 
     for (auto r : op->getResults()) {
       if (isPtrTypeLike(r.getType())) {
-        r.setType(
-            offsetMap.at(op.getInitArgs()[r.getResultNumber()]).offsetType);
+        r.setType(getPtrOffsetType(
+            op.getInitArgs()[r.getResultNumber()].getType(),
+            offsetMap.at(op.getInitArgs()[r.getResultNumber()]).bitWidth));
       }
     }
 
@@ -1174,6 +1179,9 @@ public:
 
       target.addDynamicallyLegalOp<UnrealizedConversionCastOp>(
           [](Operation *op) {
+            if (op->hasAttr("arg-mat")) {
+              return true;
+            }
             auto resType = op->getResultTypes()[0];
             return !isa<triton::PointerType>(resType);
           });
@@ -1190,19 +1198,26 @@ public:
       target.addDynamicallyLegalOp<triton::BroadcastOp>(
           [](triton::BroadcastOp op) { return !isPtrTypeLike(op.getType()); });
 
+      target.addDynamicallyLegalOp<scf::ForOp>([](scf::ForOp op) {
+        for (auto arg : op.getRegionIterArgs()) {
+          if (isPtrTypeLike(arg.getType())) {
+            return false;
+          }
+        }
+        return true;
+      });
+
       DummyTypeConverter converter(&getContext());
       patterns.add<MarkerConverter>(&getContext());
-
       patterns.add<AddPtrConverter, SplatConverter, BroadcastConverter,
                    ForConverterNew, LoadConverterNew, StoreConverterNew>(
           z, converter, &getContext());
-      scf::populateSCFStructuralTypeConversionsAndLegality(converter, patterns,
-                                                           target);
 
       if (failed(
               applyPartialConversion(moduleOp, target, std::move(patterns)))) {
         signalPassFailure();
       }
+      return;
     }
 
     {
