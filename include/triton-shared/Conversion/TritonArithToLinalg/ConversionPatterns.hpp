@@ -837,7 +837,7 @@ struct AssertConverter : public OpConversionPattern<triton::AssertOp> {
     }
 
     auto assertMessage =
-        llvm::formatv("{0}.py:{1}: {2} Assertion `{3}` failed", op.getMessage());
+        llvm::formatv("Assertion `{0}` failed", op.getMessage());
     rewriter.create<mlir::cf::AssertOp>(op.getLoc(), condVal,
                                         assertMessage.str());
 
