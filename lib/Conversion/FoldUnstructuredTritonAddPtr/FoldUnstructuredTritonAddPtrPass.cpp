@@ -467,6 +467,7 @@ public:
 
     llvm::DenseMap<Value, PtrOffset> offsetMap;
     std::queue<Value> workList;
+    llvm::DenseMap<Value, Value> ptrToOffset;
 
     moduleOp.walk([&](triton::FuncOp func) {
       for (auto arg : func.getArguments()) {
@@ -491,6 +492,7 @@ public:
         // auto initialOffset = initialOffsetMarker->getResult(0);
 
         auto initialOffset = zero;
+        ptrToOffset[initialOffset] = initialOffset;
 
         arg.replaceUsesWithIf(initialOffset, [](OpOperand &operand) {
           auto owner = operand.getOwner();
@@ -504,7 +506,10 @@ public:
       }
     });
 
+    moduleOp->dump();
+
     SmallVector<std::pair<triton::AddPtrOp, Value>> toDelete;
+    // llvm::DenseMap<Value, Value> ptrToOffset;
 
     while (!workList.empty()) {
       auto val = workList.front();
@@ -526,12 +531,12 @@ public:
               auto offsetInfo = offsetMap.at(prevOff);
               auto loc = addptr->getLoc();
 
-              if (isPtrTypeLike(prevOff.getType())) {
-                prevOff = rewriter
-                              .create<UnrealizedConversionCastOp>(
-                                  loc, off.getType(), prevOff)
-                              ->getResult(0);
-              }
+              // if (isPtrTypeLike(prevOff.getType())) {
+              //   prevOff = rewriter
+              //                 .create<UnrealizedConversionCastOp>(
+              //                     loc, off.getType(), prevOff)
+              //                 ->getResult(0);
+              // }
 
               auto lhsWidth = offsetInfo.bitWidth;
               auto rhsWidth = getBitWidth(off.getType());
@@ -542,8 +547,13 @@ public:
                     loc, IntegerType::get(&getContext(), resWidth), off);
               }
 
-              auto accumulatedOff =
-                  rewriter.create<arith::AddIOp>(loc, prevOff, off);
+              auto accumulatedOff = rewriter.create<arith::AddIOp>(
+                  loc, off.getType(), prevOff, off);
+              llvm::dbgs() << "~~~\n";
+              llvm::dbgs() << "accumulate\n";
+              accumulatedOff->dump();
+              addptr->dump();
+              llvm::dbgs() << "~~~\n";
 
               auto type = addptr.getType();
               toDelete.push_back({addptr, accumulatedOff.getResult()});
@@ -555,8 +565,9 @@ public:
                                       accumulatedOff.getType()};
 
               offsetMap.insert({addptr, newOffsetInfo});
-              offsetMap.insert({accumulatedOff, newOffsetInfo});
+              // offsetMap.insert({accumulatedOff, newOffsetInfo});
               workList.push(addptr);
+              ptrToOffset[addptr] = accumulatedOff;
             })
             .Case<triton::SplatOp, triton::BroadcastOp>([&](Operation *op) {
               // assert(0);
@@ -586,15 +597,15 @@ public:
               auto offset = op->getOperand(0);
               auto offsetInfo = offsetMap.at(offset);
 
-              if (isPtrTypeLike(offset.getType())) {
-                offset = rewriter
-                             .create<UnrealizedConversionCastOp>(
-                                 op->getLoc(),
-                                 getPtrOffsetType(offset.getType(),
-                                                  offsetInfo.bitWidth),
-                                 offset)
-                             ->getResult(0);
-              }
+              // if (isPtrTypeLike(offset.getType())) {
+              //   offset = rewriter
+              //                .create<UnrealizedConversionCastOp>(
+              //                    op->getLoc(),
+              //                    getPtrOffsetType(offset.getType(),
+              //                                     offsetInfo.bitWidth),
+              //                    offset)
+              //                ->getResult(0);
+              // }
 
               auto srcPtr = offsetInfo.srcPtr;
 
@@ -623,11 +634,13 @@ public:
               // forOp.getInitArgs()[use.getOperandNumber()].dump();
 
               llvm::dbgs() << "iter arg\n";
-
+              auto offsetInfo = offsetMap.at(init);
               auto iterArg = forOp.getRegionIterArg(use.getOperandNumber() - 3);
+              iterArg.setType(offsetInfo.offsetType);
               // iterArg.dump();
 
               auto res = forOp.getResult(use.getOperandNumber() - 3);
+              res.setType(offsetInfo.offsetType);
 
               llvm::dbgs() << "init arg\n";
 
@@ -635,11 +648,11 @@ public:
               workList.push(res);
               offsetMap.insert({
                   iterArg,
-                  offsetMap.at(init),
+                  offsetInfo,
               });
               offsetMap.insert({
                   res,
-                  offsetMap.at(init),
+                  offsetInfo,
               });
 
               for (auto arg : forOp.getInitArgs()) {
@@ -660,8 +673,16 @@ public:
 
               // return WalkResult::advance();
             })
-            // .Case<scf::YieldOp>(
-            //     [&](scf::YieldOp yieldOp) { IRRewriter rewriter{yieldOp}; })
+            .Case<scf::YieldOp>([&](scf::YieldOp yieldOp) {
+              llvm::dbgs() << "++++++++++++++\n";
+              llvm::dbgs() << "yield op\n";
+              yieldOp->dump();
+              llvm::dbgs() << "val index: " << use.getOperandNumber() << "\n";
+              use.get().dump();
+              llvm::dbgs() << "++++++++++++++\n";
+              // yieldOp->getResult(use.getOperandNumber())
+              //     .setType(offsetMap.at(val).offsetType);
+            })
 
             // .Case<scf::IfOp>([&](scf::IfOp ifOp) { IRRewriter rewriter{ifOp};
             // })
@@ -676,6 +697,8 @@ public:
             .Default([&](auto) {});
       }
     }
+
+    moduleOp->dump();
 
     for (auto [op, replacement] : toDelete) {
       op.replaceAllUsesWith(replacement);
@@ -726,6 +749,7 @@ public:
         int diff = block.getNumArguments() - op.getInitArgs().size();
         for (BlockArgument blockArgument : block.getArguments()) {
           int idx = blockArgument.getArgNumber();
+          // blockArgument.s
 
           if (isPtrTypeLike(blockArgument.getType())) {
             llvm::dbgs() << "mapping " << idx << " to\n";
@@ -810,7 +834,7 @@ public:
   void runOnOperation() override {
     auto z = computePtrType(32);
     getOperation().dump();
-    fixUp(z);
+    // fixUp(z);
     return;
 
     auto moduleOp = getOperation();
