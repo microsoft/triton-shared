@@ -154,17 +154,37 @@ public:
     return applyPartialConversion(moduleOp, target, std::move(patterns));
   }
 
+  static bool isPtrTypeLike(Type t) {
+    if (auto tensorType = dyn_cast<RankedTensorType>(t)) {
+      return isa<triton::PointerType>(tensorType.getElementType());
+    }
+    return isa<triton::PointerType>(t);
+  }
+
   void runOnOperation() override {
     auto moduleOp = getOperation();
 
-    // if (!noConvertArgs && failed(convertArgsToMemrefType())) {
-    //   signalPassFailure();
-    //   return;
-    // }
+    moduleOp.walk([&](func::FuncOp func) {
+      for (auto arg : func.getArguments()) {
+        if (!isPtrTypeLike(arg.getType())) {
+          continue;
+        }
 
-    // if (convertArgsOnly) {
-    //   return;
-    // }
+        for (auto user : arg.getUsers()) {
+          if (auto op = dyn_cast<tts::MakeTensorPtrOp>(user)) {
+            OpBuilder b(op);
+            auto memrefType = UnrankedMemRefType::get(
+                cast<triton::PointerType>(arg.getType()).getPointeeType(), 0);
+            auto v = b.create<UnrealizedConversionCastOp>(op->getLoc(),
+                                                          memrefType, arg);
+            op.getBaseMutable().set(v->getResult(0));
+            // op.setOperand(unsigned int i, Value value)
+          }
+        }
+      }
+    });
+
+    moduleOp->dump();
 
     RewritePatternSet patterns(&getContext());
     ConversionTarget target(getContext());
@@ -189,33 +209,33 @@ public:
       signalPassFailure();
     }
 
-    moduleOp->walk([](UnrealizedConversionCastOp op) {
-      if (op.getInputs().size() != 1 || op.getResults().size() != 1) {
-        return;
-      }
+    // moduleOp->walk([](UnrealizedConversionCastOp op) {
+    //   if (op.getInputs().size() != 1 || op.getResults().size() != 1) {
+    //     return;
+    //   }
 
-      auto in = op.getInputs()[0];
-      auto inMemrefType = dyn_cast<MemRefType>(in.getType());
-      auto out = op->getResult(0);
-      auto outMemrefType = dyn_cast<MemRefType>(out.getType());
+    //   auto in = op.getInputs()[0];
+    //   auto inMemrefType = dyn_cast<MemRefType>(in.getType());
+    //   auto out = op->getResult(0);
+    //   auto outMemrefType = dyn_cast<MemRefType>(out.getType());
 
-      if (!inMemrefType || !outMemrefType) {
-        return;
-      }
+    //   if (!inMemrefType || !outMemrefType) {
+    //     return;
+    //   }
 
-      if (!inMemrefType.getShape().equals(outMemrefType.getShape())) {
-        return;
-      }
+    //   if (!inMemrefType.getShape().equals(outMemrefType.getShape())) {
+    //     return;
+    //   }
 
-      op.replaceAllUsesWith(ValueRange{in});
-    });
+    //   op.replaceAllUsesWith(ValueRange{in});
+    // });
 
     // Erase dead code and fold constants created during lowering
-    PassManager pm(&getContext(), moduleOp.getOperationName());
-    pm.addPass(createCanonicalizerPass());
-    if (failed(runPipeline(pm, getOperation()))) {
-      signalPassFailure();
-    }
+    // PassManager pm(&getContext(), moduleOp.getOperationName());
+    // pm.addPass(createCanonicalizerPass());
+    // if (failed(runPipeline(pm, getOperation()))) {
+    //   signalPassFailure();
+    // }
   }
 };
 } // namespace

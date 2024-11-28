@@ -49,12 +49,36 @@ using namespace triton;
 
 namespace {
 
-static Value getPtr(Value v) {
-  while (auto op = v.getDefiningOp()) {
-    v = op->getOperand(0);
+class EmptyConverter : public TypeConverter {
+public:
+  EmptyConverter() {
+    // // The order of type conversion is important: later ones are tried
+    addConversion([](Type type) { return type; });
+    addConversion([](triton::PointerType ptrType) {
+      return UnrankedMemRefType::get(ptrType.getPointeeType(), 0);
+    });
+    addTargetMaterialization([&](OpBuilder &builder, Type resultType,
+                                 ValueRange inputs,
+                                 Location loc) -> std::optional<Value> {
+      return builder.create<UnrealizedConversionCastOp>(loc, resultType, inputs)
+          .getResult(0);
+    });
+
+    addSourceMaterialization([&](OpBuilder &builder, Type resultType,
+                                 ValueRange inputs,
+                                 Location loc) -> std::optional<Value> {
+      return builder.create<UnrealizedConversionCastOp>(loc, resultType, inputs)
+          .getResult(0);
+    });
+
+    addArgumentMaterialization([&](OpBuilder &builder, Type resultType,
+                                   ValueRange inputs,
+                                   Location loc) -> std::optional<Value> {
+      return builder.create<UnrealizedConversionCastOp>(loc, resultType, inputs)
+          .getResult(0);
+    });
   }
-  return v;
-}
+};
 
 static MemRefType getMemrefTypeForScalarPtr(triton::PointerType ptrType,
                                             MLIRContext *context) {
@@ -81,7 +105,7 @@ struct ScalarLoadConverter : public OpConversionPattern<triton::LoadOp> {
     auto results = op->getResultTypes();
 
     auto loc = op->getLoc();
-    auto basePtr = getPtr(castOp.getPtr());
+    auto basePtr = castOp.getPtr();
     auto offsets = castOp.getOffset();
 
     Value loadIndex = rewriter.create<arith::IndexCastOp>(
@@ -124,7 +148,7 @@ public:
     auto results = op->getResultTypes();
 
     auto loc = op->getLoc();
-    auto basePtr = getPtr(castOp.getPtr());
+    auto basePtr = castOp.getPtr();
     auto offsets = castOp.getOffset();
 
     Value storeIndex = rewriter.create<arith::IndexCastOp>(
@@ -164,7 +188,7 @@ struct LoadOpConverter : public OpConversionPattern<triton::LoadOp> {
     auto results = op->getResultTypes();
 
     auto loc = op->getLoc();
-    auto ptr = getPtr(op.getPtr());
+    auto ptr = op.getPtr();
     auto offsets = op.getOffset();
     auto offsetType = dyn_cast<ShapedType>(offsets.getType());
 
@@ -285,7 +309,7 @@ struct StoreOpConverter : public OpConversionPattern<triton::StoreOp> {
     auto results = op->getResultTypes();
 
     auto loc = op->getLoc();
-    auto ptr = getPtr(op.getPtr());
+    auto ptr = op.getPtr();
     auto offsets = op.getOffset();
     auto offsetType = dyn_cast<ShapedType>(offsets.getType());
 
@@ -372,6 +396,17 @@ struct StoreOpConverter : public OpConversionPattern<triton::StoreOp> {
   }
 };
 
+struct CreatePtrConverter : public OpConversionPattern<tts::CreatePtrOp> {
+  using OpConversionPattern<tts::CreatePtrOp>::OpConversionPattern;
+
+  LogicalResult
+  matchAndRewrite(tts::CreatePtrOp op, OpAdaptor adaptor,
+                  ConversionPatternRewriter &rewriter) const override {
+
+    return success();
+  }
+};
+
 class TritonLoadStoreToMemrefPass
     : public TritonLoadStoreToMemrefBase<TritonLoadStoreToMemrefPass> {
 
@@ -396,7 +431,7 @@ public:
         bufferization::BufferizationDialect, memref::MemRefDialect,
         ttx::TritonTilingExtDialect>();
 
-    target.addIllegalOp<triton::LoadOp, triton::StoreOp>();
+    target.addIllegalOp<triton::LoadOp, triton::StoreOp, tts::CreatePtrOp>();
 
     patterns.add<LoadOpConverter, StoreOpConverter, ScalarLoadConverter,
                  ScalarStoreConverter>(patterns.getContext());
