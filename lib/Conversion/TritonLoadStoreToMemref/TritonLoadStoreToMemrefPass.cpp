@@ -66,24 +66,6 @@ static MemRefType getMemrefTypeForScalarPtr(triton::PointerType ptrType,
   return memrefType;
 }
 
-class TritonTypeConverter : public TypeConverter {
-public:
-  TritonTypeConverter() {
-    // The order of type conversion is important: later ones are tried earlier.
-    addConversion([](Type type) { return type; });
-    addConversion([](triton::PointerType ptrType) {
-      return UnrankedMemRefType::get(ptrType.getPointeeType(), 0);
-    });
-    addConversion([](TensorType tensorType) -> Type {
-      auto elemType = tensorType.getElementType();
-      if (auto ptrType = dyn_cast<triton::PointerType>(elemType)) {
-        elemType = ptrType.getPointeeType();
-      }
-      return MemRefType::get(tensorType.getShape(), elemType);
-    });
-  }
-};
-
 struct ScalarLoadConverter : public OpConversionPattern<triton::LoadOp> {
   using OpConversionPattern<triton::LoadOp>::OpConversionPattern;
 
@@ -294,9 +276,6 @@ struct LoadOpConverter : public OpConversionPattern<triton::LoadOp> {
 struct StoreOpConverter : public OpConversionPattern<triton::StoreOp> {
   using OpConversionPattern<triton::StoreOp>::OpConversionPattern;
 
-  StoreOpConverter(TypeConverter &typeConverter, MLIRContext *context)
-      : OpConversionPattern<triton::StoreOp>(typeConverter, context) {}
-
   LogicalResult
   matchAndRewrite(triton::StoreOp storeOp, OpAdaptor adaptor,
                   ConversionPatternRewriter &rewriter) const override {
@@ -311,10 +290,24 @@ struct StoreOpConverter : public OpConversionPattern<triton::StoreOp> {
     auto offsetType = dyn_cast<ShapedType>(offsets.getType());
 
     if (!offsetType) {
+      offsets.dump();
+      op.dump();
+      llvm::dbgs() << "offset type:\n";
+      offsets.getType().dump();
       return failure();
     }
 
     auto resultType = dyn_cast<RankedTensorType>(storeOp.getValue().getType());
+
+    if (auto shapedType = dyn_cast<ShapedType>(ptr.getType())) {
+      auto indices = getReassociationIndicesForCollapse(
+          shapedType.getShape(), {shapedType.getNumElements()});
+      assert(indices.has_value());
+      ptr = rewriter.create<memref::CollapseShapeOp>(
+          loc, ptr,
+          SmallVector<ReassociationIndices>{llvm::to_vector_of<int64_t>(
+              llvm::index_range(0, shapedType.getRank()))});
+    }
 
     auto memref = rewriter.create<memref::CastOp>(
         loc,
@@ -403,9 +396,8 @@ public:
 
     target.addIllegalOp<triton::LoadOp, triton::StoreOp>();
 
-    TritonTypeConverter converter;
     patterns.add<LoadOpConverter, StoreOpConverter, ScalarLoadConverter,
-                 ScalarStoreConverter>(converter, patterns.getContext());
+                 ScalarStoreConverter>(patterns.getContext());
 
     if (failed(applyPartialConversion(moduleOp, target, std::move(patterns))))
       signalPassFailure();

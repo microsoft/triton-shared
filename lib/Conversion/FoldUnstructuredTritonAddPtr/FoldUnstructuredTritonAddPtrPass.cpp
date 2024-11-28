@@ -122,11 +122,19 @@ public:
 
         OpBuilder b(func.getRegion());
 
-        auto zero = b.create<arith::ConstantOp>(
-            arg.getLoc(),
-            b.getIntegerAttr(IntegerType::get(&getContext(), defaultBitWidth),
-                             0));
-
+        Value zero;
+        if (isa<ShapedType>(arg.getType())) {
+          zero = b.create<arith::ConstantOp>(
+              arg.getLoc(),
+              DenseElementsAttr::get(cast<ShapedType>(getPtrOffsetType(
+                                         arg.getType(), defaultBitWidth)),
+                                     APInt(defaultBitWidth, 0)));
+        } else {
+          zero = b.create<arith::ConstantOp>(
+              arg.getLoc(),
+              b.getIntegerAttr(IntegerType::get(&getContext(), defaultBitWidth),
+                               0));
+        }
         auto initialOffset = zero;
         ptrToOffset[initialOffset] = initialOffset;
 
