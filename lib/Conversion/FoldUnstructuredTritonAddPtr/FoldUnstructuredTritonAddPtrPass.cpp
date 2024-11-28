@@ -152,18 +152,25 @@ public:
 
     moduleOp->dump();
 
-    SmallVector<std::pair<triton::AddPtrOp, Value>> toDelete;
+    llvm::DenseMap<triton::AddPtrOp, Value> toDelete;
+    llvm::SmallVector<std::pair<Operation *, Value>> loadStores;
 
     while (!workList.empty()) {
       auto val = workList.front();
-      // llvm::dbgs() << "processing val\n";
+      llvm::dbgs() << "processing val\n";
       val.dump();
       workList.pop();
+      llvm::dbgs() << "these are the uses:\n";
+      for (auto &use : val.getUses()) {
+        use.getOwner()->dump();
+      }
+
+      llvm::dbgs() << "actual processing\n";
 
       for (auto &use : val.getUses()) {
         auto user = use.getOwner();
-        // llvm::dbgs() << "processing user\n";
-        // user->dump();
+        llvm::dbgs() << "processing user\n";
+        user->dump();
 
         llvm::TypeSwitch<Operation *>(user)
             .Case<triton::AddPtrOp>([&](triton::AddPtrOp addptr) {
@@ -184,14 +191,14 @@ public:
 
               auto accumulatedOff = rewriter.create<arith::AddIOp>(
                   loc, off.getType(), prevOff, off);
-              llvm::dbgs() << "~~~\n";
-              llvm::dbgs() << "accumulate\n";
-              accumulatedOff->dump();
-              addptr->dump();
-              llvm::dbgs() << "~~~\n";
+              // llvm::dbgs() << "~~~\n";
+              // llvm::dbgs() << "accumulate\n";
+              // accumulatedOff->dump();
+              // addptr->dump();
+              // llvm::dbgs() << "~~~\n";
 
               auto type = addptr.getType();
-              toDelete.push_back({addptr, accumulatedOff.getResult()});
+              toDelete.insert({addptr, accumulatedOff.getResult()});
 
               PtrOffset newOffsetInfo{resWidth, offsetInfo.srcPtr, type,
                                       accumulatedOff.getType()};
@@ -201,6 +208,9 @@ public:
               ptrToOffset[addptr] = accumulatedOff;
             })
             .Case<triton::SplatOp, triton::BroadcastOp>([&](Operation *op) {
+              if (!isPtrTypeLike(op->getResult(0).getType())) {
+                return;
+              }
               // assert(0);
 
               auto ptr = op->getOperand(0);
@@ -219,23 +229,31 @@ public:
                   offsetInfo,
               });
 
+              ptrToOffset.insert({res, res});
+
               workList.push(res);
               op->dump();
             })
             .Case<triton::LoadOp, triton::StoreOp>([&](Operation *op) {
               OpBuilder rewriter{op};
 
-              auto offset = op->getOperand(0);
-              auto offsetInfo = offsetMap.at(offset);
+              auto ptr = op->getOperand(0);
+              // assert(toDelete.count(ptr.get));
+              auto offsetInfo = offsetMap.at(ptr);
 
               auto srcPtr = offsetInfo.srcPtr;
 
               offsetInfo.ptrType.dump();
 
-              auto cast = rewriter.create<tts::CreatePtrOp>(
-                  op->getLoc(), offsetInfo.ptrType, srcPtr, offset);
+              assert(ptrToOffset.contains(ptr));
 
-              op->setOperand(0, cast.getResult());
+              auto cast = rewriter.create<tts::CreatePtrOp>(
+                  op->getLoc(), offsetInfo.ptrType, srcPtr,
+                  ptrToOffset.at(ptr));
+
+              loadStores.push_back({op, cast.getResult()});
+
+              // op->setOperand(0, cast.getResult());
             })
             .Case<scf::ForOp>([&](scf::ForOp forOp) {
               // map init arg to iter-arg
@@ -275,6 +293,8 @@ public:
                   res,
                   offsetInfo,
               });
+              ptrToOffset.insert({iterArg, iterArg});
+              ptrToOffset.insert({res, res});
 
               for (auto arg : forOp.getInitArgs()) {
                 arg.dump();
@@ -294,16 +314,15 @@ public:
 
               // return WalkResult::advance();
             })
-            .Case<scf::YieldOp>([&](scf::YieldOp yieldOp) {
-              llvm::dbgs() << "++++++++++++++\n";
-              llvm::dbgs() << "yield op\n";
-              yieldOp->dump();
-              llvm::dbgs() << "val index: " << use.getOperandNumber() << "\n";
-              use.get().dump();
-              llvm::dbgs() << "++++++++++++++\n";
-              // yieldOp->getResult(use.getOperandNumber())
-              //     .setType(offsetMap.at(val).offsetType);
-            })
+            // .Case<scf::YieldOp>([&](scf::YieldOp yieldOp) {
+            //   llvm::dbgs() << "++++++++++++++\n";
+            //   llvm::dbgs() << "yield op\n";
+            //   yieldOp->dump();
+            //   llvm::dbgs() << "val index: " << use.getOperandNumber() <<
+            //   "\n"; use.get().dump(); llvm::dbgs() << "++++++++++++++\n";
+            //   // yieldOp->getResult(use.getOperandNumber())
+            //   //     .setType(offsetMap.at(val).offsetType);
+            // })
 
             // .Case<scf::IfOp>([&](scf::IfOp ifOp) { IRRewriter rewriter{ifOp};
             // })
@@ -317,11 +336,26 @@ public:
 
             .Default([&](auto) {});
       }
+      llvm::dbgs() << "~~~~\n";
     }
 
     moduleOp->dump();
 
+    llvm::dbgs() << "total addptr count: " << toDelete.size() << "\n";
     for (auto [op, replacement] : toDelete) {
+      llvm::dbgs() << "deleting\n";
+      op->dump();
+      // op.replaceAllUsesWith(replacement);
+      // op->erase();
+    }
+
+    for (auto [op, val] : loadStores) {
+      op->setOperand(0, val);
+    }
+
+    for (auto [op, replacement] : toDelete) {
+      // llvm::dbgs() << "deleting\n";
+      // op->dump();
       op.replaceAllUsesWith(replacement);
       op->erase();
     }
