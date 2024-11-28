@@ -85,28 +85,41 @@ class EmptyConverter : public TypeConverter {
 public:
   EmptyConverter() {
     // // The order of type conversion is important: later ones are tried
-    // earlier. addConversion([](Type type) { return type; });
-    // addConversion([](triton::PointerType ptrType) {
-    //   return UnrankedMemRefType::get(ptrType.getPointeeType(), 0);
-    // });
+    addConversion([](Type type) { return type; });
+    addConversion([](triton::PointerType ptrType) {
+      return UnrankedMemRefType::get(ptrType.getPointeeType(), 0);
+    });
+    addConversion([](RankedTensorType tensorType) -> std::optional<Type> {
+      if (auto ptrType =
+              dyn_cast<triton::PointerType>(tensorType.getElementType())) {
+        return MemRefType::get(tensorType.getShape(), ptrType.getPointeeType());
+      }
+      return std::nullopt;
+    });
     // // Used for converting memref<*> back to tt.ptr type, these ops will then
     // be
     // // handled when we convert addptr op later.
-    // addSourceMaterialization([&](OpBuilder &builder, Type resultType,
-    //                              ValueRange inputs,
-    //                              Location loc) -> std::optional<Value> {
-    //   return builder.create<UnrealizedConversionCastOp>(loc, resultType,
-    //   inputs)
-    //       .getResult(0);
-    // });
 
-    // addArgumentMaterialization([&](OpBuilder &builder, Type resultType,
-    //                                ValueRange inputs,
-    //                                Location loc) -> std::optional<Value> {
-    //   return builder.create<UnrealizedConversionCastOp>(loc, resultType,
-    //   inputs)
-    //       .getResult(0);
-    // });
+    addTargetMaterialization([&](OpBuilder &builder, Type resultType,
+                                 ValueRange inputs,
+                                 Location loc) -> std::optional<Value> {
+      return builder.create<UnrealizedConversionCastOp>(loc, resultType, inputs)
+          .getResult(0);
+    });
+
+    addSourceMaterialization([&](OpBuilder &builder, Type resultType,
+                                 ValueRange inputs,
+                                 Location loc) -> std::optional<Value> {
+      return builder.create<UnrealizedConversionCastOp>(loc, resultType, inputs)
+          .getResult(0);
+    });
+
+    addArgumentMaterialization([&](OpBuilder &builder, Type resultType,
+                                   ValueRange inputs,
+                                   Location loc) -> std::optional<Value> {
+      return builder.create<UnrealizedConversionCastOp>(loc, resultType, inputs)
+          .getResult(0);
+    });
   }
 };
 
@@ -144,14 +157,14 @@ public:
   void runOnOperation() override {
     auto moduleOp = getOperation();
 
-    if (!noConvertArgs && failed(convertArgsToMemrefType())) {
-      signalPassFailure();
-      return;
-    }
+    // if (!noConvertArgs && failed(convertArgsToMemrefType())) {
+    //   signalPassFailure();
+    //   return;
+    // }
 
-    if (convertArgsOnly) {
-      return;
-    }
+    // if (convertArgsOnly) {
+    //   return;
+    // }
 
     RewritePatternSet patterns(&getContext());
     ConversionTarget target(getContext());
@@ -165,14 +178,7 @@ public:
 
     target.addIllegalOp<tts::LoadOp, tts::StoreOp, tts::MakeTensorPtrOp>();
 
-    // target.addDynamicallyLegalOp<UnrealizedConversionCastOp>(
-    //     [](UnrealizedConversionCastOp op) {
-    //       if (op.getInputs().size() == 1 &&
-    //           isa<triton::PointerType>(op->getResult(0).getType())) {
-    //         return false;
-    //       }
-    //       return true;
-    //     });
+    target.addLegalOp<UnrealizedConversionCastOp>();
 
     EmptyConverter typeConverter;
 
@@ -182,6 +188,27 @@ public:
     if (failed(applyPartialConversion(moduleOp, target, std::move(patterns)))) {
       signalPassFailure();
     }
+
+    moduleOp->walk([](UnrealizedConversionCastOp op) {
+      if (op.getInputs().size() != 1 || op.getResults().size() != 1) {
+        return;
+      }
+
+      auto in = op.getInputs()[0];
+      auto inMemrefType = dyn_cast<MemRefType>(in.getType());
+      auto out = op->getResult(0);
+      auto outMemrefType = dyn_cast<MemRefType>(out.getType());
+
+      if (!inMemrefType || !outMemrefType) {
+        return;
+      }
+
+      if (!inMemrefType.getShape().equals(outMemrefType.getShape())) {
+        return;
+      }
+
+      op.replaceAllUsesWith(ValueRange{in});
+    });
 
     // Erase dead code and fold constants created during lowering
     // PassManager pm(&getContext(), moduleOp.getOperationName());

@@ -392,7 +392,7 @@ private:
     //
     // For non-block pointer cases, the base is the reinterpret_cast of a
     // function argument. Assert that the offset is a constant 0 in such cases.
-    auto ptr = getPtr(adaptor.getBase());
+    auto ptr = adaptor.getBase();
     if (auto reinterpretCast = ptr.getDefiningOp<memref::ReinterpretCastOp>()) {
       auto offset = reinterpretCast.getMixedOffsets()[0];
       auto intAttr = getIntAttr(offset);
@@ -430,9 +430,9 @@ private:
   }
 
 public:
-  // MakeTensorPtrConverter(const TypeConverter &typeConverter,
-  //                        MLIRContext *context)
-  //     : OpConversionPattern<tts::MakeTensorPtrOp>(typeConverter, context) {}
+  MakeTensorPtrConverter(const TypeConverter &typeConverter,
+                         MLIRContext *context)
+      : OpConversionPattern<tts::MakeTensorPtrOp>(typeConverter, context) {}
 
   LogicalResult
   matchAndRewrite(tts::MakeTensorPtrOp op, OpAdaptor adaptor,
@@ -607,8 +607,13 @@ private:
     // No mask
     assert(!other && "other value used in non-masked load");
 
-    if (auto unrealizedCast = ptr.getDefiningOp<UnrealizedConversionCastOp>()) {
+    auto ptrDefiningOp = ptr.getDefiningOp();
+    if (ptrDefiningOp->hasAttr(WRAP_SIDE_BY_SIDE) ||
+        ptrDefiningOp->hasAttr(WRAP_STACKED)) {
+
+      auto unrealizedCast = cast<UnrealizedConversionCastOp>(ptrDefiningOp);
       auto memrefs = unrealizedCast.getOperands();
+      assert(memrefs.size() == 2);
       auto block1 = memrefs[0];
       auto block2 = memrefs[1];
 
@@ -677,9 +682,14 @@ private:
       });
     }
 
-    if (auto unrealizedCast = ptr.getDefiningOp<UnrealizedConversionCastOp>()) {
+    auto ptrDefiningOp = ptr.getDefiningOp();
+    if (ptrDefiningOp->hasAttr(WRAP_SIDE_BY_SIDE) ||
+        ptrDefiningOp->hasAttr(WRAP_STACKED)) {
+
+      auto unrealizedCast = cast<UnrealizedConversionCastOp>(ptrDefiningOp);
 
       auto memrefs = unrealizedCast.getOperands();
+      assert(memrefs.size() == 2);
       auto block1 = memrefs[0];
       auto block2 = memrefs[1];
 
@@ -713,8 +723,8 @@ private:
   }
 
 public:
-  // LoadConverter(const TypeConverter &typeConverter, MLIRContext *context)
-  //     : OpConversionPattern<tts::LoadOp>(typeConverter, context) {}
+  LoadConverter(const TypeConverter &typeConverter, MLIRContext *context)
+      : OpConversionPattern<tts::LoadOp>(typeConverter, context) {}
 
   LogicalResult
   matchAndRewrite(tts::LoadOp op, OpAdaptor adaptor,
@@ -746,8 +756,8 @@ private:
   }
 
 public:
-  // StoreConverter(const TypeConverter &typeConverter, MLIRContext *context)
-  //     : OpConversionPattern<tts::StoreOp>(typeConverter, context) {}
+  StoreConverter(const TypeConverter &typeConverter, MLIRContext *context)
+      : OpConversionPattern<tts::StoreOp>(typeConverter, context) {}
 
   LogicalResult
   matchAndRewrite(tts::StoreOp op, OpAdaptor adaptor,
@@ -817,5 +827,5 @@ void mlir::triton::populateStructuredToMemrefConversionPatterns(
     RewritePatternSet &patterns, TypeConverter &typeConverter) {
   // patterns.add<UnrealizedCastConverter>(patterns.getContext());
   patterns.add<MakeTensorPtrConverter, LoadConverter, StoreConverter>(
-      patterns.getContext());
+      typeConverter, patterns.getContext());
 }
