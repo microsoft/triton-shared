@@ -868,8 +868,8 @@ struct CallConverter : public OpConversionPattern<triton::CallOp> {
                   ConversionPatternRewriter &rewriter) const override {
     SmallVector<Value> args = adaptor.getOperands();
 
-    // We need to bypass extra arguments added by addProgramInfo which are num_programs and program_ids
-    if (FuncOp parentFunc = op->getParentOfType<FuncOp>()) {
+    // We need to pass extra arguments added by addProgramInfo which are num_programs and program_ids
+    if (FuncOp parentFunc = op->getParentOfType<triton::FuncOp>()) {
       SymbolRefAttr calleeAttr = op.getCalleeAttr();
       StringRef calleeName = calleeAttr.getRootReference();
 
@@ -892,6 +892,11 @@ struct CallConverter : public OpConversionPattern<triton::CallOp> {
 
     auto call = rewriter.create<func::CallOp>(
         op.getLoc(), op.getCallee(), op.getResultTypes(), args);
+
+    if (!call) {
+        op.emitError("Failed to create func::CallOp");
+        return failure();
+    }
 
     rewriter.replaceOp(op, call);
     return success();

@@ -336,6 +336,8 @@ LogicalResult MaskState::parseCmp(arith::CmpIOp cmpOp, const Location loc,
       cmpDim = i;
     }
   }
+  assert(cmpDim != -1 &&
+         "Unexpected case where no dimension has size larger than 1");
 
   // Important:
   // In the case where the values we are loading are entirely masked off like
