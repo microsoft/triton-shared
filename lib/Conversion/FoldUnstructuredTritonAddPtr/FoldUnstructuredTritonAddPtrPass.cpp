@@ -62,9 +62,18 @@ static bool isPtrTypeLike(Type t) {
 }
 
 static Type getPtrOffsetType(Type type, unsigned int bitWidth) {
-  if (auto tensorType = dyn_cast<RankedTensorType>(type)) {
+  type.dump();
+  if (type.isInteger()) {
+    // assert(type.getIntOrFloatBitWidth() == bitWidth);
+    auto t = IntegerType::get(type.getContext(), bitWidth);
+    t.dump();
+    return t;
+  } else if (auto tensorType = dyn_cast<RankedTensorType>(type)) {
     if (auto ptrType =
             dyn_cast<triton::PointerType>(tensorType.getElementType())) {
+      return RankedTensorType::get(
+          tensorType.getShape(), IntegerType::get(type.getContext(), bitWidth));
+    } else if (tensorType.getElementType().isInteger()) {
       return RankedTensorType::get(
           tensorType.getShape(), IntegerType::get(type.getContext(), bitWidth));
     }
@@ -72,6 +81,7 @@ static Type getPtrOffsetType(Type type, unsigned int bitWidth) {
                  dyn_cast<triton::PointerType>(tensorType.getElementType())) {
     return IntegerType::get(type.getContext(), bitWidth);
   }
+  assert(0);
   return nullptr;
 }
 
@@ -178,8 +188,9 @@ public:
         llvm::TypeSwitch<Operation *>(user)
             .Case<triton::AddPtrOp>([&](triton::AddPtrOp addptr) {
               OpBuilder rewriter{addptr};
-              auto off = addptr.getOffset();
               auto prevOff = addptr.getPtr();
+              auto off = addptr.getOffset();
+
               auto offsetInfo = offsetMap.at(prevOff);
               auto loc = addptr->getLoc();
 
@@ -187,9 +198,15 @@ public:
               auto rhsWidth = getBitWidth(off.getType());
               auto resWidth = std::max(lhsWidth, rhsWidth);
 
-              if (lhsWidth > rhsWidth) {
+              if (lhsWidth != resWidth) {
+                prevOff = rewriter.create<arith::ExtSIOp>(
+                    loc, getPtrOffsetType(prevOff.getType(), resWidth),
+                    ptrToOffset[prevOff]);
+              }
+
+              if (rhsWidth != resWidth) {
                 off = rewriter.create<arith::ExtSIOp>(
-                    loc, IntegerType::get(&getContext(), resWidth), off);
+                    loc, getPtrOffsetType(prevOff.getType(), resWidth), off);
               }
 
               auto accumulatedOff = rewriter.create<arith::AddIOp>(
