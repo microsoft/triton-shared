@@ -114,13 +114,15 @@ public:
     std::queue<Value> workList;
     llvm::DenseMap<Value, Value> ptrToOffset;
 
-    moduleOp.walk([&](triton::FuncOp func) {
+    moduleOp.walk([&](FunctionOpInterface func) {
       for (auto arg : func.getArguments()) {
         if (!isPtrTypeLike(arg.getType())) {
           continue;
         }
 
-        OpBuilder b(func.getRegion());
+        // arg.dump();
+
+        OpBuilder b(func->getRegion(0));
 
         Value zero;
         if (isa<ShapedType>(arg.getType())) {
@@ -140,7 +142,8 @@ public:
 
         arg.replaceUsesWithIf(initialOffset, [](OpOperand &operand) {
           auto owner = operand.getOwner();
-          return isa<triton::TritonDialect>(owner->getDialect());
+          // return isa<triton::TritonDialect>(owner->getDialect());
+          return !isa<tts::MakeTensorPtrOp>(owner);
         });
 
         offsetMap.insert(
