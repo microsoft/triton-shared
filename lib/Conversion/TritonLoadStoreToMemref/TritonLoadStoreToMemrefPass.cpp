@@ -64,19 +64,21 @@ public:
           .getResult(0);
     });
 
-    addSourceMaterialization([&](OpBuilder &builder, Type resultType,
-                                 ValueRange inputs,
-                                 Location loc) -> std::optional<Value> {
-      return builder.create<UnrealizedConversionCastOp>(loc, resultType, inputs)
-          .getResult(0);
-    });
+    // addSourceMaterialization([&](OpBuilder &builder, Type resultType,
+    //                              ValueRange inputs,
+    //                              Location loc) -> std::optional<Value> {
+    //   return builder.create<UnrealizedConversionCastOp>(loc, resultType,
+    //   inputs)
+    //       .getResult(0);
+    // });
 
-    addArgumentMaterialization([&](OpBuilder &builder, Type resultType,
-                                   ValueRange inputs,
-                                   Location loc) -> std::optional<Value> {
-      return builder.create<UnrealizedConversionCastOp>(loc, resultType, inputs)
-          .getResult(0);
-    });
+    // addArgumentMaterialization([&](OpBuilder &builder, Type resultType,
+    //                                ValueRange inputs,
+    //                                Location loc) -> std::optional<Value> {
+    //   return builder.create<UnrealizedConversionCastOp>(loc, resultType,
+    //   inputs)
+    //       .getResult(0);
+    // });
   }
 };
 
@@ -93,6 +95,12 @@ static MemRefType getMemrefTypeForScalarPtr(triton::PointerType ptrType,
 struct ScalarLoadConverter : public OpConversionPattern<triton::LoadOp> {
   using OpConversionPattern<triton::LoadOp>::OpConversionPattern;
 
+  ScalarLoadConverter(const TypeConverter &typeConverter, MLIRContext *context)
+      : OpConversionPattern<triton::LoadOp>(typeConverter, context) {}
+
+  ScalarLoadConverter(MLIRContext *context)
+      : OpConversionPattern<triton::LoadOp>(context) {}
+
   LogicalResult
   matchAndRewrite(triton::LoadOp op, OpAdaptor adaptor,
                   ConversionPatternRewriter &rewriter) const override {
@@ -105,7 +113,7 @@ struct ScalarLoadConverter : public OpConversionPattern<triton::LoadOp> {
     auto results = op->getResultTypes();
 
     auto loc = op->getLoc();
-    auto basePtr = castOp.getPtr();
+    auto basePtr = adaptor.getPtr();
     auto offsets = castOp.getOffset();
 
     Value loadIndex = rewriter.create<arith::IndexCastOp>(
@@ -131,10 +139,14 @@ struct ScalarLoadConverter : public OpConversionPattern<triton::LoadOp> {
 };
 
 struct ScalarStoreConverter : public OpConversionPattern<triton::StoreOp> {
-private:
   using OpConversionPattern<triton::StoreOp>::OpConversionPattern;
 
-public:
+  ScalarStoreConverter(const TypeConverter &typeConverter, MLIRContext *context)
+      : OpConversionPattern<triton::StoreOp>(typeConverter, context) {}
+
+  ScalarStoreConverter(MLIRContext *context)
+      : OpConversionPattern<triton::StoreOp>(context) {}
+
   LogicalResult
   matchAndRewrite(triton::StoreOp op, OpAdaptor adaptor,
                   ConversionPatternRewriter &rewriter) const override {
@@ -148,7 +160,7 @@ public:
     auto results = op->getResultTypes();
 
     auto loc = op->getLoc();
-    auto basePtr = castOp.getPtr();
+    auto basePtr = adaptor.getPtr();
     auto offsets = castOp.getOffset();
 
     Value storeIndex = rewriter.create<arith::IndexCastOp>(
@@ -176,8 +188,12 @@ public:
 
 struct LoadOpConverter : public OpConversionPattern<triton::LoadOp> {
   using OpConversionPattern<triton::LoadOp>::OpConversionPattern;
-  LoadOpConverter(TypeConverter &typeConverter, MLIRContext *context)
+
+  LoadOpConverter(const TypeConverter &typeConverter, MLIRContext *context)
       : OpConversionPattern<triton::LoadOp>(typeConverter, context) {}
+
+  LoadOpConverter(MLIRContext *context)
+      : OpConversionPattern<triton::LoadOp>(context) {}
 
   LogicalResult
   matchAndRewrite(triton::LoadOp loadOp, OpAdaptor adaptor,
@@ -189,7 +205,7 @@ struct LoadOpConverter : public OpConversionPattern<triton::LoadOp> {
     auto results = op->getResultTypes();
 
     auto loc = op->getLoc();
-    auto ptr = op.getInput();
+    auto ptr = adaptor.getPtr();
     auto offsets = op.getOffset();
     auto offsetType = dyn_cast<ShapedType>(offsets.getType());
 
@@ -211,19 +227,10 @@ struct LoadOpConverter : public OpConversionPattern<triton::LoadOp> {
 
     offsets.dump();
 
-    memref::ReinterpretCastOp memref =
-        rewriter.create<memref::ReinterpretCastOp>(
-            loc,
-            MemRefType::get({ShapedType::kDynamic},
-                            resultType.getElementType()),
-            ptr, 0, SmallVector<int64_t>{1024}, SmallVector<int64_t>{1});
-
-    memref->dump();
-
-    // auto memref = rewriter.create<memref::CastOp>(
-    //     loc,
-    //     MemRefType::get({ShapedType::kDynamic}, resultType.getElementType()),
-    //     ptr);
+    auto memref = rewriter.create<memref::CastOp>(
+        loc,
+        MemRefType::get({ShapedType::kDynamic}, resultType.getElementType()),
+        ptr);
 
     // Treat this as a 1-d tensor
     auto tensor = rewriter.create<bufferization::ToTensorOp>(
@@ -307,6 +314,12 @@ struct LoadOpConverter : public OpConversionPattern<triton::LoadOp> {
 struct StoreOpConverter : public OpConversionPattern<triton::StoreOp> {
   using OpConversionPattern<triton::StoreOp>::OpConversionPattern;
 
+  StoreOpConverter(const TypeConverter &typeConverter, MLIRContext *context)
+      : OpConversionPattern<triton::StoreOp>(typeConverter, context) {}
+
+  StoreOpConverter(MLIRContext *context)
+      : OpConversionPattern<triton::StoreOp>(context) {}
+
   LogicalResult
   matchAndRewrite(triton::StoreOp storeOp, OpAdaptor adaptor,
                   ConversionPatternRewriter &rewriter) const override {
@@ -316,7 +329,7 @@ struct StoreOpConverter : public OpConversionPattern<triton::StoreOp> {
     auto results = op->getResultTypes();
 
     auto loc = op->getLoc();
-    auto ptr = op.getPtr();
+    auto ptr = adaptor.getPtr();
     auto offsets = op.getOffset();
     auto offsetType = dyn_cast<ShapedType>(offsets.getType());
 
@@ -406,10 +419,16 @@ struct StoreOpConverter : public OpConversionPattern<triton::StoreOp> {
 struct CreatePtrConverter : public OpConversionPattern<tts::CreatePtrOp> {
   using OpConversionPattern<tts::CreatePtrOp>::OpConversionPattern;
 
+  CreatePtrConverter(const TypeConverter &typeConverter, MLIRContext *context)
+      : OpConversionPattern<tts::CreatePtrOp>(typeConverter, context) {}
+
+  CreatePtrConverter(MLIRContext *context)
+      : OpConversionPattern<tts::CreatePtrOp>(context) {}
+
   LogicalResult
   matchAndRewrite(tts::CreatePtrOp op, OpAdaptor adaptor,
                   ConversionPatternRewriter &rewriter) const override {
-    rewriter.eraseOp(op);
+    rewriter.replaceOp(op, adaptor.getInput());
     return success();
   }
 };
@@ -436,27 +455,28 @@ public:
   void runOnOperation() override {
     auto moduleOp = getOperation();
 
-    moduleOp.walk([&](func::FuncOp func) {
-      for (auto arg : func.getArguments()) {
-        if (!isPtrTypeLike(arg.getType())) {
-          continue;
-        }
+    // moduleOp.walk([&](func::FuncOp func) {
+    //   for (auto arg : func.getArguments()) {
+    //     if (!isPtrTypeLike(arg.getType())) {
+    //       continue;
+    //     }
 
-        for (auto user : arg.getUsers()) {
-          if (auto op = dyn_cast<tts::CreatePtrOp>(user)) {
-            OpBuilder b(op);
-            auto memrefType = UnrankedMemRefType::get(
-                cast<triton::PointerType>(arg.getType()).getPointeeType(), 0);
-            auto v = b.create<UnrealizedConversionCastOp>(op->getLoc(),
-                                                          memrefType, arg);
-            op->setOperand(0, v.getResult(0));
-            // op.setOperand(unsigned int i, Value value)
-          }
-        }
-      }
-    });
+    //     for (auto user : arg.getUsers()) {
+    //       if (auto op = dyn_cast<tts::CreatePtrOp>(user)) {
+    //         OpBuilder b(op);
+    //         auto memrefType = UnrankedMemRefType::get(
+    //             cast<triton::PointerType>(arg.getType()).getPointeeType(),
+    //             0);
+    //         auto v = b.create<UnrealizedConversionCastOp>(op->getLoc(),
+    //                                                       memrefType, arg);
+    //         op->setOperand(0, v.getResult(0));
+    //         // op.setOperand(unsigned int i, Value value)
+    //       }
+    //     }
+    //   }
+    // });
 
-    moduleOp->dump();
+    // moduleOp->dump();
 
     RewritePatternSet patterns(&getContext());
     ConversionTarget target(getContext());
@@ -474,6 +494,9 @@ public:
     patterns.add<LoadOpConverter, ScalarLoadConverter, StoreOpConverter,
                  ScalarStoreConverter, CreatePtrConverter>(
         patterns.getContext());
+
+    EmptyConverter t;
+    patterns.add<CreatePtrConverter>(t, patterns.getContext());
 
     if (failed(applyPartialConversion(moduleOp, target, std::move(patterns))))
       signalPassFailure();
