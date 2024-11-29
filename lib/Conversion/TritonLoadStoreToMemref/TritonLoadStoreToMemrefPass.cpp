@@ -344,7 +344,9 @@ struct StoreOpConverter : public OpConversionPattern<triton::StoreOp> {
     auto resultType = dyn_cast<RankedTensorType>(storeOp.getValue().getType());
 
     if (auto shapedType = dyn_cast<ShapedType>(ptr.getType())) {
-      if (shapedType.getRank() > 1) {
+      if (shapedType.hasRank() && shapedType.getRank() > 1) {
+        llvm::dbgs() << "hi\n";
+        shapedType.dump();
         auto indices = getReassociationIndicesForCollapse(
             shapedType.getShape(), {shapedType.getNumElements()});
         assert(indices.has_value());
