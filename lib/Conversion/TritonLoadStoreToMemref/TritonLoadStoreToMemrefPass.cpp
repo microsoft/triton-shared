@@ -57,6 +57,13 @@ public:
     addConversion([](triton::PointerType ptrType) {
       return UnrankedMemRefType::get(ptrType.getPointeeType(), 0);
     });
+    addConversion([](RankedTensorType tensorType) -> std::optional<Type> {
+      if (auto ptrType =
+              dyn_cast<triton::PointerType>(tensorType.getElementType())) {
+        return MemRefType::get(tensorType.getShape(), ptrType.getPointeeType());
+      }
+      return std::nullopt;
+    });
     addTargetMaterialization([&](OpBuilder &builder, Type resultType,
                                  ValueRange inputs,
                                  Location loc) -> std::optional<Value> {
