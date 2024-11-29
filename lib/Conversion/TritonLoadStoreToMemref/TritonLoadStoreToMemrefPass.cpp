@@ -343,17 +343,15 @@ struct StoreOpConverter : public OpConversionPattern<triton::StoreOp> {
 
     auto resultType = dyn_cast<RankedTensorType>(storeOp.getValue().getType());
 
-    if (auto shapedType = dyn_cast<ShapedType>(ptr.getType())) {
-      if (shapedType.hasRank() && shapedType.getRank() > 1) {
-        llvm::dbgs() << "hi\n";
-        shapedType.dump();
+    if (auto memrefType = dyn_cast<MemRefType>(ptr.getType())) {
+      if (memrefType.getRank() > 1) {
         auto indices = getReassociationIndicesForCollapse(
-            shapedType.getShape(), {shapedType.getNumElements()});
+            memrefType.getShape(), {memrefType.getNumElements()});
         assert(indices.has_value());
         ptr = rewriter.create<memref::CollapseShapeOp>(
             loc, ptr,
             SmallVector<ReassociationIndices>{llvm::to_vector_of<int64_t>(
-                llvm::index_range(0, shapedType.getRank()))});
+                llvm::index_range(0, memrefType.getRank()))});
       }
     }
 
