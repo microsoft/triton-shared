@@ -28,6 +28,7 @@
 #include "mlir/Pass/PassManager.h"
 #include "mlir/Transforms/Passes.h"
 #include "triton/Dialect/Triton/IR/Types.h"
+#include "llvm/ADT/STLExtras.h"
 #include "llvm/Support/Casting.h"
 #include "llvm/Support/Debug.h"
 
@@ -170,7 +171,7 @@ public:
           continue;
         }
 
-        for (auto user : arg.getUsers()) {
+        for (auto user : llvm::make_early_inc_range(arg.getUsers())) {
           if (auto op = dyn_cast<tts::MakeTensorPtrOp>(user)) {
             OpBuilder b(op);
             auto memrefType = UnrankedMemRefType::get(
