@@ -184,11 +184,12 @@ struct LoadOpConverter : public OpConversionPattern<triton::LoadOp> {
                   ConversionPatternRewriter &rewriter) const override {
 
     auto op = loadOp.getPtr().getDefiningOp<tts::CreatePtrOp>();
+    op->dump();
 
     auto results = op->getResultTypes();
 
     auto loc = op->getLoc();
-    auto ptr = op.getPtr();
+    auto ptr = op.getInput();
     auto offsets = op.getOffset();
     auto offsetType = dyn_cast<ShapedType>(offsets.getType());
 
@@ -206,12 +207,18 @@ struct LoadOpConverter : public OpConversionPattern<triton::LoadOp> {
 
     auto resultType = dyn_cast<RankedTensorType>(loadOp.getResult().getType());
 
+    ptr.dump();
+
+    offsets.dump();
+
     memref::ReinterpretCastOp memref =
         rewriter.create<memref::ReinterpretCastOp>(
             loc,
             MemRefType::get({ShapedType::kDynamic},
                             resultType.getElementType()),
             ptr, 0, SmallVector<int64_t>{1024}, SmallVector<int64_t>{1});
+
+    memref->dump();
 
     // auto memref = rewriter.create<memref::CastOp>(
     //     loc,
@@ -402,7 +409,7 @@ struct CreatePtrConverter : public OpConversionPattern<tts::CreatePtrOp> {
   LogicalResult
   matchAndRewrite(tts::CreatePtrOp op, OpAdaptor adaptor,
                   ConversionPatternRewriter &rewriter) const override {
-
+    rewriter.eraseOp(op);
     return success();
   }
 };
@@ -419,8 +426,38 @@ public:
                 memref::MemRefDialect, ttx::TritonTilingExtDialect>();
   }
 
+  static bool isPtrTypeLike(Type t) {
+    if (auto tensorType = dyn_cast<RankedTensorType>(t)) {
+      return isa<triton::PointerType>(tensorType.getElementType());
+    }
+    return isa<triton::PointerType>(t);
+  }
+
   void runOnOperation() override {
     auto moduleOp = getOperation();
+
+    moduleOp.walk([&](func::FuncOp func) {
+      for (auto arg : func.getArguments()) {
+        if (!isPtrTypeLike(arg.getType())) {
+          continue;
+        }
+
+        for (auto user : arg.getUsers()) {
+          if (auto op = dyn_cast<tts::CreatePtrOp>(user)) {
+            OpBuilder b(op);
+            auto memrefType = UnrankedMemRefType::get(
+                cast<triton::PointerType>(arg.getType()).getPointeeType(), 0);
+            auto v = b.create<UnrealizedConversionCastOp>(op->getLoc(),
+                                                          memrefType, arg);
+            op->setOperand(0, v.getResult(0));
+            // op.setOperand(unsigned int i, Value value)
+          }
+        }
+      }
+    });
+
+    moduleOp->dump();
+
     RewritePatternSet patterns(&getContext());
     ConversionTarget target(getContext());
 
@@ -431,10 +468,12 @@ public:
         bufferization::BufferizationDialect, memref::MemRefDialect,
         ttx::TritonTilingExtDialect>();
 
+    target.addLegalOp<UnrealizedConversionCastOp>();
     target.addIllegalOp<triton::LoadOp, triton::StoreOp, tts::CreatePtrOp>();
 
-    patterns.add<LoadOpConverter, StoreOpConverter, ScalarLoadConverter,
-                 ScalarStoreConverter>(patterns.getContext());
+    patterns.add<LoadOpConverter, ScalarLoadConverter, StoreOpConverter,
+                 ScalarStoreConverter, CreatePtrConverter>(
+        patterns.getContext());
 
     if (failed(applyPartialConversion(moduleOp, target, std::move(patterns))))
       signalPassFailure();
