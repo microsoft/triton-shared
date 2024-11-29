@@ -860,6 +860,49 @@ struct BitcastConverter : public OpConversionPattern<triton::BitcastOp> {
   }
 };
 
+struct CallConverter : public OpConversionPattern<triton::CallOp> {
+  using OpConversionPattern<triton::CallOp>::OpConversionPattern;
+
+  LogicalResult
+  matchAndRewrite(triton::CallOp op, OpAdaptor adaptor,
+                  ConversionPatternRewriter &rewriter) const override {
+    SmallVector<Value> args = adaptor.getOperands();
+
+    // We need to pass extra arguments added by addProgramInfo which are num_programs and program_ids
+    if (FuncOp parentFunc = op->getParentOfType<triton::FuncOp>()) {
+      SymbolRefAttr calleeAttr = op.getCalleeAttr();
+      StringRef calleeName = calleeAttr.getRootReference();
+
+      if (ModuleOp module = op->getParentOfType<ModuleOp>()) {
+        if (FuncOp calleeFunc = module.lookupSymbol<FuncOp>(calleeName)) {
+          size_t argsNeed = calleeFunc.getFunctionType().getInputs().size();
+          Block &entryBlock = parentFunc.front();
+          auto parentInputs = entryBlock.getArguments();
+          size_t argsParent = parentInputs.size();
+
+          if (argsNeed > args.size()) {
+            int missing = argsNeed - args.size();
+            for (int i = 0; i < missing; i++) {
+              args.push_back(parentInputs[parentInputs.size() - i - 1]);
+            }
+          }
+        }
+      }
+    }
+
+    auto call = rewriter.create<func::CallOp>(
+        op.getLoc(), op.getCallee(), op.getResultTypes(), args);
+
+    if (!call) {
+        op.emitError("Failed to create func::CallOp");
+        return failure();
+    }
+
+    rewriter.replaceOp(op, call);
+    return success();
+  }
+};
+
 struct FpToFpConverter : public OpConversionPattern<triton::FpToFpOp> {
   using OpConversionPattern<triton::FpToFpOp>::OpConversionPattern;
 
