@@ -54,15 +54,15 @@ public:
   LoopTypeConverter(MLIRContext *context) {
     // The order of type conversion is important: later ones are tried earlier.
     addConversion([](Type type) { return type; });
-    addConversion([context](triton::PointerType ptrType) {
-      SmallVector<int64_t> strides{1};
-      auto layout =
-          StridedLayoutAttr::get(context, ShapedType::kDynamic, strides);
+    // addConversion([context](triton::PointerType ptrType) {
+    //   SmallVector<int64_t> strides{1};
+    //   auto layout =
+    //       StridedLayoutAttr::get(context, ShapedType::kDynamic, strides);
 
-      auto elemType = ptrType.getPointeeType();
-      auto memrefType = MemRefType::get({1}, elemType, layout);
-      return memrefType;
-    });
+    //   auto elemType = ptrType.getPointeeType();
+    //   auto memrefType = MemRefType::get({1}, elemType, layout);
+    //   return memrefType;
+    // });
 
     // A tensor of pointers can be passed in as scf.for's init-args, in such
     // cases, we convert the type to a memref with dynamic offsets and
