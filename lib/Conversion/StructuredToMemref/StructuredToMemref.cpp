@@ -430,9 +430,9 @@ private:
   }
 
 public:
-  // MakeTensorPtrConverter(const TypeConverter &typeConverter,
-  //                        MLIRContext *context)
-  //     : OpConversionPattern<tts::MakeTensorPtrOp>(typeConverter, context) {}
+  MakeTensorPtrConverter(const TypeConverter &typeConverter,
+                         MLIRContext *context)
+      : OpConversionPattern<tts::MakeTensorPtrOp>(typeConverter, context) {}
 
   LogicalResult
   matchAndRewrite(tts::MakeTensorPtrOp op, OpAdaptor adaptor,
@@ -825,7 +825,6 @@ public:
 
 void mlir::triton::populateStructuredToMemrefConversionPatterns(
     RewritePatternSet &patterns, TypeConverter &typeConverter) {
-  // patterns.add<UnrealizedCastConverter>(patterns.getContext());
-  patterns.add<MakeTensorPtrConverter, LoadConverter, StoreConverter>(
-      patterns.getContext());
+  patterns.add<MakeTensorPtrConverter>(typeConverter, patterns.getContext());
+  patterns.add<LoadConverter, StoreConverter>(patterns.getContext());
 }

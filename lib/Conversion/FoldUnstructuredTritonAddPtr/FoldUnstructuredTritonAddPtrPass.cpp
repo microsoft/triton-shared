@@ -146,6 +146,7 @@ public:
               arg.getLoc(),
               b.getIntegerAttr(IntegerType::get(&getContext(), defaultBitWidth),
                                0));
+          zero.dump();
         }
         auto initialOffset = zero;
         ptrToOffset[initialOffset] = initialOffset;
@@ -254,27 +255,28 @@ public:
               workList.push(res);
               op->dump();
             })
-            .Case<triton::LoadOp, triton::StoreOp>([&](Operation *op) {
-              OpBuilder rewriter{op};
+            .Case<triton::LoadOp, triton::StoreOp, tts::MakeTensorPtrOp>(
+                [&](Operation *op) {
+                  OpBuilder rewriter{op};
 
-              auto ptr = op->getOperand(0);
-              // assert(toDelete.count(ptr.get));
-              auto offsetInfo = offsetMap.at(ptr);
+                  auto ptr = op->getOperand(0);
+                  // assert(toDelete.count(ptr.get));
+                  auto offsetInfo = offsetMap.at(ptr);
 
-              auto srcPtr = offsetInfo.srcPtr;
+                  auto srcPtr = offsetInfo.srcPtr;
 
-              offsetInfo.ptrType.dump();
+                  offsetInfo.ptrType.dump();
 
-              assert(ptrToOffset.contains(ptr));
+                  assert(ptrToOffset.contains(ptr));
 
-              auto cast = rewriter.create<tts::CreatePtrOp>(
-                  op->getLoc(), offsetInfo.ptrType, srcPtr,
-                  ptrToOffset.at(ptr));
+                  auto cast = rewriter.create<tts::CreatePtrOp>(
+                      op->getLoc(), offsetInfo.ptrType, srcPtr,
+                      ptrToOffset.at(ptr));
 
-              loadStores.push_back({op, cast.getResult()});
+                  loadStores.push_back({op, cast.getResult()});
 
-              // op->setOperand(0, cast.getResult());
-            })
+                  // op->setOperand(0, cast.getResult());
+                })
             .Case<scf::ForOp>([&](scf::ForOp forOp) {
               // map init arg to iter-arg
               // map init arg to result
@@ -383,7 +385,7 @@ public:
     return offsetMap;
   }
 
-  void runOnOperation() override { auto z = computePtrType(32); }
+  void runOnOperation() override { auto z = computePtrType(64); }
 };
 } // namespace
 

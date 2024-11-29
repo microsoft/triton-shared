@@ -158,13 +158,14 @@ public:
     addConversion([](triton::PointerType ptrType) {
       return UnrankedMemRefType::get(ptrType.getPointeeType(), 0);
     });
-    addConversion([](RankedTensorType tensorType) -> std::optional<Type> {
-      if (auto ptrType =
-              dyn_cast<triton::PointerType>(tensorType.getElementType())) {
-        return MemRefType::get(tensorType.getShape(), ptrType.getPointeeType());
-      }
-      return std::nullopt;
-    });
+    // addConversion([](RankedTensorType tensorType) -> std::optional<Type> {
+    //   if (auto ptrType =
+    //           dyn_cast<triton::PointerType>(tensorType.getElementType())) {
+    //     return MemRefType::get(tensorType.getShape(),
+    //     ptrType.getPointeeType());
+    //   }
+    //   return std::nullopt;
+    // });
     // // Used for converting memref<*> back to tt.ptr type, these ops will then
     // be
     // // handled when we convert addptr op later.
@@ -176,19 +177,21 @@ public:
           .getResult(0);
     });
 
-    addSourceMaterialization([&](OpBuilder &builder, Type resultType,
-                                 ValueRange inputs,
-                                 Location loc) -> std::optional<Value> {
-      return builder.create<UnrealizedConversionCastOp>(loc, resultType, inputs)
-          .getResult(0);
-    });
+    // addSourceMaterialization([&](OpBuilder &builder, Type resultType,
+    //                              ValueRange inputs,
+    //                              Location loc) -> std::optional<Value> {
+    //   return builder.create<UnrealizedConversionCastOp>(loc, resultType,
+    //   inputs)
+    //       .getResult(0);
+    // });
 
-    addArgumentMaterialization([&](OpBuilder &builder, Type resultType,
-                                   ValueRange inputs,
-                                   Location loc) -> std::optional<Value> {
-      return builder.create<UnrealizedConversionCastOp>(loc, resultType, inputs)
-          .getResult(0);
-    });
+    // addArgumentMaterialization([&](OpBuilder &builder, Type resultType,
+    //                                ValueRange inputs,
+    //                                Location loc) -> std::optional<Value> {
+    //   return builder.create<UnrealizedConversionCastOp>(loc, resultType,
+    //   inputs)
+    //       .getResult(0);
+    // });
   }
 };
 
@@ -233,27 +236,28 @@ public:
   void runOnOperation() override {
     auto moduleOp = getOperation();
 
-    moduleOp.walk([&](func::FuncOp func) {
-      for (auto arg : func.getArguments()) {
-        if (!isPtrTypeLike(arg.getType())) {
-          continue;
-        }
+    // moduleOp.walk([&](func::FuncOp func) {
+    //   for (auto arg : func.getArguments()) {
+    //     if (!isPtrTypeLike(arg.getType())) {
+    //       continue;
+    //     }
 
-        for (auto user : llvm::make_early_inc_range(arg.getUsers())) {
-          if (auto op = dyn_cast<tts::MakeTensorPtrOp>(user)) {
-            OpBuilder b(op);
-            auto memrefType = UnrankedMemRefType::get(
-                cast<triton::PointerType>(arg.getType()).getPointeeType(), 0);
-            auto v = b.create<UnrealizedConversionCastOp>(op->getLoc(),
-                                                          memrefType, arg);
-            op.getBaseMutable().set(v->getResult(0));
-            // op.setOperand(unsigned int i, Value value)
-          }
-        }
-      }
-    });
+    //     for (auto user : llvm::make_early_inc_range(arg.getUsers())) {
+    //       if (auto op = dyn_cast<tts::MakeTensorPtrOp>(user)) {
+    //         OpBuilder b(op);
+    //         auto memrefType = UnrankedMemRefType::get(
+    //             cast<triton::PointerType>(arg.getType()).getPointeeType(),
+    //             0);
+    //         auto v = b.create<UnrealizedConversionCastOp>(op->getLoc(),
+    //                                                       memrefType, arg);
+    //         op.getBaseMutable().set(v->getResult(0));
+    //         // op.setOperand(unsigned int i, Value value)
+    //       }
+    //     }
+    //   }
+    // });
 
-    moduleOp->dump();
+    // moduleOp->dump();
 
     RewritePatternSet patterns(&getContext());
     ConversionTarget target(getContext());
