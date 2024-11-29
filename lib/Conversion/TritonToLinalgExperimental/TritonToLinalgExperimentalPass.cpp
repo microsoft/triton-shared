@@ -31,6 +31,39 @@ using namespace triton;
 
 namespace {
 
+class TritonFunctionSignatureConverter : public TypeConverter {
+public:
+  TritonFunctionSignatureConverter() {
+    // The order of type conversion is important: later ones are tried earlier.
+    addConversion([](Type type) { return type; });
+    addConversion([](triton::PointerType ptrType) {
+      return UnrankedMemRefType::get(ptrType.getPointeeType(), 0);
+    });
+    addConversion([](RankedTensorType tensorType) -> std::optional<Type> {
+      if (auto ptrType =
+              dyn_cast<triton::PointerType>(tensorType.getElementType())) {
+        return MemRefType::get(tensorType.getShape(), ptrType.getPointeeType());
+      }
+      return std::nullopt;
+    });
+    // Used for converting memref<*> back to tt.ptr type, these ops will then be
+    // handled when we convert addptr op later.
+    addSourceMaterialization([&](OpBuilder &builder, Type resultType,
+                                 ValueRange inputs,
+                                 Location loc) -> std::optional<Value> {
+      return builder.create<UnrealizedConversionCastOp>(loc, resultType, inputs)
+          .getResult(0);
+    });
+
+    addArgumentMaterialization([&](OpBuilder &builder, Type resultType,
+                                   ValueRange inputs,
+                                   Location loc) -> std::optional<Value> {
+      return builder.create<UnrealizedConversionCastOp>(loc, resultType, inputs)
+          .getResult(0);
+    });
+  }
+};
+
 class TritonToLinalgExperimentalPass
     : public TritonToLinalgExperimentalBase<TritonToLinalgExperimentalPass> {
 
@@ -42,6 +75,24 @@ public:
                 tensor::TensorDialect, bufferization::BufferizationDialect,
                 memref::MemRefDialect, ttx::TritonTilingExtDialect,
                 tts::TritonStructuredDialect>();
+  }
+
+  LogicalResult convertArgsToMemrefType() {
+    auto moduleOp = getOperation();
+
+    RewritePatternSet patterns(&getContext());
+    ConversionTarget target(getContext());
+    TritonFunctionSignatureConverter typeConverter;
+
+    // Update function signature to use memrefs
+    target.addDynamicallyLegalOp<func::FuncOp>([&](func::FuncOp op) {
+      return typeConverter.isSignatureLegal(op.getFunctionType());
+    });
+
+    populateFunctionOpInterfaceTypeConversionPattern<func::FuncOp>(
+        patterns, typeConverter);
+
+    return applyPartialConversion(moduleOp, target, std::move(patterns));
   }
 
   void runOnOperation() override {
@@ -57,6 +108,9 @@ public:
     pm.addPass(createTritonArithToLinalgPass());
     pm.addPass(createStructuredToMemrefPass());
     pm.addPass(createTritonLoadStoreToMemrefPass());
+
+    (void)convertArgsToMemrefType();
+
     pm.addPass(createCSEPass());
     pm.addPass(createCanonicalizerPass());
 
