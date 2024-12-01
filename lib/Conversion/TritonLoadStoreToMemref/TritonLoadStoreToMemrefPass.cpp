@@ -493,7 +493,7 @@ public:
           continue;
         }
 
-        for (auto user : arg.getUsers()) {
+        for (auto user : llvm::make_early_inc_range(arg.getUsers())) {
           if (auto op = dyn_cast<tts::CreatePtrOp>(user)) {
             OpBuilder b(op);
             auto memrefType = getMemrefForPointer(arg.getType());
@@ -506,7 +506,7 @@ public:
       }
     });
 
-    // moduleOp->dump();
+    moduleOp->dump();
 
     RewritePatternSet patterns(&getContext());
     ConversionTarget target(getContext());
