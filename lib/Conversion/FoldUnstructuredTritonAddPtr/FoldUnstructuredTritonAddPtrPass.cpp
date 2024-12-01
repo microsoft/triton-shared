@@ -77,8 +77,7 @@ static Type getPtrOffsetType(Type type, unsigned int bitWidth) {
       return RankedTensorType::get(
           tensorType.getShape(), IntegerType::get(type.getContext(), bitWidth));
     }
-  } else if (auto ptrType =
-                 dyn_cast<triton::PointerType>(tensorType.getElementType())) {
+  } else if (auto ptrType = dyn_cast<triton::PointerType>(type)) {
     return IntegerType::get(type.getContext(), bitWidth);
   }
   assert(0);

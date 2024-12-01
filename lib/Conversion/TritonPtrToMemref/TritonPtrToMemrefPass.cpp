@@ -74,6 +74,43 @@ public:
   }
 };
 
+struct CreatePtrConverter : public OpConversionPattern<tts::CreatePtrOp> {
+  using OpConversionPattern<tts::CreatePtrOp>::OpConversionPattern;
+
+  CreatePtrConverter(const TypeConverter &typeConverter, MLIRContext *context)
+      : OpConversionPattern<tts::CreatePtrOp>(typeConverter, context) {}
+
+  CreatePtrConverter(MLIRContext *context)
+      : OpConversionPattern<tts::CreatePtrOp>(context) {}
+
+  LogicalResult
+  matchAndRewrite(tts::CreatePtrOp op, OpAdaptor adaptor,
+                  ConversionPatternRewriter &rewriter) const override {
+    rewriter.replaceOp(op, adaptor.getInput());
+    return success();
+  }
+};
+
+struct UnrealizedConversionCastOpConverter
+    : public OpConversionPattern<UnrealizedConversionCastOp> {
+  using OpConversionPattern<UnrealizedConversionCastOp>::OpConversionPattern;
+
+  UnrealizedConversionCastOpConverter(const TypeConverter &typeConverter,
+                                      MLIRContext *context)
+      : OpConversionPattern<UnrealizedConversionCastOp>(typeConverter,
+                                                        context) {}
+
+  UnrealizedConversionCastOpConverter(MLIRContext *context)
+      : OpConversionPattern<UnrealizedConversionCastOp>(context) {}
+
+  LogicalResult
+  matchAndRewrite(UnrealizedConversionCastOp op, OpAdaptor adaptor,
+                  ConversionPatternRewriter &rewriter) const override {
+    rewriter.replaceOp(op, adaptor.getInputs());
+    return success();
+  }
+};
+
 class TritonPtrToMemrefPass
     : public TritonPtrToMemrefBase<TritonPtrToMemrefPass> {
 
@@ -96,6 +133,10 @@ public:
     target.addDynamicallyLegalOp<func::FuncOp>([&](func::FuncOp op) {
       return typeConverter.isSignatureLegal(op.getFunctionType());
     });
+
+    // target.addIllegalOp<UnrealizedConversionCastOp>();
+
+    // patterns.add<UnrealizedConversionCastOpConverter>(patterns.getContext());
 
     populateFunctionOpInterfaceTypeConversionPattern<func::FuncOp>(
         patterns, typeConverter);
