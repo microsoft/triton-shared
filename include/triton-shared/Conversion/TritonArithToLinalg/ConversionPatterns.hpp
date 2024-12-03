@@ -20,6 +20,7 @@
 #include "mlir/Dialect/ControlFlow/IR/ControlFlowOps.h"
 #include "mlir/Dialect/Linalg/IR/Linalg.h"
 #include "mlir/Dialect/Linalg/Passes.h"
+#include "mlir/Dialect/Utils/ReshapeOpsUtils.h"
 
 #include "llvm/ADT/SmallVectorExtras.h"
 #include "llvm/ADT/TypeSwitch.h"
@@ -1892,10 +1893,25 @@ public:
     auto input = op.getSrc();
     auto output = op.getResult();
 
-    auto outputType = dyn_cast<RankedTensorType>(output.getType());
-    if (!outputType) {
+    auto inputType = input.getType();
+    auto outputType = output.getType();
+    if (!outputType.hasStaticShape()) {
       return failure();
     }
+
+    if (auto maybeReassociationMap =
+            getReassociationIndicesForReshape(inputType, outputType)) {
+      auto reassociationMap = *maybeReassociationMap;
+      if (outputType.getRank() < inputType.getRank()) {
+        rewriter.replaceOpWithNewOp<tensor::CollapseShapeOp>(
+            op, outputType, input, reassociationMap);
+      } else {
+        rewriter.replaceOpWithNewOp<tensor::ExpandShapeOp>(
+            op, outputType, input, reassociationMap);
+      }
+      return success();
+    }
+
     ArrayRef<int64_t> outputShape = outputType.getShape();
 
     auto shape = rewriter.create<arith::ConstantOp>(
