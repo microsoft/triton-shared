@@ -28,9 +28,7 @@ module {
 // CHECK-DAG:   [[MAP_2_:#.+]] = affine_map<(d0, d1) -> (d0, d1)>
 // CHECK-LABEL:  func.func @bcast_kernel_01
 // CHECK-SAME:   ([[PARAM_0_:%.+]]: !tt.ptr<f32>, [[PARAM_1_:%.+]]: !tt.ptr<f32>, [[PARAM_2_:%.+]]: i32, [[PARAM_3_:%.+]]: i32, [[PARAM_4_:%.+]]: i32, [[PARAM_5_:%.+]]: i32, [[PARAM_6_:%.+]]: i32, [[PARAM_7_:%.+]]: i32) {
-// CHECK-DAG:       [[CST_2048_:%.+]] = arith.constant 2048 : i64
 // CHECK-DAG:       [[CST_32_:%.+]] = arith.constant 32 : i32
-// CHECK-DAG:       [[VAR_cst_:%.+]] = arith.constant dense<[1, 32]> : tensor<2xi64>
 // CHECK-DAG:       [[VAR_0_:%.+]] = arith.muli [[PARAM_5_]], [[CST_32_]] : i32
 // CHECK-DAG:       [[VAR_1_:%.+]] = tensor.empty() : tensor<32xi32>
 // CHECK:           [[VAR_2_:%.+]] = linalg.generic {indexing_maps = [#map], iterator_types = ["parallel"]} outs([[VAR_1_]] : tensor<32xi32>) {

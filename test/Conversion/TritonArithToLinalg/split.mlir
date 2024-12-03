@@ -20,7 +20,6 @@ module {
 }
 
 // CHECK:   func.func @kernel(%arg0: !tt.ptr<i32> {{.*}}, %arg1: !tt.ptr<i32> {{.*}}, %arg2: !tt.ptr<i32> {{.*}}, %arg3: i32, %arg4: i32, %arg5: i32, %arg6: i32, %arg7: i32, %arg8: i32) {
-// CHECK:     [[CST:%.+]] = arith.constant dense<[128, 2]> : tensor<2xi64>
 // CHECK:     [[EMPTY256:%.+]] = tensor.empty() : tensor<256xi32>
 // CHECK:     [[RANGE256:%.+]] = linalg.generic {{.*}} outs([[EMPTY256]] : tensor<256xi32>) {
 // CHECK:       ^bb0(%out: i32):
@@ -36,7 +35,7 @@ module {
 // CHECK:         linalg.yield [[NEW_PTR]] : !tt.ptr<i32>
 // CHECK:     } -> tensor<256x!tt.ptr<i32>>
 // CHECK:     [[LOADED256:%.+]] = tt.load [[ADDPTR256]] : tensor<256x!tt.ptr<i32>>
-// CHECK:     [[RESHAPED:%.+]] = tensor.reshape [[LOADED256]]([[CST]]) : (tensor<256xi32>, tensor<2xi64>) -> tensor<128x2xi32>
+// CHECK:     [[RESHAPED:%.+]] = tensor.expand_shape [[LOADED256]]
 // CHECK:     [[SLICE_LHS:%.+]] = tensor.extract_slice [[RESHAPED]]{{\[}}0, 0{{\]}} [128, 1] [1, 1] : tensor<128x2xi32> to tensor<128xi32>
 // CHECK:     [[SLICE_RHS:%.+]] = tensor.extract_slice [[RESHAPED]]{{\[}}0, 1{{\]}} [128, 1] [1, 1] : tensor<128x2xi32> to tensor<128xi32>
 // CHECK:     [[EMPTY128:%.+]] = tensor.empty() : tensor<128xi32>
