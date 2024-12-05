@@ -71,14 +71,14 @@ public:
     // handled when we convert addptr op later.
     addSourceMaterialization([&](OpBuilder &builder, Type resultType,
                                  ValueRange inputs,
-                                 Location loc) -> std::optional<Value> {
+                                 Location loc) -> Value {
       return builder.create<UnrealizedConversionCastOp>(loc, resultType, inputs)
           .getResult(0);
     });
 
     addArgumentMaterialization([&](OpBuilder &builder, Type resultType,
                                    ValueRange inputs,
-                                   Location loc) -> std::optional<Value> {
+                                   Location loc) -> Value {
       return builder.create<UnrealizedConversionCastOp>(loc, resultType, inputs)
           .getResult(0);
     });
@@ -118,7 +118,7 @@ public:
     // reinterpret_cast.
     addTargetMaterialization([&](OpBuilder &builder, MemRefType memrefType,
                                  ValueRange inputs,
-                                 Location loc) -> std::optional<Value> {
+                                 Location loc) -> Value {
       auto reinterpretCast =
           inputs[0].getDefiningOp<memref::ReinterpretCastOp>();
       return builder.create<memref::ReinterpretCastOp>(
@@ -167,9 +167,10 @@ struct ScalarAddptrConverter
   }
 };
 
-static std::optional<SmallVector<Value>>
-buildCastAndOffsetOps(OpBuilder &builder, TypeRange resultTypes, Value input,
+static SmallVector<Value>
+buildCastAndOffsetOps(OpBuilder &builder, TypeRange resultTypes, ValueRange inputs,
                       Location loc) {
+  Value input = inputs.front();
   assert(resultTypes.size() == 2 && isa<MemRefType>(resultTypes[0]) &&
          isa<IndexType>(resultTypes[1]) &&
          "Unexpected result types when converting addptr");
@@ -201,8 +202,8 @@ buildCastAndOffsetOps(OpBuilder &builder, TypeRange resultTypes, Value input,
   return SmallVector<Value>{cast, zero};
 }
 
-static std::optional<Value> buildCastOp(OpBuilder &builder, Type resultType,
-                                        ValueRange inputs, Location loc) {
+static Value buildCastOp(OpBuilder &builder, Type resultType,
+                         ValueRange inputs, Location loc) {
   assert(isa<triton::PointerType>(resultType));
   assert(inputs.size() && isa<MemRefType>(inputs[0].getType()) &&
          isa<IndexType>(inputs[1].getType()));
@@ -311,7 +312,7 @@ public:
     RewritePatternSet patterns(&getContext());
 
     auto context = &getContext();
-    OneToNTypeConverter converter;
+    TypeConverter converter;
     converter.addConversion([](Type type) { return type; });
 
     // We are doing a 1->2 type conversion here, where a triton pointer type
