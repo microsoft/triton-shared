@@ -20,7 +20,6 @@ def device(request):
 
 tests_not_supported = {
     "test_bin_op",
-    "test_split",
     "test_split_to_scalar",
     "test_interleave_scalars",
     "test_pointer_arguments",
@@ -34,7 +33,6 @@ tests_not_supported = {
     "test_ptx_cast",
     "test_compare_op",
     "test_maxnreg",
-    "test_join",
     "test_join_scalars",
     "test_join_with_mma",
     "test_interleave",
@@ -51,7 +49,6 @@ tests_not_supported = {
     "test_atomic_cas",
     "test_tensor_atomic_cas",
     "test_cast",
-    "test_cat",
     "test_store_constant",
     "test_reduce",
     "test_reduce1d",

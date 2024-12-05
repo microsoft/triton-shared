@@ -993,6 +993,97 @@ struct PreciseDivConverter : public OpConversionPattern<triton::PreciseDivFOp> {
   }
 };
 
+struct CatConverter : public OpConversionPattern<triton::CatOp> {
+  using OpConversionPattern<triton::CatOp>::OpConversionPattern;
+
+  LogicalResult
+  matchAndRewrite(triton::CatOp op, OpAdaptor adaptor,
+                  ConversionPatternRewriter &rewriter) const override {
+    auto replacement = rewriter.create<tensor::ConcatOp>(
+        op.getLoc(), 0 /* concat dimension */, adaptor.getOperands());
+
+    rewriter.replaceOp(op, replacement);
+
+    return success();
+  }
+};
+
+struct SplitConverter : public OpConversionPattern<triton::SplitOp> {
+  using OpConversionPattern<triton::SplitOp>::OpConversionPattern;
+
+  LogicalResult
+  matchAndRewrite(triton::SplitOp op, OpAdaptor adaptor,
+                  ConversionPatternRewriter &rewriter) const override {
+    Location loc = op.getLoc();
+    Value input = op.getOperand();
+    auto inputType = cast<RankedTensorType>(input.getType());
+
+    Type resultType = op.getResults().front().getType();
+    auto resultTensor = cast<RankedTensorType>(resultType);
+    auto shape = inputType.getShape();
+
+    SmallVector<OpFoldResult> offsets(shape.size(), rewriter.getIndexAttr(0));
+    SmallVector<OpFoldResult> strides(shape.size(), rewriter.getIndexAttr(1));
+    SmallVector<OpFoldResult> sizes =
+      llvm::to_vector(llvm::map_range(shape, [&](int64_t dim) -> OpFoldResult {
+        return rewriter.getIndexAttr(dim);
+      }));
+
+    SmallVector<Value> results;
+
+    for (int i = 0; i < 2; ++i) {
+      offsets.pop_back();
+      sizes.pop_back();
+
+      offsets.push_back(rewriter.getIndexAttr(i));
+      sizes.push_back(rewriter.getIndexAttr(1));
+      Value slice = rewriter.create<tensor::ExtractSliceOp>(
+        loc, resultTensor, input, offsets, sizes, strides);
+      results.push_back(slice);
+    }
+
+    rewriter.replaceOp(op, results);
+    return success();
+  }
+};
+
+struct JoinConverter : public OpConversionPattern<triton::JoinOp> {
+  using OpConversionPattern<triton::JoinOp>::OpConversionPattern;
+
+  LogicalResult
+  matchAndRewrite(triton::JoinOp op, OpAdaptor adaptor,
+                  ConversionPatternRewriter &rewriter) const override {
+    ValueRange inputs = op.getOperands();
+
+    auto resultType = cast<RankedTensorType>(op.getResult().getType());
+
+    auto loc = op.getLoc();
+    Value result = rewriter.create<tensor::EmptyOp>(loc, resultType.getShape(), resultType.getElementType());
+
+    auto shape = resultType.getShape();
+
+    SmallVector<OpFoldResult> offsets(shape.size(), rewriter.getIndexAttr(0));
+    SmallVector<OpFoldResult> strides(shape.size(), rewriter.getIndexAttr(1));
+    SmallVector<OpFoldResult> sizes =
+      llvm::to_vector(llvm::map_range(shape, [&](int64_t dim) -> OpFoldResult {
+        return rewriter.getIndexAttr(dim);
+      }));
+
+    for (int i = 0; i < 2; ++i) {
+      offsets.pop_back();
+      sizes.pop_back();
+
+      offsets.push_back(rewriter.getIndexAttr(i));
+      sizes.push_back(rewriter.getIndexAttr(1));
+      result = rewriter.create<tensor::InsertSliceOp>(loc, inputs[i], result, offsets, sizes, strides);
+    }
+
+    rewriter.replaceOp(op, result);
+
+    return success();
+  }
+};
+
 struct MulHiUIOpConverter : public OpConversionPattern<triton::MulhiUIOp> {
   using OpConversionPattern<triton::MulhiUIOp>::OpConversionPattern;
 

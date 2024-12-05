@@ -36,12 +36,12 @@ module {
 // CHECK-LABEL:  func.func @matmul_kernel_with_block_pointers_01234567891011
 // CHECK-SAME:   ([[PARAM_0_:%.+]]: !tt.ptr<bf16>, [[PARAM_1_:%.+]]: !tt.ptr<bf16>, [[PARAM_2_:%.+]]: !tt.ptr<bf16>, [[PARAM_3_:%.+]]: i32, [[PARAM_4_:%.+]]: i32, [[PARAM_5_:%.+]]: i32, [[PARAM_6_:%.+]]: i32, [[PARAM_7_:%.+]]: i32, [[PARAM_8_:%.+]]: i32, [[PARAM_9_:%.+]]: i32, [[PARAM_10_:%.+]]: i32, [[PARAM_11_:%.+]]: i32, [[PARAM_12_:%.+]]: i32, [[PARAM_13_:%.+]]: i32, [[PARAM_14_:%.+]]: i32, [[PARAM_15_:%.+]]: i32, [[PARAM_16_:%.+]]: i32, [[PARAM_17_:%.+]]: i32, [[PARAM_18_:%.+]]: i32, [[PARAM_19_:%.+]]: i32) {
 // CHECK-DAG:       [[CST_0_dot_000000_:%.+]] = arith.constant 0.000000e+00 : bf16
-// CHECK-DAG:       [[VAR_0_:%.+]] = tensor.empty() : tensor<128x64xbf16>
-// CHECK-NOT: separator of consecutive DAGs
-// CHECK-DAG:       [[VAR_1_:%.+]] = linalg.fill ins([[CST_0_dot_000000_]] : bf16) outs([[VAR_0_]] : tensor<128x64xbf16>) -> tensor<128x64xbf16>
 // CHECK-DAG:       [[CST_64_:%.+]] = arith.constant 64 : i32
 // CHECK-DAG:       [[CST_0_:%.+]] = arith.constant 0 : i32
 // CHECK-DAG:       [[CST_256_:%.+]] = arith.constant 256 : i32
+// CHECK-DAG:       [[VAR_0_:%.+]] = tensor.empty() : tensor<128x64xbf16>
+// CHECK-NOT: separator of consecutive DAGs
+// CHECK-DAG:       [[VAR_1_:%.+]] = linalg.fill ins([[CST_0_dot_000000_]] : bf16) outs([[VAR_0_]] : tensor<128x64xbf16>) -> tensor<128x64xbf16>
 // CHECK-DAG:       [[VAR_2_:%.+]] = arith.extsi [[PARAM_3_]] : i32 to i64
 // CHECK-DAG:       [[VAR_3_:%.+]] = arith.extsi [[PARAM_5_]] : i32 to i64
 // CHECK-DAG:       [[VAR_4_:%.+]] = arith.extsi [[PARAM_6_]] : i32 to i64
