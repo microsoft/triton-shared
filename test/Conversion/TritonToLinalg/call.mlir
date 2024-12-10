@@ -17,7 +17,7 @@ module {
 // CHECK:     return [[CST_]] : f32
 // CHECK:   }
 // CHECK:   func.func @test(%arg0: i32, %arg1: i32, %arg2: i32, %arg3: i32, %arg4: i32, %arg5: i32) -> f32 {
-// CHECK:     [[VAR_0_:%.+]] = call @_sum_combine__fp32(%arg5, %arg4, %arg3, %arg2, %arg1, %arg0) : (i32, i32, i32, i32, i32, i32) -> f32
+// CHECK:     [[VAR_0_:%.+]] = call @_sum_combine__fp32(%arg0, %arg1, %arg2, %arg3, %arg4, %arg5) : (i32, i32, i32, i32, i32, i32) -> f32
 // CHECK:     return [[VAR_0_]] : f32
 // CHECK:   }
 // CHECK: }
