@@ -139,6 +139,7 @@ class CPUOptions:
     shared: bool = False
     allow_fp8e4nv: bool = False
     allowed_dot_input_precisions: Tuple[str] = ("ieee", )
+    sanitize_overflow: bool = True
 
     def __post_init__(self):
         pass
