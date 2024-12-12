@@ -347,6 +347,10 @@ class CPUDriver(DriverBase):
     def is_active():
         return False
 
+    def get_benchmarker(self):
+        from triton.testing import do_bench
+        return do_bench
+
     def get_device_capability(self):
         return ("cpu", 0)
 

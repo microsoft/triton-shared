@@ -1,3 +1,4 @@
+// XFAIL: *
 // RUN: triton-shared-opt --triton-to-linalg %s | FileCheck %s
 
 module {

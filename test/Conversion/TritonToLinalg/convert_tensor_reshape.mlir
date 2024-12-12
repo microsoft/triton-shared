@@ -13,9 +13,9 @@ module {
     %8 = tt.splat %arg0 : !tt.ptr<f32> -> tensor<32x!tt.ptr<f32>>
     %9 = tt.addptr %8, %4 : tensor<32x!tt.ptr<f32>>, tensor<32xi32>
     %10 = tt.load %9 : tensor<32x!tt.ptr<f32>>
-    %11 = tt.reshape %10 {allow_reorder = false} : tensor<32xf32> -> tensor<1x32xf32>
+    %11 = tt.reshape %10 allow_reorder : tensor<32xf32> -> tensor<1x32xf32>
     %12 = tt.broadcast %11 : tensor<1x32xf32> -> tensor<64x32xf32>
-    %13 = tt.reshape %12 {allow_reorder = false} : tensor<64x32xf32> -> tensor<2048xf32>
+    %13 = tt.reshape %12 allow_reorder : tensor<64x32xf32> -> tensor<2048xf32>
     %14 = tt.splat %arg1 : !tt.ptr<f32> -> tensor<2048x!tt.ptr<f32>>
     %15 = tt.addptr %14, %7 : tensor<2048x!tt.ptr<f32>>, tensor<2048xi32>
     tt.store %15, %13 : tensor<2048x!tt.ptr<f32>>
