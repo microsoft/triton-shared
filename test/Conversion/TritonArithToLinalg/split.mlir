@@ -6,7 +6,7 @@ module {
     %1 = tt.splat %arg0 : !tt.ptr<i32> -> tensor<256x!tt.ptr<i32>>
     %2 = tt.addptr %1, %0 : tensor<256x!tt.ptr<i32>>, tensor<256xi32>
     %3 = tt.load %2 : tensor<256x!tt.ptr<i32>>
-    %4 = tt.reshape %3 {allow_reorder = false} : tensor<256xi32> -> tensor<128x2xi32>
+    %4 = tt.reshape %3 allow_reorder : tensor<256xi32> -> tensor<128x2xi32>
     %outLHS, %outRHS = tt.split %4 : tensor<128x2xi32> -> tensor<128xi32>
     %5 = tt.make_range {end = 128 : i32, start = 0 : i32} : tensor<128xi32>
     %6 = tt.splat %arg1 : !tt.ptr<i32> -> tensor<128x!tt.ptr<i32>>
