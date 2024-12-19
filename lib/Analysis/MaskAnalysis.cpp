@@ -265,6 +265,17 @@ LogicalResult MaskState::parseIntScalar(Value scalar, const Location loc,
   return success();
 }
 
+void MaskState::dump() const {
+  llvm::dbgs() << "start: " << start << "\n";
+  llvm::dbgs() << "end: " << end << "\n";
+  llvm::dbgs() << "scalar: " << scalar << "\n";
+  llvm::dbgs() << "useUnsafeMask: " << useUnsafeMask << "\n";
+  llvm::dbgs() << "dims: ";
+  for (auto dim : dims)
+    llvm::dbgs() << "\t" << dim << "\n";
+  llvm::dbgs() << "\n";
+}
+
 LogicalResult MaskState::parseAdd(arith::AddIOp addOp, const Location loc,
                                   OpBuilder &builder) {
   assert(this->isEmpty());
@@ -308,7 +319,8 @@ LogicalResult MaskState::parseCmp(arith::CmpIOp cmpOp, const Location loc,
   assert(this->isEmpty());
 
   if (cmpOp.getPredicate() != arith::CmpIPredicate::slt &&
-      cmpOp.getPredicate() != arith::CmpIPredicate::ult) {
+      cmpOp.getPredicate() != arith::CmpIPredicate::ult &&
+      cmpOp.getPredicate() != arith::CmpIPredicate::sge) {
     InFlightDiagnostic diag = emitError(loc) << "Unsupported cmpi";
     return failure();
   }
@@ -321,9 +333,17 @@ LogicalResult MaskState::parseCmp(arith::CmpIOp cmpOp, const Location loc,
   if (failed(rhsState.parse(cmpOp.getRhs(), loc, builder)))
     return failure();
 
-  assert((!lhsState.scalar && rhsState.scalar) && "Unsupported cmpi scenario");
+  // We only support sge against 0 for lower bounds. Dims already has an
+  // implicit assumption that the lower bound is 0, so if we see this, assume
+  // the comparison evaluates to true.
+  if (cmpOp.getPredicate() == arith::CmpIPredicate::sge
+    && !(rhsState.scalar && hasConstZero(rhsState.scalar))) {
+    InFlightDiagnostic diag = emitError(loc)
+                              << "Unsupported cmpi with rhs not equal to 0";
+    return failure();
+  }
 
-  int32_t cmpDim = -1;
+  int32_t cmpDim = lhsState.scalar && rhsState.scalar ? 0 : -1;
   for (int32_t i = 0; i < lhsState.getRank(); i++) {
     auto dimIntAttr = getIntAttr(lhsState.dims[i]);
     if (!dimIntAttr || dimIntAttr.value() != 1) {
@@ -339,22 +359,42 @@ LogicalResult MaskState::parseCmp(arith::CmpIOp cmpOp, const Location loc,
   assert(cmpDim != -1 &&
          "Unexpected case where no dimension has size larger than 1");
 
-  // Important:
-  // In the case where the values we are loading are entirely masked off like
-  // the following:
-  //
-  // ---|-------|-----------|
-  //    ^       ^           ^
-  //   scalar  start       end
-  //
-  // newEnd = min(end, scalar) = scalar
-  // Now scalar < start, so simply doing dim = newEnd - start is incorrect.
-  //
-  // The correct formula is to optionally move `newDim` back to `start` using
-  // max(newEnd, start).
-  auto newEnd = minOFRs(lhsState.end, rhsState.scalar, loc, builder);
-  newEnd = maxOFRs(newEnd, lhsState.start, loc, builder);
-  auto newDim = subOFRs(newEnd, lhsState.start, loc, builder);
+  OpFoldResult newDim;
+  if (lhsState.scalar) {
+    assert(rhsState.scalar && "Unexpected case where rhs is not a scalar");
+    // If both lhs and rhs are scalars, we can't just derive the dimension of
+    // the mask as the minimum value: lhs/rhs could be 0 and then we don't
+    // load/store anything.
+    //
+    // Instead treat the comparison as a scalar that determines if anything
+    // should be loaded/stored by inserting a comparison + select:
+    //    dim = lhs < rhs ? lhs.dim : 0
+    newDim = compareOFRs(lhsState.scalar, rhsState.scalar, cmpOp.getPredicate(),
+                  lhsState.dims[cmpDim], builder.getIndexAttr(0),
+                  loc, builder);
+  } else if (cmpOp.getPredicate() == arith::CmpIPredicate::slt &&
+    cmpOp.getPredicate() == arith::CmpIPredicate::ult) {
+    // Important:
+    // In the case where the values we are loading are entirely masked off like
+    // the following:
+    //
+    // ---|-------|-----------|
+    //    ^       ^           ^
+    //   scalar  start       end
+    //
+    // newEnd = min(end, scalar) = scalar
+    // Now scalar < start, so simply doing dim = newEnd - start is incorrect.
+    //
+    // The correct formula is to optionally move `newDim` back to `start` using
+    // max(newEnd, start).
+    auto newEnd = minOFRs(lhsState.end, rhsState.scalar, loc, builder);
+    newEnd = maxOFRs(newEnd, lhsState.start, loc, builder);
+    newDim = subOFRs(newEnd, lhsState.start, loc, builder);
+  } else {
+    assert(cmpOp.getPredicate() == arith::CmpIPredicate::sge && rhsState.scalar
+           && hasConstZero(rhsState.scalar));
+    newDim = lhsState.dims[cmpDim];
+  }
 
   for (int32_t i = 0; i < lhsState.getRank(); i++) {
     if (i == cmpDim)
