@@ -372,7 +372,7 @@ LogicalResult MaskState::parseCmp(arith::CmpIOp cmpOp, const Location loc,
     newDim = compareOFRs(lhsState.scalar, rhsState.scalar, cmpOp.getPredicate(),
                   lhsState.dims[cmpDim], builder.getIndexAttr(0),
                   loc, builder);
-  } else if (cmpOp.getPredicate() == arith::CmpIPredicate::slt &&
+  } else if (cmpOp.getPredicate() == arith::CmpIPredicate::slt ||
     cmpOp.getPredicate() == arith::CmpIPredicate::ult) {
     // Important:
     // In the case where the values we are loading are entirely masked off like

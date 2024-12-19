@@ -120,14 +120,14 @@ private:
                          OpBuilder &builder);
 
   // Operand is the result of cmpi
-  // Assume only one of the dimensions has size > 1. Only support slt and sge
-  // against 0 for now. For that dimension, we have three cases:
+  // Assume only one of the dimensions has size > 1. Only support slt/ult, and
+  // sge against 0 for now. For that dimension, we have three cases:
   //  1. Constant comparison with both left and right-hand sides being scalars.
   //     Calculate this new dim as a compare and select.
   //      I.e. dim = lhs < rhs ? end : 0
   //  2. Left-hand side is not a scalar, and the right-hand side is.
-  //      2.a. Predicate is slt. Calculate this new dim as:
-  //            dim = min(end, value) - start
+  //      2.a. Predicate is slt/ult. Calculate this new dim as:
+  //            dim = max(min(end, value), start) - start
   //      2.b. Predicate is sge against 0. Mask analysis already has an
   //            assumption that the mask starts at 0, so evaluate this to true
   //            and calculate this new dim as: dim = end
