@@ -36,6 +36,7 @@
 
 #include "llvm/ADT/APInt.h"
 #include "llvm/ADT/DenseMap.h"
+#include "llvm/ADT/DenseSet.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/TypeSwitch.h"
@@ -121,6 +122,7 @@ public:
   auto computePtrType(unsigned int defaultBitWidth = 32) {
     auto moduleOp = getOperation();
 
+    llvm::SmallDenseSet<Value> ptrs;
     llvm::DenseMap<Value, PtrOffset> offsetMap;
     std::queue<Value> workList;
     llvm::DenseMap<Value, Value> ptrToOffset;
@@ -145,21 +147,13 @@ public:
           continue;
         }
 
-        // arg.dump();
-
         OpBuilder b(func->getRegion(0));
-
         Value zero = b.create<arith::ConstantOp>(
             arg.getLoc(),
             b.getIntegerAttr(IntegerType::get(&getContext(), defaultBitWidth),
                              0));
 
-        // arg.replaceUsesWithIf(initialOffset, [](OpOperand &operand) {
-        //   auto owner = operand.getOwner();
-        //   // return isa<triton::TritonDialect>(owner->getDialect());
-        //   return !isa<tts::MakeTensorPtrOp>(owner);
-        // });
-
+        ptrs.insert(arg);
         offsetMap.insert({arg, {arg, arg.getType(), defaultBitWidth, zero}});
         workList.push(arg);
       }
@@ -257,27 +251,27 @@ public:
               workList.push(res);
               toDelete.push_back(op);
             })
-            .Case<triton::LoadOp, triton::StoreOp
-                  // TODO: where do we put this?
-                  // , tts::MakeTensorPtrOp
-                  >([&](Operation *op) {
-              OpBuilder rewriter{op};
+            .Case<triton::LoadOp, triton::StoreOp, tts::MakeTensorPtrOp>(
+                [&](Operation *op) {
+                  if (auto makeTensorPtr = dyn_cast<tts::MakeTensorPtrOp>(op)) {
+                    if (ptrs.contains(makeTensorPtr.getBase())) {
+                      return;
+                    }
+                  }
 
-              auto ptr = op->getOperand(0);
-              // assert(toDelete.count(ptr.get));
-              auto offsetInfo = offsetMap.at(ptr);
+                  OpBuilder rewriter{op};
 
-              auto srcPtr = offsetInfo.ptr;
+                  auto ptr = op->getOperand(0);
+                  auto offsetInfo = offsetMap.at(ptr);
 
-              offsetInfo.ptrType.dump();
+                  auto srcPtr = offsetInfo.ptr;
 
-              auto cast = rewriter.create<tts::CreatePtrOp>(
-                  op->getLoc(), offsetInfo.ptrType, srcPtr, offsetInfo.offset);
+                  auto cast = rewriter.create<tts::CreatePtrOp>(
+                      op->getLoc(), offsetInfo.ptrType, srcPtr,
+                      offsetInfo.offset);
 
-              loadStores.push_back({op, cast.getResult()});
-
-              // op->setOperand(0, cast.getResult());
-            })
+                  loadStores.push_back({op, cast.getResult()});
+                })
             .Case<scf::ForOp>([&](scf::ForOp forOp) {
               // map init arg to iter-arg
               // map init arg to result
@@ -319,45 +313,7 @@ public:
                   res,
                   offsetInfo,
               });
-
-              for (auto arg : forOp.getInitArgs()) {
-                arg.dump();
-                // if (isPtrTypeLike(arg))
-              }
-
-              // llvm::dbgs() << "inits\n";
-              // for (auto arg : forOp.getInits()) {
-              //   arg.dump();
-              // }
-
-              // IRRewriter rewriter{forOp};
-
-              // scf::ForOp newOp = rewriter.create<scf::ForOp>(
-              //     forOp.getLoc(), forOp.getLowerBound(),
-              //     forOp.getUpperBound(), forOp.getStep(), flatArgs);
-
-              // return WalkResult::advance();
             })
-            // .Case<scf::YieldOp>([&](scf::YieldOp yieldOp) {
-            //   llvm::dbgs() << "++++++++++++++\n";
-            //   llvm::dbgs() << "yield op\n";
-            //   yieldOp->dump();
-            //   llvm::dbgs() << "val index: " << use.getOperandNumber() <<
-            //   "\n"; use.get().dump(); llvm::dbgs() << "++++++++++++++\n";
-            //   // yieldOp->getResult(use.getOperandNumber())
-            //   //     .setType(offsetMap.at(val).offsetType);
-            // })
-
-            // .Case<scf::IfOp>([&](scf::IfOp ifOp) { IRRewriter rewriter{ifOp};
-            // })
-
-            // .Case<scf::WhileOp>(
-            //     [&](scf::WhileOp whileOp) { IRRewriter rewriter{whileOp}; })
-
-            // .Case<scf::ConditionOp>([&](scf::ConditionOp conditionOp) {
-            //   IRRewriter rewriter{conditionOp};
-            // })
-
             .Default([&](auto) {});
       }
       llvm::dbgs() << "~~~~\n";
