@@ -12,6 +12,7 @@
 #include "mlir/IR/BuiltinOps.h"
 #include "mlir/IR/BuiltinTypeInterfaces.h"
 #include "mlir/IR/BuiltinTypes.h"
+#include "mlir/IR/IRMapping.h"
 #include "mlir/IR/MLIRContext.h"
 #include "mlir/IR/PatternMatch.h"
 #include "mlir/IR/TypeRange.h"
@@ -110,10 +111,11 @@ public:
   }
 
   struct PtrOffset {
-    unsigned int bitWidth;
-    Value srcPtr;
+    Value ptr;
     Type ptrType;
-    Type offsetType;
+    unsigned int bitWidth;
+    Value offset;
+    // Type offsetType;
   };
 
   auto computePtrType(unsigned int defaultBitWidth = 32) {
@@ -122,6 +124,20 @@ public:
     llvm::DenseMap<Value, PtrOffset> offsetMap;
     std::queue<Value> workList;
     llvm::DenseMap<Value, Value> ptrToOffset;
+
+    /*
+    algorithm:
+    addptr -> addi
+    src: pointer args
+
+    - map each operand of tt.addptr to offset (ptr-to-offset)
+      - special case: the ptr arg has offset == 0 (zero)
+
+
+    problems:
+    - do not want to set operands during traversal (use-def chains are changed)
+
+    */
 
     moduleOp.walk([&](FunctionOpInterface func) {
       for (auto arg : func.getArguments()) {
@@ -133,41 +149,30 @@ public:
 
         OpBuilder b(func->getRegion(0));
 
-        Value zero;
-        if (isa<ShapedType>(arg.getType())) {
-          zero = b.create<arith::ConstantOp>(
-              arg.getLoc(),
-              DenseElementsAttr::get(cast<ShapedType>(getPtrOffsetType(
-                                         arg.getType(), defaultBitWidth)),
-                                     APInt(defaultBitWidth, 0)));
-        } else {
-          zero = b.create<arith::ConstantOp>(
-              arg.getLoc(),
-              b.getIntegerAttr(IntegerType::get(&getContext(), defaultBitWidth),
-                               0));
-          zero.dump();
-        }
-        auto initialOffset = zero;
-        ptrToOffset[initialOffset] = initialOffset;
+        Value zero = b.create<arith::ConstantOp>(
+            arg.getLoc(),
+            b.getIntegerAttr(IntegerType::get(&getContext(), defaultBitWidth),
+                             0));
 
-        arg.replaceUsesWithIf(initialOffset, [](OpOperand &operand) {
-          auto owner = operand.getOwner();
-          // return isa<triton::TritonDialect>(owner->getDialect());
-          return !isa<tts::MakeTensorPtrOp>(owner);
-        });
+        // arg.replaceUsesWithIf(initialOffset, [](OpOperand &operand) {
+        //   auto owner = operand.getOwner();
+        //   // return isa<triton::TritonDialect>(owner->getDialect());
+        //   return !isa<tts::MakeTensorPtrOp>(owner);
+        // });
 
-        offsetMap.insert(
-            {initialOffset,
-             {defaultBitWidth, arg, arg.getType(), zero.getType()}});
-        workList.push(initialOffset);
+        offsetMap.insert({arg, {arg, arg.getType(), defaultBitWidth, zero}});
+        workList.push(arg);
       }
     });
 
     moduleOp->dump();
 
-    llvm::DenseMap<triton::AddPtrOp, Value> toDelete;
+    llvm::SmallVector<Operation *> toDelete;
     llvm::SmallVector<std::pair<Operation *, Value>> loadStores;
 
+    /*
+
+     */
     while (!workList.empty()) {
       auto val = workList.front();
       llvm::dbgs() << "processing val\n";
@@ -188,10 +193,11 @@ public:
         llvm::TypeSwitch<Operation *>(user)
             .Case<triton::AddPtrOp>([&](triton::AddPtrOp addptr) {
               OpBuilder rewriter{addptr};
-              auto prevOff = addptr.getPtr();
+              auto offsetInfo = offsetMap.at(addptr.getPtr());
+
+              auto prevOff = offsetInfo.offset;
               auto off = addptr.getOffset();
 
-              auto offsetInfo = offsetMap.at(prevOff);
               auto loc = addptr->getLoc();
 
               auto lhsWidth = offsetInfo.bitWidth;
@@ -200,82 +206,78 @@ public:
 
               if (lhsWidth != resWidth) {
                 prevOff = rewriter.create<arith::ExtSIOp>(
-                    loc, getPtrOffsetType(prevOff.getType(), resWidth),
-                    ptrToOffset[prevOff]);
+                    loc, getPtrOffsetType(offsetInfo.ptrType, resWidth),
+                    prevOff);
               }
 
               if (rhsWidth != resWidth) {
                 off = rewriter.create<arith::ExtSIOp>(
-                    loc, getPtrOffsetType(prevOff.getType(), resWidth), off);
+                    loc, getPtrOffsetType(offsetInfo.ptrType, resWidth), off);
               }
 
               auto accumulatedOff = rewriter.create<arith::AddIOp>(
-                  loc, off.getType(), prevOff, off);
-              // llvm::dbgs() << "~~~\n";
-              // llvm::dbgs() << "accumulate\n";
-              // accumulatedOff->dump();
-              // addptr->dump();
-              // llvm::dbgs() << "~~~\n";
+                  loc, getPtrOffsetType(addptr.getType(), resWidth), prevOff,
+                  off);
 
-              auto type = addptr.getType();
-              toDelete.insert({addptr, accumulatedOff.getResult()});
-
-              PtrOffset newOffsetInfo{resWidth, offsetInfo.srcPtr, type,
-                                      accumulatedOff.getType()};
+              PtrOffset newOffsetInfo{offsetInfo.ptr, addptr.getType(),
+                                      resWidth, accumulatedOff};
 
               offsetMap.insert({addptr, newOffsetInfo});
               workList.push(addptr);
-              ptrToOffset[addptr] = accumulatedOff;
+              toDelete.push_back(addptr);
             })
             .Case<triton::SplatOp, triton::BroadcastOp>([&](Operation *op) {
-              if (!isPtrTypeLike(op->getResult(0).getType())) {
+              auto res = op->getResult(0);
+              auto resType = res.getType();
+
+              if (!isPtrTypeLike(resType)) {
                 return;
               }
-              // assert(0);
+              auto loc = op->getLoc();
 
               auto ptr = op->getOperand(0);
-              auto res = op->getResult(0);
-              auto ptrType = res.getType();
               auto offsetInfo = offsetMap.at(ptr);
-              auto offsetType =
-                  getPtrOffsetType(res.getType(), offsetInfo.bitWidth);
 
-              offsetInfo.ptrType = ptrType;
-              offsetInfo.offsetType = offsetType;
-              res.setType(offsetType);
+              offsetInfo.ptrType = resType;
+
+              OpBuilder rewriter{op};
+              auto clone = rewriter.create(
+                  loc, op->getName().getIdentifier(),
+                  ValueRange{offsetInfo.offset},
+                  TypeRange{getPtrOffsetType(resType, offsetInfo.bitWidth)});
+
+              PtrOffset newOffsetInfo{offsetInfo.ptr, resType,
+                                      offsetInfo.bitWidth, clone->getResult(0)};
 
               offsetMap.insert({
                   res,
-                  offsetInfo,
+                  newOffsetInfo,
               });
 
-              ptrToOffset.insert({res, res});
-
               workList.push(res);
-              op->dump();
+              toDelete.push_back(op);
             })
-            .Case<triton::LoadOp, triton::StoreOp, tts::MakeTensorPtrOp>(
-                [&](Operation *op) {
-                  OpBuilder rewriter{op};
+            .Case<triton::LoadOp, triton::StoreOp
+                  // TODO: where do we put this?
+                  // , tts::MakeTensorPtrOp
+                  >([&](Operation *op) {
+              OpBuilder rewriter{op};
 
-                  auto ptr = op->getOperand(0);
-                  // assert(toDelete.count(ptr.get));
-                  auto offsetInfo = offsetMap.at(ptr);
+              auto ptr = op->getOperand(0);
+              // assert(toDelete.count(ptr.get));
+              auto offsetInfo = offsetMap.at(ptr);
 
-                  auto srcPtr = offsetInfo.srcPtr;
+              auto srcPtr = offsetInfo.ptr;
 
-                  offsetInfo.ptrType.dump();
+              offsetInfo.ptrType.dump();
 
-                  assert(ptrToOffset.contains(ptr));
+              auto cast = rewriter.create<tts::CreatePtrOp>(
+                  op->getLoc(), offsetInfo.ptrType, srcPtr, offsetInfo.offset);
 
-                  auto cast = rewriter.create<tts::CreatePtrOp>(
-                      op->getLoc(), offsetInfo.ptrType, srcPtr,
-                      ptrToOffset.at(ptr));
+              loadStores.push_back({op, cast.getResult()});
 
-                  loadStores.push_back({op, cast.getResult()});
-
-                  // op->setOperand(0, cast.getResult());
-                })
+              // op->setOperand(0, cast.getResult());
+            })
             .Case<scf::ForOp>([&](scf::ForOp forOp) {
               // map init arg to iter-arg
               // map init arg to result
@@ -295,12 +297,15 @@ public:
 
               llvm::dbgs() << "iter arg\n";
               auto offsetInfo = offsetMap.at(init);
+              auto offsetType =
+                  getPtrOffsetType(offsetInfo.ptrType, offsetInfo.bitWidth);
+
               auto iterArg = forOp.getRegionIterArg(use.getOperandNumber() - 3);
-              iterArg.setType(offsetInfo.offsetType);
+              iterArg.setType(offsetType);
               // iterArg.dump();
 
               auto res = forOp.getResult(use.getOperandNumber() - 3);
-              res.setType(offsetInfo.offsetType);
+              res.setType(offsetType);
 
               llvm::dbgs() << "init arg\n";
 
@@ -314,8 +319,6 @@ public:
                   res,
                   offsetInfo,
               });
-              ptrToOffset.insert({iterArg, iterArg});
-              ptrToOffset.insert({res, res});
 
               for (auto arg : forOp.getInitArgs()) {
                 arg.dump();
@@ -363,7 +366,7 @@ public:
     moduleOp->dump();
 
     llvm::dbgs() << "total addptr count: " << toDelete.size() << "\n";
-    for (auto [op, replacement] : toDelete) {
+    for (auto op : toDelete) {
       llvm::dbgs() << "deleting\n";
       op->dump();
       // op.replaceAllUsesWith(replacement);
@@ -374,10 +377,11 @@ public:
       op->setOperand(0, val);
     }
 
-    for (auto [op, replacement] : toDelete) {
+    for (auto op : toDelete) {
       // llvm::dbgs() << "deleting\n";
       // op->dump();
-      op.replaceAllUsesWith(replacement);
+      auto ptrInfo = offsetMap.at(op->getResult(0));
+      op->replaceAllUsesWith(ValueRange{ptrInfo.offset});
       op->erase();
     }
 
