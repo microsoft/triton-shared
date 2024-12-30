@@ -1,0 +1,287 @@
+processing val
+%1 = "arith.constant"() <{value = 0 : i32}> : () -> i32
+processing user
+%15 = "tt.splat"(%1) : (i32) -> tensor<2x2x!tt.ptr<f32>>
+%15 = "tt.splat"(%1) : (i32) -> tensor<2x2xi32>
+processing val
+%0 = "arith.constant"() <{value = 0 : i32}> : () -> i32
+processing user
+%17 = "tt.splat"(%0) : (i32) -> tensor<2x1x!tt.ptr<f32>>
+%17 = "tt.splat"(%0) : (i32) -> tensor<2x1xi32>
+processing val
+%15 = "tt.splat"(%1) : (i32) -> tensor<2x2xi32>
+processing user
+%16 = "tt.addptr"(%15, %14) : (tensor<2x2xi32>, tensor<2x2xi32>) -> tensor<2x2x!tt.ptr<f32>>
+processing val
+%17 = "tt.splat"(%0) : (i32) -> tensor<2x1xi32>
+processing user
+%18 = "tt.addptr"(%17, %8) : (tensor<2x1xi32>, tensor<2x1xi32>) -> tensor<2x1x!tt.ptr<f32>>
+processing val
+%16 = "arith.addi"(%15, %14) <{overflowFlags = #arith.overflow<none>}> : (tensor<2x2xi32>, tensor<2x2xi32>) -> tensor<2x2xi32>
+processing user
+%27:2 = "scf.for"(%3, %4, %2, %16, %20) ({
+^bb0(%arg4: i32, %arg5: tensor<2x2x!tt.ptr<f32>>, %arg6: tensor<2x2x!tt.ptr<f32>>):
+  %28 = "scf.for"(%3, %4, %2, %arg5) ({
+  ^bb0(%arg10: i32, %arg11: tensor<2x2x!tt.ptr<f32>>):
+    %38 = "tt.addptr"(%arg11, %22) : (tensor<2x2x!tt.ptr<f32>>, tensor<2x2xi32>) -> tensor<2x2x!tt.ptr<f32>>
+    "scf.yield"(%38) : (tensor<2x2x!tt.ptr<f32>>) -> ()
+  }) : (i32, i32, i32, tensor<2x2x!tt.ptr<f32>>) -> tensor<2x2x!tt.ptr<f32>>
+  %29:2 = "scf.for"(%3, %4, %2, %28, %arg6) ({
+  ^bb0(%arg7: i32, %arg8: tensor<2x2x!tt.ptr<f32>>, %arg9: tensor<2x2x!tt.ptr<f32>>):
+    %31 = "tt.load"(%arg8) <{boundaryCheck = array<i32>, cache = 1 : i32, evict = 1 : i32, isVolatile = false, operandSegmentSizes = array<i32: 1, 0, 0>}> : (tensor<2x2x!tt.ptr<f32>>) -> tensor<2x2xf32>
+    %32 = "tt.addptr"(%arg8, %24) : (tensor<2x2x!tt.ptr<f32>>, tensor<2x2xi32>) -> tensor<2x2x!tt.ptr<f32>>
+    %33 = "tt.load"(%32) <{boundaryCheck = array<i32>, cache = 1 : i32, evict = 1 : i32, isVolatile = false, operandSegmentSizes = array<i32: 1, 0, 0>}> : (tensor<2x2x!tt.ptr<f32>>) -> tensor<2x2xf32>
+    "tt.store"(%arg9, %31) <{boundaryCheck = array<i32>, cache = 1 : i32, evict = 1 : i32}> : (tensor<2x2x!tt.ptr<f32>>, tensor<2x2xf32>) -> ()
+    %34 = "tt.addptr"(%arg9, %24) : (tensor<2x2x!tt.ptr<f32>>, tensor<2x2xi32>) -> tensor<2x2x!tt.ptr<f32>>
+    %35 = "tt.addptr"(%34, %24) : (tensor<2x2x!tt.ptr<f32>>, tensor<2x2xi32>) -> tensor<2x2x!tt.ptr<f32>>
+    "tt.store"(%35, %33) <{boundaryCheck = array<i32>, cache = 1 : i32, evict = 1 : i32}> : (tensor<2x2x!tt.ptr<f32>>, tensor<2x2xf32>) -> ()
+    %36 = "tt.addptr"(%35, %24) : (tensor<2x2x!tt.ptr<f32>>, tensor<2x2xi32>) -> tensor<2x2x!tt.ptr<f32>>
+    %37 = "tt.addptr"(%32, %24) : (tensor<2x2x!tt.ptr<f32>>, tensor<2x2xi32>) -> tensor<2x2x!tt.ptr<f32>>
+    "scf.yield"(%37, %36) : (tensor<2x2x!tt.ptr<f32>>, tensor<2x2x!tt.ptr<f32>>) -> ()
+  }) : (i32, i32, i32, tensor<2x2x!tt.ptr<f32>>, tensor<2x2x!tt.ptr<f32>>) -> (tensor<2x2x!tt.ptr<f32>>, tensor<2x2x!tt.ptr<f32>>)
+  %30 = "tt.addptr"(%29#0, %26) : (tensor<2x2x!tt.ptr<f32>>, tensor<2x2xi32>) -> tensor<2x2x!tt.ptr<f32>>
+  "scf.yield"(%30, %29#1) : (tensor<2x2x!tt.ptr<f32>>, tensor<2x2x!tt.ptr<f32>>) -> ()
+}) : (i32, i32, i32, tensor<2x2xi32>, tensor<2x2x!tt.ptr<f32>>) -> (tensor<2x2x!tt.ptr<f32>>, tensor<2x2x!tt.ptr<f32>>)
+arg number: 3
+%16 = "arith.addi"(%15, %14) <{overflowFlags = #arith.overflow<none>}> : (tensor<2x2xi32>, tensor<2x2xi32>) -> tensor<2x2xi32>
+init arg size
+2
+num region iter-args
+2
+dump from that index
+%16 = "arith.addi"(%15, %14) <{overflowFlags = #arith.overflow<none>}> : (tensor<2x2xi32>, tensor<2x2xi32>) -> tensor<2x2xi32>
+iter arg
+<block argument> of type 'tensor<2x2x!tt.ptr<f32>>' at index: 1
+init arg
+%16 = "arith.addi"(%15, %14) <{overflowFlags = #arith.overflow<none>}> : (tensor<2x2xi32>, tensor<2x2xi32>) -> tensor<2x2xi32>
+%20 = "tt.addptr"(%19, %13) : (tensor<2x2x!tt.ptr<f32>>, tensor<2x2xi32>) -> tensor<2x2x!tt.ptr<f32>>
+processing val
+%18 = "arith.addi"(%17, %8) <{overflowFlags = #arith.overflow<none>}> : (tensor<2x1xi32>, tensor<2x1xi32>) -> tensor<2x1xi32>
+processing user
+%19 = "tt.broadcast"(%18) : (tensor<2x1xi32>) -> tensor<2x2x!tt.ptr<f32>>
+%19 = "tt.broadcast"(%18) : (tensor<2x1xi32>) -> tensor<2x2xi32>
+processing val
+<block argument> of type 'tensor<2x2x!tt.ptr<f32>>' at index: 1
+processing user
+%28 = "scf.for"(%3, %4, %2, %arg5) ({
+^bb0(%arg10: i32, %arg11: tensor<2x2x!tt.ptr<f32>>):
+  %38 = "tt.addptr"(%arg11, %22) : (tensor<2x2x!tt.ptr<f32>>, tensor<2x2xi32>) -> tensor<2x2x!tt.ptr<f32>>
+  "scf.yield"(%38) : (tensor<2x2x!tt.ptr<f32>>) -> ()
+}) : (i32, i32, i32, tensor<2x2x!tt.ptr<f32>>) -> tensor<2x2x!tt.ptr<f32>>
+arg number: 3
+<block argument> of type 'tensor<2x2x!tt.ptr<f32>>' at index: 1
+init arg size
+1
+num region iter-args
+1
+dump from that index
+<block argument> of type 'tensor<2x2x!tt.ptr<f32>>' at index: 1
+iter arg
+<block argument> of type 'tensor<2x2x!tt.ptr<f32>>' at index: 1
+init arg
+<block argument> of type 'tensor<2x2x!tt.ptr<f32>>' at index: 1
+processing val
+%19 = "tt.broadcast"(%18) : (tensor<2x1xi32>) -> tensor<2x2xi32>
+processing user
+%20 = "tt.addptr"(%19, %13) : (tensor<2x2xi32>, tensor<2x2xi32>) -> tensor<2x2x!tt.ptr<f32>>
+processing val
+<block argument> of type 'tensor<2x2x!tt.ptr<f32>>' at index: 1
+processing user
+%38 = "tt.addptr"(%arg11, %22) : (tensor<2x2x!tt.ptr<f32>>, tensor<2x2xi32>) -> tensor<2x2x!tt.ptr<f32>>
+processing val
+%20 = "arith.addi"(%19, %13) <{overflowFlags = #arith.overflow<none>}> : (tensor<2x2xi32>, tensor<2x2xi32>) -> tensor<2x2xi32>
+processing user
+%27:2 = "scf.for"(%3, %4, %2, %16, %20) ({
+^bb0(%arg4: i32, %arg5: tensor<2x2x!tt.ptr<f32>>, %arg6: tensor<2x2x!tt.ptr<f32>>):
+  %28 = "scf.for"(%3, %4, %2, %arg5) ({
+  ^bb0(%arg10: i32, %arg11: tensor<2x2x!tt.ptr<f32>>):
+    %38 = "builtin.unrealized_conversion_cast"(%arg11) : (tensor<2x2x!tt.ptr<f32>>) -> tensor<2x2xi32>
+    %39 = "arith.addi"(%38, %22) <{overflowFlags = #arith.overflow<none>}> : (tensor<2x2xi32>, tensor<2x2xi32>) -> tensor<2x2xi32>
+    "scf.yield"(%39) : (tensor<2x2xi32>) -> ()
+  }) : (i32, i32, i32, tensor<2x2x!tt.ptr<f32>>) -> tensor<2x2x!tt.ptr<f32>>
+  %29:2 = "scf.for"(%3, %4, %2, %28, %arg6) ({
+  ^bb0(%arg7: i32, %arg8: tensor<2x2x!tt.ptr<f32>>, %arg9: tensor<2x2x!tt.ptr<f32>>):
+    %31 = "tt.load"(%arg8) <{boundaryCheck = array<i32>, cache = 1 : i32, evict = 1 : i32, isVolatile = false, operandSegmentSizes = array<i32: 1, 0, 0>}> : (tensor<2x2x!tt.ptr<f32>>) -> tensor<2x2xf32>
+    %32 = "tt.addptr"(%arg8, %24) : (tensor<2x2x!tt.ptr<f32>>, tensor<2x2xi32>) -> tensor<2x2x!tt.ptr<f32>>
+    %33 = "tt.load"(%32) <{boundaryCheck = array<i32>, cache = 1 : i32, evict = 1 : i32, isVolatile = false, operandSegmentSizes = array<i32: 1, 0, 0>}> : (tensor<2x2x!tt.ptr<f32>>) -> tensor<2x2xf32>
+    "tt.store"(%arg9, %31) <{boundaryCheck = array<i32>, cache = 1 : i32, evict = 1 : i32}> : (tensor<2x2x!tt.ptr<f32>>, tensor<2x2xf32>) -> ()
+    %34 = "tt.addptr"(%arg9, %24) : (tensor<2x2x!tt.ptr<f32>>, tensor<2x2xi32>) -> tensor<2x2x!tt.ptr<f32>>
+    %35 = "tt.addptr"(%34, %24) : (tensor<2x2x!tt.ptr<f32>>, tensor<2x2xi32>) -> tensor<2x2x!tt.ptr<f32>>
+    "tt.store"(%35, %33) <{boundaryCheck = array<i32>, cache = 1 : i32, evict = 1 : i32}> : (tensor<2x2x!tt.ptr<f32>>, tensor<2x2xf32>) -> ()
+    %36 = "tt.addptr"(%35, %24) : (tensor<2x2x!tt.ptr<f32>>, tensor<2x2xi32>) -> tensor<2x2x!tt.ptr<f32>>
+    %37 = "tt.addptr"(%32, %24) : (tensor<2x2x!tt.ptr<f32>>, tensor<2x2xi32>) -> tensor<2x2x!tt.ptr<f32>>
+    "scf.yield"(%37, %36) : (tensor<2x2x!tt.ptr<f32>>, tensor<2x2x!tt.ptr<f32>>) -> ()
+  }) : (i32, i32, i32, tensor<2x2x!tt.ptr<f32>>, tensor<2x2x!tt.ptr<f32>>) -> (tensor<2x2x!tt.ptr<f32>>, tensor<2x2x!tt.ptr<f32>>)
+  %30 = "tt.addptr"(%29#0, %26) : (tensor<2x2x!tt.ptr<f32>>, tensor<2x2xi32>) -> tensor<2x2x!tt.ptr<f32>>
+  "scf.yield"(%30, %29#1) : (tensor<2x2x!tt.ptr<f32>>, tensor<2x2x!tt.ptr<f32>>) -> ()
+}) : (i32, i32, i32, tensor<2x2xi32>, tensor<2x2xi32>) -> (tensor<2x2x!tt.ptr<f32>>, tensor<2x2x!tt.ptr<f32>>)
+arg number: 4
+%20 = "arith.addi"(%19, %13) <{overflowFlags = #arith.overflow<none>}> : (tensor<2x2xi32>, tensor<2x2xi32>) -> tensor<2x2xi32>
+init arg size
+2
+num region iter-args
+2
+dump from that index
+%20 = "arith.addi"(%19, %13) <{overflowFlags = #arith.overflow<none>}> : (tensor<2x2xi32>, tensor<2x2xi32>) -> tensor<2x2xi32>
+iter arg
+<block argument> of type 'tensor<2x2x!tt.ptr<f32>>' at index: 2
+init arg
+%16 = "arith.addi"(%15, %14) <{overflowFlags = #arith.overflow<none>}> : (tensor<2x2xi32>, tensor<2x2xi32>) -> tensor<2x2xi32>
+%20 = "arith.addi"(%19, %13) <{overflowFlags = #arith.overflow<none>}> : (tensor<2x2xi32>, tensor<2x2xi32>) -> tensor<2x2xi32>
+processing val
+%39 = "arith.addi"(%38, %22) <{overflowFlags = #arith.overflow<none>}> : (tensor<2x2xi32>, tensor<2x2xi32>) -> tensor<2x2xi32>
+processing user
+"scf.yield"(%39) : (tensor<2x2xi32>) -> ()
+processing val
+<block argument> of type 'tensor<2x2x!tt.ptr<f32>>' at index: 2
+processing user
+%29:2 = "scf.for"(%3, %4, %2, %28, %arg6) ({
+^bb0(%arg7: i32, %arg8: tensor<2x2x!tt.ptr<f32>>, %arg9: tensor<2x2x!tt.ptr<f32>>):
+  %31 = "tt.load"(%arg8) <{boundaryCheck = array<i32>, cache = 1 : i32, evict = 1 : i32, isVolatile = false, operandSegmentSizes = array<i32: 1, 0, 0>}> : (tensor<2x2x!tt.ptr<f32>>) -> tensor<2x2xf32>
+  %32 = "tt.addptr"(%arg8, %24) : (tensor<2x2x!tt.ptr<f32>>, tensor<2x2xi32>) -> tensor<2x2x!tt.ptr<f32>>
+  %33 = "tt.load"(%32) <{boundaryCheck = array<i32>, cache = 1 : i32, evict = 1 : i32, isVolatile = false, operandSegmentSizes = array<i32: 1, 0, 0>}> : (tensor<2x2x!tt.ptr<f32>>) -> tensor<2x2xf32>
+  "tt.store"(%arg9, %31) <{boundaryCheck = array<i32>, cache = 1 : i32, evict = 1 : i32}> : (tensor<2x2x!tt.ptr<f32>>, tensor<2x2xf32>) -> ()
+  %34 = "tt.addptr"(%arg9, %24) : (tensor<2x2x!tt.ptr<f32>>, tensor<2x2xi32>) -> tensor<2x2x!tt.ptr<f32>>
+  %35 = "tt.addptr"(%34, %24) : (tensor<2x2x!tt.ptr<f32>>, tensor<2x2xi32>) -> tensor<2x2x!tt.ptr<f32>>
+  "tt.store"(%35, %33) <{boundaryCheck = array<i32>, cache = 1 : i32, evict = 1 : i32}> : (tensor<2x2x!tt.ptr<f32>>, tensor<2x2xf32>) -> ()
+  %36 = "tt.addptr"(%35, %24) : (tensor<2x2x!tt.ptr<f32>>, tensor<2x2xi32>) -> tensor<2x2x!tt.ptr<f32>>
+  %37 = "tt.addptr"(%32, %24) : (tensor<2x2x!tt.ptr<f32>>, tensor<2x2xi32>) -> tensor<2x2x!tt.ptr<f32>>
+  "scf.yield"(%37, %36) : (tensor<2x2x!tt.ptr<f32>>, tensor<2x2x!tt.ptr<f32>>) -> ()
+}) : (i32, i32, i32, tensor<2x2x!tt.ptr<f32>>, tensor<2x2x!tt.ptr<f32>>) -> (tensor<2x2x!tt.ptr<f32>>, tensor<2x2x!tt.ptr<f32>>)
+arg number: 4
+<block argument> of type 'tensor<2x2x!tt.ptr<f32>>' at index: 2
+init arg size
+2
+num region iter-args
+2
+dump from that index
+<block argument> of type 'tensor<2x2x!tt.ptr<f32>>' at index: 2
+iter arg
+<block argument> of type 'tensor<2x2x!tt.ptr<f32>>' at index: 2
+init arg
+%28 = "scf.for"(%3, %4, %2, %arg5) ({
+^bb0(%arg10: i32, %arg11: tensor<2x2x!tt.ptr<f32>>):
+  %38 = "builtin.unrealized_conversion_cast"(%arg11) : (tensor<2x2x!tt.ptr<f32>>) -> tensor<2x2xi32>
+  %39 = "arith.addi"(%38, %22) <{overflowFlags = #arith.overflow<none>}> : (tensor<2x2xi32>, tensor<2x2xi32>) -> tensor<2x2xi32>
+  "scf.yield"(%39) : (tensor<2x2xi32>) -> ()
+}) : (i32, i32, i32, tensor<2x2x!tt.ptr<f32>>) -> tensor<2x2x!tt.ptr<f32>>
+<block argument> of type 'tensor<2x2x!tt.ptr<f32>>' at index: 2
+processing val
+<block argument> of type 'tensor<2x2x!tt.ptr<f32>>' at index: 2
+processing user
+%34 = "tt.addptr"(%arg9, %24) : (tensor<2x2x!tt.ptr<f32>>, tensor<2x2xi32>) -> tensor<2x2x!tt.ptr<f32>>
+processing user
+"tt.store"(%arg9, %31) <{boundaryCheck = array<i32>, cache = 1 : i32, evict = 1 : i32}> : (tensor<2x2x!tt.ptr<f32>>, tensor<2x2xf32>) -> ()
+tensor<2x2x!tt.ptr<f32>>
+processing val
+%37 = "arith.addi"(%36, %24) <{overflowFlags = #arith.overflow<none>}> : (tensor<2x2xi32>, tensor<2x2xi32>) -> tensor<2x2xi32>
+processing user
+%38 = "tt.addptr"(%37, %24) : (tensor<2x2xi32>, tensor<2x2xi32>) -> tensor<2x2x!tt.ptr<f32>>
+processing val
+%38 = "arith.addi"(%37, %24) <{overflowFlags = #arith.overflow<none>}> : (tensor<2x2xi32>, tensor<2x2xi32>) -> tensor<2x2xi32>
+processing user
+"tt.store"(%38, %33) <{boundaryCheck = array<i32>, cache = 1 : i32, evict = 1 : i32}> : (tensor<2x2xi32>, tensor<2x2xf32>) -> ()
+tensor<2x2x!tt.ptr<f32>>
+for op
+<block argument> of type 'tensor<2x2x!tt.ptr<f32>>' at index: 1
+for op
+%28 = "scf.for"(%3, %4, %2, %arg5) ({
+^bb0(%arg10: i32, %arg11: tensor<2x2x!tt.ptr<f32>>):
+  %42 = "builtin.unrealized_conversion_cast"(%arg11) : (tensor<2x2x!tt.ptr<f32>>) -> tensor<2x2xi32>
+  %43 = "arith.addi"(%42, %22) <{overflowFlags = #arith.overflow<none>}> : (tensor<2x2xi32>, tensor<2x2xi32>) -> tensor<2x2xi32>
+  "scf.yield"(%43) : (tensor<2x2xi32>) -> ()
+}) : (i32, i32, i32, tensor<2x2x!tt.ptr<f32>>) -> tensor<2x2x!tt.ptr<f32>>
+<block argument> of type 'tensor<2x2x!tt.ptr<f32>>' at index: 2
+for op
+%16 = "arith.addi"(%15, %14) <{overflowFlags = #arith.overflow<none>}> : (tensor<2x2xi32>, tensor<2x2xi32>) -> tensor<2x2xi32>
+%20 = "arith.addi"(%19, %13) <{overflowFlags = #arith.overflow<none>}> : (tensor<2x2xi32>, tensor<2x2xi32>) -> tensor<2x2xi32>
+"builtin.module"() ({
+  "tt.func"() <{function_type = (!tt.ptr<f32>, !tt.ptr<f32>, i32, i32) -> (), sym_name = "nested_use_same_level_loop_result", sym_visibility = "public"}> ({
+  ^bb0(%arg0: !tt.ptr<f32>, %arg1: !tt.ptr<f32>, %arg2: i32, %arg3: i32):
+    %0 = "arith.constant"() <{value = 0 : i32}> : () -> i32
+    %1 = "arith.constant"() <{value = 0 : i32}> : () -> i32
+    %2 = "arith.constant"() <{value = 1 : i32}> : () -> i32
+    %3 = "arith.constant"() <{value = 0 : i32}> : () -> i32
+    %4 = "arith.constant"() <{value = 2 : i32}> : () -> i32
+    %5 = "tt.make_range"() <{end = 2 : i32, start = 0 : i32}> : () -> tensor<2xi32>
+    %6 = "tt.expand_dims"(%5) <{axis = 1 : i32}> : (tensor<2xi32>) -> tensor<2x1xi32>
+    %7 = "tt.splat"(%arg2) : (i32) -> tensor<2x1xi32>
+    %8 = "arith.muli"(%6, %7) <{overflowFlags = #arith.overflow<none>}> : (tensor<2x1xi32>, tensor<2x1xi32>) -> tensor<2x1xi32>
+    %9 = "tt.expand_dims"(%5) <{axis = 0 : i32}> : (tensor<2xi32>) -> tensor<1x2xi32>
+    %10 = "tt.splat"(%arg3) : (i32) -> tensor<1x2xi32>
+    %11 = "arith.muli"(%9, %10) <{overflowFlags = #arith.overflow<none>}> : (tensor<1x2xi32>, tensor<1x2xi32>) -> tensor<1x2xi32>
+    %12 = "tt.broadcast"(%8) : (tensor<2x1xi32>) -> tensor<2x2xi32>
+    %13 = "tt.broadcast"(%11) : (tensor<1x2xi32>) -> tensor<2x2xi32>
+    %14 = "arith.addi"(%12, %13) <{overflowFlags = #arith.overflow<none>}> : (tensor<2x2xi32>, tensor<2x2xi32>) -> tensor<2x2xi32>
+    %15 = "tt.splat"(%1) : (i32) -> tensor<2x2xi32>
+    %16 = "arith.addi"(%15, %14) <{overflowFlags = #arith.overflow<none>}> : (tensor<2x2xi32>, tensor<2x2xi32>) -> tensor<2x2xi32>
+    %17 = "tt.splat"(%0) : (i32) -> tensor<2x1xi32>
+    %18 = "arith.addi"(%17, %8) <{overflowFlags = #arith.overflow<none>}> : (tensor<2x1xi32>, tensor<2x1xi32>) -> tensor<2x1xi32>
+    %19 = "tt.broadcast"(%18) : (tensor<2x1xi32>) -> tensor<2x2xi32>
+    %20 = "arith.addi"(%19, %13) <{overflowFlags = #arith.overflow<none>}> : (tensor<2x2xi32>, tensor<2x2xi32>) -> tensor<2x2xi32>
+    %21 = "arith.muli"(%arg3, %4) <{overflowFlags = #arith.overflow<none>}> : (i32, i32) -> i32
+    %22 = "tt.splat"(%21) : (i32) -> tensor<2x2xi32>
+    %23 = "arith.muli"(%arg3, %4) <{overflowFlags = #arith.overflow<none>}> : (i32, i32) -> i32
+    %24 = "tt.splat"(%23) : (i32) -> tensor<2x2xi32>
+    %25 = "arith.muli"(%arg3, %4) <{overflowFlags = #arith.overflow<none>}> : (i32, i32) -> i32
+    %26 = "tt.splat"(%25) : (i32) -> tensor<2x2xi32>
+    %27:2 = "scf.for"(%3, %4, %2, %16, %20) ({
+    ^bb0(%arg4: i32, %arg5: tensor<2x2x!tt.ptr<f32>>, %arg6: tensor<2x2x!tt.ptr<f32>>):
+      %28 = "scf.for"(%3, %4, %2, %arg5) ({
+      ^bb0(%arg10: i32, %arg11: tensor<2x2x!tt.ptr<f32>>):
+        %42 = "builtin.unrealized_conversion_cast"(%arg11) : (tensor<2x2x!tt.ptr<f32>>) -> tensor<2x2xi32>
+        %43 = "arith.addi"(%42, %22) <{overflowFlags = #arith.overflow<none>}> : (tensor<2x2xi32>, tensor<2x2xi32>) -> tensor<2x2xi32>
+        "scf.yield"(%43) : (tensor<2x2xi32>) -> ()
+      }) : (i32, i32, i32, tensor<2x2x!tt.ptr<f32>>) -> tensor<2x2x!tt.ptr<f32>>
+      %29:2 = "scf.for"(%3, %4, %2, %28, %arg6) ({
+      ^bb0(%arg7: i32, %arg8: tensor<2x2x!tt.ptr<f32>>, %arg9: tensor<2x2x!tt.ptr<f32>>):
+        %31 = "tt.load"(%arg8) <{boundaryCheck = array<i32>, cache = 1 : i32, evict = 1 : i32, isVolatile = false, operandSegmentSizes = array<i32: 1, 0, 0>}> : (tensor<2x2x!tt.ptr<f32>>) -> tensor<2x2xf32>
+        %32 = "tt.addptr"(%arg8, %24) : (tensor<2x2x!tt.ptr<f32>>, tensor<2x2xi32>) -> tensor<2x2x!tt.ptr<f32>>
+        %33 = "tt.load"(%32) <{boundaryCheck = array<i32>, cache = 1 : i32, evict = 1 : i32, isVolatile = false, operandSegmentSizes = array<i32: 1, 0, 0>}> : (tensor<2x2x!tt.ptr<f32>>) -> tensor<2x2xf32>
+        %34 = "builtin.unrealized_conversion_cast"(%arg9) : (tensor<2x2x!tt.ptr<f32>>) -> tensor<2x2xi32>
+        %35 = "tts.create_ptr"(%arg1, %34) : (!tt.ptr<f32>, tensor<2x2xi32>) -> tensor<2x2x!tt.ptr<f32>>
+        "tt.store"(%35, %31) <{boundaryCheck = array<i32>, cache = 1 : i32, evict = 1 : i32}> : (tensor<2x2x!tt.ptr<f32>>, tensor<2x2xf32>) -> ()
+        %36 = "builtin.unrealized_conversion_cast"(%arg9) : (tensor<2x2x!tt.ptr<f32>>) -> tensor<2x2xi32>
+        %37 = "arith.addi"(%36, %24) <{overflowFlags = #arith.overflow<none>}> : (tensor<2x2xi32>, tensor<2x2xi32>) -> tensor<2x2xi32>
+        %38 = "arith.addi"(%37, %24) <{overflowFlags = #arith.overflow<none>}> : (tensor<2x2xi32>, tensor<2x2xi32>) -> tensor<2x2xi32>
+        %39 = "tts.create_ptr"(%arg1, %38) : (!tt.ptr<f32>, tensor<2x2xi32>) -> tensor<2x2x!tt.ptr<f32>>
+        "tt.store"(%39, %33) <{boundaryCheck = array<i32>, cache = 1 : i32, evict = 1 : i32}> : (tensor<2x2x!tt.ptr<f32>>, tensor<2x2xf32>) -> ()
+        %40 = "tt.addptr"(%38, %24) : (tensor<2x2xi32>, tensor<2x2xi32>) -> tensor<2x2x!tt.ptr<f32>>
+        %41 = "tt.addptr"(%32, %24) : (tensor<2x2x!tt.ptr<f32>>, tensor<2x2xi32>) -> tensor<2x2x!tt.ptr<f32>>
+        "scf.yield"(%41, %40) : (tensor<2x2x!tt.ptr<f32>>, tensor<2x2x!tt.ptr<f32>>) -> ()
+      }) : (i32, i32, i32, tensor<2x2x!tt.ptr<f32>>, tensor<2x2x!tt.ptr<f32>>) -> (tensor<2x2x!tt.ptr<f32>>, tensor<2x2x!tt.ptr<f32>>)
+      %30 = "tt.addptr"(%29#0, %26) : (tensor<2x2x!tt.ptr<f32>>, tensor<2x2xi32>) -> tensor<2x2x!tt.ptr<f32>>
+      "scf.yield"(%30, %29#1) : (tensor<2x2x!tt.ptr<f32>>, tensor<2x2x!tt.ptr<f32>>) -> ()
+    }) : (i32, i32, i32, tensor<2x2xi32>, tensor<2x2xi32>) -> (tensor<2x2x!tt.ptr<f32>>, tensor<2x2x!tt.ptr<f32>>)
+    "tt.return"() : () -> ()
+  }) {noinline = false} : () -> ()
+}) : () -> ()
+block count: 1
+block arg count: 3
+init arg count: 2
+reusing type for 0 to
+i32
+mapping 1 to
+tensor<2x2xi32>
+%17 = "arith.addi"(%16, %14) <{overflowFlags = #arith.overflow<none>}> : (tensor<2x2xi32>, tensor<2x2xi32>) -> tensor<2x2xi32>
+mapping 2 to
+tensor<2x2xi32>
+%22 = "arith.addi"(%21, %13) <{overflowFlags = #arith.overflow<none>}> : (tensor<2x2xi32>, tensor<2x2xi32>) -> tensor<2x2xi32>
+block count: 1
+block arg count: 2
+init arg count: 1
+reusing type for 0 to
+i32
+mapping 1 to
+tensor<2x2x!tt.ptr<f32>>
+<block argument> of type 'tensor<2x2x!tt.ptr<f32>>' at index: 1
+/home/nhat/github/triton_shared/gather/gather_reuse_loop_results.mlir:28:13: error: failed to legalize operation 'scf.for' that was explicitly marked illegal
+      %23 = scf.for %arg7 = %c0_i32 to %c2_i32 step %c1_i32 iter_args(%arg8 = %arg5) -> (tensor<2x2x!tt.ptr<f32>>)  : i32 {
+            ^
+/home/nhat/github/triton_shared/gather/gather_reuse_loop_results.mlir:28:13: note: see current operation: 
+%34 = "scf.for"(%3, %4, %2, <<UNKNOWN SSA VALUE>>) ({
+^bb0(%arg10: i32, %arg11: tensor<2x2x!tt.ptr<f32>>):
+  %48 = "builtin.unrealized_conversion_cast"(%arg11) : (tensor<2x2x!tt.ptr<f32>>) -> tensor<2x2xi32>
+  %49 = "arith.addi"(%48, %24) <{overflowFlags = #arith.overflow<none>}> : (tensor<2x2xi32>, tensor<2x2xi32>) -> tensor<2x2xi32>
+  "scf.yield"(%49) : (tensor<2x2xi32>) -> ()
+}) : (i32, i32, i32, tensor<2x2x!tt.ptr<f32>>) -> tensor<2x2x!tt.ptr<f32>>
