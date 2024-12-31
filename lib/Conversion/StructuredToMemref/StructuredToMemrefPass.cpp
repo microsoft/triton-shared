@@ -137,12 +137,13 @@ public:
     // be
     // // handled when we convert addptr op later.
 
-    addTargetMaterialization([&](OpBuilder &builder, Type resultType,
-                                 ValueRange inputs,
-                                 Location loc) -> std::optional<Value> {
-      return builder.create<UnrealizedConversionCastOp>(loc, resultType, inputs)
-          .getResult(0);
-    });
+    // addTargetMaterialization([&](OpBuilder &builder, Type resultType,
+    //                              ValueRange inputs,
+    //                              Location loc) -> std::optional<Value> {
+    //   return builder.create<UnrealizedConversionCastOp>(loc, resultType,
+    //   inputs)
+    //       .getResult(0);
+    // });
 
     // addSourceMaterialization([&](OpBuilder &builder, Type resultType,
     //                              ValueRange inputs,
@@ -212,34 +213,6 @@ public:
     if (failed(applyPartialConversion(moduleOp, target, std::move(patterns)))) {
       signalPassFailure();
     }
-
-    // moduleOp->walk([](UnrealizedConversionCastOp op) {
-    //   if (op.getInputs().size() != 1 || op.getResults().size() != 1) {
-    //     return;
-    //   }
-
-    //   auto in = op.getInputs()[0];
-    //   auto inMemrefType = dyn_cast<MemRefType>(in.getType());
-    //   auto out = op->getResult(0);
-    //   auto outMemrefType = dyn_cast<MemRefType>(out.getType());
-
-    //   if (!inMemrefType || !outMemrefType) {
-    //     return;
-    //   }
-
-    //   if (!inMemrefType.getShape().equals(outMemrefType.getShape())) {
-    //     return;
-    //   }
-
-    //   op.replaceAllUsesWith(ValueRange{in});
-    // });
-
-    // Erase dead code and fold constants created during lowering
-    // PassManager pm(&getContext(), moduleOp.getOperationName());
-    // pm.addPass(createCanonicalizerPass());
-    // if (failed(runPipeline(pm, getOperation()))) {
-    //   signalPassFailure();
-    // }
   }
 };
 } // namespace
