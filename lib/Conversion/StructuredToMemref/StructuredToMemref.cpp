@@ -626,6 +626,25 @@ private:
 
     auto tensorType = cast<RankedTensorType>(op.getType());
     auto elemType = tensorType.getElementType();
+    auto rank = tensorType.getRank();
+
+    // allocation is not needed for the most simple case
+    if (!op.getOther() && !llvm::isa<UnrealizedConversionCastOp>(ptr.getDefiningOp())) {
+      SmallVector<OpFoldResult> offsets(rank, rewriter.getIndexAttr(0));
+      SmallVector<OpFoldResult> strides(rank, rewriter.getIndexAttr(1));
+      SmallVector<OpFoldResult> sizes;
+      for (int64_t s: tensorType.getShape()) {
+        sizes.push_back(rewriter.getIndexAttr(s));
+      }
+
+      memref::SubViewOp sw =
+          rewriter.create<memref::SubViewOp>(loc, MemRefType::get(tensorType.getShape(), elemType),
+            ptr, offsets, sizes, strides);
+      Value tensor = rewriter.create<bufferization::ToTensorOp>(
+          loc, tensorType, sw, true /* restrict */, false /* writable */);
+      rewriter.replaceOp(op, tensor);
+      return success();
+    }
 
     auto alloc = rewriter.create<memref::AllocOp>(
         loc, MemRefType::get(tensorType.getShape(), elemType));
@@ -686,9 +705,9 @@ private:
 
     } else {
       memref::SubViewOp srcSubview =
-          getSubview(tensorType.getRank(), mixedDims, ptr, loc, rewriter);
+          getSubview(rank, mixedDims, ptr, loc, rewriter);
       memref::SubViewOp dstSubview =
-          getSubview(tensorType.getRank(), mixedDims, alloc, loc, rewriter);
+          getSubview(rank, mixedDims, alloc, loc, rewriter);
       rewriter.create<memref::CopyOp>(loc, srcSubview, dstSubview);
     }
 
