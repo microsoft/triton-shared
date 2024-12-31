@@ -18,6 +18,7 @@ def test_gather_div(device):
             offs += 64
             out_offs += 64
 
+
     @triton.jit
     def gather_simple_mask(in0, out0):
         offs = tl.arange(0, 64)

@@ -7,10 +7,8 @@ def FoldUnstructuredTritonAddPtr : Pass<"fold-unstructured-triton-ptr", "mlir::M
   let summary = "Convert Triton non-block pointer to TritonStructured dialect";
   let constructor = "triton::createFoldUnstructuredTritonAddPtrPass()";
   let options = [
-      Option<"runPrepassOnly", "run-prepass-only", "bool", /*default*/"false",
-             "Only run the pre-processing pass which inserts tts.get_structured_state ops used in scf.for">,
-      Option<"skipPrepass", "skip-prepass", "bool", /*default*/"false",
-             "Skip the prepass">
+      Option<"offsetBitWidth", "offset-bit-width", "size_t", /*default*/"32",
+             "Only run the pre-processing pass which inserts tts.get_structured_state ops used in scf.for">
   ];
 }
 

@@ -10,17 +10,14 @@
 #include "mlir/IR/Builders.h"
 #include "mlir/IR/BuiltinAttributes.h"
 #include "mlir/IR/BuiltinOps.h"
-#include "mlir/IR/BuiltinTypeInterfaces.h"
 #include "mlir/IR/BuiltinTypes.h"
-#include "mlir/IR/IRMapping.h"
 #include "mlir/IR/MLIRContext.h"
-#include "mlir/IR/PatternMatch.h"
 #include "mlir/IR/TypeRange.h"
 #include "mlir/IR/Types.h"
 #include "mlir/IR/Value.h"
 #include "mlir/IR/ValueRange.h"
 #include "mlir/Support/LLVM.h"
-#include "mlir/Support/LogicalResult.h"
+#include "mlir/Transforms/Passes.h"
 #include "triton-shared/Analysis/OpFoldResultUtils.h"
 #include "triton-shared/AnalysisStructured/PtrAnalysis.h"
 #include "triton-shared/Conversion/FoldUnstructuredTritonAddPtr/FoldUnstructuredTritonAddPtr.h"
@@ -30,8 +27,6 @@
 
 #include "mlir/Dialect/Affine/IR/AffineOps.h"
 #include "mlir/Pass/PassManager.h"
-#include "mlir/Transforms/GreedyPatternRewriteDriver.h"
-#include "mlir/Transforms/Passes.h"
 #include "triton/Dialect/Triton/IR/Types.h"
 
 #include "llvm/ADT/APInt.h"
@@ -116,10 +111,9 @@ public:
     Type ptrType;
     unsigned int bitWidth;
     Value offset;
-    // Type offsetType;
   };
 
-  auto computePtrType(unsigned int defaultBitWidth = 32) {
+  void computePtrType(unsigned int defaultBitWidth = 32) {
     auto moduleOp = getOperation();
 
     llvm::SmallDenseSet<Value> ptrs;
@@ -251,27 +245,26 @@ public:
               workList.push(res);
               toDelete.push_back(op);
             })
-            .Case<triton::LoadOp, triton::StoreOp, tts::MakeTensorPtrOp>(
-                [&](Operation *op) {
-                  if (auto makeTensorPtr = dyn_cast<tts::MakeTensorPtrOp>(op)) {
-                    if (ptrs.contains(makeTensorPtr.getBase())) {
-                      return;
-                    }
-                  }
+            .Case<triton::LoadOp, triton::StoreOp, triton::MakeTensorPtrOp,
+                  tts::MakeTensorPtrOp>([&](Operation *op) {
+              if (auto makeTensorPtr = dyn_cast<tts::MakeTensorPtrOp>(op)) {
+                if (ptrs.contains(makeTensorPtr.getBase())) {
+                  return;
+                }
+              }
 
-                  OpBuilder rewriter{op};
+              OpBuilder rewriter{op};
 
-                  auto ptr = op->getOperand(0);
-                  auto offsetInfo = offsetMap.at(ptr);
+              auto ptr = op->getOperand(0);
+              auto offsetInfo = offsetMap.at(ptr);
 
-                  auto srcPtr = offsetInfo.ptr;
+              auto srcPtr = offsetInfo.ptr;
 
-                  auto cast = rewriter.create<tts::CreatePtrOp>(
-                      op->getLoc(), offsetInfo.ptrType, srcPtr,
-                      offsetInfo.offset);
+              auto cast = rewriter.create<tts::CreatePtrOp>(
+                  op->getLoc(), offsetInfo.ptrType, srcPtr, offsetInfo.offset);
 
-                  loadStores.push_back({op, cast.getResult()});
-                })
+              loadStores.push_back({op, cast.getResult()});
+            })
             .Case<scf::ForOp>([&](scf::ForOp forOp) {
               // map init arg to iter-arg
               // map init arg to result
@@ -334,17 +327,25 @@ public:
     }
 
     for (auto op : toDelete) {
-      // llvm::dbgs() << "deleting\n";
-      // op->dump();
       auto ptrInfo = offsetMap.at(op->getResult(0));
       op->replaceAllUsesWith(ValueRange{ptrInfo.offset});
       op->erase();
     }
-
-    return offsetMap;
   }
 
-  void runOnOperation() override { auto z = computePtrType(64); }
+  void runOnOperation() override {
+    computePtrType(offsetBitWidth);
+
+    auto moduleOp = getOperation();
+    PassManager pm(&getContext(), moduleOp.getOperationName());
+
+    pm.addPass(createCanonicalizerPass());
+    pm.addPass(createCSEPass());
+
+    if (failed(runPipeline(pm, getOperation()))) {
+      signalPassFailure();
+    }
+  }
 };
 } // namespace
 
