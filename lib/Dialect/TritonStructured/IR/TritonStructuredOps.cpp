@@ -2,6 +2,7 @@
 #include "mlir/Dialect/Utils/StaticValueUtils.h"
 #include "mlir/IR/Builders.h"
 #include "mlir/IR/BuiltinAttributes.h"
+#include "mlir/IR/BuiltinOps.h"
 #include "mlir/IR/BuiltinTypes.h"
 #include "mlir/IR/MLIRContext.h"
 #include "mlir/IR/OperationSupport.h"
@@ -12,6 +13,7 @@
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/Support/Casting.h"
 #include "llvm/Support/LogicalResult.h"
+#include <cassert>
 #include <cstdint>
 #include <optional>
 #include <utility>
@@ -173,6 +175,22 @@ GetStructuredStateOp::getOffsetAndStrideSegmentSizes(Type type) {
   }
 
   return std::make_pair(offsetSegmentSize, strideSegmentSize);
+}
+
+OpFoldResult MakeUnstructuredTensorPtrOp::fold(FoldAdaptor adaptor) {
+  if (auto unrealizedCast =
+          getInput().getDefiningOp<UnrealizedConversionCastOp>()) {
+    auto castResult = unrealizedCast->getResult(0);
+    auto castInput = unrealizedCast.getInputs()[0];
+    if (unrealizedCast->getResults().size() == 1 &&
+        unrealizedCast.getInputs().size() == 1 &&
+        isa<triton::PointerType>(castResult.getType()) &&
+        isa<UnrankedMemRefType>(castInput.getType())) {
+      setOperand(0, castInput);
+      return getResult();
+    }
+  }
+  return {};
 }
 
 } // namespace tts

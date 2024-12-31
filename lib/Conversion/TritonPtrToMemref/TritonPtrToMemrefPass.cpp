@@ -31,10 +31,7 @@
 #include "mlir/Dialect/Affine/IR/AffineOps.h"
 #include "triton/Dialect/Triton/IR/Types.h"
 
-#include <algorithm>
-#include <cassert>
-
-#define DEBUG_TYPE "triton-ptr-to-index"
+#define DEBUG_TYPE "triton-ptr-to-memref"
 
 using namespace mlir;
 using namespace triton;
@@ -77,73 +74,6 @@ public:
   }
 };
 
-struct CreatePtrConverter
-    : public OpConversionPattern<tts::MakeUnstructuredTensorPtrOp> {
-  using OpConversionPattern<
-      tts::MakeUnstructuredTensorPtrOp>::OpConversionPattern;
-
-  CreatePtrConverter(const TypeConverter &typeConverter, MLIRContext *context)
-      : OpConversionPattern<tts::MakeUnstructuredTensorPtrOp>(typeConverter,
-                                                              context) {}
-
-  CreatePtrConverter(MLIRContext *context)
-      : OpConversionPattern<tts::MakeUnstructuredTensorPtrOp>(context) {}
-
-  LogicalResult
-  matchAndRewrite(tts::MakeUnstructuredTensorPtrOp op, OpAdaptor adaptor,
-                  ConversionPatternRewriter &rewriter) const override {
-    rewriter.replaceOp(op, adaptor.getInput());
-    return success();
-  }
-};
-
-struct UnrealizedConversionCastOpConverter
-    : public OpConversionPattern<UnrealizedConversionCastOp> {
-  using OpConversionPattern<UnrealizedConversionCastOp>::OpConversionPattern;
-
-  UnrealizedConversionCastOpConverter(const TypeConverter &typeConverter,
-                                      MLIRContext *context)
-      : OpConversionPattern<UnrealizedConversionCastOp>(typeConverter,
-                                                        context) {}
-
-  UnrealizedConversionCastOpConverter(MLIRContext *context)
-      : OpConversionPattern<UnrealizedConversionCastOp>(context) {}
-
-  LogicalResult
-  matchAndRewrite(UnrealizedConversionCastOp op, OpAdaptor adaptor,
-                  ConversionPatternRewriter &rewriter) const override {
-    auto in = op.getInputs()[0];
-    if (auto createPtrOp =
-            in.getDefiningOp<tts::MakeUnstructuredTensorPtrOp>()) {
-      for (auto user : in.getUsers()) {
-        if (auto reinterpretCast = dyn_cast<memref::ReinterpretCastOp>(user)) {
-          // reinterpretCast.
-        }
-      }
-    }
-    return success();
-  }
-};
-
-static Type getOffsetIndexType(Type t) {
-  if (auto tensorType = dyn_cast<RankedTensorType>(t)) {
-    return RankedTensorType::get(tensorType.getShape(),
-                                 IndexType::get(t.getContext()));
-  } else if (t.isInteger()) {
-    return IndexType::get(t.getContext());
-  } else {
-    return nullptr;
-  }
-}
-
-static Value getMemrefArg(Value v) {
-  while (auto definingOp = v.getDefiningOp()) {
-    assert(isa<UnrealizedConversionCastOp>(definingOp));
-    v = definingOp->getOperands()[0];
-  }
-  return v;
-}
-
 class TritonPtrToMemrefPass
     : public TritonPtrToMemrefBase<TritonPtrToMemrefPass> {
 
@@ -167,10 +97,6 @@ public:
       return typeConverter.isSignatureLegal(op.getFunctionType());
     });
 
-    // target.addIllegalOp<UnrealizedConversionCastOp>();
-
-    // patterns.add<UnrealizedConversionCastOpConverter>(patterns.getContext());
-
     populateFunctionOpInterfaceTypeConversionPattern<func::FuncOp>(
         patterns, typeConverter);
 
@@ -178,47 +104,11 @@ public:
       signalPassFailure();
     }
 
-    moduleOp->walk([](tts::MakeUnstructuredTensorPtrOp op) {
-      // %4 = "tts.make_unstructured_tptr"(%0, %3) : (!tt.ptr<bf16>, i64) ->
-      // !tt.ptr<bf16> %5 = builtin.unrealized_conversion_cast %4 :
-      // !tt.ptr<bf16> to memref<*xbf16> %reinterpret_cast =
-      // memref.reinterpret_cast %5 to offset: [%c0], sizes: [128, 128],
-      // strides: [%c128, %c1] : memref<*xbf16> to memref<128x128xbf16,
-      // strided<[?, ?], offset: ?>>
-      auto ptr = getMemrefArg(op.getInput());
-      auto offset = op.getOffset();
-      OpBuilder b(op);
-
-      auto newOffset = b.create<arith::IndexCastOp>(
-          op->getLoc(), getOffsetIndexType(offset.getType()), offset);
-
-      SmallVector<Value> workList({op.getPtr()});
-
-      while (!workList.empty()) {
-        auto v = workList.back();
-        workList.pop_back();
-        for (auto user : v.getUsers()) {
-          if (auto reinterpretCast =
-                  dyn_cast<memref::ReinterpretCastOp>(user)) {
-            // reinterpretCast.
-            reinterpretCast.getOffsetsMutable()[0].assign(newOffset);
-            reinterpretCast.getSourceMutable().assign(ptr);
-          } else if (auto unrealizedConversionCast =
-                         dyn_cast<UnrealizedConversionCastOp>(user)) {
-            assert(unrealizedConversionCast->getResults().size() == 1);
-            workList.push_back(unrealizedConversionCast->getResult(0));
-          }
-        }
-      }
-    });
-
-    {
-      PassManager pm(&getContext(), moduleOp.getOperationName());
-      pm.addPass(createCSEPass());
-      pm.addPass(createCanonicalizerPass());
-      if (failed(runPipeline(pm, getOperation()))) {
-        signalPassFailure();
-      }
+    PassManager pm(&getContext(), moduleOp.getOperationName());
+    pm.addPass(createCanonicalizerPass());
+    pm.addPass(createCSEPass());
+    if (failed(runPipeline(pm, getOperation()))) {
+      signalPassFailure();
     }
   }
 };

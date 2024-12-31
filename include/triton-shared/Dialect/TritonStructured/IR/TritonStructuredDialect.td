@@ -162,7 +162,7 @@ def TTS_MakeUnstructuredTensorPtrOp : TTS_Op<"make_unstructured_tptr", [Pure]> {
       getOffsetAndStrideSegmentSizes(Type ptrLikeType);
   }];
 
-  let hasFolder = 0;
+  let hasFolder = 1;
   // let hasVerifier = 1;
 }
 

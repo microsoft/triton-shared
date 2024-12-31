@@ -14,8 +14,6 @@
 #include "mlir/IR/BuiltinTypes.h"
 #include "mlir/IR/Value.h"
 #include "mlir/IR/ValueRange.h"
-#include "mlir/Interfaces/FunctionInterfaces.h"
-#include "triton-shared/Analysis/UseAnalysis.h"
 #include "triton-shared/Conversion/TritonLoadStoreToMemref/TritonLoadStoreToMemref.h"
 #include "triton-shared/Dialect/TritonStructured/IR/TritonStructuredDialect.h"
 #include "triton-shared/Dialect/TritonTilingExt/IR/TritonTilingExtDialect.h"
@@ -27,20 +25,15 @@
 #include "mlir/Dialect/Linalg/IR/Linalg.h"
 #include "mlir/Dialect/MemRef/IR/MemRef.h"
 #include "mlir/Pass/PassManager.h"
-#include "mlir/Transforms/GreedyPatternRewriteDriver.h"
-#include "mlir/Transforms/Passes.h"
 #include "triton/Dialect/Triton/IR/Types.h"
 
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SmallVector.h"
-#include "llvm/ADT/SmallVectorExtras.h"
-#include "llvm/Support/Casting.h"
 #include "llvm/Support/Debug.h"
-#include "llvm/Support/LogicalResult.h"
 #include <cassert>
 #include <cstdint>
 
-#define DEBUG_TYPE "triton-to-linalg"
+#define DEBUG_TYPE "triton-load-store-to-memref"
 
 using namespace mlir;
 using namespace triton;
@@ -49,46 +42,6 @@ using namespace triton;
 #include "triton-shared/Conversion/TritonLoadStoreToMemref/Passes.h.inc"
 
 namespace {
-
-class EmptyConverter : public TypeConverter {
-public:
-  EmptyConverter() {
-    // // The order of type conversion is important: later ones are tried
-    addConversion([](Type type) { return type; });
-    addConversion([](triton::PointerType ptrType) {
-      return UnrankedMemRefType::get(ptrType.getPointeeType(), 0);
-    });
-    addConversion([](RankedTensorType tensorType) -> std::optional<Type> {
-      if (auto ptrType =
-              dyn_cast<triton::PointerType>(tensorType.getElementType())) {
-        return MemRefType::get(tensorType.getShape(), ptrType.getPointeeType());
-      }
-      return std::nullopt;
-    });
-    addTargetMaterialization([&](OpBuilder &builder, Type resultType,
-                                 ValueRange inputs,
-                                 Location loc) -> std::optional<Value> {
-      return builder.create<UnrealizedConversionCastOp>(loc, resultType, inputs)
-          .getResult(0);
-    });
-
-    // addSourceMaterialization([&](OpBuilder &builder, Type resultType,
-    //                              ValueRange inputs,
-    //                              Location loc) -> std::optional<Value> {
-    //   return builder.create<UnrealizedConversionCastOp>(loc, resultType,
-    //   inputs)
-    //       .getResult(0);
-    // });
-
-    // addArgumentMaterialization([&](OpBuilder &builder, Type resultType,
-    //                                ValueRange inputs,
-    //                                Location loc) -> std::optional<Value> {
-    //   return builder.create<UnrealizedConversionCastOp>(loc, resultType,
-    //   inputs)
-    //       .getResult(0);
-    // });
-  }
-};
 
 static MemRefType getMemrefTypeForScalarPtr(triton::PointerType ptrType,
                                             MLIRContext *context) {
@@ -424,26 +377,6 @@ struct StoreOpConverter : public OpConversionPattern<triton::StoreOp> {
   }
 };
 
-struct CreatePtrConverter
-    : public OpConversionPattern<tts::MakeUnstructuredTensorPtrOp> {
-  using OpConversionPattern<
-      tts::MakeUnstructuredTensorPtrOp>::OpConversionPattern;
-
-  CreatePtrConverter(const TypeConverter &typeConverter, MLIRContext *context)
-      : OpConversionPattern<tts::MakeUnstructuredTensorPtrOp>(typeConverter,
-                                                              context) {}
-
-  CreatePtrConverter(MLIRContext *context)
-      : OpConversionPattern<tts::MakeUnstructuredTensorPtrOp>(context) {}
-
-  LogicalResult
-  matchAndRewrite(tts::MakeUnstructuredTensorPtrOp op, OpAdaptor adaptor,
-                  ConversionPatternRewriter &rewriter) const override {
-    rewriter.replaceOp(op, adaptor.getInput());
-    return success();
-  }
-};
-
 class TritonLoadStoreToMemrefPass
     : public TritonLoadStoreToMemrefBase<TritonLoadStoreToMemrefPass> {
 
@@ -456,61 +389,8 @@ public:
                 memref::MemRefDialect, ttx::TritonTilingExtDialect>();
   }
 
-  static bool isPtrTypeLike(Type t) {
-    if (auto tensorType = dyn_cast<RankedTensorType>(t)) {
-      return isa<triton::PointerType>(tensorType.getElementType());
-    }
-    return isa<triton::PointerType>(t);
-  }
-
-  static Type getPointeeType(Type t) {
-    if (auto tensorType = dyn_cast<RankedTensorType>(t)) {
-      if (auto pointerType =
-              dyn_cast<triton::PointerType>(tensorType.getElementType())) {
-        return pointerType.getPointeeType();
-      }
-    } else if (auto pointerType = dyn_cast<triton::PointerType>(t)) {
-      return pointerType.getPointeeType();
-    }
-    return nullptr;
-  }
-
-  static Type getMemrefForPointer(Type t) {
-    if (auto tensorType = dyn_cast<RankedTensorType>(t)) {
-      if (auto pointerType =
-              dyn_cast<triton::PointerType>(tensorType.getElementType())) {
-        return MemRefType::get(tensorType.getShape(),
-                               pointerType.getPointeeType());
-      }
-    } else if (auto pointerType = dyn_cast<triton::PointerType>(t)) {
-      return UnrankedMemRefType::get(pointerType.getPointeeType(), 0);
-    }
-    return nullptr;
-  }
-
   void runOnOperation() override {
     auto moduleOp = getOperation();
-
-    moduleOp.walk([&](FunctionOpInterface func) {
-      for (auto arg : func.getArguments()) {
-        if (!isPtrTypeLike(arg.getType())) {
-          continue;
-        }
-
-        for (auto user : llvm::make_early_inc_range(arg.getUsers())) {
-          if (auto op = dyn_cast<tts::MakeUnstructuredTensorPtrOp>(user)) {
-            OpBuilder b(op);
-            auto memrefType = getMemrefForPointer(arg.getType());
-            auto v = b.create<UnrealizedConversionCastOp>(op->getLoc(),
-                                                          memrefType, arg);
-            op->setOperand(0, v.getResult(0));
-            // op.setOperand(unsigned int i, Value value)
-          }
-        }
-      }
-    });
-
-    moduleOp->dump();
 
     RewritePatternSet patterns(&getContext());
     ConversionTarget target(getContext());
@@ -522,10 +402,8 @@ public:
         bufferization::BufferizationDialect, memref::MemRefDialect,
         ttx::TritonTilingExtDialect>();
 
-    // target.addLegalOp<UnrealizedConversionCastOp>();
     target.addIllegalOp<triton::LoadOp, triton::StoreOp>();
 
-    EmptyConverter t;
     patterns.add<LoadOpConverter, ScalarLoadConverter, StoreOpConverter,
                  ScalarStoreConverter>(patterns.getContext());
 
