@@ -17,7 +17,7 @@ module {
         %7 = arith.addf %in, %init : bf16
         linalg.yield %7 : bf16
       }
-    %6 = "tts.create_ptr"(%arg2, %1) : (tensor<32x16x!tt.ptr<bf16>>, tensor<32x16xi32>) -> tensor<32x16x!tt.ptr<bf16>>
+    %6 = "tts.make_unstructured_tptr"(%arg2, %1) : (tensor<32x16x!tt.ptr<bf16>>, tensor<32x16xi32>) -> tensor<32x16x!tt.ptr<bf16>>
     tt.store %6, %reduced : tensor<32x16x!tt.ptr<bf16>>
     return
   }

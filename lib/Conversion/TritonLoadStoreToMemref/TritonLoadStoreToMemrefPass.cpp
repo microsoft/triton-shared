@@ -116,7 +116,7 @@ struct ScalarLoadConverter : public OpConversionPattern<triton::LoadOp> {
       return failure();
     }
 
-    auto castOp = op.getPtr().getDefiningOp<tts::CreatePtrOp>();
+    auto castOp = op.getPtr().getDefiningOp<tts::MakeUnstructuredTensorPtrOp>();
 
     auto results = op->getResultTypes();
 
@@ -163,7 +163,7 @@ struct ScalarStoreConverter : public OpConversionPattern<triton::StoreOp> {
       return failure();
     }
 
-    auto castOp = op.getPtr().getDefiningOp<tts::CreatePtrOp>();
+    auto castOp = op.getPtr().getDefiningOp<tts::MakeUnstructuredTensorPtrOp>();
 
     auto results = op->getResultTypes();
 
@@ -207,7 +207,7 @@ struct LoadOpConverter : public OpConversionPattern<triton::LoadOp> {
   matchAndRewrite(triton::LoadOp loadOp, OpAdaptor adaptor,
                   ConversionPatternRewriter &rewriter) const override {
 
-    auto op = loadOp.getPtr().getDefiningOp<tts::CreatePtrOp>();
+    auto op = loadOp.getPtr().getDefiningOp<tts::MakeUnstructuredTensorPtrOp>();
 
     auto results = op->getResultTypes();
 
@@ -331,7 +331,8 @@ struct StoreOpConverter : public OpConversionPattern<triton::StoreOp> {
   matchAndRewrite(triton::StoreOp storeOp, OpAdaptor adaptor,
                   ConversionPatternRewriter &rewriter) const override {
 
-    auto op = storeOp.getPtr().getDefiningOp<tts::CreatePtrOp>();
+    auto op =
+        storeOp.getPtr().getDefiningOp<tts::MakeUnstructuredTensorPtrOp>();
 
     auto results = op->getResultTypes();
 
@@ -423,17 +424,20 @@ struct StoreOpConverter : public OpConversionPattern<triton::StoreOp> {
   }
 };
 
-struct CreatePtrConverter : public OpConversionPattern<tts::CreatePtrOp> {
-  using OpConversionPattern<tts::CreatePtrOp>::OpConversionPattern;
+struct CreatePtrConverter
+    : public OpConversionPattern<tts::MakeUnstructuredTensorPtrOp> {
+  using OpConversionPattern<
+      tts::MakeUnstructuredTensorPtrOp>::OpConversionPattern;
 
   CreatePtrConverter(const TypeConverter &typeConverter, MLIRContext *context)
-      : OpConversionPattern<tts::CreatePtrOp>(typeConverter, context) {}
+      : OpConversionPattern<tts::MakeUnstructuredTensorPtrOp>(typeConverter,
+                                                              context) {}
 
   CreatePtrConverter(MLIRContext *context)
-      : OpConversionPattern<tts::CreatePtrOp>(context) {}
+      : OpConversionPattern<tts::MakeUnstructuredTensorPtrOp>(context) {}
 
   LogicalResult
-  matchAndRewrite(tts::CreatePtrOp op, OpAdaptor adaptor,
+  matchAndRewrite(tts::MakeUnstructuredTensorPtrOp op, OpAdaptor adaptor,
                   ConversionPatternRewriter &rewriter) const override {
     rewriter.replaceOp(op, adaptor.getInput());
     return success();
@@ -494,7 +498,7 @@ public:
         }
 
         for (auto user : llvm::make_early_inc_range(arg.getUsers())) {
-          if (auto op = dyn_cast<tts::CreatePtrOp>(user)) {
+          if (auto op = dyn_cast<tts::MakeUnstructuredTensorPtrOp>(user)) {
             OpBuilder b(op);
             auto memrefType = getMemrefForPointer(arg.getType());
             auto v = b.create<UnrealizedConversionCastOp>(op->getLoc(),

@@ -22,9 +22,9 @@ module {
       %8 = arith.subf %in, %in_2 : f32
       linalg.yield %8 : f32
     } -> tensor<128x128xf32>
-    %6 = "tts.create_ptr"(%1, %c0_i32) : (tensor<128x128x!tt.ptr<f32>>, i32) -> tensor<128x128x!tt.ptr<f32>>
+    %6 = "tts.make_unstructured_tptr"(%1, %c0_i32) : (tensor<128x128x!tt.ptr<f32>>, i32) -> tensor<128x128x!tt.ptr<f32>>
     tt.store %6, %4 : tensor<128x128x!tt.ptr<f32>>
-    %7 = "tts.create_ptr"(%0, %c0_i32) : (tensor<128x128x!tt.ptr<f32>>, i32) -> tensor<128x128x!tt.ptr<f32>>
+    %7 = "tts.make_unstructured_tptr"(%0, %c0_i32) : (tensor<128x128x!tt.ptr<f32>>, i32) -> tensor<128x128x!tt.ptr<f32>>
     tt.store %7, %5 : tensor<128x128x!tt.ptr<f32>>
     return
   }

@@ -13,7 +13,7 @@ module {
         linalg.yield %4 : f32
       }
     %extracted = tensor.extract %reduced[] : tensor<f32>
-    %3 = "tts.create_ptr"(%arg0, %c0_i64) : (!tt.ptr<f32>, i64) -> !tt.ptr<f32>
+    %3 = "tts.make_unstructured_tptr"(%arg0, %c0_i64) : (!tt.ptr<f32>, i64) -> !tt.ptr<f32>
     tt.store %3, %extracted : !tt.ptr<f32>
     return
   }

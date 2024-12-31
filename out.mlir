@@ -28,7 +28,7 @@ module {
     %1 = arith.extsi %0 : i32 to i64
     %2 = tt.get_program_id y : i32
     %3 = arith.extsi %2 : i32 to i64
-    %4 = "tts.create_ptr"(%arg8, %3) : (!tt.ptr<i32>, i64) -> !tt.ptr<i32>
+    %4 = "tts.make_unstructured_tptr"(%arg8, %3) : (!tt.ptr<i32>, i64) -> !tt.ptr<i32>
     %5 = tt.load %4 : !tt.ptr<i32>
     %6 = arith.shrsi %5, %c32_i32 : i32
     %7 = arith.cmpi eq, %5, %c-1_i32 : i32
@@ -37,7 +37,7 @@ module {
     tt.return
   ^bb2:  // pred: ^bb0
     %8 = arith.extsi %5 : i32 to i64
-    %9 = "tts.create_ptr"(%arg11, %8) : (!tt.ptr<i32>, i64) -> !tt.ptr<i32>
+    %9 = "tts.make_unstructured_tptr"(%arg11, %8) : (!tt.ptr<i32>, i64) -> !tt.ptr<i32>
     %10 = tt.load %9 : !tt.ptr<i32>
     %11 = arith.extsi %10 : i32 to i64
     %12 = arith.extsi %arg20 : i32 to i64
@@ -58,7 +58,7 @@ module {
     %27 = tt.splat %24 : i32 -> tensor<128xi32>
     %28 = arith.addi %27, %26 : tensor<128xi32>
     %29 = arith.extsi %5 : i32 to i64
-    %30 = "tts.create_ptr"(%arg9, %29) : (!tt.ptr<i32>, i64) -> !tt.ptr<i32>
+    %30 = "tts.make_unstructured_tptr"(%arg9, %29) : (!tt.ptr<i32>, i64) -> !tt.ptr<i32>
     %31 = tt.load %30 : !tt.ptr<i32>
     %32 = arith.muli %31, %c2_i32 : i32
     %33 = tt.splat %32 : i32 -> tensor<128xi32>
@@ -67,17 +67,17 @@ module {
     %36 = arith.divsi %35, %cst_9 : tensor<128xi32>
     %37 = arith.remsi %35, %cst_9 : tensor<128xi32>
     %38 = arith.extsi %5 : i32 to i64
-    %39 = "tts.create_ptr"(%arg10, %38) : (!tt.ptr<i32>, i64) -> !tt.ptr<i32>
+    %39 = "tts.make_unstructured_tptr"(%arg10, %38) : (!tt.ptr<i32>, i64) -> !tt.ptr<i32>
     %40 = tt.load %39 : !tt.ptr<i32>
     %41 = arith.extsi %5 : i32 to i64
-    %42 = "tts.create_ptr"(%arg13, %41) : (!tt.ptr<i32>, i64) -> !tt.ptr<i32>
+    %42 = "tts.make_unstructured_tptr"(%arg13, %41) : (!tt.ptr<i32>, i64) -> !tt.ptr<i32>
     %43 = tt.load %42 : !tt.ptr<i32>
     %44 = arith.extsi %43 : i32 to i64
     %45 = arith.extsi %arg23 : i32 to i64
     %46 = arith.muli %44, %45 : i64
     %47 = arith.addi %23, %46 : i64
     %48 = arith.extsi %5 : i32 to i64
-    %49 = "tts.create_ptr"(%arg15, %48) : (!tt.ptr<i32>, i64) -> !tt.ptr<i32>
+    %49 = "tts.make_unstructured_tptr"(%arg15, %48) : (!tt.ptr<i32>, i64) -> !tt.ptr<i32>
     %50 = tt.load %49 : !tt.ptr<i32>
     %51 = arith.index_cast %50 : i32 to index
     %52 = tt.make_range {end = 64 : i32, start = 0 : i32} : tensor<64xi32>
@@ -101,14 +101,14 @@ module {
     %70 = tt.broadcast %68 : tensor<1x16xi32> -> tensor<128x16xi32>
     %71 = arith.extsi %70 : tensor<128x16xi32> to tensor<128x16xi64>
     %72 = arith.addi %69, %71 : tensor<128x16xi64>
-    %73 = "tts.create_ptr"(%arg2, %72) : (!tt.ptr<f32>, tensor<128x16xi64>) -> tensor<128x16x!tt.ptr<f32>>
+    %73 = "tts.make_unstructured_tptr"(%arg2, %72) : (!tt.ptr<f32>, tensor<128x16xi64>) -> tensor<128x16x!tt.ptr<f32>>
     %74 = tt.splat %16 : i64 -> tensor<128x1xi64>
     %75 = arith.extsi %64 : tensor<128x1xi32> to tensor<128x1xi64>
     %76 = arith.addi %74, %75 : tensor<128x1xi64>
     %77 = tt.broadcast %76 : tensor<128x1xi64> -> tensor<128x16xi64>
     %78 = arith.extsi %70 : tensor<128x16xi32> to tensor<128x16xi64>
     %79 = arith.addi %77, %78 : tensor<128x16xi64>
-    %80 = "tts.create_ptr"(%arg0, %79) : (!tt.ptr<f32>, tensor<128x16xi64>) -> tensor<128x16x!tt.ptr<f32>>
+    %80 = "tts.make_unstructured_tptr"(%arg0, %79) : (!tt.ptr<f32>, tensor<128x16xi64>) -> tensor<128x16x!tt.ptr<f32>>
     %81 = tt.expand_dims %54 {axis = 0 : i32} : tensor<64xi32> -> tensor<1x64xi32>
     %82 = tt.splat %arg23 : i32 -> tensor<1x64xi32>
     %83 = arith.muli %81, %82 : tensor<1x64xi32>
@@ -135,13 +135,13 @@ module {
     %104 = tt.splat %56 : i64 -> tensor<128xi64>
     %105 = arith.extsi %36 : tensor<128xi32> to tensor<128xi64>
     %106 = arith.addi %104, %105 : tensor<128xi64>
-    %107 = "tts.create_ptr"(%arg14, %106) : (!tt.ptr<i32>, tensor<128xi64>) -> tensor<128x!tt.ptr<i32>>
+    %107 = "tts.make_unstructured_tptr"(%arg14, %106) : (!tt.ptr<i32>, tensor<128xi64>) -> tensor<128x!tt.ptr<i32>>
     %108 = tt.load %107 : tensor<128x!tt.ptr<i32>>
     %109 = arith.muli %2, %c6_i32 : i32
     %110 = arith.extsi %109 : i32 to i64
-    %111 = "tts.create_ptr"(%arg17, %110) : (!tt.ptr<i32>, i64) -> !tt.ptr<i32>
+    %111 = "tts.make_unstructured_tptr"(%arg17, %110) : (!tt.ptr<i32>, i64) -> !tt.ptr<i32>
     %112 = arith.addi %110, %c1_i64 : i64
-    %113 = "tts.create_ptr"(%arg17, %112) : (!tt.ptr<i32>, i64) -> !tt.ptr<i32>
+    %113 = "tts.make_unstructured_tptr"(%arg17, %112) : (!tt.ptr<i32>, i64) -> !tt.ptr<i32>
     %114 = tt.load %111 : !tt.ptr<i32>
     %115 = tt.load %113 : !tt.ptr<i32>
     %116 = arith.muli %114, %arg23 : i32
@@ -168,8 +168,8 @@ module {
     %137 = tt.splat %136 : i32 -> tensor<64x16xi32>
     %138 = tt.splat %136 : i32 -> tensor<16x64xi32>
     %139:5 = scf.for %arg34 = %c0_i32 to %123 step %c64_i32 iter_args(%arg35 = %cst_7, %arg36 = %cst_6, %arg37 = %cst, %arg38 = %122, %arg39 = %119) -> (tensor<128xf32>, tensor<128x16xf32>, tensor<128xf32>, tensor<64x16xi64>, tensor<16x64xi64>)  : i32 {
-      %211 = "tts.create_ptr"(%arg3, %arg39) : (!tt.ptr<f32>, tensor<16x64xi64>) -> tensor<16x64x!tt.ptr<f32>>
-      %212 = "tts.create_ptr"(%arg4, %arg38) : (!tt.ptr<f32>, tensor<64x16xi64>) -> tensor<64x16x!tt.ptr<f32>>
+      %211 = "tts.make_unstructured_tptr"(%arg3, %arg39) : (!tt.ptr<f32>, tensor<16x64xi64>) -> tensor<16x64x!tt.ptr<f32>>
+      %212 = "tts.make_unstructured_tptr"(%arg4, %arg38) : (!tt.ptr<f32>, tensor<64x16xi64>) -> tensor<64x16x!tt.ptr<f32>>
       %213 = arith.addi %114, %arg34 : i32
       %214 = tt.splat %213 : i32 -> tensor<64xi32>
       %215 = arith.addi %214, %52 : tensor<64xi32>
@@ -185,7 +185,7 @@ module {
       %225 = arith.cmpi ult, %224, %cst_2 : tensor<128x64xi32>
       %226 = arith.extsi %223 : tensor<128x64xi32> to tensor<128x64xi64>
       %227 = arith.addi %134, %226 : tensor<128x64xi64>
-      %228 = "tts.create_ptr"(%arg30, %227) : (!tt.ptr<f32>, tensor<128x64xi64>) -> tensor<128x64x!tt.ptr<f32>>
+      %228 = "tts.make_unstructured_tptr"(%arg30, %227) : (!tt.ptr<f32>, tensor<128x64xi64>) -> tensor<128x64x!tt.ptr<f32>>
       %229 = tt.load %228, %225 : tensor<128x64x!tt.ptr<f32>>
       %230 = arith.select %225, %229, %cst_3 : tensor<128x64xi1>, tensor<128x64xf32>
       %231 = tt.dot %103, %216, %230, inputPrecision = tf32 : tensor<128x16xf32> * tensor<16x64xf32> -> tensor<128x64xf32>
@@ -228,9 +228,9 @@ module {
       scf.yield %250, %255, %241, %257, %259 : tensor<128xf32>, tensor<128x16xf32>, tensor<128xf32>, tensor<64x16xi64>, tensor<16x64xi64>
     }
     %140 = arith.addi %110, %c2_i64 : i64
-    %141 = "tts.create_ptr"(%arg17, %140) : (!tt.ptr<i32>, i64) -> !tt.ptr<i32>
+    %141 = "tts.make_unstructured_tptr"(%arg17, %140) : (!tt.ptr<i32>, i64) -> !tt.ptr<i32>
     %142 = arith.addi %110, %c3_i64 : i64
-    %143 = "tts.create_ptr"(%arg17, %142) : (!tt.ptr<i32>, i64) -> !tt.ptr<i32>
+    %143 = "tts.make_unstructured_tptr"(%arg17, %142) : (!tt.ptr<i32>, i64) -> !tt.ptr<i32>
     %144 = tt.load %141 : !tt.ptr<i32>
     %145 = tt.load %143 : !tt.ptr<i32>
     %146 = arith.muli %144, %arg23 : i32
@@ -243,8 +243,8 @@ module {
     %153 = arith.subi %145, %144 : i32
     %154 = tt.splat %102 : f32 -> tensor<128xf32>
     %155:5 = scf.for %arg34 = %c0_i32 to %153 step %c64_i32 iter_args(%arg35 = %139#0, %arg36 = %139#1, %arg37 = %139#2, %arg38 = %152, %arg39 = %149) -> (tensor<128xf32>, tensor<128x16xf32>, tensor<128xf32>, tensor<64x16xi64>, tensor<16x64xi64>)  : i32 {
-      %211 = "tts.create_ptr"(%arg3, %arg39) : (!tt.ptr<f32>, tensor<16x64xi64>) -> tensor<16x64x!tt.ptr<f32>>
-      %212 = "tts.create_ptr"(%arg4, %arg38) : (!tt.ptr<f32>, tensor<64x16xi64>) -> tensor<64x16x!tt.ptr<f32>>
+      %211 = "tts.make_unstructured_tptr"(%arg3, %arg39) : (!tt.ptr<f32>, tensor<16x64xi64>) -> tensor<16x64x!tt.ptr<f32>>
+      %212 = "tts.make_unstructured_tptr"(%arg4, %arg38) : (!tt.ptr<f32>, tensor<64x16xi64>) -> tensor<64x16x!tt.ptr<f32>>
       %213 = arith.addi %144, %arg34 : i32
       %214 = tt.splat %213 : i32 -> tensor<64xi32>
       %215 = arith.addi %214, %52 : tensor<64xi32>
@@ -260,7 +260,7 @@ module {
       %225 = arith.cmpi ult, %224, %cst_2 : tensor<128x64xi32>
       %226 = arith.extsi %223 : tensor<128x64xi32> to tensor<128x64xi64>
       %227 = arith.addi %134, %226 : tensor<128x64xi64>
-      %228 = "tts.create_ptr"(%arg30, %227) : (!tt.ptr<f32>, tensor<128x64xi64>) -> tensor<128x64x!tt.ptr<f32>>
+      %228 = "tts.make_unstructured_tptr"(%arg30, %227) : (!tt.ptr<f32>, tensor<128x64xi64>) -> tensor<128x64x!tt.ptr<f32>>
       %229 = tt.load %228, %225 : tensor<128x64x!tt.ptr<f32>>
       %230 = arith.select %225, %229, %cst_3 : tensor<128x64xi1>, tensor<128x64xf32>
       %231 = tt.dot %103, %216, %230, inputPrecision = tf32 : tensor<128x16xf32> * tensor<16x64xf32> -> tensor<128x64xf32>
@@ -297,9 +297,9 @@ module {
       scf.yield %244, %249, %234, %251, %253 : tensor<128xf32>, tensor<128x16xf32>, tensor<128xf32>, tensor<64x16xi64>, tensor<16x64xi64>
     }
     %156 = arith.addi %110, %c4_i64 : i64
-    %157 = "tts.create_ptr"(%arg17, %156) : (!tt.ptr<i32>, i64) -> !tt.ptr<i32>
+    %157 = "tts.make_unstructured_tptr"(%arg17, %156) : (!tt.ptr<i32>, i64) -> !tt.ptr<i32>
     %158 = arith.addi %110, %c5_i64 : i64
-    %159 = "tts.create_ptr"(%arg17, %158) : (!tt.ptr<i32>, i64) -> !tt.ptr<i32>
+    %159 = "tts.make_unstructured_tptr"(%arg17, %158) : (!tt.ptr<i32>, i64) -> !tt.ptr<i32>
     %160 = tt.load %157 : !tt.ptr<i32>
     %161 = tt.load %159 : !tt.ptr<i32>
     %162 = arith.muli %160, %arg23 : i32
@@ -312,8 +312,8 @@ module {
     %169 = arith.subi %161, %160 : i32
     %170 = tt.splat %40 : i32 -> tensor<64xi32>
     %171:5 = scf.for %arg34 = %c0_i32 to %169 step %c64_i32 iter_args(%arg35 = %155#0, %arg36 = %155#1, %arg37 = %155#2, %arg38 = %168, %arg39 = %165) -> (tensor<128xf32>, tensor<128x16xf32>, tensor<128xf32>, tensor<64x16xi64>, tensor<16x64xi64>)  : i32 {
-      %211 = "tts.create_ptr"(%arg3, %arg39) : (!tt.ptr<f32>, tensor<16x64xi64>) -> tensor<16x64x!tt.ptr<f32>>
-      %212 = "tts.create_ptr"(%arg4, %arg38) : (!tt.ptr<f32>, tensor<64x16xi64>) -> tensor<64x16x!tt.ptr<f32>>
+      %211 = "tts.make_unstructured_tptr"(%arg3, %arg39) : (!tt.ptr<f32>, tensor<16x64xi64>) -> tensor<16x64x!tt.ptr<f32>>
+      %212 = "tts.make_unstructured_tptr"(%arg4, %arg38) : (!tt.ptr<f32>, tensor<64x16xi64>) -> tensor<64x16x!tt.ptr<f32>>
       %213 = arith.addi %160, %arg34 : i32
       %214 = tt.splat %213 : i32 -> tensor<64xi32>
       %215 = arith.addi %214, %52 : tensor<64xi32>
@@ -332,7 +332,7 @@ module {
       %228 = arith.cmpi ult, %227, %cst_2 : tensor<128x64xi32>
       %229 = arith.extsi %226 : tensor<128x64xi32> to tensor<128x64xi64>
       %230 = arith.addi %134, %229 : tensor<128x64xi64>
-      %231 = "tts.create_ptr"(%arg30, %230) : (!tt.ptr<f32>, tensor<128x64xi64>) -> tensor<128x64x!tt.ptr<f32>>
+      %231 = "tts.make_unstructured_tptr"(%arg30, %230) : (!tt.ptr<f32>, tensor<128x64xi64>) -> tensor<128x64x!tt.ptr<f32>>
       %232 = tt.load %231, %228 : tensor<128x64x!tt.ptr<f32>>
       %233 = arith.select %228, %232, %cst_3 : tensor<128x64xi1>, tensor<128x64xf32>
       %234 = tt.dot %103, %219, %233, inputPrecision = tf32 : tensor<128x16xf32> * tensor<16x64xf32> -> tensor<128x64xf32>

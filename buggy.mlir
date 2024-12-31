@@ -37,9 +37,9 @@
       %32 = "tt.addptr"(%arg6, %5) : (tensor<2x2xi32>, tensor<2x2xi32>) -> tensor<2x2x!tt.ptr<f32>>
       %33:2 = "scf.for"(%3, %6, %2, %30, %32) ({
       ^bb0(%arg7: i32, %arg8: tensor<2x2xi32>, %arg9: tensor<2x2xi32>):
-        %42 = "tts.create_ptr"(%arg0, %arg8) : (!tt.ptr<f32>, tensor<2x2xi32>) -> tensor<2x2x!tt.ptr<f32>>
+        %42 = "tts.make_unstructured_tptr"(%arg0, %arg8) : (!tt.ptr<f32>, tensor<2x2xi32>) -> tensor<2x2x!tt.ptr<f32>>
         %43 = "tt.load"(%42) <{boundaryCheck = array<i32>, cache = 1 : i32, evict = 1 : i32, isVolatile = false, operandSegmentSizes = array<i32: 1, 0, 0>}> : (tensor<2x2x!tt.ptr<f32>>) -> tensor<2x2xf32>
-        %44 = "tts.create_ptr"(%arg1, %arg9) : (!tt.ptr<f32>, tensor<2x2xi32>) -> tensor<2x2x!tt.ptr<f32>>
+        %44 = "tts.make_unstructured_tptr"(%arg1, %arg9) : (!tt.ptr<f32>, tensor<2x2xi32>) -> tensor<2x2x!tt.ptr<f32>>
         "tt.store"(%44, %43) <{boundaryCheck = array<i32>, cache = 1 : i32, evict = 1 : i32}> : (tensor<2x2x!tt.ptr<f32>>, tensor<2x2xf32>) -> ()
         %45 = "arith.addi"(%arg8, %4) <{overflowFlags = #arith.overflow<none>}> : (tensor<2x2xi32>, tensor<2x2xi32>) -> tensor<2x2xi32>
         %46 = "tt.addptr"(%arg8, %4) : (tensor<2x2xi32>, tensor<2x2xi32>) -> tensor<2x2x!tt.ptr<f32>>

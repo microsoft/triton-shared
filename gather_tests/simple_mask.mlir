@@ -20,12 +20,12 @@ module {
       %7 = arith.cmpi slt, %6, %cst_1 : tensor<4xi32>
       %8 = arith.extsi %6 : tensor<4xi32> to tensor<4xi64>
       %9 = arith.addi %1, %8 : tensor<4xi64>
-      %10 = "tts.create_ptr"(%arg0, %9) : (!tt.ptr<f32>, tensor<4xi64>) -> tensor<4x!tt.ptr<f32>>
+      %10 = "tts.make_unstructured_tptr"(%arg0, %9) : (!tt.ptr<f32>, tensor<4xi64>) -> tensor<4x!tt.ptr<f32>>
       %11 = builtin.unrealized_conversion_cast %9 : tensor<4xi64> to tensor<4x!tt.ptr<f32>> {"reconvert-offset-to-ptr"}
       %12 = tt.load %10, %7 : tensor<4x!tt.ptr<f32>>
       %13 = arith.extsi %6 : tensor<4xi32> to tensor<4xi64>
       %14 = arith.addi %2, %13 : tensor<4xi64>
-      %15 = "tts.create_ptr"(%arg1, %14) : (!tt.ptr<f32>, tensor<4xi64>) -> tensor<4x!tt.ptr<f32>>
+      %15 = "tts.make_unstructured_tptr"(%arg1, %14) : (!tt.ptr<f32>, tensor<4xi64>) -> tensor<4x!tt.ptr<f32>>
       %16 = builtin.unrealized_conversion_cast %14 : tensor<4xi64> to tensor<4x!tt.ptr<f32>> {"reconvert-offset-to-ptr"}
       tt.store %15, %12 : tensor<4x!tt.ptr<f32>>
       %17 = arith.addi %6, %cst : tensor<4xi32>

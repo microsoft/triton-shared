@@ -260,7 +260,7 @@ public:
 
               auto srcPtr = offsetInfo.ptr;
 
-              auto cast = rewriter.create<tts::CreatePtrOp>(
+              auto cast = rewriter.create<tts::MakeUnstructuredTensorPtrOp>(
                   op->getLoc(), offsetInfo.ptrType, srcPtr, offsetInfo.offset);
 
               loadStores.push_back({op, cast.getResult()});

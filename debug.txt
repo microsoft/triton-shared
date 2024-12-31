@@ -239,12 +239,12 @@ for op
         %32 = "tt.addptr"(%arg8, %24) : (tensor<2x2x!tt.ptr<f32>>, tensor<2x2xi32>) -> tensor<2x2x!tt.ptr<f32>>
         %33 = "tt.load"(%32) <{boundaryCheck = array<i32>, cache = 1 : i32, evict = 1 : i32, isVolatile = false, operandSegmentSizes = array<i32: 1, 0, 0>}> : (tensor<2x2x!tt.ptr<f32>>) -> tensor<2x2xf32>
         %34 = "builtin.unrealized_conversion_cast"(%arg9) : (tensor<2x2x!tt.ptr<f32>>) -> tensor<2x2xi32>
-        %35 = "tts.create_ptr"(%arg1, %34) : (!tt.ptr<f32>, tensor<2x2xi32>) -> tensor<2x2x!tt.ptr<f32>>
+        %35 = "tts.make_unstructured_tptr"(%arg1, %34) : (!tt.ptr<f32>, tensor<2x2xi32>) -> tensor<2x2x!tt.ptr<f32>>
         "tt.store"(%35, %31) <{boundaryCheck = array<i32>, cache = 1 : i32, evict = 1 : i32}> : (tensor<2x2x!tt.ptr<f32>>, tensor<2x2xf32>) -> ()
         %36 = "builtin.unrealized_conversion_cast"(%arg9) : (tensor<2x2x!tt.ptr<f32>>) -> tensor<2x2xi32>
         %37 = "arith.addi"(%36, %24) <{overflowFlags = #arith.overflow<none>}> : (tensor<2x2xi32>, tensor<2x2xi32>) -> tensor<2x2xi32>
         %38 = "arith.addi"(%37, %24) <{overflowFlags = #arith.overflow<none>}> : (tensor<2x2xi32>, tensor<2x2xi32>) -> tensor<2x2xi32>
-        %39 = "tts.create_ptr"(%arg1, %38) : (!tt.ptr<f32>, tensor<2x2xi32>) -> tensor<2x2x!tt.ptr<f32>>
+        %39 = "tts.make_unstructured_tptr"(%arg1, %38) : (!tt.ptr<f32>, tensor<2x2xi32>) -> tensor<2x2x!tt.ptr<f32>>
         "tt.store"(%39, %33) <{boundaryCheck = array<i32>, cache = 1 : i32, evict = 1 : i32}> : (tensor<2x2x!tt.ptr<f32>>, tensor<2x2xf32>) -> ()
         %40 = "tt.addptr"(%38, %24) : (tensor<2x2xi32>, tensor<2x2xi32>) -> tensor<2x2x!tt.ptr<f32>>
         %41 = "tt.addptr"(%32, %24) : (tensor<2x2x!tt.ptr<f32>>, tensor<2x2xi32>) -> tensor<2x2x!tt.ptr<f32>>
@@ -278,7 +278,7 @@ tensor<2x2x!tt.ptr<f32>>
 /home/nhat/github/triton_shared/gather/gather_reuse_loop_results.mlir:28:13: error: failed to legalize operation 'scf.for' that was explicitly marked illegal
       %23 = scf.for %arg7 = %c0_i32 to %c2_i32 step %c1_i32 iter_args(%arg8 = %arg5) -> (tensor<2x2x!tt.ptr<f32>>)  : i32 {
             ^
-/home/nhat/github/triton_shared/gather/gather_reuse_loop_results.mlir:28:13: note: see current operation: 
+/home/nhat/github/triton_shared/gather/gather_reuse_loop_results.mlir:28:13: note: see current operation:
 %34 = "scf.for"(%3, %4, %2, <<UNKNOWN SSA VALUE>>) ({
 ^bb0(%arg10: i32, %arg11: tensor<2x2x!tt.ptr<f32>>):
   %48 = "builtin.unrealized_conversion_cast"(%arg11) : (tensor<2x2x!tt.ptr<f32>>) -> tensor<2x2xi32>

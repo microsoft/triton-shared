@@ -13,7 +13,7 @@ module {
       %5 = arith.select %4, %arg2, %arg3 : bf16
       tt.reduce.return %5 : bf16
     }) : (tensor<32x256x16xbf16>) -> tensor<256x16xbf16>
-    %3 = "tts.create_ptr"(%arg1, %cst) : (tensor<256x16x!tt.ptr<bf16>>, tensor<256x16xi64>) -> tensor<256x16x!tt.ptr<bf16>>
+    %3 = "tts.make_unstructured_tptr"(%arg1, %cst) : (tensor<256x16x!tt.ptr<bf16>>, tensor<256x16xi64>) -> tensor<256x16x!tt.ptr<bf16>>
     tt.store %3, %2 : tensor<256x16x!tt.ptr<bf16>>
     tt.return
   }

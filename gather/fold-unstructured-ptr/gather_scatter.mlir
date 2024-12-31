@@ -42,9 +42,9 @@ module {
         %21 = arith.cmpi slt, %in, %in_0 : i32
         linalg.yield %21 : i1
       } -> tensor<4xi1>
-      %15 = "tts.create_ptr"(%arg0, %12) : (!tt.ptr<f32>, tensor<4xi32>) -> tensor<4x!tt.ptr<f32>>
+      %15 = "tts.make_unstructured_tptr"(%arg0, %12) : (!tt.ptr<f32>, tensor<4xi32>) -> tensor<4x!tt.ptr<f32>>
       %16 = tt.load %15, %14 : tensor<4x!tt.ptr<f32>>
-      %17 = "tts.create_ptr"(%arg1, %12) : (!tt.ptr<f32>, tensor<4xi32>) -> tensor<4x!tt.ptr<f32>>
+      %17 = "tts.make_unstructured_tptr"(%arg1, %12) : (!tt.ptr<f32>, tensor<4xi32>) -> tensor<4x!tt.ptr<f32>>
       tt.store %17, %16 : tensor<4x!tt.ptr<f32>>
       %18 = linalg.generic {indexing_maps = [#map, #map, #map], iterator_types = ["parallel"]} ins(%12, %1 : tensor<4xi32>, tensor<4xi32>) outs(%12 : tensor<4xi32>) {
       ^bb0(%in: i32, %in_0: i32, %out: i32):

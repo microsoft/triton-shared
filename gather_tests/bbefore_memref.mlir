@@ -47,7 +47,7 @@ module {
         %41 = arith.extsi %in : i32 to i64
         linalg.yield %41 : i64
       } -> tensor<4xi64>
-      %17 = "tts.create_ptr"(%arg0, %16) : (!tt.ptr<f32>, tensor<4xi64>) -> tensor<4x!tt.ptr<f32>>
+      %17 = "tts.make_unstructured_tptr"(%arg0, %16) : (!tt.ptr<f32>, tensor<4xi64>) -> tensor<4x!tt.ptr<f32>>
       %18 = tt.load %17, %14 : tensor<4x!tt.ptr<f32>>
       %19 = tensor.empty() : tensor<4xi64>
       %20 = linalg.generic {indexing_maps = [#map, #map], iterator_types = ["parallel"]} ins(%12 : tensor<4xi32>) outs(%19 : tensor<4xi64>) {
@@ -55,7 +55,7 @@ module {
         %41 = arith.extsi %in : i32 to i64
         linalg.yield %41 : i64
       } -> tensor<4xi64>
-      %21 = "tts.create_ptr"(%arg1, %20) : (!tt.ptr<f32>, tensor<4xi64>) -> tensor<4x!tt.ptr<f32>>
+      %21 = "tts.make_unstructured_tptr"(%arg1, %20) : (!tt.ptr<f32>, tensor<4xi64>) -> tensor<4x!tt.ptr<f32>>
       tt.store %21, %18 : tensor<4x!tt.ptr<f32>>
       %22 = linalg.generic {indexing_maps = [#map, #map, #map], iterator_types = ["parallel"]} ins(%12, %1 : tensor<4xi32>, tensor<4xi32>) outs(%12 : tensor<4xi32>) {
       ^bb0(%in: i32, %in_0: i32, %out: i32):
@@ -96,7 +96,7 @@ module {
           %59 = arith.extsi %in : i32 to i64
           linalg.yield %59 : i64
         } -> tensor<4xi64>
-        %51 = "tts.create_ptr"(%arg0, %50) : (!tt.ptr<f32>, tensor<4xi64>) -> tensor<4x!tt.ptr<f32>>
+        %51 = "tts.make_unstructured_tptr"(%arg0, %50) : (!tt.ptr<f32>, tensor<4xi64>) -> tensor<4x!tt.ptr<f32>>
         %52 = tt.load %51, %48 : tensor<4x!tt.ptr<f32>>
         %53 = tensor.empty() : tensor<4xi64>
         %54 = linalg.generic {indexing_maps = [#map, #map], iterator_types = ["parallel"]} ins(%46 : tensor<4xi32>) outs(%53 : tensor<4xi64>) {
@@ -104,7 +104,7 @@ module {
           %59 = arith.extsi %in : i32 to i64
           linalg.yield %59 : i64
         } -> tensor<4xi64>
-        %55 = "tts.create_ptr"(%arg1, %54) : (!tt.ptr<f32>, tensor<4xi64>) -> tensor<4x!tt.ptr<f32>>
+        %55 = "tts.make_unstructured_tptr"(%arg1, %54) : (!tt.ptr<f32>, tensor<4xi64>) -> tensor<4x!tt.ptr<f32>>
         tt.store %55, %52 : tensor<4x!tt.ptr<f32>>
         %56 = linalg.generic {indexing_maps = [#map, #map, #map], iterator_types = ["parallel"]} ins(%46, %1 : tensor<4xi32>, tensor<4xi32>) outs(%46 : tensor<4xi32>) {
         ^bb0(%in: i32, %in_0: i32, %out: i32):
@@ -141,7 +141,7 @@ module {
         %41 = arith.extsi %in : i32 to i64
         linalg.yield %41 : i64
       } -> tensor<4xi64>
-      %33 = "tts.create_ptr"(%arg0, %32) : (!tt.ptr<f32>, tensor<4xi64>) -> tensor<4x!tt.ptr<f32>>
+      %33 = "tts.make_unstructured_tptr"(%arg0, %32) : (!tt.ptr<f32>, tensor<4xi64>) -> tensor<4x!tt.ptr<f32>>
       %34 = tt.load %33, %30 : tensor<4x!tt.ptr<f32>>
       %35 = tensor.empty() : tensor<4xi64>
       %36 = linalg.generic {indexing_maps = [#map, #map], iterator_types = ["parallel"]} ins(%28 : tensor<4xi32>) outs(%35 : tensor<4xi64>) {
@@ -149,7 +149,7 @@ module {
         %41 = arith.extsi %in : i32 to i64
         linalg.yield %41 : i64
       } -> tensor<4xi64>
-      %37 = "tts.create_ptr"(%arg1, %36) : (!tt.ptr<f32>, tensor<4xi64>) -> tensor<4x!tt.ptr<f32>>
+      %37 = "tts.make_unstructured_tptr"(%arg1, %36) : (!tt.ptr<f32>, tensor<4xi64>) -> tensor<4x!tt.ptr<f32>>
       tt.store %37, %34 : tensor<4x!tt.ptr<f32>>
       %38 = linalg.generic {indexing_maps = [#map, #map, #map], iterator_types = ["parallel"]} ins(%28, %1 : tensor<4xi32>, tensor<4xi32>) outs(%28 : tensor<4xi32>) {
       ^bb0(%in: i32, %in_0: i32, %out: i32):

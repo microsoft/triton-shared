@@ -77,17 +77,20 @@ public:
   }
 };
 
-struct CreatePtrConverter : public OpConversionPattern<tts::CreatePtrOp> {
-  using OpConversionPattern<tts::CreatePtrOp>::OpConversionPattern;
+struct CreatePtrConverter
+    : public OpConversionPattern<tts::MakeUnstructuredTensorPtrOp> {
+  using OpConversionPattern<
+      tts::MakeUnstructuredTensorPtrOp>::OpConversionPattern;
 
   CreatePtrConverter(const TypeConverter &typeConverter, MLIRContext *context)
-      : OpConversionPattern<tts::CreatePtrOp>(typeConverter, context) {}
+      : OpConversionPattern<tts::MakeUnstructuredTensorPtrOp>(typeConverter,
+                                                              context) {}
 
   CreatePtrConverter(MLIRContext *context)
-      : OpConversionPattern<tts::CreatePtrOp>(context) {}
+      : OpConversionPattern<tts::MakeUnstructuredTensorPtrOp>(context) {}
 
   LogicalResult
-  matchAndRewrite(tts::CreatePtrOp op, OpAdaptor adaptor,
+  matchAndRewrite(tts::MakeUnstructuredTensorPtrOp op, OpAdaptor adaptor,
                   ConversionPatternRewriter &rewriter) const override {
     rewriter.replaceOp(op, adaptor.getInput());
     return success();
@@ -110,7 +113,8 @@ struct UnrealizedConversionCastOpConverter
   matchAndRewrite(UnrealizedConversionCastOp op, OpAdaptor adaptor,
                   ConversionPatternRewriter &rewriter) const override {
     auto in = op.getInputs()[0];
-    if (auto createPtrOp = in.getDefiningOp<tts::CreatePtrOp>()) {
+    if (auto createPtrOp =
+            in.getDefiningOp<tts::MakeUnstructuredTensorPtrOp>()) {
       for (auto user : in.getUsers()) {
         if (auto reinterpretCast = dyn_cast<memref::ReinterpretCastOp>(user)) {
           // reinterpretCast.
@@ -174,12 +178,13 @@ public:
       signalPassFailure();
     }
 
-    moduleOp->walk([](tts::CreatePtrOp op) {
-      // %4 = "tts.create_ptr"(%0, %3) : (!tt.ptr<bf16>, i64) -> !tt.ptr<bf16>
-      // %5 = builtin.unrealized_conversion_cast %4 : !tt.ptr<bf16> to
-      // memref<*xbf16> %reinterpret_cast = memref.reinterpret_cast %5 to
-      // offset: [%c0], sizes: [128, 128], strides: [%c128, %c1] :
-      // memref<*xbf16> to memref<128x128xbf16, strided<[?, ?], offset: ?>>
+    moduleOp->walk([](tts::MakeUnstructuredTensorPtrOp op) {
+      // %4 = "tts.make_unstructured_tptr"(%0, %3) : (!tt.ptr<bf16>, i64) ->
+      // !tt.ptr<bf16> %5 = builtin.unrealized_conversion_cast %4 :
+      // !tt.ptr<bf16> to memref<*xbf16> %reinterpret_cast =
+      // memref.reinterpret_cast %5 to offset: [%c0], sizes: [128, 128],
+      // strides: [%c128, %c1] : memref<*xbf16> to memref<128x128xbf16,
+      // strided<[?, ?], offset: ?>>
       auto ptr = getMemrefArg(op.getInput());
       auto offset = op.getOffset();
       OpBuilder b(op);

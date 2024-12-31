@@ -29,9 +29,9 @@ module {
 // CHECK-DAG:       [[VAR_0_:%.+]] = tt.get_program_id x : i32
 // CHECK:           [[VAR_1_:%.+]] = arith.extsi [[VAR_0_]] : i32 to i64
 // CHECK:           [[VAR_2_:%.+]] = arith.muli [[VAR_1_]], [[CST_32768_]] : i64
-// CHECK:           [[VAR_3_:%.+]] = "tts.create_ptr"([[PARAM_0_]], [[VAR_2_]]) : (!tt.ptr<bf16>, i64) -> !tt.ptr<bf16>
+// CHECK:           [[VAR_3_:%.+]] = "tts.make_unstructured_tptr"([[PARAM_0_]], [[VAR_2_]]) : (!tt.ptr<bf16>, i64) -> !tt.ptr<bf16>
 // CHECK-DAG:       [[VAR_4_:%.+]] = tt.make_tensor_ptr [[VAR_3_]], {{.}}[[CST_512_]], [[CST_64_]]{{.}}, {{.}}[[CST_64_]], [[CST_1_]]{{.}}, {{.}}[[CST_0_]], [[CST_0_]]{{.}} {order = array<i32: 1, 0>} : <tensor<512x64xbf16>>
-// CHECK-DAG:       [[VAR_5_:%.+]] = "tts.create_ptr"([[PARAM_1_]], [[VAR_2_]]) : (!tt.ptr<bf16>, i64) -> !tt.ptr<bf16>
+// CHECK-DAG:       [[VAR_5_:%.+]] = "tts.make_unstructured_tptr"([[PARAM_1_]], [[VAR_2_]]) : (!tt.ptr<bf16>, i64) -> !tt.ptr<bf16>
 // CHECK-NOT: separator of consecutive DAGs
 // CHECK-DAG:       [[VAR_6_:%.+]] = tt.make_tensor_ptr [[VAR_5_]], {{.}}[[CST_512_]], [[CST_64_]]{{.}}, {{.}}[[CST_64_]], [[CST_1_]]{{.}}, {{.}}[[CST_0_]], [[CST_0_]]{{.}} {order = array<i32: 1, 0>} : <tensor<512x64xbf16>>
 // CHECK-DAG:       [[LOAD_VAR_4_MEM_:%.+]] = tt.load [[VAR_4_]] : !tt.ptr<tensor<512x64xbf16>>

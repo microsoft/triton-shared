@@ -37,7 +37,7 @@ module {
         %19 = arith.addi %in, %in_1 : i32
         linalg.yield %19 : i32
       } -> tensor<64xi32>
-      %13 = "tts.create_ptr"(%arg0, %12) : (!tt.ptr<f32>, tensor<64xi32>) -> tensor<64x!tt.ptr<f32>>
+      %13 = "tts.make_unstructured_tptr"(%arg0, %12) : (!tt.ptr<f32>, tensor<64xi32>) -> tensor<64x!tt.ptr<f32>>
       %14 = tt.load %13 : tensor<64x!tt.ptr<f32>>
       %15 = builtin.unrealized_conversion_cast %arg1 : !tt.ptr<f32> to memref<*xf32>
       %reinterpret_cast = memref.reinterpret_cast %15 to offset: [%arg13], sizes: [64], strides: [%arg14] : memref<*xf32> to memref<64xf32, strided<[?], offset: ?>>

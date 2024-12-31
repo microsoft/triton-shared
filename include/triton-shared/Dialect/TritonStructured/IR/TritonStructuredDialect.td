@@ -143,7 +143,7 @@ def TTS_GetStructuredStateOp : TTS_Op<"get_structured_state", [AttrSizedResultSe
   let hasVerifier = 1;
 }
 
-def TTS_CreatePtrOp : TTS_Op<"create_ptr", [Pure]> {
+def TTS_MakeUnstructuredTensorPtrOp : TTS_Op<"make_unstructured_tptr", [Pure]> {
   let summary = "Placeholder for the structured pointer states computed during PtrAnalysis.";
   let description = "Used to pass the offsets and strides to scf.for op to simplify IR rewrites.";
 

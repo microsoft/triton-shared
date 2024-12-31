@@ -23,9 +23,9 @@ module {
 // CHECK-DAG:       [[VAR_0_:%.+]] = tt.make_range {end = 64 : i32, start = 0 : i32} : tensor<64xi32>
 // CHECK:           [[VAR_1_:%.+]] = arith.divsi [[VAR_0_]], [[VAR_cst_0_]] : tensor<64xi32>
 // CHECK:           [[VAR_2_:%.+]] = arith.addi [[VAR_1_]], [[VAR_cst_]] : tensor<64xi32>
-// CHECK:           [[VAR_3_:%.+]] = "tts.create_ptr"([[PARAM_0_]], [[VAR_2_]]) : (!tt.ptr<f32>, tensor<64xi32>) -> tensor<64x!tt.ptr<f32>>
+// CHECK:           [[VAR_3_:%.+]] = "tts.make_unstructured_tptr"([[PARAM_0_]], [[VAR_2_]]) : (!tt.ptr<f32>, tensor<64xi32>) -> tensor<64x!tt.ptr<f32>>
 // CHECK-DAG:       [[LOAD_VAR_3_MEM_:%.+]] = tt.load [[VAR_3_]] : tensor<64x!tt.ptr<f32>>
-// CHECK-DAG:       [[VAR_5_:%.+]] = "tts.create_ptr"([[PARAM_1_]], [[VAR_0_]]) : (!tt.ptr<f32>, tensor<64xi32>) -> tensor<64x!tt.ptr<f32>>
+// CHECK-DAG:       [[VAR_5_:%.+]] = "tts.make_unstructured_tptr"([[PARAM_1_]], [[VAR_0_]]) : (!tt.ptr<f32>, tensor<64xi32>) -> tensor<64x!tt.ptr<f32>>
 // CHECK:           tt.store [[VAR_5_]], [[LOAD_VAR_3_MEM_]] : tensor<64x!tt.ptr<f32>>
 // CHECK:           tt.return
 // CHECK:         }

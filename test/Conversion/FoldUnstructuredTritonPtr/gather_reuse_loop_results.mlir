@@ -73,16 +73,16 @@ module {
 // CHECK-DAG:       [[VAR_11_:%.+]] = tt.splat [[VAR_10_]] : i32 -> tensor<2x2xi32>
 // CHECK-DAG:       [[VAR_12_:%.+]] = scf.for [[VAR_arg4_:%.+]] = [[CST_0_]] to [[CST_2_]] step [[CST_1_]] iter_args([[VAR_arg5_:%.+]] = [[VAR_9_]]) -> (tensor<2x2xi32>)  : i32 {
 // CHECK-DAG:         [[VAR_13_:%.+]] = scf.for [[VAR_arg6_:%.+]] = [[CST_0_]] to [[CST_2_]] step [[CST_1_]] iter_args([[VAR_arg7_:%.+]] = [[VAR_arg5_]]) -> (tensor<2x2xi32>)  : i32 {
-// CHECK-DAG:           [[VAR_14_:%.+]] = "tts.create_ptr"([[PARAM_0_]], [[VAR_9_]]) : (!tt.ptr<f32>, tensor<2x2xi32>) -> tensor<2x2x!tt.ptr<f32>>
+// CHECK-DAG:           [[VAR_14_:%.+]] = "tts.make_unstructured_tptr"([[PARAM_0_]], [[VAR_9_]]) : (!tt.ptr<f32>, tensor<2x2xi32>) -> tensor<2x2x!tt.ptr<f32>>
 // CHECK-NOT: separator of consecutive DAGs
 // CHECK-DAG:           [[LOAD_VAR_14_MEM_:%.+]] = tt.load [[VAR_14_]] : tensor<2x2x!tt.ptr<f32>>
 // CHECK-DAG:           [[VAR_16_:%.+]] = arith.addi [[VAR_9_]], [[VAR_11_]] : tensor<2x2xi32>
-// CHECK:               [[VAR_17_:%.+]] = "tts.create_ptr"([[PARAM_0_]], [[VAR_16_]]) : (!tt.ptr<f32>, tensor<2x2xi32>) -> tensor<2x2x!tt.ptr<f32>>
+// CHECK:               [[VAR_17_:%.+]] = "tts.make_unstructured_tptr"([[PARAM_0_]], [[VAR_16_]]) : (!tt.ptr<f32>, tensor<2x2xi32>) -> tensor<2x2x!tt.ptr<f32>>
 // CHECK-DAG:           [[LOAD_VAR_17_MEM_:%.+]] = tt.load [[VAR_17_]] : tensor<2x2x!tt.ptr<f32>>
-// CHECK-DAG:           [[VAR_19_:%.+]] = "tts.create_ptr"([[PARAM_1_]], [[VAR_9_]]) : (!tt.ptr<f32>, tensor<2x2xi32>) -> tensor<2x2x!tt.ptr<f32>>
+// CHECK-DAG:           [[VAR_19_:%.+]] = "tts.make_unstructured_tptr"([[PARAM_1_]], [[VAR_9_]]) : (!tt.ptr<f32>, tensor<2x2xi32>) -> tensor<2x2x!tt.ptr<f32>>
 // CHECK:               tt.store [[VAR_19_]], [[LOAD_VAR_14_MEM_]] : tensor<2x2x!tt.ptr<f32>>
 // CHECK:               [[VAR_20_:%.+]] = arith.addi [[VAR_16_]], [[VAR_11_]] : tensor<2x2xi32>
-// CHECK:               [[VAR_21_:%.+]] = "tts.create_ptr"([[PARAM_1_]], [[VAR_20_]]) : (!tt.ptr<f32>, tensor<2x2xi32>) -> tensor<2x2x!tt.ptr<f32>>
+// CHECK:               [[VAR_21_:%.+]] = "tts.make_unstructured_tptr"([[PARAM_1_]], [[VAR_20_]]) : (!tt.ptr<f32>, tensor<2x2xi32>) -> tensor<2x2x!tt.ptr<f32>>
 // CHECK:               tt.store [[VAR_21_]], [[LOAD_VAR_17_MEM_]] : tensor<2x2x!tt.ptr<f32>>
 // CHECK:               [[VAR_22_:%.+]] = arith.addi [[VAR_20_]], [[VAR_11_]] : tensor<2x2xi32>
 // CHECK:               scf.yield [[VAR_22_]] : tensor<2x2xi32>

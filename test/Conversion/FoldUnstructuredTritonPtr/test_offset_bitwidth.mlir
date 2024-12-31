@@ -53,10 +53,10 @@ module {
 // CHECK:           [[VAR_9_:%.+]] = arith.extsi [[VAR_8_]] : tensor<64xi32> to tensor<64xi64>
 // CHECK-DAG:       [[VAR_10_:%.+]] = arith.addi [[VAR_6_]], [[VAR_9_]] : tensor<64xi64>
 // CHECK-DAG:       [[VAR_11_:%.+]] = scf.for [[VAR_arg2_:%.+]] = [[CST_0_]] to [[CST_2_]] step [[CST_1_]] iter_args([[VAR_arg3_:%.+]] = [[VAR_0_]]) -> (tensor<64xi32>)  : i32 {
-// CHECK:             [[VAR_12_:%.+]] = "tts.create_ptr"([[PARAM_0_]], [[VAR_10_]]) : (!tt.ptr<f32>, tensor<64xi64>) -> tensor<64x!tt.ptr<f32>>
+// CHECK:             [[VAR_12_:%.+]] = "tts.make_unstructured_tptr"([[PARAM_0_]], [[VAR_10_]]) : (!tt.ptr<f32>, tensor<64xi64>) -> tensor<64x!tt.ptr<f32>>
 // CHECK-DAG:         [[LOAD_VAR_12_MEM_:%.+]] = tt.load [[VAR_12_]] : tensor<64x!tt.ptr<f32>>
 // CHECK-DAG:         [[VAR_14_:%.+]] = arith.extsi [[VAR_arg3_]] : tensor<64xi32> to tensor<64xi64>
-// CHECK:             [[VAR_15_:%.+]] = "tts.create_ptr"([[PARAM_1_]], [[VAR_14_]]) : (!tt.ptr<f32>, tensor<64xi64>) -> tensor<64x!tt.ptr<f32>>
+// CHECK:             [[VAR_15_:%.+]] = "tts.make_unstructured_tptr"([[PARAM_1_]], [[VAR_14_]]) : (!tt.ptr<f32>, tensor<64xi64>) -> tensor<64x!tt.ptr<f32>>
 // CHECK:             tt.store [[VAR_15_]], [[LOAD_VAR_12_MEM_]] : tensor<64x!tt.ptr<f32>>
 // CHECK:             [[VAR_16_:%.+]] = arith.addi [[VAR_arg3_]], [[VAR_cst_]] : tensor<64xi32>
 // CHECK:             scf.yield [[VAR_16_]] : tensor<64xi32>
