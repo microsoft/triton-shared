@@ -1,6 +1,6 @@
 //===----------------------------------------------------------------------===//
 //
-// Copyright (c) Microsoft Corporation, Meta Platforms.
+// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT license.
 //
 //===----------------------------------------------------------------------===//
@@ -29,19 +29,17 @@
 #include "mlir/Pass/PassManager.h"
 #include "triton/Dialect/Triton/IR/Types.h"
 
-#include "llvm/ADT/APInt.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/DenseSet.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/TypeSwitch.h"
-#include "llvm/Support/Debug.h"
+#include "llvm/Support/ErrorHandling.h"
 
 #include <algorithm>
-#include <cassert>
 #include <queue>
 
-#define DEBUG_TYPE "triton-ptr-to-index"
+#define DEBUG_TYPE "fold-unstructured-triton-ptr"
 
 using namespace mlir;
 using namespace triton;
@@ -59,25 +57,28 @@ static bool isPtrTypeLike(Type t) {
 }
 
 static Type getPtrOffsetType(Type type, unsigned int bitWidth) {
-  type.dump();
   if (type.isInteger()) {
-    // assert(type.getIntOrFloatBitWidth() == bitWidth);
-    auto t = IntegerType::get(type.getContext(), bitWidth);
-    t.dump();
-    return t;
-  } else if (auto tensorType = dyn_cast<RankedTensorType>(type)) {
+    return IntegerType::get(type.getContext(), bitWidth);
+  }
+
+  if (auto tensorType = dyn_cast<RankedTensorType>(type)) {
     if (auto ptrType =
             dyn_cast<triton::PointerType>(tensorType.getElementType())) {
       return RankedTensorType::get(
           tensorType.getShape(), IntegerType::get(type.getContext(), bitWidth));
-    } else if (tensorType.getElementType().isInteger()) {
+    }
+
+    if (tensorType.getElementType().isInteger()) {
       return RankedTensorType::get(
           tensorType.getShape(), IntegerType::get(type.getContext(), bitWidth));
     }
-  } else if (auto ptrType = dyn_cast<triton::PointerType>(type)) {
+  }
+
+  if (auto ptrType = dyn_cast<triton::PointerType>(type)) {
     return IntegerType::get(type.getContext(), bitWidth);
   }
-  assert(0);
+
+  llvm_unreachable("unexpected type");
   return nullptr;
 }
 
@@ -89,11 +90,94 @@ static unsigned int getBitWidth(Type type) {
   } else if (auto integerType = dyn_cast<IntegerType>(type)) {
     return integerType.getWidth();
   }
-  type.dump();
-  assert(0);
+
+  llvm_unreachable("unexpected type");
   return 0;
 }
 
+////////////////////////////////////////////////////////////////////////////////
+// Overview
+////////////////////////////////////////////////////////////////////////////////
+//
+// This pass fold all sequences of tt.addptr into a single op
+// tts.make_unstructured_tptr that takes:
+//
+//   - a base pointer from the kernel arguments
+//   - a tensor of offsets (or single offset) that indicates the offsets from
+//   the
+//     base pointer
+//
+// All intermediate tt.addptr ops are converted to arith.addi ops that compute
+// the offsets. All pointer shape manipulation ops such as tt.splat and
+// tt.broadcast will instead operate on the offsets.
+//
+// Ops that use tensor pointers (or pointers) produced by tt.addptr, tt.splat,
+// or tt.broadcast to perform load and store (tt.load, tt.store,
+// tt.make_tensor_ptr, tts.make_tptr) will operate on the result of
+// tts.make_unstructured_tptr instead.
+//
+// Note that if the load/store ops operate on a pointer directly from the kernel
+// arguments, tts.make_unstructured_tptr op will not be created. See
+// test/Conversion/FoldUnstructuredTritonPtr/make_tensor_ptr.mlir
+//
+// In essence, after the pass, the only two cases where a pointer value is
+// introduced are:
+// 1) from the kernel arguments
+// 2) returned from a tts.make_unstructured_tptr
+//
+// As a simple example:
+//
+// ```
+// %cst = arith.constant dense<10> : tensor<16xi32>
+// %0 = tt.make_range {end = 16 : i32, start = 0 : i32} : tensor<16xi32>
+// %1 = tt.splat %arg0 : !tt.ptr<f32> -> tensor<16x!tt.ptr<f32>>
+// %2 = tt.addptr %1, %0 : tensor<16x!tt.ptr<f32>>, tensor<16xi32>
+// %3 = tt.addptr %2, %cst : tensor<16x!tt.ptr<f32>>, tensor<16xi32>
+// %4 = tt.load %3 : tensor<16x!tt.ptr<f32>>
+// ```
+//
+// becomes
+//
+// ```
+// %cst = arith.constant dense<10> : tensor<16xi32>
+// %0 = tt.make_range {end = 16 : i32, start = 0 : i32} : tensor<16xi32>
+// %1 = arith.addi %0, %cst : tensor<16xi32>
+// %2 = "tts.make_unstructured_tptr"(%arg0, %1) : (!tt.ptr<f32>, tensor<16xi32>)
+//   -> tensor<16x!tt.ptr<f32>>
+// %3 = tt.load %2 : tensor<16x!tt.ptr<f32>>
+// ```
+//
+// By default, the pass uses i32 for the initial offsets of all pointers
+// (configurable via offset-bit-width=width). If any intermediate tt.addptr
+// introduces a larger bitwidth offset, the offsets will be sign-extended to the
+// larger bitwidth type.
+//
+////////////////////////////////////////////////////////////////////////////////
+// Algorithm
+////////////////////////////////////////////////////////////////////////////////
+//
+// This pass uses a standard worklist-based algorithm to walk the use-def chains
+// of all pointer arguments and create replacement ops that operate on offsets
+// instead of tt.ptr types.
+//
+// In cases such as tt.addptr, tt.splat, and tt.broadcast, we create
+// corresponding replacement ops which will then be used to map the results
+// after the walk. We do not want to modify these ops in-place because the
+// use-def chains may be changed. In special cases like scf.for, we also set the
+// type of the iter-arg and result directly which is usually frown upon (but
+// justified).
+//
+// This approach is used in favor of the traditional ConversionPatternRewriter
+// which converts all pointer type into an offset integer type because
+// TypeConverter does not support dynamic type based on value. This limitation
+// means we have to decide the same bitwidth for all tt.addptr sequences which
+// is not ideal.
+//
+// For instance, assuming we have two sequences of tt.addptr: one operates on
+// 32-bit offsets while the other operates on 64-bit offsets. If we set the
+// default bitwidth to 64, the 32-bit sequence will require unncessary
+// sign-extending when computing the offsets. Contrast this with the manual
+// approach, we will only sign-extend where necessary.
 class FoldUnstructuredTritonAddPtrPass
     : public FoldUnstructuredTritonAddPtrBase<
           FoldUnstructuredTritonAddPtrPass> {
@@ -107,35 +191,24 @@ public:
   }
 
   struct PtrOffset {
+    // the source pointer which comes from the kernel argument
     Value ptr;
+    // the pointer type that corresponds to this offset; used when
+    // creating tts.make_unstructured_tptr
     Type ptrType;
+    // bitwidth that is used for this offset, used to track if sign-extension is
+    // necessary
     unsigned int bitWidth;
+    // the offset value
     Value offset;
   };
 
-  void computePtrType(unsigned int defaultBitWidth = 32) {
-    auto moduleOp = getOperation();
-
-    llvm::SmallDenseSet<Value> ptrs;
+  void foldUnstructuredAddptr(unsigned int defaultBitWidth = 32) {
+    llvm::SmallDenseSet<Value> ptrArgs;
     llvm::DenseMap<Value, PtrOffset> offsetMap;
     std::queue<Value> workList;
-    llvm::DenseMap<Value, Value> ptrToOffset;
 
-    /*
-    algorithm:
-    addptr -> addi
-    src: pointer args
-
-    - map each operand of tt.addptr to offset (ptr-to-offset)
-      - special case: the ptr arg has offset == 0 (zero)
-
-
-    problems:
-    - do not want to set operands during traversal (use-def chains are changed)
-
-    */
-
-    moduleOp.walk([&](FunctionOpInterface func) {
+    getOperation().walk([&](FunctionOpInterface func) {
       for (auto arg : func.getArguments()) {
         if (!isPtrTypeLike(arg.getType())) {
           continue;
@@ -147,58 +220,43 @@ public:
             b.getIntegerAttr(IntegerType::get(&getContext(), defaultBitWidth),
                              0));
 
-        ptrs.insert(arg);
+        ptrArgs.insert(arg);
         offsetMap.insert({arg, {arg, arg.getType(), defaultBitWidth, zero}});
         workList.push(arg);
       }
     });
 
-    moduleOp->dump();
-
     llvm::SmallVector<Operation *> toDelete;
-    llvm::SmallVector<std::pair<Operation *, Value>> loadStores;
+    llvm::SmallVector<std::pair<Operation *, Value>> ptrUsers;
 
-    /*
-
-     */
     while (!workList.empty()) {
       auto val = workList.front();
-      llvm::dbgs() << "processing val\n";
-      val.dump();
       workList.pop();
-      llvm::dbgs() << "these are the uses:\n";
-      for (auto &use : val.getUses()) {
-        use.getOwner()->dump();
-      }
-
-      llvm::dbgs() << "actual processing\n";
 
       for (auto &use : val.getUses()) {
         auto user = use.getOwner();
-        llvm::dbgs() << "processing user\n";
-        user->dump();
 
         llvm::TypeSwitch<Operation *>(user)
             .Case<triton::AddPtrOp>([&](triton::AddPtrOp addptr) {
               OpBuilder rewriter{addptr};
+              auto loc = addptr->getLoc();
+
               auto offsetInfo = offsetMap.at(addptr.getPtr());
 
               auto prevOff = offsetInfo.offset;
               auto off = addptr.getOffset();
 
-              auto loc = addptr->getLoc();
-
               auto lhsWidth = offsetInfo.bitWidth;
               auto rhsWidth = getBitWidth(off.getType());
               auto resWidth = std::max(lhsWidth, rhsWidth);
 
-              if (lhsWidth != resWidth) {
+              if (lhsWidth < resWidth) {
                 prevOff = rewriter.create<arith::ExtSIOp>(
                     loc, getPtrOffsetType(offsetInfo.ptrType, resWidth),
                     prevOff);
               }
 
-              if (rhsWidth != resWidth) {
+              if (rhsWidth < resWidth) {
                 off = rewriter.create<arith::ExtSIOp>(
                     loc, getPtrOffsetType(offsetInfo.ptrType, resWidth), off);
               }
@@ -221,16 +279,13 @@ public:
               if (!isPtrTypeLike(resType)) {
                 return;
               }
-              auto loc = op->getLoc();
 
               auto ptr = op->getOperand(0);
               auto offsetInfo = offsetMap.at(ptr);
 
-              offsetInfo.ptrType = resType;
-
               OpBuilder rewriter{op};
               auto clone = rewriter.create(
-                  loc, op->getName().getIdentifier(),
+                  op->getLoc(), op->getName().getIdentifier(),
                   ValueRange{offsetInfo.offset},
                   TypeRange{getPtrOffsetType(resType, offsetInfo.bitWidth)});
 
@@ -241,63 +296,58 @@ public:
                   res,
                   newOffsetInfo,
               });
-
               workList.push(res);
               toDelete.push_back(op);
             })
             .Case<triton::LoadOp, triton::StoreOp, triton::MakeTensorPtrOp,
                   tts::MakeTensorPtrOp>([&](Operation *op) {
+              // Special case:
+              // We do not want to create "unstructured tensor pointer" into
+              // tts.make_tptr if the base pointer is directly from the kernel
+              // arguments.
               if (auto makeTensorPtr = dyn_cast<tts::MakeTensorPtrOp>(op)) {
-                if (ptrs.contains(makeTensorPtr.getBase())) {
+                if (ptrArgs.contains(makeTensorPtr.getBase())) {
                   return;
                 }
               }
 
-              OpBuilder rewriter{op};
-
               auto ptr = op->getOperand(0);
               auto offsetInfo = offsetMap.at(ptr);
 
-              auto srcPtr = offsetInfo.ptr;
+              OpBuilder rewriter{op};
+              auto makePtrOp =
+                  rewriter.create<tts::MakeUnstructuredTensorPtrOp>(
+                      op->getLoc(), offsetInfo.ptrType, offsetInfo.ptr,
+                      offsetInfo.offset);
 
-              auto cast = rewriter.create<tts::MakeUnstructuredTensorPtrOp>(
-                  op->getLoc(), offsetInfo.ptrType, srcPtr, offsetInfo.offset);
-
-              loadStores.push_back({op, cast.getResult()});
+              ptrUsers.push_back({op, makePtrOp.getResult()});
             })
             .Case<scf::ForOp>([&](scf::ForOp forOp) {
-              // map init arg to iter-arg
-              // map init arg to result
-              // forOp.getBody();
-              llvm::dbgs() << "arg number: " << use.getOperandNumber() << "\n";
-              // use.get().dump();
-              llvm::dbgs() << "init arg size\n";
-              llvm::dbgs() << forOp.getInitArgsMutable().size() << "\n";
-              llvm::dbgs() << "num region iter-args\n";
-              llvm::dbgs() << forOp.getNumRegionIterArgs() << "\n";
-              llvm::dbgs() << "dump from that index\n";
-              auto init =
-                  // forOp->getBlock().get
-                  forOp.getInitArgs()[use.getOperandNumber() - 3];
-              // init.dump();
-              // forOp.getInitArgs()[use.getOperandNumber()].dump();
+              // Index of the init-arg corresponding to this use, note that we
+              // have to subtract by 3 from the operand number because scf.for
+              // ops always have 3 leading operands for start, end, and step.
+              auto argIndex = use.getOperandNumber() - 3;
+              auto init = forOp.getInitArgs()[argIndex];
 
-              llvm::dbgs() << "iter arg\n";
               auto offsetInfo = offsetMap.at(init);
               auto offsetType =
                   getPtrOffsetType(offsetInfo.ptrType, offsetInfo.bitWidth);
 
-              auto iterArg = forOp.getRegionIterArg(use.getOperandNumber() - 3);
+              // We're setting both the types of the iter-arg and the
+              // corresponding result directly to the offset type.
+              // At this point, the IR is in an invalid state because the
+              // init-args still have tt.ptr. But at the end, we will replace
+              // all uses of the tt.ptr to offset values.
+              auto iterArg = forOp.getRegionIterArg(argIndex);
               iterArg.setType(offsetType);
-              // iterArg.dump();
 
-              auto res = forOp.getResult(use.getOperandNumber() - 3);
+              auto res = forOp.getResult(argIndex);
               res.setType(offsetType);
 
-              llvm::dbgs() << "init arg\n";
-
-              workList.push(iterArg);
-              workList.push(res);
+              // For other ops, we only need to push the result into the
+              // worklist. But for scf.for, the iter-arg corresponding to the
+              // init-arg is used in the op's body instead, we have to process
+              // uses of the iter-arg.
               offsetMap.insert({
                   iterArg,
                   offsetInfo,
@@ -306,23 +356,14 @@ public:
                   res,
                   offsetInfo,
               });
+              workList.push(iterArg);
+              workList.push(res);
             })
             .Default([&](auto) {});
       }
-      llvm::dbgs() << "~~~~\n";
     }
 
-    moduleOp->dump();
-
-    llvm::dbgs() << "total addptr count: " << toDelete.size() << "\n";
-    for (auto op : toDelete) {
-      llvm::dbgs() << "deleting\n";
-      op->dump();
-      // op.replaceAllUsesWith(replacement);
-      // op->erase();
-    }
-
-    for (auto [op, val] : loadStores) {
+    for (auto [op, val] : ptrUsers) {
       op->setOperand(0, val);
     }
 
@@ -334,14 +375,11 @@ public:
   }
 
   void runOnOperation() override {
-    computePtrType(offsetBitWidth);
+    foldUnstructuredAddptr(offsetBitWidth);
 
-    auto moduleOp = getOperation();
-    PassManager pm(&getContext(), moduleOp.getOperationName());
-
+    PassManager pm(&getContext(), getOperation().getOperationName());
     pm.addPass(createCanonicalizerPass());
     pm.addPass(createCSEPass());
-
     if (failed(runPipeline(pm, getOperation()))) {
       signalPassFailure();
     }
