@@ -76,8 +76,8 @@ module {
 // CHECK-DAG:       [[VAR_9_:%.+]] = arith.index_cast [[VAR_8_]] : i32 to index
 // CHECK-DAG:       [[VAR_10_:%.+]] = arith.index_cast [[VAR_8_]] : i32 to index
 // CHECK-DAG:       [[VAR_11_:%.+]]:2 = scf.for [[VAR_arg8_:%.+]] = [[CST_0_1_]] to [[CST_2_1_]] step [[CST_1_]] iter_args([[VAR_arg9_:%.+]] = [[VAR_2_]], [[VAR_arg10_:%.+]] = [[CST_0_]]) -> (index, index)  : i32 {
-// CHECK-DAG:         [[VAR_12_:%.+]] = tts.make_tptr [[PARAM_1_]] to sizes: [4, 4], strides: {{.}}[[VAR_6_]], [[VAR_7_]]{{.}}, offsets: {{.}}[[PARAM_1_]]0, [[CST_0_]]{{.}}, shape: [0, 0], order: [] : <f32> to tensor<4x4x!tt.ptr<f32>>
-// CHECK-DAG:         [[VAR_13_:%.+]] = tts.make_tptr [[PARAM_0_]] to sizes: [4, 4], strides: {{.}}[[VAR_1_]], [[VAR_4_]]{{.}}, offsets: {{.}}[[VAR_arg9_]], [[VAR_5_]]{{.}}, shape: {{.}}[[VAR_3_]], 0], order: [] : <f32> to tensor<4x4x!tt.ptr<f32>>
+// CHECK-DAG:         [[VAR_12_:%.+]] = tts.make_tptr [[PARAM_1_]] to sizes: [4, 4], strides: {{.}}[[VAR_6_]], [[VAR_7_]]{{.}}, offsets: {{.}}[[PARAM_1_]]0, [[CST_0_]]{{.}}, shape: [0, 0], order: [] : !tt.ptr<f32> to tensor<4x4x!tt.ptr<f32>>
+// CHECK-DAG:         [[VAR_13_:%.+]] = tts.make_tptr [[PARAM_0_]] to sizes: [4, 4], strides: {{.}}[[VAR_1_]], [[VAR_4_]]{{.}}, offsets: {{.}}[[VAR_arg9_]], [[VAR_5_]]{{.}}, shape: {{.}}[[VAR_3_]], 0], order: [] : !tt.ptr<f32> to tensor<4x4x!tt.ptr<f32>>
 // CHECK:             [[VAR_14_:%.+]] = "tts.load"([[VAR_13_]], [[CST_minus_9_dot_900000_]]) <{operandSegmentSizes = array<i32: 1, 0, 1>, static_mask_dims = array<i64: 4, 3>}> : (tensor<4x4x!tt.ptr<f32>>, f32) -> tensor<4x4xf32>
 // CHECK:             "tts.store"([[VAR_12_]], [[VAR_14_]]) <{static_mask_dims = array<i64>}> : (tensor<4x4x!tt.ptr<f32>>, tensor<4x4xf32>) -> ()
 // CHECK-DAG:         [[VAR_15_:%.+]] = arith.addi [[VAR_arg9_]], [[VAR_10_]] : index

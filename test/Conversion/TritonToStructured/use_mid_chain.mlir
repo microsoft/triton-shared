@@ -42,10 +42,10 @@ module {
 // CHECK-DAG:       [[VAR_0_:%.+]] = tt.make_range {end = 768 : i32, start = 512 : i32} : tensor<256xi32>
 // CHECK:           [[VAR_1_:%.+]] = tt.expand_dims [[VAR_0_]] {axis = 1 : i32} : tensor<256xi32> -> tensor<256x1xi32>
 // CHECK-DAG:       [[VAR_2_:%.+]] = tt.broadcast [[VAR_1_]] : tensor<256x1xi32> -> tensor<256x128xi32>
-// CHECK-DAG:       [[VAR_3_:%.+]] = tts.make_tptr [[arg1_]] to sizes: [256, 128], strides: [1, [[CST_6_]]{{.}}, offsets: [512, 6144{{.}}, shape: [0, 0], order: [] : <bf16> to tensor<256x128x!tt.ptr<bf16>>
+// CHECK-DAG:       [[VAR_3_:%.+]] = tts.make_tptr [[arg1_]] to sizes: [256, 128], strides: [1, [[CST_6_]]{{.}}, offsets: [512, 6144{{.}}, shape: [0, 0], order: [] : !tt.ptr<bf16> to tensor<256x128x!tt.ptr<bf16>>
 // CHECK:           [[VAR_4_:%.+]] = "tts.load"([[VAR_3_]]) <{operandSegmentSizes = array<i32: 1, 0, 0>, static_mask_dims = array<i64>}> : (tensor<256x128x!tt.ptr<bf16>>) -> tensor<256x128xbf16>
 // CHECK:           "tts.store"([[VAR_3_]], [[VAR_4_]]) <{static_mask_dims = array<i64>}> : (tensor<256x128x!tt.ptr<bf16>>, tensor<256x128xbf16>) -> ()
-// CHECK:           [[VAR_5_:%.+]] = tts.make_tptr [[arg2_]] to sizes: [256, 128], strides: [1, [[CST_6_]]{{.}}, offsets: [512, 6144{{.}}, shape: [0, 0], order: [] : <i32> to tensor<256x128x!tt.ptr<i32>>
+// CHECK:           [[VAR_5_:%.+]] = tts.make_tptr [[arg2_]] to sizes: [256, 128], strides: [1, [[CST_6_]]{{.}}, offsets: [512, 6144{{.}}, shape: [0, 0], order: [] : !tt.ptr<i32> to tensor<256x128x!tt.ptr<i32>>
 // CHECK:           "tts.store"([[VAR_5_]], [[VAR_2_]]) <{static_mask_dims = array<i64>}> : (tensor<256x128x!tt.ptr<i32>>, tensor<256x128xi32>) -> ()
 // CHECK:           tt.return
 // CHECK:         }

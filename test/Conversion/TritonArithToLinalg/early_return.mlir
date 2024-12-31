@@ -59,7 +59,7 @@ module {
 // CHECK:             [[VAR_11_1_:%.+]] = arith.addi [[IN_1_]], [[IN_2_]] : i32
 // CHECK:             linalg.yield [[VAR_11_1_]] : i32
 // CHECK:           } -> tensor<4xi32>
-// CHECK-DAG:       [[VAR_8_:%.+]] = tts.make_tptr [[PARAM_1_]] to sizes: [4], strides: [1], offsets: [0], shape: [0], order: [] : <f32> to tensor<4x!tt.ptr<f32>>
+// CHECK-DAG:       [[VAR_8_:%.+]] = tts.make_tptr [[PARAM_1_]] to sizes: [4], strides: [1], offsets: [0], shape: [0], order: [] : !tt.ptr<f32> to tensor<4x!tt.ptr<f32>>
 // CHECK-DAG:       [[VAR_9_:%.+]] = tensor.empty() : tensor<4xf32>
 // CHECK:           [[VAR_10_:%.+]] = linalg.generic {indexing_maps = [#map, #map], iterator_types = ["parallel"]} ins([[VAR_7_]] : tensor<4xi32>) outs([[VAR_9_]] : tensor<4xf32>) {
 // CHECK:           ^bb0([[IN_4_:%.+]]: i32, [[IN_5_:%.+]]: f32):

@@ -35,7 +35,7 @@ module {
 
 // CHECK:         tt.func @kernel([[PARAM_0_:%.+]]: !tt.ptr<bf16>, [[PARAM_1_:%.+]]: !tt.ptr<bf16>) {
 // CHECK-DAG:       [[CST_6_:%.+]] = arith.constant 6 : index
-// CHECK:           [[VAR_0_:%.+]] = tts.make_tptr [[PARAM_1_]] to sizes: [256, 128], strides: [1, [[CST_6_]]{{.}}, offsets: [512, 6144{{.}}, shape: [0, 0], order: [] : <bf16> to tensor<256x128x!tt.ptr<bf16>>
+// CHECK:           [[VAR_0_:%.+]] = tts.make_tptr [[PARAM_1_]] to sizes: [256, 128], strides: [1, [[CST_6_]]{{.}}, offsets: [512, 6144{{.}}, shape: [0, 0], order: [] : !tt.ptr<bf16> to tensor<256x128x!tt.ptr<bf16>>
 // CHECK:           [[VAR_1_:%.+]] = "tts.load"([[VAR_0_]]) <{operandSegmentSizes = array<i32: 1, 0, 0>, static_mask_dims = array<i64>}> : (tensor<256x128x!tt.ptr<bf16>>) -> tensor<256x128xbf16>
 // CHECK:           "tts.store"([[VAR_0_]], [[VAR_1_]]) <{static_mask_dims = array<i64>}> : (tensor<256x128x!tt.ptr<bf16>>, tensor<256x128xbf16>) -> ()
 // CHECK:           tt.return

@@ -81,7 +81,7 @@ module {
     %50 = tt.load %49 : !tt.ptr<i32>
     %51 = arith.index_cast %50 : i32 to index
     %52 = tt.make_range {end = 64 : i32, start = 0 : i32} : tensor<64xi32>
-    %53 = tts.make_tptr %arg16 to sizes: [64], strides: [1], offsets: [%51], shape: [0], order: [] : <i32> to tensor<64x!tt.ptr<i32>>
+    %53 = tts.make_tptr %arg16 to sizes: [64], strides: [1], offsets: [%51], shape: [0], order: [] : !tt.ptr<i32> to tensor<64x!tt.ptr<i32>>
     %54 = "tts.load"(%53) <{operandSegmentSizes = array<i32: 1, 0, 0>, static_mask_dims = array<i64>}> : (tensor<64x!tt.ptr<i32>>) -> tensor<64xi32>
     %55 = tt.make_range {end = 16 : i32, start = 0 : i32} : tensor<16xi32>
     %56 = arith.divsi %11, %c2_i64 : i64
@@ -386,9 +386,9 @@ module {
     %177 = arith.index_cast %arg20 : i32 to index
     %178 = arith.muli %25, %177 : index
     %179 = arith.addi %17, %178 : index
-    %180 = tts.make_tptr %arg6 to sizes: [128, 16], strides: [%177, 1], offsets: [%179, 0], shape: [0, 0], order: [] : <f32> to tensor<128x16x!tt.ptr<f32>>
+    %180 = tts.make_tptr %arg6 to sizes: [128, 16], strides: [%177, 1], offsets: [%179, 0], shape: [0, 0], order: [] : !tt.ptr<f32> to tensor<128x16x!tt.ptr<f32>>
     %181 = arith.addi %21, %25 : index
-    %182 = tts.make_tptr %arg7 to sizes: [128], strides: [1], offsets: [%181], shape: [0], order: [] : <f32> to tensor<128x!tt.ptr<f32>>
+    %182 = tts.make_tptr %arg7 to sizes: [128], strides: [1], offsets: [%181], shape: [0], order: [] : !tt.ptr<f32> to tensor<128x!tt.ptr<f32>>
     %183 = arith.addi %25, %c128 : index
     %184 = arith.index_cast %32 : i32 to index
     %185 = arith.minsi %183, %184 : index
@@ -416,7 +416,7 @@ module {
     %207 = tt.broadcast %206 : tensor<128x1xf32> -> tensor<128x16xf32>
     %208 = arith.mulf %190, %207 : tensor<128x16xf32>
     %209 = arith.addf %203, %208 : tensor<128x16xf32>
-    %210 = tts.make_tptr %arg1 to sizes: [128], strides: [1], offsets: [%181], shape: [0], order: [] : <f32> to tensor<128x!tt.ptr<f32>>
+    %210 = tts.make_tptr %arg1 to sizes: [128], strides: [1], offsets: [%181], shape: [0], order: [] : !tt.ptr<f32> to tensor<128x!tt.ptr<f32>>
     "tts.store"(%210, %198, %186) <{static_mask_dims = array<i64: -9223372036854775808>}> : (tensor<128x!tt.ptr<f32>>, tensor<128xf32>, index) -> ()
     tt.store %80, %209, %189 : tensor<128x16x!tt.ptr<f32>>
     tt.return

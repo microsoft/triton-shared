@@ -40,13 +40,13 @@ module {
 // CHECK:           [[VAR_1_:%.+]] = arith.muli [[VAR_0_]], [[PARAM_2_]] : i32
 // CHECK:           [[VAR_2_:%.+]] = arith.index_cast [[VAR_1_]] : i32 to index
 // CHECK:           [[VAR_3_:%.+]] = arith.addi [[VAR_2_]], [[CST_128_]] : index
-// CHECK:           [[VAR_4_:%.+]] = tts.make_tptr [[PARAM_1_]] to sizes: [128, 128], strides: [1, 1], offsets: {{.}}[[VAR_3_]], 0], shape: [0, 0], order: [] : <f32> to tensor<128x128x!tt.ptr<f32>>
+// CHECK:           [[VAR_4_:%.+]] = tts.make_tptr [[PARAM_1_]] to sizes: [128, 128], strides: [1, 1], offsets: {{.}}[[VAR_3_]], 0], shape: [0, 0], order: [] : !tt.ptr<f32> to tensor<128x128x!tt.ptr<f32>>
 // CHECK:           [[VAR_5_:%.+]] = "tts.load"([[VAR_4_]]) <{operandSegmentSizes = array<i32: 1, 0, 0>, static_mask_dims = array<i64>}> : (tensor<128x128x!tt.ptr<f32>>) -> tensor<128x128xf32>
 // CHECK-DAG:       [[VAR_6_:%.+]] = math.exp [[VAR_5_]] : tensor<128x128xf32>
 // CHECK-DAG:       [[VAR_7_:%.+]] = arith.muli [[VAR_0_]], [[PARAM_3_]] : i32
 // CHECK:           [[VAR_8_:%.+]] = arith.index_cast [[VAR_7_]] : i32 to index
 // CHECK:           [[VAR_9_:%.+]] = arith.addi [[VAR_8_]], [[CST_128_]] : index
-// CHECK:           [[VAR_10_:%.+]] = tts.make_tptr [[PARAM_0_]] to sizes: [128, 128], strides: [1, 1], offsets: {{.}}[[VAR_9_]], 0], shape: [0, 0], order: [] : <f32> to tensor<128x128x!tt.ptr<f32>>
+// CHECK:           [[VAR_10_:%.+]] = tts.make_tptr [[PARAM_0_]] to sizes: [128, 128], strides: [1, 1], offsets: {{.}}[[VAR_9_]], 0], shape: [0, 0], order: [] : !tt.ptr<f32> to tensor<128x128x!tt.ptr<f32>>
 // CHECK:           "tts.store"([[VAR_10_]], [[VAR_6_]]) <{static_mask_dims = array<i64>}> : (tensor<128x128x!tt.ptr<f32>>, tensor<128x128xf32>) -> ()
 // CHECK:           tt.return
 // CHECK:         }
