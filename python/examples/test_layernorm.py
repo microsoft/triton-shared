@@ -23,6 +23,7 @@ import torch
 import triton
 import triton.language as tl
 import pytest
+import benchmark
 
 
 @triton.jit
@@ -133,3 +134,27 @@ def test_layer_norm(M, N, dtype, eps, device):
 
     # compare
     #assert torch.allclose(y_tri, y_ref, atol=1e-2, rtol=0)
+
+
+@benchmark.measure()
+def bench_layernorm(size, provider):
+    layer_norm = LayerNorm.apply
+    device = 'cpu'
+    eps = 1e-5
+    dtype = torch.float16
+    x_shape = (size, size)
+    w_shape = (x_shape[-1], )
+    weight = torch.rand(w_shape, dtype=dtype, device=device, requires_grad=False)
+    bias = torch.rand(w_shape, dtype=dtype, device=device, requires_grad=False)
+    x = -2.3 + 0.5 * torch.randn(x_shape, dtype=dtype, device=device)
+    dy = .1 * torch.randn_like(x)
+    x.requires_grad_(False)
+    # forward pass
+    y_tri = layer_norm(x, w_shape, weight, bias, eps, device)
+
+
+if __name__ == "__main__":
+    benchmark.select_cpu_backend()
+    for X in [2**i for i in range(10, 13, 1)]:
+        for provider in ['triton']:
+            bench_layernorm(X, provider)
