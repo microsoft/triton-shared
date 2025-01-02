@@ -26,11 +26,12 @@
 // words, the base pointer is fixed throughout a chain of pointer manipulation
 // ops.
 //
-// Leveraging this property, we can simplify chains of tt.addptr,
+// Leveraging these insights, we can simplify chains of tt.addptr,
 // tt.splat, and tt.broadcast which produce tt.addptr to just a sequence of
 // offset manipulation ops and a base pointer.
 //
-// In essence, this pass fold all sequences of tt.addptr into a single op
+// In essence, this pass transforms all sequences of tt.addptr into sequences of
+// offset accumulation ops which are then fed into a single op
 // tts.make_unstructured_tptr that takes:
 //
 //   - a base pointer from the kernel arguments
@@ -38,7 +39,7 @@
 //   the base pointer
 //
 // This simplification makes it easier for subsequent passes to lower these load
-// and store ops
+// and store ops.
 //
 // All intermediate tt.addptr ops are converted to arith.addi ops that compute
 // the offsets. All pointer shape manipulation ops such as tt.splat and
