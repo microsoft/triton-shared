@@ -4,11 +4,11 @@
 include "mlir/Pass/PassBase.td"
 
 def FoldUnstructuredTritonAddPtr : Pass<"fold-unstructured-triton-ptr", "mlir::ModuleOp"> {
-  let summary = "Convert Triton non-block pointer to TritonStructured dialect";
+  let summary = "Transforms tt.addptr ops into offset accumulation ops";
   let constructor = "triton::createFoldUnstructuredTritonAddPtrPass()";
   let options = [
       Option<"offsetBitWidth", "offset-bit-width", "size_t", /*default*/"32",
-             "Only run the pre-processing pass which inserts tts.get_structured_state ops used in scf.for">
+             "Bitwidth used for the starting offset of each pointer">
   ];
 }
 
