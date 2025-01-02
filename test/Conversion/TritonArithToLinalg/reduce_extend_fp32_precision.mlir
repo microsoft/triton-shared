@@ -80,7 +80,7 @@ module {
 // CHECK-DAG:   [[MAP_0_:#.+]] = affine_map<(d0) -> (d0)>
 // CHECK-LABEL:  func.func @fn1
 // CHECK-SAME:   ([[PARAM_0_:%.+]]: !tt.ptr<f16>, [[PARAM_1_:%.+]]: !tt.ptr<f16>, [[PARAM_2_:%.+]]: i32, [[PARAM_3_:%.+]]: i32, [[PARAM_4_:%.+]]: i32, [[PARAM_5_:%.+]]: i32, [[PARAM_6_:%.+]]: i32, [[PARAM_7_:%.+]]: i32) {
-// CHECK:           [[VAR_0_:%.+]] = tts.make_tptr [[PARAM_0_]] to sizes: [32], strides: [1], offsets: [0], shape: [0], order: [] : !tt.ptr<f16> to tensor<32x!tt.ptr<f16>>
+// CHECK:           [[VAR_0_:%.+]] = tts.make_tptr [[PARAM_0_]] to sizes: [32], strides: [1], offsets: [0], shape: [0], order: [] : <f16> to tensor<32x!tt.ptr<f16>>
 // CHECK-DAG:       [[VAR_1_:%.+]] = "tts.load"([[VAR_0_]]) <{operandSegmentSizes = array<i32: 1, 0, 0>, static_mask_dims = array<i64>}> : (tensor<32x!tt.ptr<f16>>) -> tensor<32xf16>
 // CHECK-DAG:       [[CST_0_dot_000000_:%.+]] = arith.constant 0.000000e+00 : f32
 // CHECK-DAG:       [[VAR_2_:%.+]] = bufferization.alloc_tensor() : tensor<f32>
@@ -107,7 +107,7 @@ module {
 // CHECK:             [[VAR_13_2_:%.+]] = arith.divf [[IN_2_]], [[IN_3_]] : f32
 // CHECK:             linalg.yield [[VAR_13_2_]] : f32
 // CHECK:           } -> tensor<32xf32>
-// CHECK-DAG:       [[VAR_10_:%.+]] = tts.make_tptr [[PARAM_1_]] to sizes: [32], strides: [1], offsets: [0], shape: [0], order: [] : !tt.ptr<f16> to tensor<32x!tt.ptr<f16>>
+// CHECK-DAG:       [[VAR_10_:%.+]] = tts.make_tptr [[PARAM_1_]] to sizes: [32], strides: [1], offsets: [0], shape: [0], order: [] : <f16> to tensor<32x!tt.ptr<f16>>
 // CHECK-DAG:       [[VAR_11_:%.+]] = tensor.empty() : tensor<32xf16>
 // CHECK:           [[VAR_12_:%.+]] = linalg.generic {indexing_maps = [#map, #map], iterator_types = ["parallel"]} ins([[VAR_9_]] : tensor<32xf32>) outs([[VAR_11_]] : tensor<32xf16>) {
 // CHECK:           ^bb0([[IN_5_:%.+]]: f32, [[IN_6_:%.+]]: f16):
@@ -120,7 +120,7 @@ module {
 //
 // CHECK-LABEL:  func.func @fn2
 // CHECK-SAME:   ([[PARAM_0_:%.+]]: !tt.ptr<f16>, [[PARAM_1_:%.+]]: !tt.ptr<f16>, [[PARAM_2_:%.+]]: i32, [[PARAM_3_:%.+]]: i32, [[PARAM_4_:%.+]]: i32, [[PARAM_5_:%.+]]: i32, [[PARAM_6_:%.+]]: i32, [[PARAM_7_:%.+]]: i32) {
-// CHECK:           [[VAR_0_:%.+]] = tts.make_tptr [[PARAM_0_]] to sizes: [32], strides: [1], offsets: [0], shape: [0], order: [] : !tt.ptr<f16> to tensor<32x!tt.ptr<f16>>
+// CHECK:           [[VAR_0_:%.+]] = tts.make_tptr [[PARAM_0_]] to sizes: [32], strides: [1], offsets: [0], shape: [0], order: [] : <f16> to tensor<32x!tt.ptr<f16>>
 // CHECK-DAG:       [[VAR_1_:%.+]] = "tts.load"([[VAR_0_]]) <{operandSegmentSizes = array<i32: 1, 0, 0>, static_mask_dims = array<i64>}> : (tensor<32x!tt.ptr<f16>>) -> tensor<32xf16>
 // CHECK-DAG:       [[CST_0_dot_000000_:%.+]] = arith.constant 0.000000e+00 : f32
 // CHECK-DAG:       [[VAR_2_:%.+]] = bufferization.alloc_tensor() : tensor<f32>
@@ -140,14 +140,14 @@ module {
 // CHECK:             [[VAR_8_1_:%.+]] = arith.subf [[IN_0_]], [[IN_1_]] : f16
 // CHECK:             linalg.yield [[VAR_8_1_]] : f16
 // CHECK:           } -> tensor<32xf16>
-// CHECK:           [[VAR_7_:%.+]] = tts.make_tptr [[PARAM_1_]] to sizes: [32], strides: [1], offsets: [0], shape: [0], order: [] : !tt.ptr<f16> to tensor<32x!tt.ptr<f16>>
+// CHECK:           [[VAR_7_:%.+]] = tts.make_tptr [[PARAM_1_]] to sizes: [32], strides: [1], offsets: [0], shape: [0], order: [] : <f16> to tensor<32x!tt.ptr<f16>>
 // CHECK:           "tts.store"([[VAR_7_]], [[VAR_6_]]) <{static_mask_dims = array<i64>}> : (tensor<32x!tt.ptr<f16>>, tensor<32xf16>) -> ()
 // CHECK:           return
 // CHECK:         }
 //
 // CHECK-LABEL:  func.func @fn3
 // CHECK-SAME:   ([[PARAM_0_:%.+]]: !tt.ptr<bf16>, [[PARAM_1_:%.+]]: !tt.ptr<bf16>, [[PARAM_2_:%.+]]: i32, [[PARAM_3_:%.+]]: i32, [[PARAM_4_:%.+]]: i32, [[PARAM_5_:%.+]]: i32, [[PARAM_6_:%.+]]: i32, [[PARAM_7_:%.+]]: i32) {
-// CHECK:           [[VAR_0_:%.+]] = tts.make_tptr [[PARAM_0_]] to sizes: [32], strides: [1], offsets: [0], shape: [0], order: [] : !tt.ptr<bf16> to tensor<32x!tt.ptr<bf16>>
+// CHECK:           [[VAR_0_:%.+]] = tts.make_tptr [[PARAM_0_]] to sizes: [32], strides: [1], offsets: [0], shape: [0], order: [] : <bf16> to tensor<32x!tt.ptr<bf16>>
 // CHECK-DAG:       [[VAR_1_:%.+]] = "tts.load"([[VAR_0_]]) <{operandSegmentSizes = array<i32: 1, 0, 0>, static_mask_dims = array<i64>}> : (tensor<32x!tt.ptr<bf16>>) -> tensor<32xbf16>
 // CHECK-DAG:       [[CST_0_dot_000000_:%.+]] = arith.constant 0.000000e+00 : f32
 // CHECK-DAG:       [[VAR_2_:%.+]] = bufferization.alloc_tensor() : tensor<f32>
@@ -167,14 +167,14 @@ module {
 // CHECK:             [[VAR_8_1_:%.+]] = arith.subf [[IN_0_]], [[IN_1_]] : bf16
 // CHECK:             linalg.yield [[VAR_8_1_]] : bf16
 // CHECK:           } -> tensor<32xbf16>
-// CHECK:           [[VAR_7_:%.+]] = tts.make_tptr [[PARAM_1_]] to sizes: [32], strides: [1], offsets: [0], shape: [0], order: [] : !tt.ptr<bf16> to tensor<32x!tt.ptr<bf16>>
+// CHECK:           [[VAR_7_:%.+]] = tts.make_tptr [[PARAM_1_]] to sizes: [32], strides: [1], offsets: [0], shape: [0], order: [] : <bf16> to tensor<32x!tt.ptr<bf16>>
 // CHECK:           "tts.store"([[VAR_7_]], [[VAR_6_]]) <{static_mask_dims = array<i64>}> : (tensor<32x!tt.ptr<bf16>>, tensor<32xbf16>) -> ()
 // CHECK:           return
 // CHECK:         }
 //
 // CHECK-LABEL:  func.func @fn4
 // CHECK-SAME:   ([[PARAM_0_:%.+]]: !tt.ptr<f32>, [[PARAM_1_:%.+]]: !tt.ptr<f32>, [[PARAM_2_:%.+]]: i32, [[PARAM_3_:%.+]]: i32, [[PARAM_4_:%.+]]: i32, [[PARAM_5_:%.+]]: i32, [[PARAM_6_:%.+]]: i32, [[PARAM_7_:%.+]]: i32) {
-// CHECK:           [[VAR_0_:%.+]] = tts.make_tptr [[PARAM_0_]] to sizes: [32], strides: [1], offsets: [0], shape: [0], order: [] : !tt.ptr<f32> to tensor<32x!tt.ptr<f32>>
+// CHECK:           [[VAR_0_:%.+]] = tts.make_tptr [[PARAM_0_]] to sizes: [32], strides: [1], offsets: [0], shape: [0], order: [] : <f32> to tensor<32x!tt.ptr<f32>>
 // CHECK-DAG:       [[VAR_1_:%.+]] = "tts.load"([[VAR_0_]]) <{operandSegmentSizes = array<i32: 1, 0, 0>, static_mask_dims = array<i64>}> : (tensor<32x!tt.ptr<f32>>) -> tensor<32xf32>
 // CHECK-DAG:       [[CST_0_dot_000000_:%.+]] = arith.constant 0.000000e+00 : f32
 // CHECK-DAG:       [[VAR_2_:%.+]] = bufferization.alloc_tensor() : tensor<f32>
@@ -192,7 +192,7 @@ module {
 // CHECK:             [[VAR_7_1_:%.+]] = arith.subf [[IN_0_]], [[IN_1_]] : f32
 // CHECK:             linalg.yield [[VAR_7_1_]] : f32
 // CHECK:           } -> tensor<32xf32>
-// CHECK:           [[VAR_6_:%.+]] = tts.make_tptr [[PARAM_1_]] to sizes: [32], strides: [1], offsets: [0], shape: [0], order: [] : !tt.ptr<f32> to tensor<32x!tt.ptr<f32>>
+// CHECK:           [[VAR_6_:%.+]] = tts.make_tptr [[PARAM_1_]] to sizes: [32], strides: [1], offsets: [0], shape: [0], order: [] : <f32> to tensor<32x!tt.ptr<f32>>
 // CHECK:           "tts.store"([[VAR_6_]], [[VAR_5_]]) <{static_mask_dims = array<i64>}> : (tensor<32x!tt.ptr<f32>>, tensor<32xf32>) -> ()
 // CHECK:           return
 // CHECK:         }

@@ -89,7 +89,7 @@ module {
 // CHECK-NOT: separator of consecutive DAGs
 // CHECK-DAG:       [[VAR_0_:%.+]] = scf.for [[VAR_arg1_:%.+]] = [[CST_0_]] to [[CST_12_]] step [[CST_3_]] iter_args([[VAR_arg2_:%.+]] = [[CST_1024_]]) -> (index) {
 // CHECK-DAG:         [[VAR_1_:%.+]] = arith.addi [[VAR_arg2_]], [[CST_3_]] : index
-// CHECK:             [[VAR_2_:%.+]] = tts.make_tptr [[PARAM_0_]] to sizes: [256], strides: {{.}}[[CST_1_]]{{.}}, offsets: {{.}}[[VAR_1_]]{{.}}, shape: [0], order: [] : !tt.ptr<bf16> to tensor<256x!tt.ptr<bf16>>
+// CHECK:             [[VAR_2_:%.+]] = tts.make_tptr [[PARAM_0_]] to sizes: [256], strides: {{.}}[[CST_1_]]{{.}}, offsets: {{.}}[[VAR_1_]]{{.}}, shape: [0], order: [] : <bf16> to tensor<256x!tt.ptr<bf16>>
 // CHECK:             [[VAR_3_:%.+]] = "tts.load"([[VAR_2_]]) <{operandSegmentSizes = array<i32: 1, 0, 0>, static_mask_dims = array<i64>}> : (tensor<256x!tt.ptr<bf16>>) -> tensor<256xbf16>
 // CHECK:             "tts.store"([[VAR_2_]], [[VAR_3_]]) <{static_mask_dims = array<i64>}> : (tensor<256x!tt.ptr<bf16>>, tensor<256xbf16>) -> ()
 // CHECK:             scf.yield [[VAR_1_]] : index

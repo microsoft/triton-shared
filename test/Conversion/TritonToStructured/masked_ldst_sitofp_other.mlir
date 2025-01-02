@@ -26,8 +26,8 @@ module {
 // CHECK:         tt.func @kernel([[PARAM_0_:%.+]]: !tt.ptr<bf16>, [[PARAM_1_:%.+]]: !tt.ptr<bf16>, [[PARAM_2_:%.+]]: i32) {
 // CHECK-DAG:       [[CST_7_dot_000000_:%.+]] = arith.constant 7.000000e+00 : bf16
 // CHECK-DAG:       [[CST_128_:%.+]] = arith.constant 128 : index
-// CHECK-DAG:       [[VAR_0_:%.+]] = tts.make_tptr [[PARAM_0_]] to sizes: [128], strides: [1], offsets: [0], shape: [0], order: [] : !tt.ptr<bf16> to tensor<128x!tt.ptr<bf16>>
-// CHECK-DAG:       [[VAR_1_:%.+]] = tts.make_tptr [[PARAM_1_]] to sizes: [128], strides: [1], offsets: [0], shape: [0], order: [] : !tt.ptr<bf16> to tensor<128x!tt.ptr<bf16>>
+// CHECK-DAG:       [[VAR_0_:%.+]] = tts.make_tptr [[PARAM_0_]] to sizes: [128], strides: [1], offsets: [0], shape: [0], order: [] : <bf16> to tensor<128x!tt.ptr<bf16>>
+// CHECK-DAG:       [[VAR_1_:%.+]] = tts.make_tptr [[PARAM_1_]] to sizes: [128], strides: [1], offsets: [0], shape: [0], order: [] : <bf16> to tensor<128x!tt.ptr<bf16>>
 // CHECK-DAG:       [[VAR_2_:%.+]] = arith.index_cast [[PARAM_2_]] : i32 to index
 // CHECK:           [[VAR_3_:%.+]] = arith.minsi [[VAR_2_]], [[CST_128_]] : index
 // CHECK-DAG:       [[VAR_4_:%.+]] = "tts.load"([[VAR_0_]], [[VAR_3_]], [[CST_7_dot_000000_]]) <{operandSegmentSizes = array<i32: 1, 1, 1>, static_mask_dims = array<i64: -9223372036854775808>}> : (tensor<128x!tt.ptr<bf16>>, index, bf16) -> tensor<128xbf16>

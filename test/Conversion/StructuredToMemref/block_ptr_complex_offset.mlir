@@ -9,7 +9,7 @@ module {
     %1 = arith.extsi %0 : i32 to i64
     %2 = arith.muli %1, %arg2 : i64
     %3 = tt.addptr %arg0, %2 : !tt.ptr<bf16>, i64
-    %4 = tts.make_tptr %3 to sizes: [128, 128], strides: [%c128, %c1], offsets: [%c0, %c0], shape: [%c128, %c128], order: [1, 0] : !tt.ptr<bf16> to !tt.ptr<tensor<128x128xbf16>>
+    %4 = tts.make_tptr %3 to sizes: [128, 128], strides: [%c128, %c1], offsets: [%c0, %c0], shape: [%c128, %c128], order: [1, 0] : <bf16> to !tt.ptr<tensor<128x128xbf16>>
     %5 = "tts.load"(%4) <{operandSegmentSizes = array<i32: 1, 0, 0>, static_mask_dims = array<i64>}> : (!tt.ptr<tensor<128x128xbf16>>) -> tensor<128x128xbf16>
     return %5 : tensor<128x128xbf16>
   }

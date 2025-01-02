@@ -76,7 +76,7 @@ module {
 // CHECK-DAG:         [[VAR_21_:%.+]] = arith.index_cast [[VAR_arg6_]] : i32 to index
 // CHECK-DAG:         [[VAR_22_:%.+]] = arith.index_cast [[PARAM_5_]] : i32 to index
 // CHECK:             [[VAR_23_:%.+]] = arith.muli [[VAR_21_]], [[VAR_22_]] : index
-// CHECK-DAG:         [[VAR_24_:%.+]] = tts.make_tptr [[PARAM_0_]] to sizes: [256, 256], strides: {{.}}[[VAR_22_]], 1], offsets: {{.}}[[VAR_23_]], [[VAR_5_]]{{.}}, shape: [0, 0], order: [] : !tt.ptr<f32> to tensor<256x256x!tt.ptr<f32>>
+// CHECK-DAG:         [[VAR_24_:%.+]] = tts.make_tptr [[PARAM_0_]] to sizes: [256, 256], strides: {{.}}[[VAR_22_]], 1], offsets: {{.}}[[VAR_23_]], [[VAR_5_]]{{.}}, shape: [0, 0], order: [] : <f32> to tensor<256x256x!tt.ptr<f32>>
 // CHECK-DAG:         [[VAR_25_:%.+]] = arith.index_cast [[VAR_arg6_]] : i32 to index
 // CHECK-NOT: separator of consecutive DAGs
 // CHECK-DAG:         [[VAR_26_:%.+]] = arith.addi [[VAR_25_]], [[CST_256_]] : index
@@ -96,7 +96,7 @@ module {
 // CHECK-DAG:         [[VAR_39_:%.+]] = arith.index_cast [[VAR_arg6_]] : i32 to index
 // CHECK-DAG:         [[VAR_40_:%.+]] = arith.index_cast [[PARAM_5_]] : i32 to index
 // CHECK:             [[VAR_41_:%.+]] = arith.muli [[VAR_39_]], [[VAR_40_]] : index
-// CHECK-DAG:         [[VAR_42_:%.+]] = tts.make_tptr [[PARAM_1_]] to sizes: [256, 256], strides: {{.}}[[VAR_40_]], 1], offsets: {{.}}[[VAR_41_]], [[VAR_4_]]{{.}}, shape: [0, 0], order: [] : !tt.ptr<f32> to tensor<256x256x!tt.ptr<f32>>
+// CHECK-DAG:         [[VAR_42_:%.+]] = tts.make_tptr [[PARAM_1_]] to sizes: [256, 256], strides: {{.}}[[VAR_40_]], 1], offsets: {{.}}[[VAR_41_]], [[VAR_4_]]{{.}}, shape: [0, 0], order: [] : <f32> to tensor<256x256x!tt.ptr<f32>>
 // CHECK-DAG:         [[VAR_43_:%.+]] = arith.index_cast [[VAR_arg6_]] : i32 to index
 // CHECK-NOT: separator of consecutive DAGs
 // CHECK-DAG:         [[VAR_44_:%.+]] = arith.addi [[VAR_43_]], [[CST_256_]] : index
@@ -125,7 +125,7 @@ module {
 // CHECK:             [[VAR_21_2_:%.+]] = arith.addf [[VAR_arg6_]], [[VAR_arg7_]] : f32
 // CHECK:             tt.reduce.return [[VAR_21_2_]] : f32
 // CHECK:           }) : (tensor<256x256xf32>) -> tensor<256xf32>
-// CHECK-DAG:       [[VAR_9_:%.+]] = tts.make_tptr [[PARAM_2_]] to sizes: [256], strides: [1], offsets: {{.}}[[VAR_3_]]{{.}}, shape: [0], order: [] : !tt.ptr<f32> to tensor<256x!tt.ptr<f32>>
+// CHECK-DAG:       [[VAR_9_:%.+]] = tts.make_tptr [[PARAM_2_]] to sizes: [256], strides: [1], offsets: {{.}}[[VAR_3_]]{{.}}, shape: [0], order: [] : <f32> to tensor<256x!tt.ptr<f32>>
 // CHECK-DAG:       [[VAR_10_:%.+]] = arith.index_cast [[VAR_1_]] : i32 to index
 // CHECK-NOT: separator of consecutive DAGs
 // CHECK-DAG:       [[VAR_11_:%.+]] = arith.addi [[VAR_10_]], [[CST_256_]] : index
@@ -133,7 +133,7 @@ module {
 // CHECK:           [[VAR_13_:%.+]] = arith.minsi [[VAR_11_]], [[VAR_12_]] : index
 // CHECK:           [[VAR_14_:%.+]] = arith.subi [[VAR_13_]], [[VAR_10_]] : index
 // CHECK:           "tts.store"([[VAR_9_]], [[VAR_7_]], [[VAR_14_]]) <{static_mask_dims = array<i64: -9223372036854775808>}> : (tensor<256x!tt.ptr<f32>>, tensor<256xf32>, index) -> ()
-// CHECK-DAG:       [[VAR_15_:%.+]] = tts.make_tptr [[PARAM_3_]] to sizes: [256], strides: [1], offsets: {{.}}[[VAR_2_]]{{.}}, shape: [0], order: [] : !tt.ptr<f32> to tensor<256x!tt.ptr<f32>>
+// CHECK-DAG:       [[VAR_15_:%.+]] = tts.make_tptr [[PARAM_3_]] to sizes: [256], strides: [1], offsets: {{.}}[[VAR_2_]]{{.}}, shape: [0], order: [] : <f32> to tensor<256x!tt.ptr<f32>>
 // CHECK-DAG:       [[VAR_16_:%.+]] = arith.index_cast [[VAR_1_]] : i32 to index
 // CHECK-NOT: separator of consecutive DAGs
 // CHECK-DAG:       [[VAR_17_:%.+]] = arith.addi [[VAR_16_]], [[CST_256_]] : index

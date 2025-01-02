@@ -47,16 +47,16 @@ module {
 // CHECK-DAG:       [[CST_10_:%.+]] = arith.constant 10 : index
 // CHECK-DAG:       [[CST_5_:%.+]] = arith.constant 5 : index
 // CHECK-DAG:       [[VAR_0_:%.+]] = arith.index_cast [[PARAM_1_]] : i32 to index
-// CHECK:           [[VAR_1_:%.+]] = tts.make_tptr [[PARAM_0_]] to sizes: [4, 256], strides: [1, [[CST_5_]]{{.}}, offsets: {{.}}[[VAR_0_]], 0], shape: [0, 0], order: [] : !tt.ptr<bf16> to tensor<4x256x!tt.ptr<bf16>>
+// CHECK:           [[VAR_1_:%.+]] = tts.make_tptr [[PARAM_0_]] to sizes: [4, 256], strides: [1, [[CST_5_]]{{.}}, offsets: {{.}}[[VAR_0_]], 0], shape: [0, 0], order: [] : <bf16> to tensor<4x256x!tt.ptr<bf16>>
 // CHECK-DAG:       [[VAR_2_:%.+]] = "tts.load"([[VAR_1_]]) <{operandSegmentSizes = array<i32: 1, 0, 0>, static_mask_dims = array<i64>}> : (tensor<4x256x!tt.ptr<bf16>>) -> tensor<4x256xbf16>
 // CHECK-DAG:       [[VAR_3_:%.+]] = arith.index_cast [[PARAM_1_]] : i32 to index
 // CHECK:           [[VAR_4_:%.+]] = arith.addi [[VAR_0_]], [[VAR_3_]] : index
-// CHECK:           [[VAR_5_:%.+]] = tts.make_tptr [[PARAM_0_]] to sizes: [4, 256], strides: [2, [[CST_10_]]{{.}}, offsets: {{.}}[[VAR_4_]], 0], shape: [0, 0], order: [] : !tt.ptr<bf16> to tensor<4x256x!tt.ptr<bf16>>
+// CHECK:           [[VAR_5_:%.+]] = tts.make_tptr [[PARAM_0_]] to sizes: [4, 256], strides: [2, [[CST_10_]]{{.}}, offsets: {{.}}[[VAR_4_]], 0], shape: [0, 0], order: [] : <bf16> to tensor<4x256x!tt.ptr<bf16>>
 // CHECK:           [[VAR_6_:%.+]] = "tts.load"([[VAR_5_]]) <{operandSegmentSizes = array<i32: 1, 0, 0>, static_mask_dims = array<i64>}> : (tensor<4x256x!tt.ptr<bf16>>) -> tensor<4x256xbf16>
 // CHECK-DAG:       [[VAR_7_:%.+]] = arith.addf [[VAR_2_]], [[VAR_6_]] : tensor<4x256xbf16>
 // CHECK-DAG:       [[VAR_8_:%.+]] = arith.index_cast [[PARAM_1_]] : i32 to index
 // CHECK:           [[VAR_9_:%.+]] = arith.addi [[VAR_4_]], [[VAR_8_]] : index
-// CHECK:           [[VAR_10_:%.+]] = tts.make_tptr [[PARAM_0_]] to sizes: [4, 256], strides: [3, [[CST_15_]]{{.}}, offsets: {{.}}[[VAR_9_]], 0], shape: [0, 0], order: [] : !tt.ptr<bf16> to tensor<4x256x!tt.ptr<bf16>>
+// CHECK:           [[VAR_10_:%.+]] = tts.make_tptr [[PARAM_0_]] to sizes: [4, 256], strides: [3, [[CST_15_]]{{.}}, offsets: {{.}}[[VAR_9_]], 0], shape: [0, 0], order: [] : <bf16> to tensor<4x256x!tt.ptr<bf16>>
 // CHECK:           "tts.store"([[VAR_10_]], [[VAR_7_]]) <{static_mask_dims = array<i64>}> : (tensor<4x256x!tt.ptr<bf16>>, tensor<4x256xbf16>) -> ()
 // CHECK:           tt.return
 // CHECK:         }

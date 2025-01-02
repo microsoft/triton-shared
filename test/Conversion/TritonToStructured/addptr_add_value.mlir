@@ -55,12 +55,12 @@ module {
 // CHECK-DAG:       [[VAR_1_:%.+]] = arith.index_cast [[PARAM_3_]] : i32 to index
 // CHECK:           [[VAR_2_:%.+]] = arith.addi [[VAR_0_]], [[VAR_1_]] : index
 // CHECK:           [[VAR_3_:%.+]] = arith.addi [[VAR_2_]], [[CST_10_]] : index
-// CHECK-DAG:       [[VAR_4_:%.+]] = tts.make_tptr [[PARAM_0_]] to sizes: [4, 256], strides: [1, [[CST_6_]]{{.}}, offsets: {{.}}[[VAR_3_]], 0], shape: [0, 0], order: [] : !tt.ptr<bf16> to tensor<4x256x!tt.ptr<bf16>>
+// CHECK-DAG:       [[VAR_4_:%.+]] = tts.make_tptr [[PARAM_0_]] to sizes: [4, 256], strides: [1, [[CST_6_]]{{.}}, offsets: {{.}}[[VAR_3_]], 0], shape: [0, 0], order: [] : <bf16> to tensor<4x256x!tt.ptr<bf16>>
 // CHECK-DAG:       [[VAR_5_:%.+]] = arith.index_cast [[PARAM_2_]] : i32 to index
 // CHECK-DAG:       [[VAR_6_:%.+]] = arith.index_cast [[PARAM_3_]] : i32 to index
 // CHECK:           [[VAR_7_:%.+]] = arith.addi [[VAR_5_]], [[VAR_6_]] : index
 // CHECK:           [[VAR_8_:%.+]] = arith.addi [[VAR_7_]], [[CST_10_]] : index
-// CHECK-DAG:       [[VAR_9_:%.+]] = tts.make_tptr [[PARAM_1_]] to sizes: [4, 256], strides: [1, [[CST_6_]]{{.}}, offsets: {{.}}[[VAR_8_]], 0], shape: [0, 0], order: [] : !tt.ptr<bf16> to tensor<4x256x!tt.ptr<bf16>>
+// CHECK-DAG:       [[VAR_9_:%.+]] = tts.make_tptr [[PARAM_1_]] to sizes: [4, 256], strides: [1, [[CST_6_]]{{.}}, offsets: {{.}}[[VAR_8_]], 0], shape: [0, 0], order: [] : <bf16> to tensor<4x256x!tt.ptr<bf16>>
 // CHECK-DAG:       [[VAR_10_:%.+]] = "tts.load"([[VAR_4_]]) <{operandSegmentSizes = array<i32: 1, 0, 0>, static_mask_dims = array<i64>}> : (tensor<4x256x!tt.ptr<bf16>>) -> tensor<4x256xbf16>
 // CHECK:           "tts.store"([[VAR_9_]], [[VAR_10_]]) <{static_mask_dims = array<i64>}> : (tensor<4x256x!tt.ptr<bf16>>, tensor<4x256xbf16>) -> ()
 // CHECK:           tt.return

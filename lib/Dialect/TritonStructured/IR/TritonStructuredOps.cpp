@@ -177,31 +177,15 @@ GetStructuredStateOp::getOffsetAndStrideSegmentSizes(Type type) {
   return std::make_pair(offsetSegmentSize, strideSegmentSize);
 }
 
-static bool isCastFromUnrankedMemrefToPtr(UnrealizedConversionCastOp op) {
-  auto castResult = op->getResult(0);
-  auto castInput = op.getInputs()[0];
-  return op->getResults().size() == 1 && op.getInputs().size() == 1 &&
-         isa<triton::PointerType>(castResult.getType()) &&
-         isa<UnrankedMemRefType>(castInput.getType());
-}
-
-OpFoldResult MakeTensorPtrOp::fold(FoldAdaptor adaptor) {
-  if (auto unrealizedCast =
-          getBase().getDefiningOp<UnrealizedConversionCastOp>()) {
-    if (isCastFromUnrankedMemrefToPtr(unrealizedCast)) {
-      auto castInput = unrealizedCast.getInputs()[0];
-      setOperand(0, castInput);
-      return getResult();
-    }
-  }
-  return {};
-}
-
 OpFoldResult MakeUnstructuredTensorPtrOp::fold(FoldAdaptor adaptor) {
   if (auto unrealizedCast =
           getInput().getDefiningOp<UnrealizedConversionCastOp>()) {
-    if (isCastFromUnrankedMemrefToPtr(unrealizedCast)) {
-      auto castInput = unrealizedCast.getInputs()[0];
+    auto castResult = unrealizedCast->getResult(0);
+    auto castInput = unrealizedCast.getInputs()[0];
+    if (unrealizedCast->getResults().size() == 1 &&
+        unrealizedCast.getInputs().size() == 1 &&
+        isa<triton::PointerType>(castResult.getType()) &&
+        isa<UnrankedMemRefType>(castInput.getType())) {
       setOperand(0, castInput);
       return getResult();
     }

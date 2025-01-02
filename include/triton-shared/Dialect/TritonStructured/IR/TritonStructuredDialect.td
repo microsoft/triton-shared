@@ -47,7 +47,7 @@ def TTS_MakeTensorPtrOp
   // result:  If order is present, this op produces a pointer to a tensor; otherwise,
   //          it produces a tensor of pointers.
 
-  let arguments = (ins AnyTypeOf<[TT_Ptr, AnyUnrankedMemRef]>:$base,
+  let arguments = (ins TT_Ptr:$base,
                        DenseI64ArrayAttr:$sizes,
                        Variadic<Index>:$strides,
                        Variadic<Index>:$offsets,
@@ -117,7 +117,7 @@ def TTS_MakeTensorPtrOp
 
   // TODO
   //let hasVerifier = 1;
-  let hasFolder = 1;
+  //let hasCanonicalizer = 1;
 }
 
 def TTS_GetStructuredStateOp : TTS_Op<"get_structured_state", [AttrSizedResultSegments, Pure]> {
@@ -149,7 +149,21 @@ def TTS_MakeUnstructuredTensorPtrOp : TTS_Op<"make_unstructured_tptr", [Pure]> {
 
   let arguments = (ins AnyTypeOf<[TT_PtrLike, AnyRankedOrUnrankedMemRef]>:$input, AnyTypeOf<[TT_I64Like, TT_I32Like]>:$offset);
   let results = (outs TT_PtrLike:$ptr);
+
+  // let builders = [
+  //   OpBuilder<(ins "Value":$input, )>,
+  // ];
+
+  let extraClassDeclaration = [{
+    static std::optional<std::pair<SmallVector<Type>, SmallVector<Type>>>
+      getOffsetAndStrideTypes(MLIRContext *context, Type ptrLikeType);
+
+    static std::optional<std::pair<int32_t, int32_t>>
+      getOffsetAndStrideSegmentSizes(Type ptrLikeType);
+  }];
+
   let hasFolder = 1;
+  // let hasVerifier = 1;
 }
 
 def TTS_LoadOp : TTS_Op<"load", [

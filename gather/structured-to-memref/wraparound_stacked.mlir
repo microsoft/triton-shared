@@ -19,8 +19,8 @@ module {
     %8 = arith.muli %arg5, %c4_i32 : i32
     %9 = arith.index_cast %8 : i32 to index
     %10:2 = scf.for %arg14 = %c0_i32 to %c2_i32 step %c1_i32 iter_args(%arg15 = %2, %arg16 = %c0) -> (index, index)  : i32 {
-      %11 = tts.make_tptr %arg1 to sizes: [4, 4], strides: [%6, %7], offsets: [%arg16, %c0], shape: [0, 0], order: [] : !tt.ptr<f32> to tensor<4x4x!tt.ptr<f32>>
-      %12 = tts.make_tptr %arg0 to sizes: [4, 4], strides: [%1, %4], offsets: [%arg15, %5], shape: [%3, 0], order: [] : !tt.ptr<f32> to tensor<4x4x!tt.ptr<f32>>
+      %11 = tts.make_tptr %arg1 to sizes: [4, 4], strides: [%6, %7], offsets: [%arg16, %c0], shape: [0, 0], order: [] : <f32> to tensor<4x4x!tt.ptr<f32>>
+      %12 = tts.make_tptr %arg0 to sizes: [4, 4], strides: [%1, %4], offsets: [%arg15, %5], shape: [%3, 0], order: [] : <f32> to tensor<4x4x!tt.ptr<f32>>
       %13 = "tts.load"(%12, %cst) <{operandSegmentSizes = array<i32: 1, 0, 1>, static_mask_dims = array<i64: 4, 3>}> : (tensor<4x4x!tt.ptr<f32>>, f32) -> tensor<4x4xf32>
       "tts.store"(%11, %13) <{static_mask_dims = array<i64>}> : (tensor<4x4x!tt.ptr<f32>>, tensor<4x4xf32>) -> ()
       %14 = arith.addi %arg15, %9 : index
