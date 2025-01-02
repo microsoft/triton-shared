@@ -5,8 +5,12 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "mlir/Conversion/ReconcileUnrealizedCasts/ReconcileUnrealizedCasts.h"
+#include "triton-shared/Conversion/FoldUnstructuredTritonAddPtr/FoldUnstructuredTritonAddPtr.h"
 #include "triton-shared/Conversion/StructuredToMemref/StructuredToMemref.h"
 #include "triton-shared/Conversion/TritonArithToLinalg/TritonArithToLinalg.h"
+#include "triton-shared/Conversion/TritonLoadStoreToMemref/TritonLoadStoreToMemref.h"
+#include "triton-shared/Conversion/TritonPtrToMemref/TritonPtrToMemref.h"
 #include "triton-shared/Conversion/TritonToLinalgExperimental/TritonToLinalgExperimental.h"
 #include "triton-shared/Conversion/TritonToStructured/TritonToStructured.h"
 #include "triton-shared/Dialect/TritonStructured/IR/TritonStructuredDialect.h"
@@ -50,8 +54,15 @@ public:
     pm.addPass(createCSEPass());
     pm.addPass(createCanonicalizerPass());
 
+    pm.addPass(createFoldUnstructuredTritonAddPtrPass());
     pm.addPass(createTritonArithToLinalgPass());
+
+    pm.addPass(createTritonPtrToMemrefPass());
+
     pm.addPass(createStructuredToMemrefPass());
+    pm.addPass(createTritonLoadStoreToMemrefPass());
+
+    pm.addPass(createReconcileUnrealizedCastsPass());
 
     pm.addPass(createCSEPass());
     pm.addPass(createCanonicalizerPass());

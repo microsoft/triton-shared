@@ -34,6 +34,7 @@
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/Support/Debug.h"
+#include "llvm/Support/LogicalResult.h"
 
 #include <algorithm>
 #include <cassert>
@@ -51,6 +52,7 @@ static const std::string WRAP_STACKED = "wrap_stacked";
 
 static memref::SubViewOp getSubview(int rank, ArrayRef<OpFoldResult> dims,
                                     Value source, Location loc, OpBuilder &b) {
+  source.dump();
   auto sourceType = cast<MemRefType>(source.getType());
   SmallVector<OpFoldResult> offsets(rank, b.getIndexAttr(0));
   SmallVector<OpFoldResult> strides(rank, b.getIndexAttr(1));
@@ -59,6 +61,13 @@ static memref::SubViewOp getSubview(int rank, ArrayRef<OpFoldResult> dims,
 
   return b.create<memref::SubViewOp>(loc, cast<MemRefType>(dstType), source,
                                      offsets, dims, strides);
+}
+
+static Value getPtr(Value v) {
+  while (auto op = v.getDefiningOp()) {
+    v = op->getOperand(0);
+  }
+  return v;
 }
 
 namespace {
@@ -421,6 +430,10 @@ private:
   }
 
 public:
+  MakeTensorPtrConverter(const TypeConverter &typeConverter,
+                         MLIRContext *context)
+      : OpConversionPattern<tts::MakeTensorPtrOp>(typeConverter, context) {}
+
   LogicalResult
   matchAndRewrite(tts::MakeTensorPtrOp op, OpAdaptor adaptor,
                   ConversionPatternRewriter &rewriter) const override {
@@ -594,8 +607,13 @@ private:
     // No mask
     assert(!other && "other value used in non-masked load");
 
-    if (auto unrealizedCast = ptr.getDefiningOp<UnrealizedConversionCastOp>()) {
+    auto ptrDefiningOp = ptr.getDefiningOp();
+    if (ptrDefiningOp->hasAttr(WRAP_SIDE_BY_SIDE) ||
+        ptrDefiningOp->hasAttr(WRAP_STACKED)) {
+
+      auto unrealizedCast = cast<UnrealizedConversionCastOp>(ptrDefiningOp);
       auto memrefs = unrealizedCast.getOperands();
+      assert(memrefs.size() == 2);
       auto block1 = memrefs[0];
       auto block2 = memrefs[1];
 
@@ -664,9 +682,14 @@ private:
       });
     }
 
-    if (auto unrealizedCast = ptr.getDefiningOp<UnrealizedConversionCastOp>()) {
+    auto ptrDefiningOp = ptr.getDefiningOp();
+    if (ptrDefiningOp->hasAttr(WRAP_SIDE_BY_SIDE) ||
+        ptrDefiningOp->hasAttr(WRAP_STACKED)) {
+
+      auto unrealizedCast = cast<UnrealizedConversionCastOp>(ptrDefiningOp);
 
       auto memrefs = unrealizedCast.getOperands();
+      assert(memrefs.size() == 2);
       auto block1 = memrefs[0];
       auto block2 = memrefs[1];
 
@@ -700,6 +723,9 @@ private:
   }
 
 public:
+  // LoadConverter(const TypeConverter &typeConverter, MLIRContext *context)
+  //     : OpConversionPattern<tts::LoadOp>(typeConverter, context) {}
+
   LogicalResult
   matchAndRewrite(tts::LoadOp op, OpAdaptor adaptor,
                   ConversionPatternRewriter &rewriter) const override {
@@ -730,6 +756,9 @@ private:
   }
 
 public:
+  // StoreConverter(const TypeConverter &typeConverter, MLIRContext *context)
+  //     : OpConversionPattern<tts::StoreOp>(typeConverter, context) {}
+
   LogicalResult
   matchAndRewrite(tts::StoreOp op, OpAdaptor adaptor,
                   ConversionPatternRewriter &rewriter) const override {
@@ -759,62 +788,15 @@ public:
   }
 };
 
-struct ScalarLoadConverter : public OpConversionPattern<triton::LoadOp> {
-  using OpConversionPattern<triton::LoadOp>::OpConversionPattern;
-
-  LogicalResult
-  matchAndRewrite(triton::LoadOp op, OpAdaptor adaptor,
-                  ConversionPatternRewriter &rewriter) const override {
-    if (!op.getType().isIntOrIndexOrFloat()) {
-      return failure();
-    }
-
-    auto loc = op->getLoc();
-    auto memrefPtr = adaptor.getPtr();
-    auto zeroMap = AffineMap::getConstantMap(0, rewriter.getContext());
-    auto loadOp = rewriter.create<affine::AffineLoadOp>(loc, memrefPtr, zeroMap,
-                                                        std::nullopt);
-    rewriter.replaceOp(op, loadOp.getResult());
-
-    return success();
-  }
-};
-
-struct ScalarStoreConverter : public OpConversionPattern<triton::StoreOp> {
-private:
-  using OpConversionPattern<triton::StoreOp>::OpConversionPattern;
-
-public:
-  LogicalResult
-  matchAndRewrite(triton::StoreOp op, OpAdaptor adaptor,
-                  ConversionPatternRewriter &rewriter) const override {
-
-    if (!op.getValue().getType().isIntOrIndexOrFloat()) {
-      return failure();
-    }
-
-    auto loc = op->getLoc();
-    auto memrefPtr = adaptor.getPtr();
-    auto val = op.getValue();
-    auto zeroMap = AffineMap::getConstantMap(0, rewriter.getContext());
-
-    rewriter.create<affine::AffineStoreOp>(loc, val, memrefPtr, zeroMap,
-                                           std::nullopt);
-    rewriter.eraseOp(op);
-
-    return success();
-  }
-};
-
 struct UnrealizedCastConverter
     : public OpConversionPattern<UnrealizedConversionCastOp> {
 private:
   using OpConversionPattern<UnrealizedConversionCastOp>::OpConversionPattern;
 
 public:
-  UnrealizedCastConverter(TypeConverter &typeConverter, MLIRContext *context)
-      : OpConversionPattern<UnrealizedConversionCastOp>(typeConverter,
-                                                        context) {}
+  // UnrealizedCastConverter(TypeConverter &typeConverter, MLIRContext *context)
+  //     : OpConversionPattern<UnrealizedConversionCastOp>(typeConverter,
+  //                                                       context) {}
 
   LogicalResult
   matchAndRewrite(UnrealizedConversionCastOp op, OpAdaptor adaptor,
@@ -823,25 +805,16 @@ public:
     auto input = op.getInputs()[0];
     auto inputType = input.getType();
 
-    if (!isa<triton::PointerType>(resType) ||
-        !isa<MemRefType, UnrankedMemRefType>(inputType)) {
-      return failure();
-    }
-
-    if (auto reinterpretCast =
-            input.getDefiningOp<memref::ReinterpretCastOp>()) {
-      rewriter.replaceOp(op, reinterpretCast);
+    if (isa<triton::PointerType>(resType) &&
+        isa<MemRefType, UnrankedMemRefType>(inputType)) {
+      // rewriter.replaceAllOpUsesWith(op, input);
+      // rewriter.eraseOp(op);
+      llvm::dbgs() << "ok case\n";
+      op->dump();
+      input.dump();
+      rewriter.replaceOp(op, input);
     } else {
-      auto ptrType = cast<triton::PointerType>(resType);
-      auto memrefType =
-          cast<MemRefType>(getTypeConverter()->convertType(ptrType));
-
-      auto cast = rewriter.create<memref::ReinterpretCastOp>(
-          op->getLoc(), memrefType, op.getInputs()[0], 0 /*offset*/,
-          SmallVector<int64_t>{1} /*sizes*/,
-          SmallVector<int64_t>{1} /*strides*/);
-
-      rewriter.replaceOp(op, cast);
+      return llvm::failure();
     }
 
     return success();
@@ -852,8 +825,6 @@ public:
 
 void mlir::triton::populateStructuredToMemrefConversionPatterns(
     RewritePatternSet &patterns, TypeConverter &typeConverter) {
-  patterns.add<UnrealizedCastConverter>(typeConverter, patterns.getContext());
-  patterns.add<MakeTensorPtrConverter, LoadConverter, StoreConverter,
-               ScalarLoadConverter, ScalarStoreConverter>(
-      patterns.getContext());
+  patterns.add<MakeTensorPtrConverter>(typeConverter, patterns.getContext());
+  patterns.add<LoadConverter, StoreConverter>(patterns.getContext());
 }

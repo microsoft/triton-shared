@@ -5,6 +5,15 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "mlir/Dialect/Arith/IR/Arith.h"
+#include "mlir/Dialect/SCF/IR/SCF.h"
+#include "mlir/Dialect/Tensor/IR/Tensor.h"
+#include "mlir/IR/Builders.h"
+#include "mlir/IR/BuiltinOps.h"
+#include "mlir/IR/BuiltinTypeInterfaces.h"
+#include "mlir/IR/BuiltinTypes.h"
+#include "mlir/IR/Value.h"
+#include "mlir/IR/ValueRange.h"
 #include "triton-shared/Analysis/UseAnalysis.h"
 #include "triton-shared/Conversion/TritonToLinalg/TritonToLinalg.h"
 #include "triton-shared/Dialect/TritonTilingExt/IR/TritonTilingExtDialect.h"
@@ -18,8 +27,16 @@
 #include "mlir/Pass/PassManager.h"
 #include "mlir/Transforms/GreedyPatternRewriteDriver.h"
 #include "mlir/Transforms/Passes.h"
+#include "triton/Dialect/Triton/IR/Types.h"
 
+#include "llvm/ADT/STLExtras.h"
+#include "llvm/ADT/SmallVector.h"
+#include "llvm/ADT/SmallVectorExtras.h"
+#include "llvm/Support/Casting.h"
 #include "llvm/Support/Debug.h"
+#include "llvm/Support/LogicalResult.h"
+#include <cassert>
+#include <cstdint>
 
 #define DEBUG_TYPE "triton-to-linalg"
 
@@ -30,6 +47,16 @@ using namespace triton;
 #include "triton-shared/Conversion/TritonToLinalg/Passes.h.inc"
 
 namespace {
+
+static MemRefType getMemrefTypeForScalarPtr(triton::PointerType ptrType,
+                                            MLIRContext *context) {
+  SmallVector<int64_t> strides{1};
+  auto layout = StridedLayoutAttr::get(context, ShapedType::kDynamic, strides);
+
+  auto elemType = ptrType.getPointeeType();
+  auto memrefType = MemRefType::get({1}, elemType, layout);
+  return memrefType;
+}
 
 class TritonTypeConverter : public TypeConverter {
 public:

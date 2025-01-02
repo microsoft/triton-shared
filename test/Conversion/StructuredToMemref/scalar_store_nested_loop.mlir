@@ -1,7 +1,7 @@
 // RUN: triton-shared-opt --canonicalize --triton-arith-to-linalg --structured-to-memref %s | FileCheck %s
 
 module {
-  func.func @reduce_kernel_2d_0d(%arg0: !tt.ptr<f32> {tt.divisibility = 16 : i32}, %arg1: i32, %arg2: i32, %arg3: i32, %arg4: i32, %arg5: i32, %arg6: i32) {
+  tt.func @reduce_kernel_2d_0d(%arg0: !tt.ptr<f32> {tt.divisibility = 16 : i32}, %arg1: i32, %arg2: i32, %arg3: i32, %arg4: i32, %arg5: i32, %arg6: i32) {
     %c2_i32 = arith.constant 2 : i32
     %c8_i32 = arith.constant 8 : i32
     %c0_i32 = arith.constant 0 : i32
@@ -17,7 +17,7 @@ module {
       }
       scf.yield %2 : !tt.ptr<f32>
     }
-    return
+    tt.return
   }
 }
 
