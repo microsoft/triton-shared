@@ -4,97 +4,7 @@
 // Licensed under the MIT license.
 //
 //===----------------------------------------------------------------------===//
-
-#include "mlir/Dialect/Arith/IR/Arith.h"
-#include "mlir/Dialect/SCF/IR/SCF.h"
-#include "mlir/IR/Builders.h"
-#include "mlir/IR/BuiltinAttributes.h"
-#include "mlir/IR/BuiltinOps.h"
-#include "mlir/IR/BuiltinTypes.h"
-#include "mlir/IR/MLIRContext.h"
-#include "mlir/IR/TypeRange.h"
-#include "mlir/IR/Types.h"
-#include "mlir/IR/Value.h"
-#include "mlir/IR/ValueRange.h"
-#include "mlir/Support/LLVM.h"
-#include "mlir/Transforms/Passes.h"
-#include "triton-shared/Analysis/OpFoldResultUtils.h"
-#include "triton-shared/AnalysisStructured/PtrAnalysis.h"
-#include "triton-shared/Conversion/FoldUnstructuredTritonAddPtr/FoldUnstructuredTritonAddPtr.h"
-#include "triton-shared/Dialect/TritonStructured/IR/TritonStructuredDialect.h"
-
-#include "triton/Dialect/Triton/IR/Dialect.h"
-
-#include "mlir/Dialect/Affine/IR/AffineOps.h"
-#include "mlir/Pass/PassManager.h"
-#include "triton/Dialect/Triton/IR/Types.h"
-
-#include "llvm/ADT/DenseMap.h"
-#include "llvm/ADT/DenseSet.h"
-#include "llvm/ADT/STLExtras.h"
-#include "llvm/ADT/SmallVector.h"
-#include "llvm/ADT/TypeSwitch.h"
-#include "llvm/Support/ErrorHandling.h"
-
-#include <algorithm>
-#include <queue>
-
-#define DEBUG_TYPE "fold-unstructured-triton-ptr"
-
-using namespace mlir;
-using namespace triton;
-
-#define GEN_PASS_CLASSES
-#include "triton-shared/Conversion/FoldUnstructuredTritonAddPtr/Passes.h.inc"
-
-namespace {
-
-static bool isPtrTypeLike(Type t) {
-  if (auto tensorType = dyn_cast<RankedTensorType>(t)) {
-    return isa<triton::PointerType>(tensorType.getElementType());
-  }
-  return isa<triton::PointerType>(t);
-}
-
-static Type getPtrOffsetType(Type type, unsigned int bitWidth) {
-  if (type.isInteger()) {
-    return IntegerType::get(type.getContext(), bitWidth);
-  }
-
-  if (auto tensorType = dyn_cast<RankedTensorType>(type)) {
-    if (auto ptrType =
-            dyn_cast<triton::PointerType>(tensorType.getElementType())) {
-      return RankedTensorType::get(
-          tensorType.getShape(), IntegerType::get(type.getContext(), bitWidth));
-    }
-
-    if (tensorType.getElementType().isInteger()) {
-      return RankedTensorType::get(
-          tensorType.getShape(), IntegerType::get(type.getContext(), bitWidth));
-    }
-  }
-
-  if (auto ptrType = dyn_cast<triton::PointerType>(type)) {
-    return IntegerType::get(type.getContext(), bitWidth);
-  }
-
-  llvm_unreachable("unexpected type");
-  return nullptr;
-}
-
-static unsigned int getBitWidth(Type type) {
-  if (auto tensorType = dyn_cast<RankedTensorType>(type)) {
-    if (auto integerType = dyn_cast<IntegerType>(tensorType.getElementType())) {
-      return integerType.getWidth();
-    }
-  } else if (auto integerType = dyn_cast<IntegerType>(type)) {
-    return integerType.getWidth();
-  }
-
-  llvm_unreachable("unexpected type");
-  return 0;
-}
-
+//
 ////////////////////////////////////////////////////////////////////////////////
 // Overview
 ////////////////////////////////////////////////////////////////////////////////
@@ -201,6 +111,92 @@ static unsigned int getBitWidth(Type type) {
 // default bitwidth to 64, the 32-bit sequence will require unncessary
 // sign-extending when computing the offsets. Contrast this with the manual
 // approach, we will only sign-extend where necessary.
+
+#include "mlir/Dialect/Arith/IR/Arith.h"
+#include "mlir/Dialect/SCF/IR/SCF.h"
+#include "mlir/IR/Builders.h"
+#include "mlir/IR/BuiltinAttributes.h"
+#include "mlir/IR/BuiltinOps.h"
+#include "mlir/IR/BuiltinTypes.h"
+#include "mlir/IR/MLIRContext.h"
+#include "mlir/IR/TypeRange.h"
+#include "mlir/IR/Types.h"
+#include "mlir/IR/Value.h"
+#include "mlir/IR/ValueRange.h"
+#include "mlir/Support/LLVM.h"
+#include "mlir/Transforms/Passes.h"
+#include "triton-shared/Analysis/OpFoldResultUtils.h"
+#include "triton-shared/AnalysisStructured/PtrAnalysis.h"
+#include "triton-shared/Conversion/FoldUnstructuredTritonAddPtr/FoldUnstructuredTritonAddPtr.h"
+#include "triton-shared/Dialect/TritonStructured/IR/TritonStructuredDialect.h"
+
+#include "triton/Dialect/Triton/IR/Dialect.h"
+
+#include "mlir/Dialect/Affine/IR/AffineOps.h"
+#include "mlir/Pass/PassManager.h"
+#include "triton/Dialect/Triton/IR/Types.h"
+
+#include "llvm/ADT/DenseMap.h"
+#include "llvm/ADT/DenseSet.h"
+#include "llvm/ADT/STLExtras.h"
+#include "llvm/ADT/SmallVector.h"
+#include "llvm/ADT/TypeSwitch.h"
+#include "llvm/Support/ErrorHandling.h"
+
+#include <algorithm>
+#include <queue>
+
+#define DEBUG_TYPE "fold-unstructured-triton-ptr"
+
+using namespace mlir;
+using namespace triton;
+
+#define GEN_PASS_CLASSES
+#include "triton-shared/Conversion/FoldUnstructuredTritonAddPtr/Passes.h.inc"
+
+namespace {
+
+static bool isPtrTypeLike(Type t) {
+  if (auto tensorType = dyn_cast<RankedTensorType>(t)) {
+    return isa<triton::PointerType>(tensorType.getElementType());
+  }
+  return isa<triton::PointerType>(t);
+}
+
+// Given a type, return the offset type corresponding to that type with the
+// specified width.
+// If the type is a tensor, return a tensor of offsets of the same shape. If the
+// type is a pointer, return a single offset type.
+static Type getPtrOffsetType(Type type, unsigned int bitWidth) {
+  if (auto tensorType = dyn_cast<RankedTensorType>(type)) {
+    if (auto ptrType =
+            dyn_cast<triton::PointerType>(tensorType.getElementType())) {
+      return RankedTensorType::get(
+          tensorType.getShape(), IntegerType::get(type.getContext(), bitWidth));
+    }
+  }
+
+  if (auto ptrType = dyn_cast<triton::PointerType>(type)) {
+    return IntegerType::get(type.getContext(), bitWidth);
+  }
+
+  llvm_unreachable("unexpected type");
+  return nullptr;
+}
+
+static unsigned int getBitWidth(Type type) {
+  if (auto tensorType = dyn_cast<RankedTensorType>(type)) {
+    if (auto integerType = dyn_cast<IntegerType>(tensorType.getElementType())) {
+      return integerType.getWidth();
+    }
+  } else if (auto integerType = dyn_cast<IntegerType>(type)) {
+    return integerType.getWidth();
+  }
+
+  llvm_unreachable("unexpected type");
+  return 0;
+}
+
 class FoldUnstructuredTritonAddPtrPass
     : public FoldUnstructuredTritonAddPtrBase<
           FoldUnstructuredTritonAddPtrPass> {
