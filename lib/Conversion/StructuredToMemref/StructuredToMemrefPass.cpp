@@ -137,13 +137,13 @@ public:
     // be
     // // handled when we convert addptr op later.
 
-    // addTargetMaterialization([&](OpBuilder &builder, Type resultType,
-    //                              ValueRange inputs,
-    //                              Location loc) -> std::optional<Value> {
-    //   return builder.create<UnrealizedConversionCastOp>(loc, resultType,
-    //   inputs)
-    //       .getResult(0);
-    // });
+    addTargetMaterialization([&](OpBuilder &builder,
+                                 UnrankedMemRefType resultType,
+                                 ValueRange inputs,
+                                 Location loc) -> std::optional<Value> {
+      return builder.create<UnrealizedConversionCastOp>(loc, resultType, inputs)
+          .getResult(0);
+    });
 
     // addSourceMaterialization([&](OpBuilder &builder, Type resultType,
     //                              ValueRange inputs,

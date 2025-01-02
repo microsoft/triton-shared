@@ -43,6 +43,24 @@ using namespace triton;
 
 namespace {
 
+class EmptyConverter : public TypeConverter {
+public:
+  EmptyConverter() {
+    // // The order of type conversion is important: later ones are tried
+    addConversion([](Type type) { return type; });
+    addConversion([](triton::PointerType ptrType) {
+      return UnrankedMemRefType::get(ptrType.getPointeeType(), 0);
+    });
+    addTargetMaterialization([&](OpBuilder &builder,
+                                 UnrankedMemRefType resultType,
+                                 ValueRange inputs,
+                                 Location loc) -> std::optional<Value> {
+      return builder.create<UnrealizedConversionCastOp>(loc, resultType, inputs)
+          .getResult(0);
+    });
+  }
+};
+
 static MemRefType getMemrefTypeForScalarPtr(triton::PointerType ptrType,
                                             MLIRContext *context) {
   SmallVector<int64_t> strides{1};
@@ -74,7 +92,7 @@ struct ScalarLoadConverter : public OpConversionPattern<triton::LoadOp> {
     auto results = op->getResultTypes();
 
     auto loc = op->getLoc();
-    auto basePtr = castOp.getInput();
+    auto basePtr = adaptor.getPtr();
     auto offsets = castOp.getOffset();
 
     Value loadIndex = rewriter.create<arith::IndexCastOp>(
@@ -121,7 +139,7 @@ struct ScalarStoreConverter : public OpConversionPattern<triton::StoreOp> {
     auto results = op->getResultTypes();
 
     auto loc = op->getLoc();
-    auto basePtr = castOp.getInput();
+    auto basePtr = adaptor.getPtr();
     auto offsets = castOp.getOffset();
 
     Value storeIndex = rewriter.create<arith::IndexCastOp>(
@@ -165,7 +183,7 @@ struct LoadOpConverter : public OpConversionPattern<triton::LoadOp> {
     auto results = op->getResultTypes();
 
     auto loc = op->getLoc();
-    auto ptr = op.getInput();
+    auto ptr = adaptor.getPtr();
     auto offsets = op.getOffset();
     auto offsetType = dyn_cast<ShapedType>(offsets.getType());
 
@@ -182,10 +200,6 @@ struct LoadOpConverter : public OpConversionPattern<triton::LoadOp> {
     // layout);
 
     auto resultType = dyn_cast<RankedTensorType>(loadOp.getResult().getType());
-
-    ptr.dump();
-
-    offsets.dump();
 
     auto memref = rewriter.create<memref::CastOp>(
         loc,
@@ -290,7 +304,7 @@ struct StoreOpConverter : public OpConversionPattern<triton::StoreOp> {
     auto results = op->getResultTypes();
 
     auto loc = op->getLoc();
-    auto ptr = op.getInput();
+    auto ptr = adaptor.getPtr();
     auto offsets = op.getOffset();
     auto offsetType = dyn_cast<ShapedType>(offsets.getType());
 
@@ -377,6 +391,26 @@ struct StoreOpConverter : public OpConversionPattern<triton::StoreOp> {
   }
 };
 
+struct MakePtrConverter
+    : public OpConversionPattern<tts::MakeUnstructuredTensorPtrOp> {
+  using OpConversionPattern<
+      tts::MakeUnstructuredTensorPtrOp>::OpConversionPattern;
+
+  MakePtrConverter(const TypeConverter &typeConverter, MLIRContext *context)
+      : OpConversionPattern<tts::MakeUnstructuredTensorPtrOp>(typeConverter,
+                                                              context) {}
+
+  MakePtrConverter(MLIRContext *context)
+      : OpConversionPattern<tts::MakeUnstructuredTensorPtrOp>(context) {}
+
+  LogicalResult
+  matchAndRewrite(tts::MakeUnstructuredTensorPtrOp op, OpAdaptor adaptor,
+                  ConversionPatternRewriter &rewriter) const override {
+    rewriter.replaceOp(op, adaptor.getInput());
+    return success();
+  }
+};
+
 class TritonLoadStoreToMemrefPass
     : public TritonLoadStoreToMemrefBase<TritonLoadStoreToMemrefPass> {
 
@@ -402,7 +436,11 @@ public:
         bufferization::BufferizationDialect, memref::MemRefDialect,
         ttx::TritonTilingExtDialect>();
 
-    target.addIllegalOp<triton::LoadOp, triton::StoreOp>();
+    target.addIllegalOp<triton::LoadOp, triton::StoreOp,
+                        tts::MakeUnstructuredTensorPtrOp>();
+
+    EmptyConverter t;
+    patterns.add<MakePtrConverter>(t, patterns.getContext());
 
     patterns.add<LoadOpConverter, ScalarLoadConverter, StoreOpConverter,
                  ScalarStoreConverter>(patterns.getContext());
