@@ -144,10 +144,8 @@ def TTS_GetStructuredStateOp : TTS_Op<"get_structured_state", [AttrSizedResultSe
 }
 
 def TTS_MakeUnstructuredTensorPtrOp : TTS_Op<"make_unstructured_tptr", [Pure]> {
-  let summary = "Placeholder for the structured pointer states computed during PtrAnalysis.";
-  let description = "Used to pass the offsets and strides to scf.for op to simplify IR rewrites.";
-
-  let arguments = (ins AnyTypeOf<[TT_PtrLike, AnyRankedOrUnrankedMemRef]>:$input, AnyTypeOf<[TT_I64Like, TT_I32Like]>:$offset);
+  let summary = "Create triton pointer from a base pointer and offsets";
+  let arguments = (ins AnyTypeOf<[TT_PtrLike, AnyRankedOrUnrankedMemRef]>:$base, AnyTypeOf<[TT_I64Like, TT_I32Like]>:$offset);
   let results = (outs TT_PtrLike:$ptr);
 }
 
