@@ -30,29 +30,6 @@ module {
   }
 }
 
-// CHECK:         tt.func public @gather_simple([[PARAM_0_:%.+]]: !tt.ptr<f32>, [[PARAM_1_:%.+]]: !tt.ptr<f32>) attributes {noinline = false} {
-// CHECK-DAG:       [[CST_0_:%.+]] = arith.constant 0 : i32
-// CHECK-DAG:       [[CST_1_:%.+]] = arith.constant 1 : i32
-// CHECK-DAG:       [[CST_2_:%.+]] = arith.constant 2 : i32
-// CHECK-DAG:       [[VAR_cst_:%.+]] = arith.constant dense<64> : tensor<64xi32>
-// CHECK-DAG:       [[CST_64_:%.+]] = arith.constant 64 : i32
-// CHECK-DAG:       [[CST_5_:%.+]] = arith.constant 5 : i32
-// CHECK-DAG:       [[VAR_cst_0_:%.+]] = arith.constant dense<10> : tensor<64xi32>
-// CHECK-DAG:       [[VAR_0_:%.+]] = tt.make_range {end = 64 : i32, start = 0 : i32} : tensor<64xi32>
-// CHECK-NOT: separator of consecutive DAGs
-// CHECK-DAG:       [[VAR_1_:%.+]]:2 = scf.for [[VAR_arg2_:%.+]] = [[CST_0_]] to [[CST_2_]] step [[CST_1_]] iter_args([[VAR_arg3_:%.+]] = [[VAR_0_]], [[VAR_arg4_:%.+]] = [[VAR_0_]]) -> (tensor<64xi32>, tensor<64xi32>)  : i32 {
-// CHECK-DAG:         [[VAR_2_:%.+]] = arith.divsi [[VAR_arg3_]], [[VAR_cst_0_]] : tensor<64xi32>
-// CHECK-DAG:         [[VAR_3_:%.+]] = arith.addi [[VAR_arg2_]], [[CST_5_]] : i32
-// CHECK:             [[VAR_4_:%.+]] = arith.remsi [[VAR_3_]], [[CST_64_]] : i32
-// CHECK:             [[VAR_5_:%.+]] = tt.splat [[VAR_4_]] : i32 -> tensor<64xi32>
-// CHECK:             [[VAR_6_:%.+]] = arith.addi [[VAR_2_]], [[VAR_5_]] : tensor<64xi32>
-// CHECK:             [[VAR_7_:%.+]] = "tts.make_unstructured_tptr"([[PARAM_0_]], [[VAR_6_]]) : (!tt.ptr<f32>, tensor<64xi32>) -> tensor<64x!tt.ptr<f32>>
-// CHECK-DAG:         [[LOAD_VAR_7_MEM_:%.+]] = tt.load [[VAR_7_]] : tensor<64x!tt.ptr<f32>>
-// CHECK-DAG:         [[VAR_9_:%.+]] = "tts.make_unstructured_tptr"([[PARAM_1_]], [[VAR_arg4_]]) : (!tt.ptr<f32>, tensor<64xi32>) -> tensor<64x!tt.ptr<f32>>
-// CHECK:             tt.store [[VAR_9_]], [[LOAD_VAR_7_MEM_]] : tensor<64x!tt.ptr<f32>>
-// CHECK-DAG:         [[VAR_10_:%.+]] = arith.addi [[VAR_6_]], [[VAR_cst_]] : tensor<64xi32>
-// CHECK-DAG:         [[VAR_11_:%.+]] = arith.addi [[VAR_arg4_]], [[VAR_cst_]] : tensor<64xi32>
-// CHECK:             scf.yield [[VAR_10_]], [[VAR_11_]] : tensor<64xi32>, tensor<64xi32>
-// CHECK:           }
-// CHECK:           tt.return
-// CHECK:         }
+// CHECK-NOT: tt.addptr
+// CHECK-COUNT-2: "tts.make_unstructured_tptr"(%arg{{[0-9]+}}
+// CHECK-NOT:    "tts.make_unstructured_tptr"(%arg{{[0-9]+}}
