@@ -149,21 +149,6 @@ def TTS_MakeUnstructuredTensorPtrOp : TTS_Op<"make_unstructured_tptr", [Pure]> {
 
   let arguments = (ins AnyTypeOf<[TT_PtrLike, AnyRankedOrUnrankedMemRef]>:$input, AnyTypeOf<[TT_I64Like, TT_I32Like]>:$offset);
   let results = (outs TT_PtrLike:$ptr);
-
-  // let builders = [
-  //   OpBuilder<(ins "Value":$input, )>,
-  // ];
-
-  let extraClassDeclaration = [{
-    static std::optional<std::pair<SmallVector<Type>, SmallVector<Type>>>
-      getOffsetAndStrideTypes(MLIRContext *context, Type ptrLikeType);
-
-    static std::optional<std::pair<int32_t, int32_t>>
-      getOffsetAndStrideSegmentSizes(Type ptrLikeType);
-  }];
-
-  let hasFolder = 1;
-  // let hasVerifier = 1;
 }
 
 def TTS_LoadOp : TTS_Op<"load", [

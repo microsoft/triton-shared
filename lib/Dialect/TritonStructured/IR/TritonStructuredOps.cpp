@@ -177,21 +177,5 @@ GetStructuredStateOp::getOffsetAndStrideSegmentSizes(Type type) {
   return std::make_pair(offsetSegmentSize, strideSegmentSize);
 }
 
-OpFoldResult MakeUnstructuredTensorPtrOp::fold(FoldAdaptor adaptor) {
-  if (auto unrealizedCast =
-          getInput().getDefiningOp<UnrealizedConversionCastOp>()) {
-    auto castResult = unrealizedCast->getResult(0);
-    auto castInput = unrealizedCast.getInputs()[0];
-    if (unrealizedCast->getResults().size() == 1 &&
-        unrealizedCast.getInputs().size() == 1 &&
-        isa<triton::PointerType>(castResult.getType()) &&
-        isa<UnrankedMemRefType>(castInput.getType())) {
-      setOperand(0, castInput);
-      return getResult();
-    }
-  }
-  return {};
-}
-
 } // namespace tts
 } // namespace mlir
