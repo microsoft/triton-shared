@@ -99,13 +99,36 @@ static unsigned int getBitWidth(Type type) {
 // Overview
 ////////////////////////////////////////////////////////////////////////////////
 //
-// This pass fold all sequences of tt.addptr into a single op
+// This pass attempts to simplify the uses of triton pointers in the IR which
+// will help lowering triton to other mlir dialects easier.
+//
+// A triton pointer has two pieces of info:
+//   - a base pointer which comes from the kernel arguments
+//   - an offset which could be either a tensor of offset or a single integer
+//   offset
+//
+// Triton pointers are created and manipulated through a sequence of tt.addptr,
+// tt.splat, or tt.broadcast ops. If a triton pointer is created through
+// `tt.addptr %ptr %offset`, the new pointer will contain the same base pointer
+// as the original pointer; its offset will also be accumulated. Triton pointers
+// created through tt.splat and tt.broadcast retain their base pointers and
+// offsets. Tensors of pointers cannot have different bases by design. In other
+// words, the base pointer is fixed throughout a chain of pointer manipulation
+// ops.
+//
+// Leveraging this property, we can simplify chains of tt.addptr,
+// tt.splat, and tt.broadcast which produce tt.addptr to just a sequence of
+// offset manipulation ops and a base pointer.
+//
+// In essence, this pass fold all sequences of tt.addptr into a single op
 // tts.make_unstructured_tptr that takes:
 //
 //   - a base pointer from the kernel arguments
 //   - a tensor of offsets (or single offset) that indicates the offsets from
-//   the
-//     base pointer
+//   the base pointer
+//
+// This simplification makes it easier for subsequent passes to lower these load
+// and store ops
 //
 // All intermediate tt.addptr ops are converted to arith.addi ops that compute
 // the offsets. All pointer shape manipulation ops such as tt.splat and
@@ -162,10 +185,10 @@ static unsigned int getBitWidth(Type type) {
 //
 // In cases such as tt.addptr, tt.splat, and tt.broadcast, we create
 // corresponding replacement ops which will then be used to map the results
-// after the walk. We do not want to modify these ops in-place because the
-// use-def chains may be changed. In special cases like scf.for, we also set the
-// type of the iter-arg and result directly which is usually frown upon (but
-// justified).
+// at the end of the algorithm. We do not want to modify these ops in-place
+// because the use-def chains may be changed. In special cases like scf.for, we
+// also set the type of the iter-arg and result directly which is usually frown
+// upon (but justified).
 //
 // This approach is used in favor of the traditional ConversionPatternRewriter
 // which converts all pointer type into an offset integer type because
