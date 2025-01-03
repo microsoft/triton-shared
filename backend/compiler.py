@@ -7,6 +7,7 @@ import hashlib
 import tempfile
 import os
 import re
+import shutil
 import subprocess
 import functools
 from pathlib import Path
@@ -25,6 +26,14 @@ def _get_llvm_bin_path(bin_name: str) -> str:
     return os.path.join(path, bin_name)
 
 
+def _dump_ir_if_needed(files):
+    path = os.getenv("TRITON_SHARED_DUMP_PATH", "")
+    if not path:
+        return
+    for f in files:
+        shutil.copy(f, os.path.join(path, os.path.basename(f)))
+
+
 def _ttir_to_ttsharedir(mod):
     # Get Triton-MLIR as string
     ttir_code = str(mod)
@@ -33,8 +42,8 @@ def _ttir_to_ttsharedir(mod):
         dst_path = os.path.join(tmpdir, "ttshared.mlir")
         Path(src_path).write_text(ttir_code)
         triton_shared_opt_path = _get_triton_shared_opt_path()
-        subprocess.check_call([triton_shared_opt_path, src_path,
-            "--triton-to-linalg-experimental", "--mlir-print-debuginfo", "-o", dst_path])
+        subprocess.check_call([triton_shared_opt_path, src_path, "--triton-to-linalg-experimental", "--mlir-print-debuginfo", "-o", dst_path])
+        _dump_ir_if_needed([src_path])
         return Path(dst_path).read_text()
 
 
@@ -91,6 +100,7 @@ def _ttsharedir_to_llir(ttsharedir: str):
             "--mlir-to-llvmir",
             "-o",
             llir_path])
+        _dump_ir_if_needed([ttshared_path, llmlir_path, llir_path])
         return Path(llir_path).read_text()
 
 
