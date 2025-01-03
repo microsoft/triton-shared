@@ -2,6 +2,7 @@ import torch
 
 import triton
 import triton.language as tl
+import benchmark
 
 
 @triton.jit
@@ -62,3 +63,20 @@ def test_softmax(device):
     y_triton = softmax(x)
     y_torch = torch.softmax(x, axis=1)
     assert torch.allclose(y_triton, y_torch), (y_triton, y_torch)
+
+
+@benchmark.measure()
+def bench_softmax(size, provider):
+    torch.manual_seed(0)
+    x = torch.randn(size, size, device='cpu')
+    if provider == 'torch':
+       torch.softmax(x, axis=1)
+    if provider == 'triton':
+       softmax(x)
+
+
+if __name__ == "__main__":
+    benchmark.select_cpu_backend()
+    for X in [2**i for i in range(10, 14, 1)]:
+        for provider in ['torch', 'triton']:
+            bench_softmax(X, provider)

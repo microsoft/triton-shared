@@ -2,7 +2,7 @@ import torch
 
 import triton
 import triton.language as tl
-
+import benchmark
 
 # `triton.jit`'ed functions can be auto-tuned by using the `triton.autotune` decorator, which consumes:
 #   - A list of `triton.Config` objects that define different configurations of
@@ -155,3 +155,20 @@ def test_matmul(device):
     triton_output = matmul(a, b)
     torch_output = torch.matmul(a, b)
     torch.testing.assert_close(triton_output, torch_output, atol=1e-2, rtol=0)
+
+
+@benchmark.measure()
+def bench_matmul(M, N, K, provider):
+    a = torch.randn((M, K), device='cpu', dtype=torch.float32)
+    b = torch.randn((K, N), device='cpu', dtype=torch.float32)
+    if provider == 'torch':
+        torch.matmul(a, b)
+    if provider == 'triton':
+        matmul(a, b)
+
+
+if __name__ == "__main__":
+    benchmark.select_cpu_backend()
+    for X in [128 * i for i in range(2, 7)]:
+        for provider in ['torch', 'triton']:
+            bench_matmul(X, X, X, provider)

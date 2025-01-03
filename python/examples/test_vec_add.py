@@ -2,6 +2,7 @@ import torch
 
 import triton
 import triton.language as tl
+import benchmark
 
 
 @triton.jit
@@ -66,3 +67,19 @@ def test(device):
         f"The maximum difference between torch and triton is "
         f"{torch.max(torch.abs(output_torch - output_triton))}"
     )
+
+@benchmark.measure()
+def bench_vecadd(size, provider):
+    a = torch.rand(size, device='cpu', dtype=torch.float32)
+    b = torch.rand(size, device='cpu', dtype=torch.float32)
+    if provider == 'torch':
+       a + b
+    if provider == 'triton':
+        add(a, b)
+
+
+if __name__ == "__main__":
+    benchmark.select_cpu_backend()
+    for X in [2**i for i in range(22, 25, 1)]:
+        for provider in ['torch', 'triton']:
+            bench_vecadd(X, provider)
