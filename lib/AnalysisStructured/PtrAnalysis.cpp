@@ -738,6 +738,12 @@ LogicalResult PtrAnalysis::visitOperand(Value operand, PtrState &state,
         llvm_unreachable("Unexpected operand defining operation");
       }
     } else {
+      // If the operand comes directly from the kernel argument, set the scalar
+      // to 0.
+      OpBuilder::InsertionGuard guard(builder);
+      builder.setInsertionPointToStart(operand.getParentBlock());
+      state.scalar =
+          builder.create<arith::ConstantOp>(loc, builder.getIndexAttr(0));
       state.source = operand;
       return success();
     }
@@ -1327,7 +1333,7 @@ LogicalResult PtrAnalysis::rewriteOp(Operation *rootOp) {
         .Case<tts::GetStructuredStateOp>(
             [&](tts::GetStructuredStateOp getStateOp) {
               // For tensor of indices potentially being used in pointer
-              // arithmetic sequence, we need to manually populate the state of
+              // arithmetic sequence, we need to manually populate the state if
               // none already exists.
               // This process is necessary because unlike triton pointers in a
               // loop which always have a `tt.addptr` that triggers the rewrite
