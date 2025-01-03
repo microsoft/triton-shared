@@ -178,7 +178,7 @@ In addition to testing on the tutorial kernels, there are many lit tests coverin
 
 ## Intermediate Representation (IR) Dumps
 
-To facilitate debugging and analysis, the Triton Shared project now supports emitting all intermediate representations (IRs) generated during the compilation process. This functionality is controlled via the environment variable `TRITON_SHARED_DUMP_PATH`.
+To facilitate debugging and analysis, the triton-shared project now supports emitting all intermediate representations (IRs) generated during the compilation process. This functionality is controlled via the environment variable `TRITON_SHARED_DUMP_PATH`.
 
 ### How It Works
 
