@@ -47,14 +47,14 @@ public:
     pm.addPass(createTritonToStructuredPass());
 
     // Erase dead code and fold constants created during lowering
-    pm.addPass(createCSEPass());
     pm.addPass(createCanonicalizerPass());
+    pm.addPass(createCSEPass());
 
     pm.addPass(createTritonArithToLinalgPass());
     pm.addPass(createStructuredToMemrefPass());
 
-    pm.addPass(createCSEPass());
     pm.addPass(createCanonicalizerPass());
+    pm.addPass(createCSEPass());
 
     if (failed(runPipeline(pm, getOperation()))) {
       signalPassFailure();
