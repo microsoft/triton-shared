@@ -1,4 +1,4 @@
-add_subdirectory(FoldUnstructuredTritonAddPtr)
+add_subdirectory(FoldUnstructuredPtr)
 add_subdirectory(TritonToLinalg)
 add_subdirectory(TritonToLinalgExperimental)
 add_subdirectory(TritonToStructured)

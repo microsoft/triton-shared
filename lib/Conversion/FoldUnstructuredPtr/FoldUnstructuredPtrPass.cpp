@@ -52,7 +52,7 @@
 //
 // Note that if the load/store ops operate on a pointer directly from the kernel
 // arguments, tts.make_unstructured_tptr op will not be created. See
-// test/Conversion/FoldUnstructuredTritonPtr/make_tensor_ptr.mlir
+// test/Conversion/FoldUnstructuredPtr/make_tensor_ptr.mlir
 //
 // In essence, after the pass, the only two cases where a pointer value is
 // introduced are:
@@ -128,7 +128,7 @@
 #include "mlir/Transforms/Passes.h"
 #include "triton-shared/Analysis/OpFoldResultUtils.h"
 #include "triton-shared/AnalysisStructured/PtrAnalysis.h"
-#include "triton-shared/Conversion/FoldUnstructuredTritonAddPtr/FoldUnstructuredTritonAddPtr.h"
+#include "triton-shared/Conversion/FoldUnstructuredPtr/FoldUnstructuredPtr.h"
 #include "triton-shared/Dialect/TritonStructured/IR/TritonStructuredDialect.h"
 
 #include "triton/Dialect/Triton/IR/Dialect.h"
@@ -153,7 +153,7 @@ using namespace mlir;
 using namespace triton;
 
 #define GEN_PASS_CLASSES
-#include "triton-shared/Conversion/FoldUnstructuredTritonAddPtr/Passes.h.inc"
+#include "triton-shared/Conversion/FoldUnstructuredPtr/Passes.h.inc"
 
 namespace {
 
@@ -198,9 +198,8 @@ static unsigned int getBitWidth(Type type) {
   return 0;
 }
 
-class FoldUnstructuredTritonAddPtrPass
-    : public FoldUnstructuredTritonAddPtrBase<
-          FoldUnstructuredTritonAddPtrPass> {
+class FoldUnstructuredPtrPass
+    : public FoldUnstructuredPtrBase<FoldUnstructuredPtrPass> {
 
 public:
   void getDependentDialects(DialectRegistry &registry) const override {
@@ -408,6 +407,6 @@ public:
 } // namespace
 
 std::unique_ptr<OperationPass<ModuleOp>>
-triton::createFoldUnstructuredTritonAddPtrPass() {
-  return std::make_unique<FoldUnstructuredTritonAddPtrPass>();
+triton::createFoldUnstructuredPtrPass() {
+  return std::make_unique<FoldUnstructuredPtrPass>();
 }

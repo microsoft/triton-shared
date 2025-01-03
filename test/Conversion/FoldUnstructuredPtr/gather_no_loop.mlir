@@ -1,4 +1,4 @@
-// RUN: triton-shared-opt --fold-unstructured-triton-ptr %s | FileCheck %s
+// RUN: triton-shared-opt --fold-unstructured-ptr %s | FileCheck %s
 
 module {
   tt.func public @gather_simple_no_loop(%arg0: !tt.ptr<f32>, %arg1: !tt.ptr<f32>) attributes {noinline = false} {

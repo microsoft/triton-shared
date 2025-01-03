@@ -1,4 +1,4 @@
-// RUN: triton-shared-opt --fold-unstructured-triton-ptr %s | FileCheck %s
+// RUN: triton-shared-opt --fold-unstructured-ptr %s | FileCheck %s
 
 module {
   tt.func public @softmax_kernel_012345(%arg0: !tt.ptr<f32>, %arg1: !tt.ptr<f32>, %arg2: i32, %arg3: i32, %arg4: i32) {
