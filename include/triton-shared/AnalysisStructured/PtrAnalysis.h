@@ -262,6 +262,9 @@ public:
 
   LogicalResult rewriteStoreOp(triton::StoreOp op, bool useUnsafeMask = false);
 
+  // Only rewrite if a scalar ptr is splated into a tensor of ptr
+  LogicalResult rewriteSplatOp(triton::SplatOp op);
+
   LogicalResult rewriteOp(Operation *op, bool useUnsafeMask = false);
 };
 

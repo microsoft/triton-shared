@@ -24,14 +24,13 @@ module {
 
 // CHECK-LABEL:  func.func @num_programs
 // CHECK-SAME:   ([[PARAM_0_:%.+]]: memref<*xi32>, [[PARAM_1_:%.+]]: i32, [[PARAM_2_:%.+]]: i32, [[PARAM_3_:%.+]]: i32, [[PARAM_4_:%.+]]: i32, [[PARAM_5_:%.+]]: i32, [[PARAM_6_:%.+]]: i32) {
-// CHECK-DAG:       [[CST_0_:%.+]] = arith.constant 0 : index
 // CHECK-DAG:       [[CST_1_:%.+]] = arith.constant 1 : index
 // CHECK-DAG:       [[CST_2_:%.+]] = arith.constant 2 : index
 // CHECK-NOT: separator of consecutive DAGs
-// CHECK-DAG:       [[VAR_reinterpret_cast_:%.+]] = memref.reinterpret_cast [[PARAM_0_]] to offset: {{.}}[[CST_0_]]{{.}}, sizes: [1], strides: [1] : memref<*xi32> to memref<1xi32, strided<[1], offset: ?>>
+// CHECK-DAG:       [[VAR_reinterpret_cast_:%.+]] = memref.reinterpret_cast [[PARAM_0_]] to offset: [0], sizes: [1], strides: [1] : memref<*xi32> to memref<1xi32, strided<[1]>>
 // CHECK-DAG:       [[VAR_0_:%.+]] = tensor.empty() : tensor<1xi32>
 // CHECK:           [[VAR_1_:%.+]] = linalg.fill ins([[PARAM_1_]] : i32) outs([[VAR_0_]] : tensor<1xi32>) -> tensor<1xi32>
-// CHECK:           bufferization.materialize_in_destination [[VAR_1_]] in writable [[VAR_reinterpret_cast_]] : (tensor<1xi32>, memref<1xi32, strided<[1], offset: ?>>) -> ()
+// CHECK:           bufferization.materialize_in_destination [[VAR_1_]] in writable [[VAR_reinterpret_cast_]] : (tensor<1xi32>, memref<1xi32, strided<[1]>>) -> ()
 // CHECK-DAG:       [[VAR_reinterpret_cast_0_:%.+]] = memref.reinterpret_cast [[PARAM_0_]] to offset: {{.}}[[CST_1_]]{{.}}, sizes: [1], strides: [1] : memref<*xi32> to memref<1xi32, strided<[1], offset: ?>>
 // CHECK-DAG:       [[VAR_2_:%.+]] = linalg.fill ins([[PARAM_2_]] : i32) outs([[VAR_0_]] : tensor<1xi32>) -> tensor<1xi32>
 // CHECK:           bufferization.materialize_in_destination [[VAR_2_]] in writable [[VAR_reinterpret_cast_0_]] : (tensor<1xi32>, memref<1xi32, strided<[1], offset: ?>>) -> ()
