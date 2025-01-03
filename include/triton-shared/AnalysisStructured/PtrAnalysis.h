@@ -59,6 +59,8 @@ struct PtrState {
 
   bool isBlockPtr() const;
 
+  void dump() const;
+
   // Process addition of two PtrStates.
   LogicalResult addState(const PtrState &lhsState, const PtrState &rhsState,
                          Operation *op, OpBuilder &builder);
