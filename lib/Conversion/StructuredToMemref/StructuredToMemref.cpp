@@ -848,12 +848,33 @@ public:
   }
 };
 
+struct CastTensorPtrConverter
+    : public OpConversionPattern<tts::CastTensorPtrOp> {
+  using OpConversionPattern<tts::CastTensorPtrOp>::OpConversionPattern;
+  CastTensorPtrConverter(TypeConverter &typeConverter, MLIRContext *context)
+      : OpConversionPattern<tts::CastTensorPtrOp>(typeConverter, context) {}
+
+  LogicalResult
+  matchAndRewrite(tts::CastTensorPtrOp op, OpAdaptor adaptor,
+                  ConversionPatternRewriter &rewriter) const override {
+    Value src = op.getSrc();
+    auto srcType = cast<RankedTensorType>(src.getType());
+    auto dstType = cast<RankedTensorType>(op.getType());
+    auto pointerType = cast<triton::PointerType>(dstType.getElementType());
+    auto newType = MemRefType::get(srcType.getShape(), pointerType.getPointeeType());
+
+    auto unrealizedCast = rewriter.create<UnrealizedConversionCastOp>(op.getLoc(), newType, adaptor.getOperands());
+    rewriter.replaceOp(op, unrealizedCast);
+    return success();
+  }
+};
+
 } // namespace
 
 void mlir::triton::populateStructuredToMemrefConversionPatterns(
     RewritePatternSet &patterns, TypeConverter &typeConverter) {
   patterns.add<UnrealizedCastConverter>(typeConverter, patterns.getContext());
   patterns.add<MakeTensorPtrConverter, LoadConverter, StoreConverter,
-               ScalarLoadConverter, ScalarStoreConverter>(
+               ScalarLoadConverter, ScalarStoreConverter, CastTensorPtrConverter>(
       patterns.getContext());
 }

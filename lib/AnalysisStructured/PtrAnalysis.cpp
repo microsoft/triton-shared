@@ -804,6 +804,26 @@ LogicalResult PtrAnalysis::rewriteAddptrOp(triton::AddPtrOp op) {
   return success();
 }
 
+LogicalResult PtrAnalysis::rewriteBitcastOp(triton::BitcastOp op) {
+  Type resultType = op.getType();
+
+  if (auto resultTensorType = dyn_cast<RankedTensorType>(resultType)) {
+    Type elementType = resultTensorType.getElementType();
+    if (auto pointerType = dyn_cast<triton::PointerType>(elementType)) {
+      // arith::bitcast cannot handle pointers,
+      // we need to handle this clause separately
+      OpBuilder builder(op);
+      auto cast = builder.create<mlir::tts::CastTensorPtrOp>(op.getLoc(), resultType, ptrMap.lookupOrNull(op.getSrc()));
+      op->replaceAllUsesWith(cast);
+      op->erase();
+      ptrMap.map(cast.getResult(), cast.getResult());
+      return success();
+    }
+  }
+
+  return failure();
+}
+
 LogicalResult PtrAnalysis::rewriteMakeTensorPtrOp(triton::MakeTensorPtrOp op) {
   OpBuilder builder(op);
 
@@ -1294,6 +1314,13 @@ LogicalResult PtrAnalysis::rewriteOp(Operation *rootOp, bool useUnsafeMask) {
         .Case<triton::AddPtrOp>([&](auto addptr) {
           if (rewriteAddptrOp(addptr).failed()) {
             addptr->emitRemark("PtrAnalysis: Failed to rewrite AddPtrOp");
+          }
+          return WalkResult::advance();
+        })
+        .Case<triton::BitcastOp>([&](auto addptr) {
+          if (rewriteBitcastOp(addptr).failed()) {
+            // failure means incompatible arguments
+            WalkResult::skip();
           }
           return WalkResult::advance();
         })
