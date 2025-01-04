@@ -12,11 +12,19 @@ import subprocess
 import functools
 from pathlib import Path
 
+
 def _get_triton_shared_opt_path() -> str:
     path = os.getenv("TRITON_SHARED_OPT_PATH", "")
     if path == "":
         raise Exception("TRITON_SHARED_OPT_PATH is not set.")
     return path
+
+
+# because of the way triton loads backends, this function is duplicated
+# in compiler and driver
+def _get_triton_shared_use_openblas() -> bool:
+    use_blas = os.getenv("TRITON_SHARED_USE_OPENBLAS", "")
+    return use_blas != ""
 
 
 def _get_llvm_bin_path(bin_name: str) -> str:
@@ -42,7 +50,9 @@ def _ttir_to_ttsharedir(mod):
         dst_path = os.path.join(tmpdir, "ttshared.mlir")
         Path(src_path).write_text(ttir_code)
         triton_shared_opt_path = _get_triton_shared_opt_path()
-        subprocess.check_call([triton_shared_opt_path, src_path, "--triton-to-linalg-experimental", "--mlir-print-debuginfo", "-o", dst_path])
+        extra_pass = ["--linalg-to-linear-algebra-subprograms"] if _get_triton_shared_use_openblas() else []
+        subprocess.check_call([triton_shared_opt_path, src_path, "--triton-to-linalg-experimental"] + \
+            extra_pass + ["--mlir-print-debuginfo", "-o", dst_path])
         _dump_ir_if_needed([src_path])
         return Path(dst_path).read_text()
 
