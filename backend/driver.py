@@ -7,6 +7,7 @@ import importlib.util
 import sysconfig
 
 from pathlib import Path
+from functools import lru_cache
 
 from triton.runtime.cache import get_cache_manager
 from triton.backends.driver import DriverBase
@@ -55,6 +56,17 @@ def _format_of(ty):
       "uint64_t": "K",
     }[ty]
 
+@lru_cache(maxsize=1)
+def _openmp_available():
+    result = subprocess.run(["ldconfig", "-p"], stdout=subprocess.PIPE, text=True)
+    if result.returncode != 0:
+        return False
+    if "libomp.so" in result.stdout or "libgomp.so" in result.stdout:
+        return True
+
+def _get_triton_omp_num_threads() -> str:
+    return os.getenv("TRITON_OMP_NUM_THREADS", "4")
+
 def _generate_launcher(constants, signature, kernel_name):
     arg_decls = ', '.join(f"{_ty_to_cpp(ty)} arg{i}" for i, ty in signature.items())
     args_format = ''.join([_format_of(_extracted_type(ty)) for ty in signature.values()])
@@ -66,6 +78,8 @@ def _generate_launcher(constants, signature, kernel_name):
 
     kernel_parameters = ', '.join(f"static_cast<{_ty_to_cpp(ty)}>(arg{i})" if ty[0] != "*" else f"0, &ptr_arg{i}" for i, ty in signature.items() if i not in constants)
     kernel_parameters += ', ' if kernel_parameters else ''
+
+    omp_num_threads = _get_triton_omp_num_threads()
 
     return f"""
 #include <assert.h>
@@ -84,6 +98,7 @@ extern "C" {{
 static void _launch(int gridX, int gridY, int gridZ, {arg_decls}) {{
   if (gridX*gridY*gridZ > 0) {{
     // Cast "function" to the real function type.
+    #pragma omp parallel for collapse(3) num_threads({omp_num_threads}) schedule(guided, 64)
     for(int x = 0; x < gridX; x++) {{
       for(int y = 0; y < gridY; y++) {{
         for(int z = 0; z < gridZ; z++) {{
@@ -258,7 +273,7 @@ def compile_module(launcher_src, kernel_placeholder_name):
                 "g++", "-std=c++17", launcher_src_path, asm_src_path,
                 f"-I{py_include_dir}", f"-I{include_dir}", f"-L{py_lib_dir}",
                 "-shared", f"-l{py_lib}", "-fPIC", "-o", so_path
-              ])
+              ] + (["-fopenmp"] if _openmp_available() else []))
 
               with open(so_path, "rb") as f:
                 cache_path = cache.put(f.read(), filename, binary=True)
