@@ -588,6 +588,15 @@ private:
     auto tensorType = cast<RankedTensorType>(op.getType());
     auto elemType = tensorType.getElementType();
 
+    // allocation is not needed for the most simple case
+    if (!llvm::isa<UnrealizedConversionCastOp>(ptr.getDefiningOp())) {
+      Value tensor = rewriter.create<bufferization::ToTensorOp>(
+          loc, tensorType, ptr, true /* restrict */, false /* writable */);
+      rewriter.replaceOp(op, tensor);
+      return success();
+    }
+
+
     auto alloc = rewriter.create<memref::AllocOp>(
         loc, MemRefType::get(tensorType.getShape(), elemType));
 
@@ -606,8 +615,6 @@ private:
       } else {
         llvm_unreachable("unexpected wraparound type");
       }
-    } else {
-      rewriter.create<memref::CopyOp>(loc, ptr, alloc);
     }
 
     Value tensor = rewriter.create<bufferization::ToTensorOp>(
