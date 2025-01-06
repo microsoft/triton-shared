@@ -382,28 +382,24 @@ private:
         op, staticTargetOffset.value_or(ShapedType::kDynamic), staticStrides,
         resultShape);
 
-    // The base ptr, which is from one of the args, would have already been
-    // converted to memref<*> at this point, so get the base from adaptor.
-    //
     // For block pointers, the base could come from a sequence of `tt.addptr`,
-    // which at this point has already been lowered to a sequence of
-    // `memref.reinterpret_cast` ops. The offset in such cases are dynamic.
-    // (see test/Conversion/StructuredToMemref/block_ptr_complex_offset.mlir)
-    //
-    // For non-block pointer cases, the base is the reinterpret_cast of a
-    // function argument. Assert that the offset is a constant 0 in such cases.
-    auto ptr = adaptor.getBase();
-    if (auto reinterpretCast = ptr.getDefiningOp<memref::ReinterpretCastOp>()) {
-      auto offset = reinterpretCast.getMixedOffsets()[0];
-      auto intAttr = getIntAttr(offset);
-      assert(isBlockPtr || (intAttr.has_value() && intAttr.value() == 0));
-      targetOffset = addOFRs(targetOffset, reinterpretCast.getMixedOffsets()[0],
-                             op->getLoc(), rewriter);
+    // which at this point has already been lowered a single
+    // tts.make_unstructured_tptr. The offset in such cases are dynamic. (see
+    // test/Conversion/StructuredToMemref/block_ptr_complex_offset.mlir)
+    // Update the target offset with the offset from tts.make_unstructured_tptr
+    if (auto makePtr =
+            op.getBase().getDefiningOp<tts::MakeUnstructuredTensorPtrOp>()) {
+      auto prevOff =
+          rewriter
+              .create<arith::IndexCastOp>(op.getLoc(), rewriter.getIndexType(),
+                                          makePtr.getOffset())
+              .getResult();
+      targetOffset = addOFRs(prevOff, targetOffset, op->getLoc(), rewriter);
     }
 
     auto castOp = rewriter.create<memref::ReinterpretCastOp>(
-        op.getLoc(), resultType, ptr, targetOffset, op.getMixedSizes(),
-        mixedStrides);
+        op.getLoc(), resultType, adaptor.getBase(), targetOffset,
+        op.getMixedSizes(), mixedStrides);
 
     rewriter.replaceOp(op, castOp);
 
