@@ -54,7 +54,7 @@ module {
 // CHECK-DAG:       [[VAR_1_:%.+]] = tensor.empty() : tensor<32x16xbf16>
 // CHECK:           [[VAR_2_:%.+]] = linalg.fill ins([[CST_0_dot_000000_]] : bf16) outs([[VAR_1_]] : tensor<32x16xbf16>) -> tensor<32x16xbf16>
 // CHECK:           [[VAR_reduced_:%.+]] = linalg.reduce ins([[VAR_0_]] : tensor<32x256x16xbf16>) outs([[VAR_2_]] : tensor<32x16xbf16>) dimensions = [1]
-// CHECK:             ([[in_]]: bf16, [[init_]]: bf16) {
+// CHECK:             ([[in_:.+]]: bf16, [[init_:.+]]: bf16) {
 // CHECK:               [[VAR_3_:%.+]] = arith.addf [[in_]], [[init_]] : bf16
 // CHECK:               linalg.yield [[VAR_3_]] : bf16
 // CHECK:             }
