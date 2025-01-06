@@ -1,4 +1,4 @@
-// RUN: triton-shared-opt --canonicalize --triton-arith-to-linalg --structured-to-memref %s | FileCheck %s
+// RUN: triton-shared-opt --triton-to-linalg-experimental %s | FileCheck %s
 
 module {
   tt.func @reduce_kernel_2d_0d(%arg0: !tt.ptr<f32> {tt.divisibility = 16 : i32}, %arg1: i32, %arg2: i32, %arg3: i32, %arg4: i32, %arg5: i32, %arg6: i32) {
@@ -22,24 +22,26 @@ module {
 }
 
 // CHECK-LABEL:  func.func @reduce_kernel_2d_0d
-// CHECK-SAME:   ([[PARAM_0_:%.+]]: memref<*xf32> {tt.divisibility = 16 : i32}, [[PARAM_1_:%.+]]: i32, [[PARAM_2_:%.+]]: i32, [[PARAM_3_:%.+]]: i32, [[PARAM_4_:%.+]]: i32, [[PARAM_5_:%.+]]: i32, [[PARAM_6_:%.+]]: i32) {
+// CHECK-SAME:   ([[PARAM_0_:%.+]]: memref<*xf32> {tt.divisibility = 16 : i32}, [[PARAM_1_:%.+]]: i32, [[PARAM_2_:%.+]]: i32, [[PARAM_3_:%.+]]: i32, [[PARAM_4_:%.+]]: i32, [[PARAM_5_:%.+]]: i32, [[PARAM_6_:%.+]]: i32, [[PARAM_7_:%.+]]: i32, [[PARAM_8_:%.+]]: i32, [[PARAM_9_:%.+]]: i32, [[PARAM_10_:%.+]]: i32, [[PARAM_11_:%.+]]: i32, [[PARAM_12_:%.+]]: i32) {
 // CHECK-DAG:       [[CST_1_:%.+]] = arith.constant 1 : index
 // CHECK-DAG:       [[CST_1_1_:%.+]] = arith.constant 1 : i32
-// CHECK-DAG:       [[CST_0_:%.+]] = arith.constant 0 : i32
 // CHECK-DAG:       [[CST_8_:%.+]] = arith.constant 8 : i32
 // CHECK-DAG:       [[CST_2_:%.+]] = arith.constant 2 : i32
+// CHECK-DAG:       [[CST_0_:%.+]] = arith.constant 0 : i32
 // CHECK-DAG:       [[VAR_0_:%.+]] = arith.index_cast [[PARAM_4_]] : i32 to index
-// CHECK:           [[VAR_reinterpret_cast_:%.+]] = memref.reinterpret_cast [[PARAM_0_]] to offset: {{.}}[[VAR_0_]]{{.}}, sizes: [1], strides: [1] : memref<*xf32> to memref<1xf32, strided<[1], offset: ?>>
-// CHECK-DAG:       [[VAR_1_:%.+]]:2 = scf.for [[VAR_arg7_:%.+]] = [[CST_0_]] to [[CST_8_]] step [[CST_1_1_]] iter_args([[VAR_arg8_:%.+]] = [[VAR_reinterpret_cast_]], [[VAR_arg9_:%.+]] = [[VAR_0_]]) -> (memref<1xf32, strided<[1], offset: ?>>, index)  : i32 {
-// CHECK-DAG:         [[VAR_2_:%.+]]:2 = scf.for [[VAR_arg10_:%.+]] = [[CST_0_]] to [[CST_2_]] step [[CST_1_1_]] iter_args([[VAR_arg11_:%.+]] = [[VAR_arg8_]], [[VAR_arg12_:%.+]] = [[VAR_arg9_]]) -> (memref<1xf32, strided<[1], offset: ?>>, index)  : i32 {
-// CHECK-DAG:           [[VAR_3_:%.+]] = arith.muli [[VAR_arg7_]], [[VAR_arg10_]] : i32
-// CHECK:               [[VAR_4_:%.+]] = arith.sitofp [[VAR_3_]] : i32 to f32
-// CHECK:               affine.store [[VAR_4_]], [[VAR_arg11_]][0] : memref<1xf32, strided<[1], offset: ?>>
-// CHECK:               [[VAR_5_:%.+]] = arith.addi [[VAR_arg12_]], [[CST_1_]] : index
-// CHECK:               [[VAR_reinterpret_cast_0_:%.+]] = memref.reinterpret_cast [[VAR_arg11_]] to offset: {{.}}[[VAR_5_]]{{.}}, sizes: [1], strides: [1] : memref<1xf32, strided<[1], offset: ?>> to memref<1xf32, strided<[1], offset: ?>>
-// CHECK:               scf.yield [[VAR_reinterpret_cast_0_]], [[VAR_5_]] : memref<1xf32, strided<[1], offset: ?>>, index
+// CHECK-NOT: separator of consecutive DAGs
+// CHECK-DAG:       [[VAR_1_:%.+]]:2 = scf.for [[VAR_arg13_:%.+]] = [[CST_0_]] to [[CST_8_]] step [[CST_1_1_]] iter_args([[VAR_arg14_:%.+]] = [[PARAM_4_]], [[VAR_arg15_:%.+]] = [[VAR_0_]]) -> (i32, index)  : i32 {
+// CHECK-DAG:         [[VAR_2_:%.+]]:2 = scf.for [[VAR_arg16_:%.+]] = [[CST_0_]] to [[CST_2_]] step [[CST_1_1_]] iter_args([[VAR_arg17_:%.+]] = [[VAR_arg14_]], [[VAR_arg18_:%.+]] = [[VAR_arg15_]]) -> (i32, index)  : i32 {
+// CHECK-DAG:           [[VAR_3_:%.+]] = arith.muli [[VAR_arg13_]], [[VAR_arg16_]] : i32
+// CHECK-NOT: separator of consecutive DAGs
+// CHECK-DAG:           [[VAR_4_:%.+]] = arith.sitofp [[VAR_3_]] : i32 to f32
+// CHECK-DAG:           [[VAR_reinterpret_cast_:%.+]] = memref.reinterpret_cast [[PARAM_0_]] to offset: {{.}}[[VAR_0_]]{{.}}, sizes: [1], strides: [1] : memref<*xf32> to memref<1xf32, strided<[1], offset: ?>>
+// CHECK:               affine.store [[VAR_4_]], [[VAR_reinterpret_cast_]][0] : memref<1xf32, strided<[1], offset: ?>>
+// CHECK-DAG:           [[VAR_5_:%.+]] = arith.addi [[VAR_arg18_]], [[CST_1_]] : index
+// CHECK-DAG:           [[VAR_6_:%.+]] = arith.addi [[PARAM_4_]], [[CST_1_1_]] : i32
+// CHECK:               scf.yield [[VAR_6_]], [[VAR_5_]] : i32, index
 // CHECK:             }
-// CHECK:             scf.yield [[VAR_2_]]#0, [[VAR_2_]]#1 : memref<1xf32, strided<[1], offset: ?>>, index
+// CHECK:             scf.yield [[VAR_2_]]#0, [[VAR_2_]]#1 : i32, index
 // CHECK:           }
 // CHECK:           return
 // CHECK:         }
