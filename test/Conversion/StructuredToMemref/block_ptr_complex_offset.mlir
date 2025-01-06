@@ -1,4 +1,4 @@
-// RUN: triton-shared-opt --fold-unstructured- --structured-to-memref --split-input-file %s | FileCheck %s
+// RUN: triton-shared-opt --structured-to-memref --split-input-file %s | FileCheck %s
 
 module {
   func.func @fused_attention_fwd_kernel(%arg0: !tt.ptr<bf16>, %arg1: !tt.ptr<bf16>, %arg2: i64, %arg3: i32, %arg4: i32, %arg5: i32, %arg6: i32, %arg7: i32, %arg8: i32, %arg9: i32) -> tensor<128x128xbf16> {
