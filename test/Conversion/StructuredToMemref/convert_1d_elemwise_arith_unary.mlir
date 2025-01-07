@@ -1,14 +1,14 @@
-// RUN: triton-shared-opt --split-input-file --triton-to-linalg-experimental %s | FileCheck %s
+// RUN: triton-shared-opt --triton-to-linalg-experimental %s | FileCheck %s
 module {
   tt.func @kernel(
     %f32ptr : !tt.ptr<f32>,
     %intptr : !tt.ptr<i32>,
     %f16ptr : !tt.ptr<f16>,
-    %save0 : tensor<1024x!tt.ptr<bf16>>,
-    %save1 : tensor<1024x!tt.ptr<f32>>,
-    %save2 : tensor<1024x!tt.ptr<f32>>,
-    %save3 : tensor<1024x!tt.ptr<f32>>,
-    %save4 : tensor<1024x!tt.ptr<f32>>
+    %save_ptr0 : !tt.ptr<bf16>,
+    %save_ptr1 : !tt.ptr<f32>,
+    %save_ptr2 : !tt.ptr<f32>,
+    %save_ptr3 : !tt.ptr<f32>,
+    %save_ptr4 : !tt.ptr<f32>
   ) -> () {
     // offset calculations
     %0 = tt.make_range {end = 1024 : i32, start = 0 : i32} : tensor<1024xi32>
@@ -29,6 +29,12 @@ module {
     %7 = arith.sitofp %aim : tensor<1024xi32> to tensor<1024xf32>
     %10 = arith.extf %bfm : tensor<1024xf16> to tensor<1024xf32>
     %11 = math.sqrt %afm : tensor<1024xf32>
+    // save pointers, intentionally splat the base pointer for brevity
+    %save0 = tt.splat %save_ptr0 : !tt.ptr<bf16> -> tensor<1024x!tt.ptr<bf16>>
+    %save1 = tt.splat %save_ptr1 : !tt.ptr<f32> -> tensor<1024x!tt.ptr<f32>>
+    %save2 = tt.splat %save_ptr2 : !tt.ptr<f32> -> tensor<1024x!tt.ptr<f32>>
+    %save3 = tt.splat %save_ptr3 : !tt.ptr<f32> -> tensor<1024x!tt.ptr<f32>>
+    %save4 = tt.splat %save_ptr4 : !tt.ptr<f32> -> tensor<1024x!tt.ptr<f32>>
     tt.store %save0, %5 : tensor<1024x!tt.ptr<bf16>>
     tt.store %save1, %6 : tensor<1024x!tt.ptr<f32>>
     tt.store %save2, %7 : tensor<1024x!tt.ptr<f32>>
@@ -40,7 +46,8 @@ module {
 
 // CHECK-DAG:   [[MAP_0_:#.+]] = affine_map<(d0) -> (d0)>
 // CHECK-LABEL:  func.func @kernel
-// CHECK-SAME:   ([[PARAM_0_:%.+]]: memref<*xf32>, [[PARAM_1_:%.+]]: memref<*xi32>, [[PARAM_2_:%.+]]: memref<*xf16>, [[PARAM_3_:%.+]]: tensor<1024x!tt.ptr<bf16>>, [[PARAM_4_:%.+]]: tensor<1024x!tt.ptr<f32>>, [[PARAM_5_:%.+]]: tensor<1024x!tt.ptr<f32>>, [[PARAM_6_:%.+]]: tensor<1024x!tt.ptr<f32>>, [[PARAM_7_:%.+]]: tensor<1024x!tt.ptr<f32>>, [[PARAM_8_:%.+]]: i32, [[PARAM_9_:%.+]]: i32, [[PARAM_10_:%.+]]: i32, [[PARAM_11_:%.+]]: i32, [[PARAM_12_:%.+]]: i32, [[PARAM_13_:%.+]]: i32) {
+// CHECK-SAME:   ([[PARAM_0_:%.+]]: memref<*xf32>, [[PARAM_1_:%.+]]: memref<*xi32>, [[PARAM_2_:%.+]]: memref<*xf16>, [[PARAM_3_:%.+]]: memref<*xbf16>, [[PARAM_4_:%.+]]: memref<*xf32>, [[PARAM_5_:%.+]]: memref<*xf32>, [[PARAM_6_:%.+]]: memref<*xf32>, [[PARAM_7_:%.+]]: memref<*xf32>, [[PARAM_8_:%.+]]: i32, [[PARAM_9_:%.+]]: i32, [[PARAM_10_:%.+]]: i32, [[PARAM_11_:%.+]]: i32, [[PARAM_12_:%.+]]: i32, [[PARAM_13_:%.+]]: i32) {
+// CHECK-DAG:       [[CST_0_:%.+]] = arith.constant 0 : index
 // CHECK-DAG:       [[VAR_reinterpret_cast_:%.+]] = memref.reinterpret_cast [[PARAM_0_]] to offset: [0], sizes: [1024], strides: [1] : memref<*xf32> to memref<1024xf32, strided<[1]>>
 // CHECK-DAG:       [[VAR_reinterpret_cast_0_:%.+]] = memref.reinterpret_cast [[PARAM_1_]] to offset: [0], sizes: [1024], strides: [1] : memref<*xi32> to memref<1024xi32, strided<[1]>>
 // CHECK-DAG:       [[VAR_reinterpret_cast_1_:%.+]] = memref.reinterpret_cast [[PARAM_2_]] to offset: [0], sizes: [1024], strides: [1] : memref<*xf16> to memref<1024xf16, strided<[1]>>
@@ -80,10 +87,30 @@ module {
 // CHECK:             [[VAR_10_4_:%.+]] = math.sqrt [[IN_8_]] : f32
 // CHECK:             linalg.yield [[VAR_10_4_]] : f32
 // CHECK:           } -> tensor<1024xf32>
-// CHECK:           tt.store [[PARAM_3_]], [[VAR_4_]] : tensor<1024x!tt.ptr<bf16>>
-// CHECK:           tt.store [[PARAM_4_]], [[VAR_5_]] : tensor<1024x!tt.ptr<f32>>
-// CHECK:           tt.store [[PARAM_5_]], [[VAR_7_]] : tensor<1024x!tt.ptr<f32>>
-// CHECK:           tt.store [[PARAM_6_]], [[VAR_8_]] : tensor<1024x!tt.ptr<f32>>
-// CHECK:           tt.store [[PARAM_7_]], [[VAR_9_]] : tensor<1024x!tt.ptr<f32>>
+// CHECK:           [[VAR_cast_:%.+]] = memref.cast [[PARAM_3_]] : memref<*xbf16> to memref<?xbf16>
+// CHECK:           affine.for [[I_0_:%.+]] = 0 to 1024 {
+// CHECK:             [[VAR_extracted_:%.+]] = tensor.extract [[VAR_4_]]{{.}}[[I_0_]]{{.}} : tensor<1024xbf16>
+// CHECK:             memref.store [[VAR_extracted_]], [[VAR_cast_]]{{.}}[[CST_0_]]{{.}} : memref<?xbf16>
+// CHECK:           }
+// CHECK:           [[VAR_cast_4_:%.+]] = memref.cast [[PARAM_4_]] : memref<*xf32> to memref<?xf32>
+// CHECK:           affine.for [[I_1_:%.+]] = 0 to 1024 {
+// CHECK:             [[VAR_extracted_1_:%.+]] = tensor.extract [[VAR_5_]]{{.}}[[I_1_]]{{.}} : tensor<1024xf32>
+// CHECK:             memref.store [[VAR_extracted_1_]], [[VAR_cast_4_]]{{.}}[[CST_0_]]{{.}} : memref<?xf32>
+// CHECK:           }
+// CHECK:           [[VAR_cast_5_:%.+]] = memref.cast [[PARAM_5_]] : memref<*xf32> to memref<?xf32>
+// CHECK:           affine.for [[I_2_:%.+]] = 0 to 1024 {
+// CHECK:             [[VAR_extracted_2_:%.+]] = tensor.extract [[VAR_7_]]{{.}}[[I_2_]]{{.}} : tensor<1024xf32>
+// CHECK:             memref.store [[VAR_extracted_2_]], [[VAR_cast_5_]]{{.}}[[CST_0_]]{{.}} : memref<?xf32>
+// CHECK:           }
+// CHECK:           [[VAR_cast_6_:%.+]] = memref.cast [[PARAM_6_]] : memref<*xf32> to memref<?xf32>
+// CHECK:           affine.for [[I_3_:%.+]] = 0 to 1024 {
+// CHECK:             [[VAR_extracted_3_:%.+]] = tensor.extract [[VAR_8_]]{{.}}[[I_3_]]{{.}} : tensor<1024xf32>
+// CHECK:             memref.store [[VAR_extracted_3_]], [[VAR_cast_6_]]{{.}}[[CST_0_]]{{.}} : memref<?xf32>
+// CHECK:           }
+// CHECK:           [[VAR_cast_7_:%.+]] = memref.cast [[PARAM_7_]] : memref<*xf32> to memref<?xf32>
+// CHECK:           affine.for [[I_4_:%.+]] = 0 to 1024 {
+// CHECK:             [[VAR_extracted_4_:%.+]] = tensor.extract [[VAR_9_]]{{.}}[[I_4_]]{{.}} : tensor<1024xf32>
+// CHECK:             memref.store [[VAR_extracted_4_]], [[VAR_cast_7_]]{{.}}[[CST_0_]]{{.}} : memref<?xf32>
+// CHECK:           }
 // CHECK:           return
 // CHECK:         }
