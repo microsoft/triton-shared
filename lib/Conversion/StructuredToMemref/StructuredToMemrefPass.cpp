@@ -24,7 +24,6 @@
 #include "mlir/Dialect/Bufferization/IR/Bufferization.h"
 #include "mlir/Dialect/Linalg/IR/Linalg.h"
 #include "mlir/Dialect/SCF/Transforms/Patterns.h"
-#include "mlir/Dialect/Tensor/TransformOps/TensorTransformOps.h"
 #include "mlir/Pass/PassManager.h"
 #include "triton/Dialect/Triton/IR/Types.h"
 #include "llvm/ADT/STLExtras.h"
