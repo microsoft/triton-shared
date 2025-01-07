@@ -27,7 +27,7 @@
 // ops.
 //
 // Leveraging these insights, we can simplify chains of tt.addptr,
-// tt.splat, and tt.broadcast which produce tt.addptr to just a sequence of
+// tt.splat, and tt.broadcast which produce triton pointers to just a sequence of
 // offset manipulation ops and a base pointer.
 //
 // In essence, this pass transforms all sequences of tt.addptr into sequences of
