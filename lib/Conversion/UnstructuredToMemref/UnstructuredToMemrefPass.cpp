@@ -65,7 +65,6 @@ static MemRefType getMemrefTypeForScalarPtr(triton::PointerType ptrType,
                                             MLIRContext *context) {
   SmallVector<int64_t> strides{1};
   auto layout = StridedLayoutAttr::get(context, ShapedType::kDynamic, strides);
-
   auto elemType = ptrType.getPointeeType();
   auto memrefType = MemRefType::get({1}, elemType, layout);
   return memrefType;
