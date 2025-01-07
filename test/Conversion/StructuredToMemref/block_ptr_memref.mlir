@@ -1,4 +1,4 @@
-// RUN: triton-shared-opt --structured-to-memref --unstructured-to-memref %s | FileCheck %s
+// RUN: triton-shared-opt --structured-to-memref --canonicalize %s | FileCheck %s
 // Check that the reinterpret_cast lowered from tts.make_tptr uses the correct offset from tts.make_unstructured_tptr
 
 module {
