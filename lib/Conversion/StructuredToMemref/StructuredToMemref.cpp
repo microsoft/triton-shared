@@ -59,13 +59,6 @@ static memref::SubViewOp getSubview(int rank, ArrayRef<OpFoldResult> dims,
                                      offsets, dims, strides);
 }
 
-static Value getPtr(Value v) {
-  while (auto op = v.getDefiningOp()) {
-    v = op->getOperand(0);
-  }
-  return v;
-}
-
 namespace {
 
 struct MakeTensorPtrConverter
