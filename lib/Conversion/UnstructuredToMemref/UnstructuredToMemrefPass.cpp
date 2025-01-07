@@ -410,9 +410,9 @@ struct MakePtrConverter
   matchAndRewrite(tts::MakeUnstructuredTensorPtrOp op, OpAdaptor adaptor,
                   ConversionPatternRewriter &rewriter) const override {
     // The base pointer that is used in load/store comes from
-    // tts.make_unstructured_tptr's input. Simply replace the op with the base
+    // tts.make_unstructured_tptr. Simply replace the op with the base
     // pointer.
-    rewriter.replaceOp(op, adaptor.getInput());
+    rewriter.replaceOp(op, adaptor.getBase());
     return success();
   }
 };
