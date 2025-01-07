@@ -273,17 +273,25 @@ struct LoadOpConverter : public OpConversionPattern<triton::LoadOp> {
                 [&](OpBuilder &b, Location loc) {
                   // Falsy case, yield `other` or 0 as the default value
                   if (loadOp.getOther()) {
-                    auto constOp =
-                        loadOp.getOther().getDefiningOp<arith::ConstantOp>();
-                    if (auto attr =
-                            dyn_cast<DenseElementsAttr>(constOp.getValue())) {
-                      assert(attr.isSplat());
-                      auto elemValue = attr.getSplatValue<Attribute>();
-                      auto otherValue = arith::ConstantOp::materialize(
-                          b, elemValue, attr.getElementType(), loc);
-                      b.create<scf::YieldOp>(loc, otherValue.getResult());
+                    auto definingOp = loadOp.getOther().getDefiningOp();
+                    if (auto constOp =
+                            dyn_cast<arith::ConstantOp>(definingOp)) {
+                      if (auto attr =
+                              dyn_cast<DenseElementsAttr>(constOp.getValue())) {
+                        assert(attr.isSplat());
+                        auto elemValue = attr.getSplatValue<Attribute>();
+                        auto otherValue = arith::ConstantOp::materialize(
+                            b, elemValue, attr.getElementType(), loc);
+                        b.create<scf::YieldOp>(loc, otherValue.getResult());
+                      } else {
+                        llvm_unreachable("unexpected constant op");
+                      }
+                    } else if (auto fillOp =
+                                   dyn_cast<linalg::FillOp>(definingOp)) {
+                      b.create<scf::YieldOp>(loc, fillOp.value());
                     } else {
-                      llvm_unreachable("unexpected constant op");
+                      definingOp->dump();
+                      llvm_unreachable("unexpected defining op");
                     }
                   } else {
                     auto elemType = baseTensor.getType().getElementType();

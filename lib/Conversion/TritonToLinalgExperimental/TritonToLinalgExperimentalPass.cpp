@@ -57,11 +57,9 @@ public:
     pm.addPass(createFoldUnstructuredTritonAddPtrPass());
     pm.addPass(createTritonArithToLinalgPass());
 
-    pm.addPass(createTritonPtrToMemrefPass());
-
     pm.addPass(createStructuredToMemrefPass());
     pm.addPass(createUnstructuredToMemrefPass());
-
+    pm.addPass(createTritonPtrToMemrefPass());
     pm.addPass(createReconcileUnrealizedCastsPass());
 
     pm.addPass(createCSEPass());
