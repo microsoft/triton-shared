@@ -30,5 +30,5 @@ add_triton_library(TritonToLinalgExperimental
   TritonToStructured
   FoldUnstructuredTritonAddPtr
   TritonPtrToMemref
-  TritonLoadStoreToMemref
+  UnstructuredToMemref
 )

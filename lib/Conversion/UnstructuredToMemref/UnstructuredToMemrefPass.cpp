@@ -8,7 +8,7 @@
 #include "triton/Dialect/Triton/IR/Dialect.h"
 #include "triton/Dialect/Triton/IR/Types.h"
 
-#include "triton-shared/Conversion/TritonLoadStoreToMemref/TritonLoadStoreToMemref.h"
+#include "triton-shared/Conversion/UnstructuredToMemref/UnstructuredToMemref.h"
 #include "triton-shared/Dialect/TritonStructured/IR/TritonStructuredDialect.h"
 #include "triton-shared/Dialect/TritonTilingExt/IR/TritonTilingExtDialect.h"
 
@@ -26,6 +26,7 @@
 #include "mlir/IR/Value.h"
 #include "mlir/IR/ValueRange.h"
 #include "mlir/Pass/PassManager.h"
+#include "mlir/Transforms/DialectConversion.h"
 
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SmallVector.h"
@@ -33,13 +34,13 @@
 #include <cassert>
 #include <cstdint>
 
-#define DEBUG_TYPE "triton-load-store-to-memref"
+#define DEBUG_TYPE "unstructured-to-memref"
 
 using namespace mlir;
 using namespace triton;
 
 #define GEN_PASS_CLASSES
-#include "triton-shared/Conversion/TritonLoadStoreToMemref/Passes.h.inc"
+#include "triton-shared/Conversion/UnstructuredToMemref/Passes.h.inc"
 
 namespace {
 
@@ -80,19 +81,19 @@ struct ScalarLoadConverter : public OpConversionPattern<triton::LoadOp> {
       : OpConversionPattern<triton::LoadOp>(context) {}
 
   LogicalResult
-  matchAndRewrite(triton::LoadOp op, OpAdaptor adaptor,
+  matchAndRewrite(triton::LoadOp loadOp, OpAdaptor adaptor,
                   ConversionPatternRewriter &rewriter) const override {
-    if (!op.getType().isIntOrIndexOrFloat()) {
+    if (!loadOp.getType().isIntOrIndexOrFloat()) {
       return failure();
     }
 
-    auto castOp = op.getPtr().getDefiningOp<tts::MakeUnstructuredTensorPtrOp>();
+    auto loc = loadOp->getLoc();
 
-    auto results = op->getResultTypes();
+    auto makePtrOp =
+        loadOp.getPtr().getDefiningOp<tts::MakeUnstructuredTensorPtrOp>();
 
-    auto loc = op->getLoc();
     auto basePtr = adaptor.getPtr();
-    auto offsets = castOp.getOffset();
+    auto offsets = makePtrOp.getOffset();
 
     Value loadIndex = rewriter.create<arith::IndexCastOp>(
         loc, rewriter.getIndexType(), offsets);
@@ -100,7 +101,7 @@ struct ScalarLoadConverter : public OpConversionPattern<triton::LoadOp> {
     auto memref = rewriter.create<memref::ReinterpretCastOp>(
         loc,
         getMemrefTypeForScalarPtr(
-            cast<triton::PointerType>(op.getPtr().getType()),
+            cast<triton::PointerType>(loadOp.getPtr().getType()),
             rewriter.getContext()),
         basePtr, getAsOpFoldResult(loadIndex) /*offset*/,
         ArrayRef<OpFoldResult>{rewriter.getIndexAttr(1)} /*sizes*/,
@@ -108,9 +109,10 @@ struct ScalarLoadConverter : public OpConversionPattern<triton::LoadOp> {
 
     auto zeroMap = AffineMap::getConstantMap(0, rewriter.getContext());
 
-    auto loadOp = rewriter.create<affine::AffineLoadOp>(loc, memref, zeroMap,
-                                                        std::nullopt);
-    rewriter.replaceOp(op, loadOp.getResult());
+    auto scalarLoadOp = rewriter.create<affine::AffineLoadOp>(
+        loc, memref, zeroMap, std::nullopt);
+
+    rewriter.replaceOp(loadOp, scalarLoadOp.getResult());
 
     return success();
   }
@@ -126,20 +128,20 @@ struct ScalarStoreConverter : public OpConversionPattern<triton::StoreOp> {
       : OpConversionPattern<triton::StoreOp>(context) {}
 
   LogicalResult
-  matchAndRewrite(triton::StoreOp op, OpAdaptor adaptor,
+  matchAndRewrite(triton::StoreOp storeOp, OpAdaptor adaptor,
                   ConversionPatternRewriter &rewriter) const override {
 
-    if (!op.getValue().getType().isIntOrIndexOrFloat()) {
+    if (!storeOp.getValue().getType().isIntOrIndexOrFloat()) {
       return failure();
     }
 
-    auto castOp = op.getPtr().getDefiningOp<tts::MakeUnstructuredTensorPtrOp>();
+    auto loc = storeOp->getLoc();
 
-    auto results = op->getResultTypes();
+    auto makePtrOp =
+        storeOp.getPtr().getDefiningOp<tts::MakeUnstructuredTensorPtrOp>();
 
-    auto loc = op->getLoc();
     auto basePtr = adaptor.getPtr();
-    auto offsets = castOp.getOffset();
+    auto offsets = makePtrOp.getOffset();
 
     Value storeIndex = rewriter.create<arith::IndexCastOp>(
         loc, rewriter.getIndexType(), offsets);
@@ -147,18 +149,18 @@ struct ScalarStoreConverter : public OpConversionPattern<triton::StoreOp> {
     auto memref = rewriter.create<memref::ReinterpretCastOp>(
         loc,
         getMemrefTypeForScalarPtr(
-            cast<triton::PointerType>(op.getPtr().getType()),
+            cast<triton::PointerType>(storeOp.getPtr().getType()),
             rewriter.getContext()),
         basePtr, getAsOpFoldResult(storeIndex) /*offset*/,
         ArrayRef<OpFoldResult>{rewriter.getIndexAttr(1)} /*sizes*/,
         ArrayRef<OpFoldResult>{rewriter.getIndexAttr(1)} /*strides*/);
 
-    auto val = op.getValue();
+    auto val = storeOp.getValue();
     auto zeroMap = AffineMap::getConstantMap(0, rewriter.getContext());
 
     rewriter.create<affine::AffineStoreOp>(loc, val, memref, zeroMap,
                                            std::nullopt);
-    rewriter.eraseOp(op);
+    rewriter.eraseOp(storeOp);
 
     return success();
   }
@@ -176,14 +178,13 @@ struct LoadOpConverter : public OpConversionPattern<triton::LoadOp> {
   LogicalResult
   matchAndRewrite(triton::LoadOp loadOp, OpAdaptor adaptor,
                   ConversionPatternRewriter &rewriter) const override {
+    auto loc = loadOp->getLoc();
 
-    auto op = loadOp.getPtr().getDefiningOp<tts::MakeUnstructuredTensorPtrOp>();
+    auto makePtrOp =
+        loadOp.getPtr().getDefiningOp<tts::MakeUnstructuredTensorPtrOp>();
 
-    auto results = op->getResultTypes();
-
-    auto loc = op->getLoc();
     auto ptr = adaptor.getPtr();
-    auto offsets = op.getOffset();
+    auto offsets = makePtrOp.getOffset();
     auto offsetType = dyn_cast<ShapedType>(offsets.getType());
 
     if (!offsetType) {
@@ -221,9 +222,8 @@ struct LoadOpConverter : public OpConversionPattern<triton::LoadOp> {
         loadOp.getMask() ? 3 : 2,
         rewriter.getMultiDimIdentityMap(resultType.getRank()));
 
-    // auto genericOp = rewriter.create<linalg::GenericOp>(loc);
-
     SmallVector<Value> inputs{offsets};
+
     if (loadOp.getMask()) {
       inputs.push_back(loadOp.getMask());
     }
@@ -296,20 +296,18 @@ struct StoreOpConverter : public OpConversionPattern<triton::StoreOp> {
   LogicalResult
   matchAndRewrite(triton::StoreOp storeOp, OpAdaptor adaptor,
                   ConversionPatternRewriter &rewriter) const override {
+    auto loc = storeOp->getLoc();
 
-    auto op =
+    auto makePtrOp =
         storeOp.getPtr().getDefiningOp<tts::MakeUnstructuredTensorPtrOp>();
 
-    auto results = op->getResultTypes();
-
-    auto loc = op->getLoc();
     auto ptr = adaptor.getPtr();
-    auto offsets = op.getOffset();
+    auto offsets = makePtrOp.getOffset();
     auto offsetType = dyn_cast<ShapedType>(offsets.getType());
 
     if (!offsetType) {
       offsets.dump();
-      op.dump();
+      makePtrOp.dump();
       llvm::dbgs() << "offset type:\n";
       offsets.getType().dump();
       return failure();
@@ -333,8 +331,6 @@ struct StoreOpConverter : public OpConversionPattern<triton::StoreOp> {
         loc,
         MemRefType::get({ShapedType::kDynamic}, resultType.getElementType()),
         ptr);
-
-    // auto genericOp = rewriter.create<linalg::GenericOp>(loc);
 
     auto zero =
         rewriter.create<arith::ConstantOp>(loc, rewriter.getIndexAttr(0));
@@ -405,13 +401,16 @@ struct MakePtrConverter
   LogicalResult
   matchAndRewrite(tts::MakeUnstructuredTensorPtrOp op, OpAdaptor adaptor,
                   ConversionPatternRewriter &rewriter) const override {
+    // The base pointer that is used in load/store comes from
+    // tts.make_unstructured_tptr's input. Simply replace the op with the base
+    // pointer.
     rewriter.replaceOp(op, adaptor.getInput());
     return success();
   }
 };
 
-class TritonLoadStoreToMemrefPass
-    : public TritonLoadStoreToMemrefBase<TritonLoadStoreToMemrefPass> {
+class UnstructuredToMemrefPass
+    : public UnstructuredToMemrefBase<UnstructuredToMemrefPass> {
 
 public:
   void getDependentDialects(DialectRegistry &registry) const override {
@@ -451,6 +450,6 @@ public:
 } // namespace
 
 std::unique_ptr<OperationPass<ModuleOp>>
-triton::createTritonLoadStoreToMemrefPass() {
-  return std::make_unique<TritonLoadStoreToMemrefPass>();
+triton::createUnstructuredToMemrefPass() {
+  return std::make_unique<UnstructuredToMemrefPass>();
 }

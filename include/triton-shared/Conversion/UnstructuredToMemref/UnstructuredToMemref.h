@@ -5,18 +5,17 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef TRITON_LOAD_STORE_TO_MEMREF_CONVERSION_PASSES_H
-#define TRITON_LOAD_STORE_TO_MEMREF_CONVERSION_PASSES_H
+#ifndef TRITON_CONVERSION_UNSTRUCTUREDTOMEMREF_UNSTRUCTUREDTOMEMREF_H
+#define TRITON_CONVERSION_UNSTRUCTUREDTOMEMREF_UNSTRUCTUREDTOMEMREF_H
 
-#include "triton-shared/Conversion/TritonLoadStoreToMemref/TritonLoadStoreToMemref.h"
+#include "mlir/Pass/Pass.h"
 
 namespace mlir {
 namespace triton {
 
-#define GEN_PASS_REGISTRATION
-#include "triton-shared/Conversion/TritonLoadStoreToMemref/Passes.h.inc"
+std::unique_ptr<OperationPass<ModuleOp>> createUnstructuredToMemrefPass();
 
 } // namespace triton
 } // namespace mlir
 
-#endif
+#endif // TRITON_CONVERSION_UNSTRUCTUREDTOMEMREF_UNSTRUCTUREDTOMEMREF_H

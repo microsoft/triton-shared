@@ -4,11 +4,11 @@
 #
 #===------------------------------------------------------------------------===#
 
-add_triton_library(TritonLoadStoreToMemref
-  TritonLoadStoreToMemrefPass.cpp
+add_triton_library(UnstructuredToMemref
+  UnstructuredToMemrefPass.cpp
 
   DEPENDS
-  TritonLoadStoreToMemrefConversionPassIncGen
+  UnstructuredToMemrefConversionPassIncGen
 
   LINK_LIBS PUBLIC
   TritonTilingExtIR

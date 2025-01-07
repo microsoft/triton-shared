@@ -5,5 +5,5 @@
 #===------------------------------------------------------------------------===#
 
 set(LLVM_TARGET_DEFINITIONS Passes.td)
-mlir_tablegen(Passes.h.inc -gen-pass-decls --name TritonLoadStoreToMemref)
-add_public_tablegen_target(TritonLoadStoreToMemrefConversionPassIncGen)
+mlir_tablegen(Passes.h.inc -gen-pass-decls --name UnstructuredToMemref)
+add_public_tablegen_target(UnstructuredToMemrefConversionPassIncGen)
