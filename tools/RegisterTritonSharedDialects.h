@@ -14,6 +14,7 @@
 
 #include "triton/Conversion/TritonToTritonGPU/Passes.h"
 
+#include "triton-shared/Conversion/FoldUnstructuredPtr/Passes.h"
 #include "triton-shared/Conversion/StructuredToMemref/Passes.h"
 #include "triton-shared/Conversion/TritonArithToLinalg/Passes.h"
 #include "triton-shared/Conversion/TritonPtrToMemref/Passes.h"
@@ -49,6 +50,7 @@ inline void registerTritonSharedDialects(mlir::DialectRegistry &registry) {
   mlir::triton::registerTritonToStructuredPass();
   mlir::triton::registerUnstructuredToMemref();
   mlir::triton::registerTritonPtrToMemref();
+  mlir::triton::registerFoldUnstructuredPtrPasses();
   mlir::triton::registerTritonArithToLinalgPasses();
   mlir::triton::registerConvertTritonToTritonGPUPass();
   mlir::triton::registerStructuredToMemrefPasses();
