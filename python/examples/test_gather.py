@@ -20,7 +20,21 @@ def test_gather_div(device):
 
 
     @triton.jit
-    def gather_simple_mask(in0, out0):
+    def gather_simple_mask_no_other(in0, out0):
+        offs = tl.arange(0, 64)
+        out_offs = tl.arange(0, 64)
+        mask_bound = 8
+        for i in range(0, 2):
+            gather_offs = offs // 4
+            a = tl.load(in0 + gather_offs, mask=gather_offs < mask_bound)
+            tl.store(out0 + out_offs, a)
+            mask_bound += 16
+            offs += 64
+            out_offs += 64
+
+
+    @triton.jit
+    def gather_simple_mask_with_other(in0, out0):
         offs = tl.arange(0, 64)
         out_offs = tl.arange(0, 64)
         mask_bound = 8
@@ -34,15 +48,15 @@ def test_gather_div(device):
 
 
     @triton.jit
-    def gather_scatter(in0, out0):
+    def masked_gather_scatter(in0, out0):
         offs = tl.arange(0, 4)
         out_offs = tl.arange(0, 4)
         for i in range(0, 2):
             # offs = offs % i
             offs = offs // 3 + i
             mask = offs < 64
-            a = tl.load(in0 + offs, mask=mask)
-            tl.store(out0 + offs, a)
+            a = tl.load(in0 + offs, mask=mask, other=99)
+            tl.store(out0 + offs, a, mask=mask)
             offs += 4
             out_offs += 4
 
@@ -97,7 +111,7 @@ def test_gather_div(device):
     # print(input)
     # print(output)
     src = triton.compiler.ASTSource(
-        fn=gather_scatter,
+        fn=masked_gather_scatter,
         signature="*fp32,*fp32",
     )
     ret = triton.compile(
