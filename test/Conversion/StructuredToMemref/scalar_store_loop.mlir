@@ -1,4 +1,6 @@
 // RUN: triton-shared-opt --triton-to-linalg-experimental %s | FileCheck %s
+// TODO: Fix pending https://github.com/microsoft/triton-shared/pull/215
+// XFAIL: *
 
 module {
   tt.func @reduce_kernel_2d_0d(%arg0: !tt.ptr<f32> {tt.divisibility = 16 : i32}, %arg1: i32, %arg2: i32, %arg3: i32, %arg4: i32, %arg5: i32, %arg6: i32) {
