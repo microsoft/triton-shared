@@ -22,26 +22,25 @@ module {
   }
 }
 
-// CHECK: module {
-// CHECK:   func.func @addptr(%arg0: memref<*xf32>, %arg1: memref<*xf32>, %arg2: i32, %arg3: i32, %arg4: i32, %arg5: i32, %arg6: i32, %arg7: i32) {
-// CHECK-DAG:     %c2 = arith.constant 2 : index
-// CHECK-DAG:     %c0_i32 = arith.constant 0 : i32
-// CHECK-DAG:     %c10_i32 = arith.constant 10 : i32
-// CHECK-DAG:     %c2_i32 = arith.constant 2 : i32
-// CHECK-DAG:     %c1 = arith.constant 1 : index
-// CHECK:     scf.for %arg8 = %c0_i32 to %c10_i32 step %c2_i32  : i32 {
-// CHECK:       %0 = arith.index_cast %arg8 : i32 to index
-// CHECK:       %1 = arith.addi %0, %c1 : index
-// CHECK:       %reinterpret_cast = memref.reinterpret_cast %arg0 to offset: [%1], sizes: [1], strides: [1] : memref<*xf32> to memref<1xf32, strided<[1], offset: ?>>
-// CHECK:       %2 = arith.addi %0, %c2 : index
-// CHECK:       %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%2], sizes: [1], strides: [1] : memref<*xf32> to memref<1xf32, strided<[1], offset: ?>>
-// CHECK:       %reinterpret_cast_1 = memref.reinterpret_cast %arg1 to offset: [%1], sizes: [1], strides: [1] : memref<*xf32> to memref<1xf32, strided<[1], offset: ?>>
-// CHECK:       %reinterpret_cast_2 = memref.reinterpret_cast %arg1 to offset: [%2], sizes: [1], strides: [1] : memref<*xf32> to memref<1xf32, strided<[1], offset: ?>>
-// CHECK:       %3 = affine.load %reinterpret_cast[0] : memref<1xf32, strided<[1], offset: ?>>
-// CHECK:       %4 = affine.load %reinterpret_cast_0[0] : memref<1xf32, strided<[1], offset: ?>>
-// CHECK:       affine.store %3, %reinterpret_cast_1[0] : memref<1xf32, strided<[1], offset: ?>>
-// CHECK:       affine.store %4, %reinterpret_cast_2[0] : memref<1xf32, strided<[1], offset: ?>>
-// CHECK:     }
-// CHECK:     return
-// CHECK:   }
-// CHECK: }
+// CHECK-LABEL:  func.func @addptr
+// CHECK-SAME:   ([[PARAM_0_:%.+]]: memref<*xf32>, [[PARAM_1_:%.+]]: memref<*xf32>, [[PARAM_2_:%.+]]: i32, [[PARAM_3_:%.+]]: i32, [[PARAM_4_:%.+]]: i32, [[PARAM_5_:%.+]]: i32, [[PARAM_6_:%.+]]: i32, [[PARAM_7_:%.+]]: i32) {
+// CHECK-DAG:       [[CST_1_:%.+]] = arith.constant 1 : i32
+// CHECK-DAG:       [[CST_10_:%.+]] = arith.constant 10 : i32
+// CHECK-DAG:       [[CST_2_:%.+]] = arith.constant 2 : i32
+// CHECK-DAG:       [[CST_0_:%.+]] = arith.constant 0 : i32
+// CHECK:           scf.for [[I_0_:%.+]] = [[CST_0_]] to [[CST_10_]] step [[CST_2_]]  : i32 {
+// CHECK-DAG:         [[VAR_0_:%.+]] = arith.addi [[I_0_]], [[CST_1_]] : i32
+// CHECK-DAG:         [[VAR_1_:%.+]] = arith.addi [[I_0_]], [[CST_2_]] : i32
+// CHECK:             [[VAR_2_:%.+]] = arith.index_cast [[VAR_0_]] : i32 to index
+// CHECK:             [[VAR_reinterpret_cast_:%.+]] = memref.reinterpret_cast [[PARAM_0_]] to offset: {{.}}[[VAR_2_]]{{.}}, sizes: [1], strides: [1] : memref<*xf32> to memref<1xf32, strided<[1], offset: ?>>
+// CHECK-DAG:         [[LOAD_VAR_reinterpret_cast_MEM_:%.+]] = affine.load [[VAR_reinterpret_cast_]][0] : memref<1xf32, strided<[1], offset: ?>>
+// CHECK-DAG:         [[VAR_4_:%.+]] = arith.index_cast [[VAR_1_]] : i32 to index
+// CHECK:             [[VAR_reinterpret_cast_0_:%.+]] = memref.reinterpret_cast [[PARAM_0_]] to offset: {{.}}[[VAR_4_]]{{.}}, sizes: [1], strides: [1] : memref<*xf32> to memref<1xf32, strided<[1], offset: ?>>
+// CHECK-DAG:         [[LOAD_VAR_reinterpret_cast_0_MEM_:%.+]] = affine.load [[VAR_reinterpret_cast_0_]][0] : memref<1xf32, strided<[1], offset: ?>>
+// CHECK-DAG:         [[VAR_reinterpret_cast_1_:%.+]] = memref.reinterpret_cast [[PARAM_1_]] to offset: {{.}}[[VAR_2_]]{{.}}, sizes: [1], strides: [1] : memref<*xf32> to memref<1xf32, strided<[1], offset: ?>>
+// CHECK:             affine.store [[LOAD_VAR_reinterpret_cast_MEM_]], [[VAR_reinterpret_cast_1_]][0] : memref<1xf32, strided<[1], offset: ?>>
+// CHECK:             [[VAR_reinterpret_cast_2_:%.+]] = memref.reinterpret_cast [[PARAM_1_]] to offset: {{.}}[[VAR_4_]]{{.}}, sizes: [1], strides: [1] : memref<*xf32> to memref<1xf32, strided<[1], offset: ?>>
+// CHECK:             affine.store [[LOAD_VAR_reinterpret_cast_0_MEM_]], [[VAR_reinterpret_cast_2_]][0] : memref<1xf32, strided<[1], offset: ?>>
+// CHECK:           }
+// CHECK:           return
+// CHECK:         }
