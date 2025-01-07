@@ -5,9 +5,12 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "triton/Dialect/Triton/IR/Types.h"
+
+#include "triton-shared/Analysis/OpFoldResultUtils.h"
 #include "triton-shared/Conversion/StructuredToMemref/StructuredToMemref.h"
-#include "mlir/Dialect/Arith/IR/Arith.h"
-#include "mlir/Dialect/SCF/IR/SCF.h"
+#include "triton-shared/Dialect/TritonStructured/IR/TritonStructuredDialect.h"
+
 #include "mlir/IR/Builders.h"
 #include "mlir/IR/BuiltinOps.h"
 #include "mlir/IR/BuiltinTypeInterfaces.h"
@@ -18,23 +21,17 @@
 #include "mlir/IR/Types.h"
 #include "mlir/Support/LogicalResult.h"
 #include "mlir/Transforms/DialectConversion.h"
-#include "triton-shared/Analysis/OpFoldResultUtils.h"
-#include "triton-shared/Dialect/TritonStructured/IR/TritonStructuredDialect.h"
 
-#include "triton/Dialect/Triton/IR/Dialect.h"
-
-#include "mlir/Dialect/Affine/IR/AffineOps.h"
+#include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/Bufferization/IR/Bufferization.h"
 #include "mlir/Dialect/Linalg/IR/Linalg.h"
 #include "mlir/Dialect/MemRef/IR//MemRef.h"
-#include "triton/Dialect/Triton/IR/Types.h"
-
+#include "mlir/Dialect/SCF/IR/SCF.h"
 #include "mlir/Dialect/Utils/StaticValueUtils.h"
+
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SmallVector.h"
-#include "llvm/Support/Debug.h"
-#include "llvm/Support/LogicalResult.h"
 
 #include <algorithm>
 #include <cassert>
@@ -52,7 +49,6 @@ static const std::string WRAP_STACKED = "wrap_stacked";
 
 static memref::SubViewOp getSubview(int rank, ArrayRef<OpFoldResult> dims,
                                     Value source, Location loc, OpBuilder &b) {
-  source.dump();
   auto sourceType = cast<MemRefType>(source.getType());
   SmallVector<OpFoldResult> offsets(rank, b.getIndexAttr(0));
   SmallVector<OpFoldResult> strides(rank, b.getIndexAttr(1));
@@ -384,9 +380,12 @@ private:
 
     // For block pointers, the base could come from a sequence of `tt.addptr`,
     // which at this point has already been lowered a single
-    // tts.make_unstructured_tptr. The offset in such cases are dynamic. (see
-    // test/Conversion/StructuredToMemref/block_ptr_complex_offset.mlir)
-    // Update the target offset with the offset from tts.make_unstructured_tptr
+    // tts.make_unstructured_tptr via --fold-unstructured-ptr. The offset in
+    // such cases is dynamic and comes from the second operand of
+    // tts.make_unstructured_tptr. See
+    // test/Conversion/StructuredToMemref/block_ptr_complex_offset.mlir
+    // Accumulate the target offset with the offset from
+    // tts.make_unstructured_tptr.
     if (auto makePtr =
             op.getBase().getDefiningOp<tts::MakeUnstructuredTensorPtrOp>()) {
       auto prevOff =
@@ -719,8 +718,8 @@ private:
   }
 
 public:
-  // LoadConverter(const TypeConverter &typeConverter, MLIRContext *context)
-  //     : OpConversionPattern<tts::LoadOp>(typeConverter, context) {}
+  LoadConverter(const TypeConverter &typeConverter, MLIRContext *context)
+      : OpConversionPattern<tts::LoadOp>(typeConverter, context) {}
 
   LogicalResult
   matchAndRewrite(tts::LoadOp op, OpAdaptor adaptor,
@@ -752,8 +751,8 @@ private:
   }
 
 public:
-  // StoreConverter(const TypeConverter &typeConverter, MLIRContext *context)
-  //     : OpConversionPattern<tts::StoreOp>(typeConverter, context) {}
+  StoreConverter(const TypeConverter &typeConverter, MLIRContext *context)
+      : OpConversionPattern<tts::StoreOp>(typeConverter, context) {}
 
   LogicalResult
   matchAndRewrite(tts::StoreOp op, OpAdaptor adaptor,
@@ -780,39 +779,6 @@ public:
     }
 
     rewriter.eraseOp(op);
-    return success();
-  }
-};
-
-struct UnrealizedCastConverter
-    : public OpConversionPattern<UnrealizedConversionCastOp> {
-private:
-  using OpConversionPattern<UnrealizedConversionCastOp>::OpConversionPattern;
-
-public:
-  // UnrealizedCastConverter(TypeConverter &typeConverter, MLIRContext *context)
-  //     : OpConversionPattern<UnrealizedConversionCastOp>(typeConverter,
-  //                                                       context) {}
-
-  LogicalResult
-  matchAndRewrite(UnrealizedConversionCastOp op, OpAdaptor adaptor,
-                  ConversionPatternRewriter &rewriter) const override {
-    auto resType = op->getResultTypes()[0];
-    auto input = op.getInputs()[0];
-    auto inputType = input.getType();
-
-    if (isa<triton::PointerType>(resType) &&
-        isa<MemRefType, UnrankedMemRefType>(inputType)) {
-      // rewriter.replaceAllOpUsesWith(op, input);
-      // rewriter.eraseOp(op);
-      llvm::dbgs() << "ok case\n";
-      op->dump();
-      input.dump();
-      rewriter.replaceOp(op, input);
-    } else {
-      return llvm::failure();
-    }
-
     return success();
   }
 };

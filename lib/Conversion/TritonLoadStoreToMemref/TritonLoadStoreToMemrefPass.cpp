@@ -5,7 +5,18 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "triton/Dialect/Triton/IR/Dialect.h"
+#include "triton/Dialect/Triton/IR/Types.h"
+
+#include "triton-shared/Conversion/TritonLoadStoreToMemref/TritonLoadStoreToMemref.h"
+#include "triton-shared/Dialect/TritonStructured/IR/TritonStructuredDialect.h"
+#include "triton-shared/Dialect/TritonTilingExt/IR/TritonTilingExtDialect.h"
+
+#include "mlir/Dialect/Affine/IR/AffineOps.h"
 #include "mlir/Dialect/Arith/IR/Arith.h"
+#include "mlir/Dialect/Bufferization/IR/Bufferization.h"
+#include "mlir/Dialect/Linalg/IR/Linalg.h"
+#include "mlir/Dialect/MemRef/IR/MemRef.h"
 #include "mlir/Dialect/SCF/IR/SCF.h"
 #include "mlir/Dialect/Tensor/IR/Tensor.h"
 #include "mlir/IR/Builders.h"
@@ -14,18 +25,7 @@
 #include "mlir/IR/BuiltinTypes.h"
 #include "mlir/IR/Value.h"
 #include "mlir/IR/ValueRange.h"
-#include "triton-shared/Conversion/TritonLoadStoreToMemref/TritonLoadStoreToMemref.h"
-#include "triton-shared/Dialect/TritonStructured/IR/TritonStructuredDialect.h"
-#include "triton-shared/Dialect/TritonTilingExt/IR/TritonTilingExtDialect.h"
-
-#include "triton/Dialect/Triton/IR/Dialect.h"
-
-#include "mlir/Dialect/Affine/IR/AffineOps.h"
-#include "mlir/Dialect/Bufferization/IR/Bufferization.h"
-#include "mlir/Dialect/Linalg/IR/Linalg.h"
-#include "mlir/Dialect/MemRef/IR/MemRef.h"
 #include "mlir/Pass/PassManager.h"
-#include "triton/Dialect/Triton/IR/Types.h"
 
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SmallVector.h"
@@ -43,10 +43,9 @@ using namespace triton;
 
 namespace {
 
-class EmptyConverter : public TypeConverter {
+class PtrToUnrankedMemrefConverter : public TypeConverter {
 public:
-  EmptyConverter() {
-    // // The order of type conversion is important: later ones are tried
+  PtrToUnrankedMemrefConverter() {
     addConversion([](Type type) { return type; });
     addConversion([](triton::PointerType ptrType) {
       return UnrankedMemRefType::get(ptrType.getPointeeType(), 0);
@@ -439,8 +438,8 @@ public:
     target.addIllegalOp<triton::LoadOp, triton::StoreOp,
                         tts::MakeUnstructuredTensorPtrOp>();
 
-    EmptyConverter t;
-    patterns.add<MakePtrConverter>(t, patterns.getContext());
+    PtrToUnrankedMemrefConverter typeConverter;
+    patterns.add<MakePtrConverter>(typeConverter, patterns.getContext());
 
     patterns.add<LoadOpConverter, ScalarLoadConverter, StoreOpConverter,
                  ScalarStoreConverter>(patterns.getContext());
