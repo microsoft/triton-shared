@@ -8,7 +8,7 @@ from triton.backends.triton_shared.driver import CPUDriver
 def test_gather_div(device):
 
     @triton.jit
-    def gather_simple(in0, out0):
+    def gather_simple_no_mask(in0, out0):
         offs = tl.arange(0, 64)
         out_offs = tl.arange(0, 64)
         for i in range(0, 2):
@@ -97,7 +97,7 @@ def test_gather_div(device):
     # print(input)
     # print(output)
     src = triton.compiler.ASTSource(
-        fn=gather,
+        fn=gather_scatter,
         signature="*fp32,*fp32",
     )
     ret = triton.compile(
@@ -106,4 +106,4 @@ def test_gather_div(device):
     print(ret.asm["ttir"])
 
 
-test_gather_div('cpu')
+test_gather_div('cuda')

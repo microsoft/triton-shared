@@ -243,20 +243,20 @@ struct LoadOpConverter : public OpConversionPattern<triton::LoadOp> {
         SmallVector<utils::IteratorType>(loadResultType.getRank(),
                                          utils::IteratorType::parallel),
         [&](OpBuilder &b, Location loc, ValueRange args) {
-          auto createYieldAtIndex = [baseTensor](Value indexValue, Location loc,
-                                                 OpBuilder &b) {
+          auto getValueAtIndex = [baseTensor](Value indexValue, Location loc,
+                                              OpBuilder &b) -> Value {
             Value index0 =
                 b.create<arith::IndexCastOp>(loc, b.getIndexType(), indexValue);
 
-            Value extract = b.create<tensor::ExtractOp>(loc, baseTensor,
-                                                        ValueRange{index0});
-            b.create<linalg::YieldOp>(loc, extract);
+            return b.create<tensor::ExtractOp>(loc, baseTensor,
+                                               ValueRange{index0});
           };
 
           if (!loadOp.getMask()) {
             // If there is no mask, simply extract the current element from the
             // base tensor and use it as the yield value.
-            createYieldAtIndex(args[0], loc, rewriter);
+            auto loadValue = getValueAtIndex(args[0], loc, rewriter);
+            rewriter.create<linalg::YieldOp>(loc, loadValue);
           } else {
             // If the mask value is truthy, the current element is loaded from
             // the base tensor using its offset. Otherwise, if `other` is
@@ -267,12 +267,24 @@ struct LoadOpConverter : public OpConversionPattern<triton::LoadOp> {
                 loc, mask,
                 [&](OpBuilder &b, Location loc) {
                   // Truthy case, load from the index
-                  createYieldAtIndex(args[0], loc, b);
+                  auto loadValue = getValueAtIndex(args[0], loc, b);
+                  b.create<scf::YieldOp>(loc, loadValue);
                 },
                 [&](OpBuilder &b, Location loc) {
                   // Falsy case, yield `other` or 0 as the default value
                   if (loadOp.getOther()) {
-                    b.create<scf::YieldOp>(loc, loadOp.getOther());
+                    auto constOp =
+                        loadOp.getOther().getDefiningOp<arith::ConstantOp>();
+                    if (auto attr =
+                            dyn_cast<DenseElementsAttr>(constOp.getValue())) {
+                      assert(attr.isSplat());
+                      auto elemValue = attr.getSplatValue<Attribute>();
+                      auto otherValue = arith::ConstantOp::materialize(
+                          b, elemValue, attr.getElementType(), loc);
+                      b.create<scf::YieldOp>(loc, otherValue.getResult());
+                    } else {
+                      llvm_unreachable("unexpected constant op");
+                    }
                   } else {
                     auto elemType = baseTensor.getType().getElementType();
                     Value extract;
