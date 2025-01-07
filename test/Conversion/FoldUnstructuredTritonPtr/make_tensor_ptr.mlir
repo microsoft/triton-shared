@@ -1,4 +1,4 @@
-// RUN: triton-shared-opt --fold-unstructured-triton-ptr %s | FileCheck %s
+// RUN: triton-shared-opt --fold-unstructured-ptr %s | FileCheck %s
 
 module {
   tt.func public @add_ptr_into_make_block_ptr(%arg0: !tt.ptr<bf16>, %arg1: !tt.ptr<bf16>) attributes {noinline = false} {

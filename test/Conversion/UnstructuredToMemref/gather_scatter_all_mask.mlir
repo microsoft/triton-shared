@@ -1,4 +1,4 @@
-// RUN: triton-shared-opt --fold-unstructured-triton-ptr --canonicalize --unstructured-to-memref --canonicalize %s | FileCheck %s
+// RUN: triton-shared-opt --fold-unstructured-ptr --canonicalize --unstructured-to-memref --canonicalize %s | FileCheck %s
 
 module {
   tt.func public @masked_gather_scatter(%arg0: !tt.ptr<f32>, %arg1: !tt.ptr<f32>) attributes {noinline = false} {

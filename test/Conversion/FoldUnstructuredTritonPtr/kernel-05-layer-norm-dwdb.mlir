@@ -1,4 +1,4 @@
-// RUN: triton-shared-opt --fold-unstructured-triton-ptr %s | FileCheck %s
+// RUN: triton-shared-opt --fold-unstructured-ptr %s | FileCheck %s
 
 module {
   tt.func public @_layer_norm_bwd_dwdb_0123456(%arg0: !tt.ptr<f32>, %arg1: !tt.ptr<f32>, %arg2: !tt.ptr<f32>, %arg3: !tt.ptr<f32>, %arg4: i32, %arg5: i32) {

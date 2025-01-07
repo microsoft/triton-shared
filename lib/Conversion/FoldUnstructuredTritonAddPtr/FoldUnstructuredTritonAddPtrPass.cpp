@@ -147,7 +147,7 @@
 #include <algorithm>
 #include <queue>
 
-#define DEBUG_TYPE "fold-unstructured-triton-ptr"
+#define DEBUG_TYPE "fold-unstructured-ptr"
 
 using namespace mlir;
 using namespace triton;
