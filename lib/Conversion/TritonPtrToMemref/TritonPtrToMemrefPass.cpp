@@ -1,6 +1,6 @@
 //===----------------------------------------------------------------------===//
 //
-// Copyright (c) Microsoft Corporation, Meta Platforms.
+// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT license.
 //
 //===----------------------------------------------------------------------===//
@@ -92,17 +92,23 @@ public:
     ConversionTarget target(getContext());
     TritonFunctionSignatureConverter typeConverter;
 
-    // Update function signature to use memrefs
+    // Update function signature and call ops to use memrefs
     target.addDynamicallyLegalOp<func::FuncOp>([&](func::FuncOp op) {
       return typeConverter.isSignatureLegal(op.getFunctionType());
     });
     target.addDynamicallyLegalOp<triton::FuncOp>([&](triton::FuncOp op) {
       return typeConverter.isSignatureLegal(op.getFunctionType());
     });
+    target.addDynamicallyLegalOp<func::CallOp>([&](func::CallOp op) {
+      return typeConverter.isLegal(op.getResultTypes()) &&
+             typeConverter.isLegal(op.getOperandTypes());
+    });
 
     populateFunctionOpInterfaceTypeConversionPattern<func::FuncOp>(
         patterns, typeConverter);
     populateFunctionOpInterfaceTypeConversionPattern<triton::FuncOp>(
+        patterns, typeConverter);
+    populateFunctionOpInterfaceTypeConversionPattern<func::CallOp>(
         patterns, typeConverter);
 
     if (failed(applyPartialConversion(moduleOp, target, std::move(patterns)))) {
