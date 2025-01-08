@@ -6,7 +6,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "mlir/Conversion/ReconcileUnrealizedCasts/ReconcileUnrealizedCasts.h"
-#include "triton-shared/Conversion/FoldUnstructuredTritonAddPtr/FoldUnstructuredTritonAddPtr.h"
+#include "triton-shared/Conversion/FoldUnstructuredPtr/FoldUnstructuredPtr.h"
 #include "triton-shared/Conversion/StructuredToMemref/StructuredToMemref.h"
 #include "triton-shared/Conversion/TritonArithToLinalg/TritonArithToLinalg.h"
 #include "triton-shared/Conversion/TritonPtrToMemref/TritonPtrToMemref.h"
@@ -54,7 +54,7 @@ public:
     pm.addPass(createCSEPass());
     pm.addPass(createCanonicalizerPass());
 
-    pm.addPass(createFoldUnstructuredTritonAddPtrPass());
+    pm.addPass(createFoldUnstructuredPtrPass());
     pm.addPass(createTritonArithToLinalgPass());
 
     pm.addPass(createStructuredToMemrefPass());
