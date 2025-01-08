@@ -1,4 +1,4 @@
-// RUN: triton-shared-opt --fold-unstructured-ptr %s | FileCheck %s
+// RUN: triton-shared-opt --fold-unstructured-ptr --canonicalize %s | FileCheck %s
 
 module {
   tt.func public @gather(%arg0: !tt.ptr<f32>, %arg1: !tt.ptr<f32>) attributes {noinline = false} {
@@ -66,43 +66,34 @@ module {
 // CHECK-DAG:         [[VAR_2_:%.+]] = arith.divsi [[VAR_arg3_]], [[VAR_cst_1_]] : tensor<4xi32>
 // CHECK-DAG:         [[VAR_3_:%.+]] = tt.splat [[VAR_arg2_]] : i32 -> tensor<4xi32>
 // CHECK:             [[VAR_4_:%.+]] = arith.addi [[VAR_2_]], [[VAR_3_]] : tensor<4xi32>
-// CHECK-DAG:         [[VAR_5_:%.+]] = arith.cmpi slt, [[VAR_4_]], [[VAR_cst_0_]] : tensor<4xi32>
-// CHECK-DAG:         [[VAR_6_:%.+]] = "tts.make_unstructured_tptr"([[PARAM_0_]], [[VAR_4_]]) : (!tt.ptr<f32>, tensor<4xi32>) -> tensor<4x!tt.ptr<f32>>
+// CHECK:             [[VAR_5_:%.+]] = arith.cmpi slt, [[VAR_4_]], [[VAR_cst_0_]] : tensor<4xi32>
+// CHECK:             [[VAR_6_:%.+]] = tts.gather [[PARAM_0_]]{{.}}[[VAR_4_]]{{.}} mask = [[VAR_5_]] : (<f32>, tensor<4xi32>) -> tensor<4xf32>
+// CHECK:             tts.scatter [[VAR_6_]] into [[PARAM_1_]]{{.}}[[VAR_4_]]{{.}} : tensor<4xf32> into (<f32>, tensor<4xi32>)
+// CHECK-DAG:         [[VAR_7_:%.+]] = arith.addi [[VAR_4_]], [[VAR_cst_]] : tensor<4xi32>
+// CHECK-DAG:         [[VAR_8_:%.+]] = arith.addi [[VAR_arg4_]], [[VAR_cst_]] : tensor<4xi32>
+// CHECK-DAG:         [[VAR_9_:%.+]] = arith.addi [[VAR_arg2_]], [[CST_1_]] : i32
 // CHECK-NOT: separator of consecutive DAGs
-// CHECK-DAG:         [[LOAD_VAR_6_MEM_:%.+]] = tt.load [[VAR_6_]], [[VAR_5_]] : tensor<4x!tt.ptr<f32>>
-// CHECK-DAG:         [[VAR_8_:%.+]] = "tts.make_unstructured_tptr"([[PARAM_1_]], [[VAR_4_]]) : (!tt.ptr<f32>, tensor<4xi32>) -> tensor<4x!tt.ptr<f32>>
-// CHECK:             tt.store [[VAR_8_]], [[LOAD_VAR_6_MEM_]] : tensor<4x!tt.ptr<f32>>
-// CHECK-DAG:         [[VAR_9_:%.+]] = arith.addi [[VAR_4_]], [[VAR_cst_]] : tensor<4xi32>
-// CHECK-DAG:         [[VAR_10_:%.+]] = arith.addi [[VAR_arg4_]], [[VAR_cst_]] : tensor<4xi32>
-// CHECK-DAG:         [[VAR_11_:%.+]] = arith.addi [[VAR_arg2_]], [[CST_1_]] : i32
-// CHECK-NOT: separator of consecutive DAGs
-// CHECK-DAG:         [[VAR_12_:%.+]]:2 = scf.for [[VAR_arg5_:%.+]] = [[CST_0_]] to [[CST_2_]] step [[CST_1_]] iter_args([[VAR_arg6_:%.+]] = [[VAR_9_]], [[VAR_arg7_:%.+]] = [[VAR_10_]]) -> (tensor<4xi32>, tensor<4xi32>)  : i32 {
-// CHECK-DAG:           [[VAR_21_:%.+]] = arith.addi [[VAR_arg5_]], [[CST_1_]] : i32
-// CHECK:               [[VAR_22_:%.+]] = arith.muli [[VAR_11_]], [[VAR_21_]] : i32
-// CHECK:               [[VAR_23_:%.+]] = tt.splat [[VAR_22_]] : i32 -> tensor<4xi32>
-// CHECK:               [[VAR_24_:%.+]] = arith.divsi [[VAR_arg6_]], [[VAR_23_]] : tensor<4xi32>
-// CHECK:               [[VAR_25_:%.+]] = arith.addi [[VAR_24_]], [[VAR_3_]] : tensor<4xi32>
-// CHECK-DAG:           [[VAR_26_:%.+]] = arith.cmpi slt, [[VAR_25_]], [[VAR_cst_0_]] : tensor<4xi32>
-// CHECK-DAG:           [[VAR_27_:%.+]] = "tts.make_unstructured_tptr"([[PARAM_0_]], [[VAR_25_]]) : (!tt.ptr<f32>, tensor<4xi32>) -> tensor<4x!tt.ptr<f32>>
-// CHECK-NOT: separator of consecutive DAGs
-// CHECK-DAG:           [[LOAD_VAR_27_MEM_:%.+]] = tt.load [[VAR_27_]], [[VAR_26_]] : tensor<4x!tt.ptr<f32>>
-// CHECK-DAG:           [[VAR_29_:%.+]] = "tts.make_unstructured_tptr"([[PARAM_1_]], [[VAR_25_]]) : (!tt.ptr<f32>, tensor<4xi32>) -> tensor<4x!tt.ptr<f32>>
-// CHECK:               tt.store [[VAR_29_]], [[LOAD_VAR_27_MEM_]] : tensor<4x!tt.ptr<f32>>
-// CHECK-DAG:           [[VAR_30_:%.+]] = arith.addi [[VAR_25_]], [[VAR_cst_]] : tensor<4xi32>
-// CHECK-DAG:           [[VAR_31_:%.+]] = arith.addi [[VAR_arg7_]], [[VAR_cst_]] : tensor<4xi32>
-// CHECK:               scf.yield [[VAR_30_]], [[VAR_31_]] : tensor<4xi32>, tensor<4xi32>
+// CHECK-DAG:         [[VAR_10_:%.+]]:2 = scf.for [[VAR_arg5_:%.+]] = [[CST_0_]] to [[CST_2_]] step [[CST_1_]] iter_args([[VAR_arg6_:%.+]] = [[VAR_7_]], [[VAR_arg7_:%.+]] = [[VAR_8_]]) -> (tensor<4xi32>, tensor<4xi32>)  : i32 {
+// CHECK-DAG:           [[VAR_17_:%.+]] = arith.addi [[VAR_arg5_]], [[CST_1_]] : i32
+// CHECK:               [[VAR_18_:%.+]] = arith.muli [[VAR_9_]], [[VAR_17_]] : i32
+// CHECK:               [[VAR_19_:%.+]] = tt.splat [[VAR_18_]] : i32 -> tensor<4xi32>
+// CHECK:               [[VAR_20_:%.+]] = arith.divsi [[VAR_arg6_]], [[VAR_19_]] : tensor<4xi32>
+// CHECK:               [[VAR_21_:%.+]] = arith.addi [[VAR_20_]], [[VAR_3_]] : tensor<4xi32>
+// CHECK:               [[VAR_22_:%.+]] = arith.cmpi slt, [[VAR_21_]], [[VAR_cst_0_]] : tensor<4xi32>
+// CHECK:               [[VAR_23_:%.+]] = tts.gather [[PARAM_0_]]{{.}}[[VAR_21_]]{{.}} mask = [[VAR_22_]] : (<f32>, tensor<4xi32>) -> tensor<4xf32>
+// CHECK:               tts.scatter [[VAR_23_]] into [[PARAM_1_]]{{.}}[[VAR_21_]]{{.}} : tensor<4xf32> into (<f32>, tensor<4xi32>)
+// CHECK-DAG:           [[VAR_24_:%.+]] = arith.addi [[VAR_21_]], [[VAR_cst_]] : tensor<4xi32>
+// CHECK-DAG:           [[VAR_25_:%.+]] = arith.addi [[VAR_arg7_]], [[VAR_cst_]] : tensor<4xi32>
+// CHECK:               scf.yield [[VAR_24_]], [[VAR_25_]] : tensor<4xi32>, tensor<4xi32>
 // CHECK:             }
-// CHECK:             [[VAR_13_:%.+]] = arith.divsi [[VAR_12_]]#0, [[VAR_cst_1_]] : tensor<4xi32>
-// CHECK:             [[VAR_14_:%.+]] = arith.addi [[VAR_13_]], [[VAR_3_]] : tensor<4xi32>
-// CHECK-DAG:         [[VAR_15_:%.+]] = arith.cmpi slt, [[VAR_14_]], [[VAR_cst_0_]] : tensor<4xi32>
-// CHECK-DAG:         [[VAR_16_:%.+]] = "tts.make_unstructured_tptr"([[PARAM_0_]], [[VAR_14_]]) : (!tt.ptr<f32>, tensor<4xi32>) -> tensor<4x!tt.ptr<f32>>
-// CHECK-NOT: separator of consecutive DAGs
-// CHECK-DAG:         [[LOAD_VAR_16_MEM_:%.+]] = tt.load [[VAR_16_]], [[VAR_15_]] : tensor<4x!tt.ptr<f32>>
-// CHECK-DAG:         [[VAR_18_:%.+]] = "tts.make_unstructured_tptr"([[PARAM_1_]], [[VAR_14_]]) : (!tt.ptr<f32>, tensor<4xi32>) -> tensor<4x!tt.ptr<f32>>
-// CHECK:             tt.store [[VAR_18_]], [[LOAD_VAR_16_MEM_]] : tensor<4x!tt.ptr<f32>>
-// CHECK-DAG:         [[VAR_19_:%.+]] = arith.addi [[VAR_14_]], [[VAR_cst_]] : tensor<4xi32>
-// CHECK-DAG:         [[VAR_20_:%.+]] = arith.addi [[VAR_12_]]#1, [[VAR_cst_]] : tensor<4xi32>
-// CHECK:             scf.yield [[VAR_19_]], [[VAR_20_]] : tensor<4xi32>, tensor<4xi32>
+// CHECK:             [[VAR_11_:%.+]] = arith.divsi [[VAR_10_]]#0, [[VAR_cst_1_]] : tensor<4xi32>
+// CHECK:             [[VAR_12_:%.+]] = arith.addi [[VAR_11_]], [[VAR_3_]] : tensor<4xi32>
+// CHECK:             [[VAR_13_:%.+]] = arith.cmpi slt, [[VAR_12_]], [[VAR_cst_0_]] : tensor<4xi32>
+// CHECK:             [[VAR_14_:%.+]] = tts.gather [[PARAM_0_]]{{.}}[[VAR_12_]]{{.}} mask = [[VAR_13_]] : (<f32>, tensor<4xi32>) -> tensor<4xf32>
+// CHECK:             tts.scatter [[VAR_14_]] into [[PARAM_1_]]{{.}}[[VAR_12_]]{{.}} : tensor<4xf32> into (<f32>, tensor<4xi32>)
+// CHECK-DAG:         [[VAR_15_:%.+]] = arith.addi [[VAR_12_]], [[VAR_cst_]] : tensor<4xi32>
+// CHECK-DAG:         [[VAR_16_:%.+]] = arith.addi [[VAR_10_]]#1, [[VAR_cst_]] : tensor<4xi32>
+// CHECK:             scf.yield [[VAR_15_]], [[VAR_16_]] : tensor<4xi32>, tensor<4xi32>
 // CHECK:           }
 // CHECK:           tt.return
 // CHECK:         }

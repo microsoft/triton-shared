@@ -97,5 +97,10 @@ module {
 }
 
 // CHECK-NOT: tt.addptr
-// CHECK-COUNT-3: "tts.make_unstructured_tptr"(%arg{{[0-9]+}}
-// CHECK-NOT:    "tts.make_unstructured_tptr"(%arg{{[0-9]+}}
+// CHECK-NOT: tt.load
+// CHECK-NOT: tt.store
+
+// CHECK-COUNT-2: tts.gather %arg{{[0-9]+}}
+// CHECK-NOT: tts.gather %arg{{[0-9]+}}
+// CHECK-COUNT-1: tts.scatter {{.+}} into %arg{{[0-9]+}}
+// CHECK-NOT:    tts.scatter {{.+}} into %arg{{[0-9]+}}

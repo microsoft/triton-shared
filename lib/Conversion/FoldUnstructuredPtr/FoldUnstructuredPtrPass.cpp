@@ -114,12 +114,14 @@
 // approach, we will only sign-extend where necessary.
 
 #include "mlir/Dialect/Arith/IR/Arith.h"
+#include "mlir/Dialect/Linalg/IR/Linalg.h"
 #include "mlir/Dialect/SCF/IR/SCF.h"
 #include "mlir/IR/Builders.h"
 #include "mlir/IR/BuiltinAttributes.h"
 #include "mlir/IR/BuiltinOps.h"
 #include "mlir/IR/BuiltinTypes.h"
 #include "mlir/IR/MLIRContext.h"
+#include "mlir/IR/Operation.h"
 #include "mlir/IR/TypeRange.h"
 #include "mlir/IR/Types.h"
 #include "mlir/IR/Value.h"
@@ -246,7 +248,7 @@ public:
     });
 
     llvm::SmallVector<Operation *> toDelete;
-    llvm::SmallVector<std::pair<Operation *, Value>> ptrUsers;
+    llvm::SmallVector<Operation *> ptrUsers;
 
     while (!workList.empty()) {
       auto val = workList.front();
@@ -257,7 +259,7 @@ public:
 
         llvm::TypeSwitch<Operation *>(user)
             .Case<triton::AddPtrOp>([&](triton::AddPtrOp addptr) {
-              OpBuilder rewriter{addptr};
+              OpBuilder b{addptr};
               auto loc = addptr->getLoc();
 
               auto offsetInfo = offsetMap.at(addptr.getPtr());
@@ -270,17 +272,17 @@ public:
               auto resWidth = std::max(lhsWidth, rhsWidth);
 
               if (lhsWidth < resWidth) {
-                prevOff = rewriter.create<arith::ExtSIOp>(
+                prevOff = b.create<arith::ExtSIOp>(
                     loc, getPtrOffsetType(offsetInfo.ptrType, resWidth),
                     prevOff);
               }
 
               if (rhsWidth < resWidth) {
-                off = rewriter.create<arith::ExtSIOp>(
+                off = b.create<arith::ExtSIOp>(
                     loc, getPtrOffsetType(offsetInfo.ptrType, resWidth), off);
               }
 
-              auto accumulatedOff = rewriter.create<arith::AddIOp>(
+              auto accumulatedOff = b.create<arith::AddIOp>(
                   loc, getPtrOffsetType(addptr.getType(), resWidth), prevOff,
                   off);
 
@@ -302,8 +304,8 @@ public:
               auto ptr = op->getOperand(0);
               auto offsetInfo = offsetMap.at(ptr);
 
-              OpBuilder rewriter{op};
-              auto clone = rewriter.create(
+              OpBuilder b{op};
+              auto clone = b.create(
                   op->getLoc(), op->getName().getIdentifier(),
                   ValueRange{offsetInfo.offset},
                   TypeRange{getPtrOffsetType(resType, offsetInfo.bitWidth)});
@@ -330,16 +332,7 @@ public:
                 }
               }
 
-              auto ptr = op->getOperand(0);
-              auto offsetInfo = offsetMap.at(ptr);
-
-              OpBuilder rewriter{op};
-              auto makePtrOp =
-                  rewriter.create<tts::MakeUnstructuredTensorPtrOp>(
-                      op->getLoc(), offsetInfo.ptrType, offsetInfo.ptr,
-                      offsetInfo.offset);
-
-              ptrUsers.push_back({op, makePtrOp.getResult()});
+              ptrUsers.push_back(op);
             })
             .Case<scf::ForOp>([&](scf::ForOp forOp) {
               // Index of the init-arg corresponding to this use, note that we
@@ -382,8 +375,96 @@ public:
       }
     }
 
-    for (auto [op, val] : ptrUsers) {
-      op->setOperand(0, val);
+    for (auto op : ptrUsers) {
+      OpBuilder b{op};
+      auto loc = op->getLoc();
+      llvm::TypeSwitch<Operation *>(op)
+          .Case<triton::LoadOp>([&](triton::LoadOp load) {
+            auto offsetInfo = offsetMap.at(load.getPtr());
+
+            auto other = load.getOther();
+
+            // The `other` value of tt.load either comes from a dense constant
+            // a linalg.fill (if we run --triton-arith-to-linalg first), or a
+            // tt.splat
+            if (other) {
+              auto definingOp = other.getDefiningOp();
+              if (auto constOp = dyn_cast<arith::ConstantOp>(definingOp)) {
+                if (auto attr =
+                        dyn_cast<DenseElementsAttr>(constOp.getValue())) {
+                  assert(attr.isSplat());
+                  auto elemValue = attr.getSplatValue<Attribute>();
+                  other = arith::ConstantOp::materialize(
+                      b, elemValue, attr.getElementType(), loc);
+                } else {
+                  llvm_unreachable("unexpected constant op");
+                }
+              } else if (auto fillOp = dyn_cast<linalg::FillOp>(definingOp)) {
+                other = fillOp.value();
+              } else if (auto splatOp = dyn_cast<triton::SplatOp>(definingOp)) {
+                other = splatOp.getSrc();
+              } else {
+                definingOp->dump();
+                llvm_unreachable("unexpected defining op");
+              }
+            }
+
+            auto gather = b.create<tts::GatherOp>(
+                loc, load.getType(), offsetInfo.ptr, offsetInfo.offset,
+                load.getMask(), other);
+
+            load->replaceAllUsesWith(gather->getResults());
+            load->erase();
+          })
+          .Case<triton::StoreOp>([&](triton::StoreOp store) {
+            auto offsetInfo = offsetMap.at(store.getPtr());
+            auto scatter =
+                b.create<tts::ScatterOp>(loc, offsetInfo.ptr, offsetInfo.offset,
+                                         store.getValue(), store.getMask());
+
+            store->erase();
+          })
+          .Case<triton::MakeTensorPtrOp, tts::MakeTensorPtrOp>(
+              [&](auto makeTensorPtr) {
+                auto offsetInfo = offsetMap.at(makeTensorPtr.getBase());
+                auto baseOffset = offsetInfo.offset;
+
+                makeTensorPtr.getBaseMutable().set(offsetInfo.ptr);
+
+                // Add the existing offset from the base to the offset
+                // operand in the ops.
+                auto &offsetOpnd = makeTensorPtr.getOffsetsMutable()[0];
+                auto currOffset = offsetOpnd.get();
+
+                makeTensorPtr->dump();
+                currOffset.dump();
+
+                auto baseOffType = baseOffset.getType();
+                auto currOffType = currOffset.getType();
+
+                if (baseOffType != currOffType) {
+                  if (currOffType.isIndex()) {
+                    baseOffset = b.create<arith::IndexCastOp>(
+                        loc, b.getIndexType(), baseOffset);
+                  } else if (currOffType.isInteger()) {
+                    if (baseOffType.getIntOrFloatBitWidth() <
+                        currOffType.getIntOrFloatBitWidth()) {
+                      baseOffset = b.create<arith::ExtSIOp>(loc, currOffType,
+                                                            baseOffset);
+                    } else {
+                      baseOffset = b.create<arith::TruncIOp>(loc, currOffType,
+                                                             baseOffset);
+                    }
+                  }
+                }
+
+                auto accumulatedOffset = b.create<arith::AddIOp>(
+                    loc, currOffset.getType(), baseOffset, currOffset);
+
+                offsetOpnd.set(accumulatedOffset);
+              })
+
+          .Default([&](auto) {});
     }
 
     for (auto op : toDelete) {

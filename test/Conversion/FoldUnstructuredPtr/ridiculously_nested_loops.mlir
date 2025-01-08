@@ -157,5 +157,5 @@ module {
 }
 
 // CHECK-NOT: tt.addptr
-// CHECK-COUNT-31: "tts.make_unstructured_tptr"(%arg{{[0-9]+}}
-// CHECK-NOT:    "tts.make_unstructured_tptr"(%arg{{[0-9]+}}
+// CHECK-NOT: tt.load
+// CHECK-NOT: tt.store
