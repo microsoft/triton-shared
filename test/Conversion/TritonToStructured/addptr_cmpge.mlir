@@ -1,6 +1,25 @@
 // RUN: triton-shared-opt --triton-to-structured --split-input-file %s | FileCheck %s
 
-// These tests check that loads/stores that exhibit a cmp ge against 0 work correctly with the pointer analysis pass
+// These tests check that loads/stores that exhibit a cmp ge against 0 work
+// correctly with the pointer analysis pass
+
+// Example of the triton kernel that generates the loads/stores with cmp ge 0.
+// The boundary_check fields of the load/stores, along with preprocessing the
+// kernel through --triton-rewrite-tensor-pointer before calling the
+// --triton-to-structured pass results in those cmp ge 0 instructions.
+//
+//  def kernel(in_ptr0, out_ptr0, YBLOCK : tl.constexpr, XBLOCK : tl.constexpr):
+//     yoffset = tl.program_id(1) * YBLOCK
+//     xoffset = tl.program_id(0) * XBLOCK
+//     tmp0 = tl.load(tl.make_block_ptr(in_ptr0, shape=[16640, 10],
+//                     strides=[1, 16640], block_shape=[XBLOCK, YBLOCK],
+//                     order=[1, 0], offsets=[xoffset, yoffset]),
+//                     boundary_check=[0, 1])
+//     tl.store(tl.make_block_ptr(out_ptr0, shape=[16640, 10],
+//                     strides=[1, 16640], block_shape=[XBLOCK, YBLOCK],
+//                     order=[1, 0], offsets=[xoffset, yoffset]),
+//                     tl.broadcast_to(tmp0, [XBLOCK, YBLOCK]).to(tl.float16),
+//                     boundary_check=[0, 1])
 
 tt.func public @test_masked_load(%arg0: !tt.ptr<f16>) -> tensor<16x16xf16> {
   %cst = arith.constant dense<0> : tensor<1x16xi64>
