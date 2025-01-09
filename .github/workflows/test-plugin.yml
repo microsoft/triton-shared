@@ -91,8 +91,10 @@ jobs:
     - name: Prepare CPU backend environment
       working-directory: triton_shared/triton/python
       run: |
-        echo "TRITON_SHARED_OPT_PATH=$(pwd)/build/$(ls $(pwd)/build | grep -i cmake)/third_party/triton_shared/tools/triton-shared-opt/triton-shared-opt" >> "${GITHUB_ENV}"
-        echo "LLVM_BINARY_DIR=${HOME}/.triton/llvm/$(ls ${HOME}/.triton/llvm/ | grep -i llvm)/bin" >> "${GITHUB_ENV}"
+        CMAKE_BUILD_DIR=$(ls $(pwd)/build | grep -i cmake)
+        LLVM_BINARY_DIR=$(find  ${HOME}/.triton/llvm/ -name bin | head -1)
+        echo "TRITON_SHARED_OPT_PATH=$(pwd)/build/${CMAKE_BUILD_DIR}/third_party/triton_shared/tools/triton-shared-opt/triton-shared-opt" >> "${GITHUB_ENV}"
+        echo "LLVM_BINARY_DIR=${LLVM_BINARY_DIR}" >> "${GITHUB_ENV}"
 
     - name: Run CPU backend examples
       working-directory: triton_shared/python/examples
@@ -164,8 +166,10 @@ jobs:
     - name: Prepare CPU backend environment
       working-directory: triton_shared/triton/python
       run: |
-        echo "TRITON_SHARED_OPT_PATH=$(pwd)/build/$(ls $(pwd)/build | grep -i cmake)/third_party/triton_shared/tools/triton-shared-opt/triton-shared-opt" >> "${GITHUB_ENV}"
-        echo "LLVM_BINARY_DIR=${HOME}/.triton/llvm/$(ls ${HOME}/.triton/llvm/ | grep -i llvm)/bin" >> "${GITHUB_ENV}"
+        CMAKE_BUILD_DIR=$(ls $(pwd)/build | grep -i cmake)
+        LLVM_BINARY_DIR=$(find  ${HOME}/.triton/llvm/ -name bin | head -1)
+        echo "TRITON_SHARED_OPT_PATH=$(pwd)/build/${CMAKE_BUILD_DIR}/third_party/triton_shared/tools/triton-shared-opt/triton-shared-opt" >> "${GITHUB_ENV}"
+        echo "LLVM_BINARY_DIR=${LLVM_BINARY_DIR}" >> "${GITHUB_ENV}"
 
     - name: Run CPU backend examples
       working-directory: triton_shared/python/examples
