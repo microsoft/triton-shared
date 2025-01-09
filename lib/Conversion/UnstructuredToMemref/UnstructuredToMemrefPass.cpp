@@ -324,42 +324,55 @@ struct ScatterConverter : public OpConversionPattern<tts::ScatterOp> {
         MemRefType::get({ShapedType::kDynamic}, resultType.getElementType()),
         ptr);
 
-    auto ip = rewriter.saveInsertionPoint();
+    SmallVector<AffineMap> affineMaps(
+        scatterOp.getMask() ? 4 : 3,
+        rewriter.getMultiDimIdentityMap(resultType.getRank()));
 
-    SmallVector<Value> ivs;
-    for (auto dim : resultType.getShape()) {
-      auto ub =
-          rewriter.create<arith::ConstantOp>(loc, rewriter.getIndexAttr(dim));
-      auto forOp = rewriter.create<affine::AffineForOp>(loc, 0, dim);
-      ivs.push_back(forOp.getInductionVar());
-      rewriter.setInsertionPointToStart(forOp.getBody());
-    }
+    SmallVector<Value> inputs{scatterOp.getValue(), offsetTensor};
 
     if (scatterOp.getMask()) {
-      // Mask case, only store the value if the mask value at `ivs` is truthy
-      auto maskValue =
-          rewriter.create<tensor::ExtractOp>(loc, scatterOp.getMask(), ivs);
-
-      auto ifOp = rewriter.create<scf::IfOp>(loc, maskValue,
-                                             false /* withElseRegion */);
-
-      rewriter.setInsertionPointToStart(
-          &ifOp.getThenRegion().getBlocks().front());
+      inputs.push_back(scatterOp.getMask());
     }
 
-    // Generate ops to store the value at each index. Note that with masking,
-    // these ops are created in the `if` block generated above.
-    auto offsetValue =
-        rewriter.create<tensor::ExtractOp>(loc, offsetTensor, ivs);
-    auto storeValue =
-        rewriter.create<tensor::ExtractOp>(loc, scatterOp.getValue(), ivs);
-    Value storeIndex = rewriter.create<arith::IndexCastOp>(
-        loc, rewriter.getIndexType(), offsetValue);
-    rewriter.create<memref::StoreOp>(loc, storeValue, storeMemref, storeIndex);
+    auto emptyTensor = rewriter
+                           .create<tensor::EmptyOp>(loc, resultType.getShape(),
+                                                    resultType.getElementType())
+                           .getResult();
+
+    auto genericOp = rewriter.create<linalg::GenericOp>(
+        loc, SmallVector<Type>({resultType}), inputs, ValueRange{emptyTensor},
+        affineMaps,
+        SmallVector<utils::IteratorType>(resultType.getRank(),
+                                         utils::IteratorType::parallel),
+        [&](OpBuilder &b, Location loc, ValueRange args) {
+          auto ip = b.saveInsertionPoint();
+
+          if (scatterOp.getMask()) {
+            // Mask case, only store the value if the mask value at `ivs` is
+            // truthy
+            auto mask = args[2];
+
+            auto ifOp = rewriter.create<scf::IfOp>(loc, mask,
+                                                   false /* withElseRegion */);
+
+            b.setInsertionPointToStart(
+                &ifOp.getThenRegion().getBlocks().front());
+          }
+
+          // Generate ops to store the value at each index. Note that with
+          // masking, these ops are created in the `if` block generated above.
+          auto storeValue = args[0];
+          auto offsetValue = args[1];
+          Value storeIndex =
+              b.create<arith::IndexCastOp>(loc, b.getIndexType(), offsetValue);
+          b.create<memref::StoreOp>(loc, storeValue, storeMemref, storeIndex);
+
+          b.restoreInsertionPoint(ip);
+          b.create<linalg::YieldOp>(loc, storeValue);
+        });
 
     // Finalize
     rewriter.eraseOp(scatterOp);
-    rewriter.restoreInsertionPoint(ip);
     return success();
   }
 };
