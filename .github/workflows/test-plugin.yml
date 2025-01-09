@@ -129,14 +129,14 @@ jobs:
       working-directory: triton_shared/triton/python
       run: |
         CMAKE_BUILD_DIR=$(ls $(pwd)/build | grep -i cmake)
-        LLVM_BIN_DIR=$(find  ${HOME}/.triton/llvm/ -name bin | head -1)
+        LLVM_BINARY_DIR=$(find  ${HOME}/.triton/llvm/ -name bin | head -1)
 
         ls $(pwd)/build
         echo "---"
         ls ${HOME}/.triton/llvm/
         echo "cmake: +${CMAKE_BUILD_DIR}+"
-        echo "llvm: +${LLVM_BIN_DIR}+"
+        echo "llvm: +${LLVM_BINARY_DIR}+"
 
 
         echo "TRITON_SHARED_OPT_PATH=$(pwd)/build/${CMAKE_BUILD_DIR}/third_party/triton_shared/tools/triton-shared-opt/triton-shared-opt" >> "${GITHUB_ENV}"
-        echo "LLVM_BINARY_DIR=${HOME}/.triton/llvm/${LLVM_BIN_DIR}" >> "${GITHUB_ENV}"
+        echo "LLVM_BINARY_DIR=${LLVM_BINARY_DIR}" >> "${GITHUB_ENV}"
