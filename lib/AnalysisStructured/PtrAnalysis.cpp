@@ -251,6 +251,28 @@ LogicalResult PtrState::addState(const PtrState &lhsState,
   return success();
 }
 
+void PtrState::dump() const {
+  llvm::dbgs() << "PtrState: ";
+  if (source) {
+    llvm::dbgs() << "source: " << source << "\n";
+  }
+  if (scalar) {
+    llvm::dbgs() << "scalar: " << scalar << "\n";
+  }
+
+  llvm::dbgs() << "offsets: ";
+  llvm::interleave(offsets, llvm::dbgs(), "\n");
+  llvm::dbgs() << "\nstrides: ";
+  llvm::interleave(strides, llvm::dbgs(), "\n");
+  llvm::dbgs() << "\nsizes: ";
+  llvm::interleave(sizes, llvm::dbgs(), "\n");
+  llvm::dbgs() << "\nshape: ";
+  llvm::interleave(shape, llvm::dbgs(), "\n");
+  llvm::dbgs() << "\norder: ";
+  llvm::interleave(order, llvm::dbgs(), "\n");
+  llvm::dbgs() << "\n";
+}
+
 LogicalResult PtrState::mulState(const PtrState &lhsState,
                                  const PtrState &rhsState, Operation *op,
                                  OpBuilder &builder) {
@@ -265,9 +287,6 @@ LogicalResult PtrState::mulState(const PtrState &lhsState,
     return failure();
   }
 
-  assert(!(lhsState.scalar && rhsState.scalar) &&
-         "do not expect to see both lhs and rhs are scalars");
-
   // currently do not support both tensors are effectively non-scalar
   if (!lhsState.scalar && !rhsState.scalar) {
     op->emitRemark(
@@ -281,6 +300,11 @@ LogicalResult PtrState::mulState(const PtrState &lhsState,
 
   if (!rhs->scalar && lhs->scalar) {
     std::swap(lhs, rhs);
+  }
+
+  if (lhsState.scalar && rhsState.scalar) {
+    scalar = builder.create<arith::MulIOp>(
+        loc, lhsState.scalar, rhsState.scalar);
   }
 
   for (uint64_t i = 0; i < lhs->sizes.size(); i++) {
