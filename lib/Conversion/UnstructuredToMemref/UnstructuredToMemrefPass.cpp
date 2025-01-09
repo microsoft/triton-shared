@@ -159,13 +159,13 @@ struct ScalarStoreConverter : public OpConversionPattern<tts::ScatterOp> {
 };
 
 // Lowering an unstructured load op (gather) into a linalg.generic op
-struct LoadOpConverter : public OpConversionPattern<tts::GatherOp> {
+struct GatherConverter : public OpConversionPattern<tts::GatherOp> {
   using OpConversionPattern<tts::GatherOp>::OpConversionPattern;
 
-  LoadOpConverter(const TypeConverter &typeConverter, MLIRContext *context)
+  GatherConverter(const TypeConverter &typeConverter, MLIRContext *context)
       : OpConversionPattern<tts::GatherOp>(typeConverter, context) {}
 
-  LoadOpConverter(MLIRContext *context)
+  GatherConverter(MLIRContext *context)
       : OpConversionPattern<tts::GatherOp>(context) {}
 
   LogicalResult
@@ -293,13 +293,13 @@ struct LoadOpConverter : public OpConversionPattern<tts::GatherOp> {
 };
 
 // Lowering an unstructured store op (scatter) into an affine loop nest
-struct StoreOpConverter : public OpConversionPattern<tts::ScatterOp> {
+struct ScatterConverter : public OpConversionPattern<tts::ScatterOp> {
   using OpConversionPattern<tts::ScatterOp>::OpConversionPattern;
 
-  StoreOpConverter(const TypeConverter &typeConverter, MLIRContext *context)
+  ScatterConverter(const TypeConverter &typeConverter, MLIRContext *context)
       : OpConversionPattern<tts::ScatterOp>(typeConverter, context) {}
 
-  StoreOpConverter(MLIRContext *context)
+  ScatterConverter(MLIRContext *context)
       : OpConversionPattern<tts::ScatterOp>(context) {}
 
   LogicalResult
@@ -393,7 +393,7 @@ public:
 
     PtrToUnrankedMemrefConverter typeConverter;
 
-    patterns.add<LoadOpConverter, ScalarLoadConverter, StoreOpConverter,
+    patterns.add<GatherConverter, ScatterConverter, ScalarLoadConverter,
                  ScalarStoreConverter>(typeConverter, patterns.getContext());
 
     if (failed(applyPartialConversion(moduleOp, target, std::move(patterns))))
