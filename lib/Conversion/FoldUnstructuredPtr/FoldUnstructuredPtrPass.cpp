@@ -146,6 +146,7 @@
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/TypeSwitch.h"
+#include "llvm/Support/Debug.h"
 #include "llvm/Support/ErrorHandling.h"
 
 #include <algorithm>
@@ -230,6 +231,7 @@ public:
     llvm::SetVector<Value> ptrArgs;
     llvm::DenseMap<Value, PtrOffset> offsetMap;
     std::queue<Value> workList;
+    llvm::DenseSet<Operation *> visited;
     Value base;
 
     getOperation().walk([&](FunctionOpInterface func) {
@@ -272,6 +274,10 @@ public:
       for (auto &use : llvm::make_early_inc_range(val.getUses())) {
         auto user = use.getOwner();
 
+        if (visited.contains(user)) {
+          continue;
+        }
+
         llvm::TypeSwitch<Operation *>(user)
             .Case<triton::AddPtrOp>([&](triton::AddPtrOp addptr) {
               OpBuilder b{addptr};
@@ -307,6 +313,42 @@ public:
               offsetMap.insert({addptr, newOffsetInfo});
               workList.push(addptr);
               toDelete.push_back(addptr);
+            })
+            .Case<triton::CatOp>([&](triton::CatOp op) {
+              auto res = op->getResult(0);
+              auto resType = res.getType();
+
+              if (!isPtrTypeLike(resType)) {
+                return;
+              }
+
+              auto ptr0 = op.getLhs();
+              auto offsetInfo0 = offsetMap.at(ptr0);
+
+              auto ptr1 = op.getRhs();
+              auto offsetInfo1 = offsetMap.at(ptr1);
+
+              OpBuilder b{op};
+              auto clone = b.create(
+                  op->getLoc(), op->getName().getIdentifier(),
+                  ValueRange{offsetInfo0.offset, offsetInfo1.offset},
+                  TypeRange{getPtrOffsetType(resType, offsetInfo0.bitWidth)});
+
+              auto newBase =
+                  b.create(op->getLoc(), op->getName().getIdentifier(),
+                           ValueRange{offsetInfo0.ptr, offsetInfo1.ptr},
+                           TypeRange{getPtrOffsetType(resType, 8)});
+
+              PtrOffset newOffsetInfo{newBase->getResult(0), resType,
+                                      offsetInfo0.bitWidth,
+                                      clone->getResult(0)};
+
+              offsetMap.insert({
+                  res,
+                  newOffsetInfo,
+              });
+              workList.push(res);
+              toDelete.push_back(op);
             })
             .Case<triton::SplatOp, triton::BroadcastOp>([&](Operation *op) {
               auto res = op->getResult(0);
@@ -392,8 +434,12 @@ public:
               workList.push(res);
             })
             .Default([&](auto) {});
+
+        visited.insert(user);
       }
     }
+
+    llvm::dbgs() << "before ptr user loop\n";
 
     for (auto op : ptrUsers) {
       OpBuilder b{op};
