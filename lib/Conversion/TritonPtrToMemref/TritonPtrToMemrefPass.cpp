@@ -8,6 +8,7 @@
 #include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/MemRef/IR/MemRef.h"
 #include "mlir/Dialect/SCF/IR/SCF.h"
+#include "mlir/Dialect/Tensor/IR/Tensor.h"
 #include "mlir/IR/Builders.h"
 #include "mlir/IR/BuiltinAttributes.h"
 #include "mlir/IR/BuiltinOps.h"
@@ -30,6 +31,7 @@
 
 #include "mlir/Dialect/Affine/IR/AffineOps.h"
 #include "triton/Dialect/Triton/IR/Types.h"
+#include "llvm/Support/LogicalResult.h"
 
 #define DEBUG_TYPE "triton-ptr-to-memref"
 
@@ -74,6 +76,87 @@ public:
   }
 };
 
+struct FromElementsConverter
+    : public OpConversionPattern<tensor::FromElementsOp> {
+  using OpConversionPattern<tensor::FromElementsOp>::OpConversionPattern;
+
+  FromElementsConverter(const TypeConverter &typeConverter,
+                        MLIRContext *context)
+      : OpConversionPattern<tensor::FromElementsOp>(typeConverter, context) {}
+
+  FromElementsConverter(MLIRContext *context)
+      : OpConversionPattern<tensor::FromElementsOp>(context) {}
+
+  LogicalResult
+  matchAndRewrite(tensor::FromElementsOp op, OpAdaptor adaptor,
+                  ConversionPatternRewriter &rewriter) const override {
+    auto alloc = rewriter.create<memref::AllocOp>(
+        op.getLoc(),
+        MemRefType::get(op.getType().getShape(),
+                        UnrankedMemRefType::get(rewriter.getI32Type(), 0)));
+
+    alloc->dump();
+    for (auto i = 0; i < adaptor.getElements().size(); i++) {
+      Value index = rewriter.create<arith::ConstantIndexOp>(op.getLoc(), i);
+      auto elem = adaptor.getElements()[i];
+      rewriter.create<memref::StoreOp>(op.getLoc(), elem, alloc,
+                                       ValueRange{index});
+    }
+    rewriter.replaceOp(op, alloc);
+    return llvm::success();
+  }
+};
+
+struct ExtractOpConverter : public OpConversionPattern<tensor::ExtractOp> {
+  using OpConversionPattern<tensor::ExtractOp>::OpConversionPattern;
+
+  ExtractOpConverter(const TypeConverter &typeConverter, MLIRContext *context)
+      : OpConversionPattern<tensor::ExtractOp>(typeConverter, context) {}
+
+  ExtractOpConverter(MLIRContext *context)
+      : OpConversionPattern<tensor::ExtractOp>(context) {}
+
+  LogicalResult
+  matchAndRewrite(tensor::ExtractOp op, OpAdaptor adaptor,
+                  ConversionPatternRewriter &rewriter) const override {
+    auto srcType = op.getTensor();
+    auto ptrType =
+        dyn_cast<triton::PointerType>(srcType.getType().getElementType());
+
+    if (!ptrType) {
+      return failure();
+    }
+
+    auto extract = rewriter.create<memref::LoadOp>(
+        op.getLoc(), adaptor.getTensor(), adaptor.getIndices());
+
+    rewriter.replaceOp(op, extract);
+
+    return llvm::success();
+  }
+};
+
+struct UnrealizedCastConverter
+    : public OpConversionPattern<UnrealizedConversionCastOp> {
+  using OpConversionPattern<UnrealizedConversionCastOp>::OpConversionPattern;
+
+  UnrealizedCastConverter(const TypeConverter &typeConverter,
+                          MLIRContext *context)
+      : OpConversionPattern<UnrealizedConversionCastOp>(typeConverter,
+                                                        context) {}
+
+  UnrealizedCastConverter(MLIRContext *context)
+      : OpConversionPattern<UnrealizedConversionCastOp>(context) {}
+
+  LogicalResult
+  matchAndRewrite(UnrealizedConversionCastOp op, OpAdaptor adaptor,
+                  ConversionPatternRewriter &rewriter) const override {
+    rewriter.replaceOp(op, adaptor.getOperands());
+
+    return llvm::success();
+  }
+};
+
 class TritonPtrToMemrefPass
     : public TritonPtrToMemrefBase<TritonPtrToMemrefPass> {
 
@@ -92,6 +175,17 @@ public:
     ConversionTarget target(getContext());
     TritonFunctionSignatureConverter typeConverter;
 
+    patterns.add<FromElementsConverter, ExtractOpConverter,
+                 UnrealizedCastConverter>(patterns.getContext());
+
+    target.addDynamicallyLegalOp<tensor::ExtractOp>([](tensor::ExtractOp op) {
+      return !isa<triton::PointerType>(
+          op.getTensor().getType().getElementType());
+    });
+
+    target.addIllegalOp<tensor::FromElementsOp>();
+    target.addLegalOp<memref::StoreOp, memref::AllocOp, arith::ConstantIndexOp,
+                      memref::LoadOp>();
     // Update function signature to use memrefs
     target.addDynamicallyLegalOp<func::FuncOp>([&](func::FuncOp op) {
       return typeConverter.isSignatureLegal(op.getFunctionType());
@@ -109,12 +203,12 @@ public:
       signalPassFailure();
     }
 
-    PassManager pm(&getContext(), moduleOp.getOperationName());
-    pm.addPass(createCanonicalizerPass());
-    pm.addPass(createCSEPass());
-    if (failed(runPipeline(pm, getOperation()))) {
-      signalPassFailure();
-    }
+    // PassManager pm(&getContext(), moduleOp.getOperationName());
+    // pm.addPass(createCanonicalizerPass());
+    // pm.addPass(createCSEPass());
+    // if (failed(runPipeline(pm, getOperation()))) {
+    //   signalPassFailure();
+    // }
   }
 };
 } // namespace

@@ -87,6 +87,16 @@ def complex_gather_scatter(in0, out0):
         out_offs += 32
 
 
+def compile(device):
+    src = triton.compiler.ASTSource(
+        fn=complex_gather_scatter,
+        signature="*i32,*i32",
+    )
+    ret = triton.compile(
+        src,
+    )
+    print(ret.asm["ttir"])
+
 def run_test(triton_kernel, device, expected_output):
     SIZE = 128
     input = torch.arange(2, SIZE + 2, device=device, dtype=torch.int32)
@@ -161,3 +171,11 @@ def test_complex_gather_scatter(device):
         -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
         -1, -1], device=device, dtype=torch.int32)
     run_test(complex_gather_scatter, device, expected_output)
+
+
+# test_gather_simple_no_mask('cpu')
+# test_gather_simple_mask_no_other('cpu')
+# test_gather_simple_mask_with_other('cpu')
+# test_masked_gather_scatter('cpu')
+# test_complex_gather_scatter('cpu')
+compile('cpu')

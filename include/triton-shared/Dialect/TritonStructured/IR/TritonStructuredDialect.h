@@ -24,4 +24,10 @@
 #define GET_OP_CLASSES
 #include "triton-shared/Dialect/TritonStructured/IR/TritonStructuredOps.h.inc"
 
+namespace mlir {
+namespace tts {
+Type getInnerType(Type t);
+} // namespace tts
+} // namespace mlir
+
 #endif

@@ -175,7 +175,15 @@ GetStructuredStateOp::getOffsetAndStrideSegmentSizes(Type type) {
   return std::make_pair(offsetSegmentSize, strideSegmentSize);
 }
 
-
+Type getInnerType(Type t) {
+  if (auto ptrType = dyn_cast<triton::PointerType>(t)) {
+    return triton::getPointeeType(ptrType);
+  }
+  if (auto tensorType = dyn_cast<RankedTensorType>(t)) {
+    return triton::getPointeeType(tensorType.getElementType());
+  }
+  return t;
+}
 
 } // namespace tts
 } // namespace mlir

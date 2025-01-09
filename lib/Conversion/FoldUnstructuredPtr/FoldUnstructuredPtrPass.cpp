@@ -116,6 +116,7 @@
 #include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/Linalg/IR/Linalg.h"
 #include "mlir/Dialect/SCF/IR/SCF.h"
+#include "mlir/Dialect/Tensor/IR/Tensor.h"
 #include "mlir/IR/Builders.h"
 #include "mlir/IR/BuiltinAttributes.h"
 #include "mlir/IR/BuiltinOps.h"
@@ -141,6 +142,7 @@
 
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/DenseSet.h"
+#include "llvm/ADT/MapVector.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/TypeSwitch.h"
@@ -225,11 +227,14 @@ public:
   };
 
   void foldUnstructuredAddptr(unsigned int defaultBitWidth = 32) {
-    llvm::SmallDenseSet<Value> ptrArgs;
+    llvm::SetVector<Value> ptrArgs;
     llvm::DenseMap<Value, PtrOffset> offsetMap;
     std::queue<Value> workList;
+    Value base;
 
     getOperation().walk([&](FunctionOpInterface func) {
+      unsigned int ptrArgIndex = 0;
+      SmallVector<Value> args;
       for (auto arg : func.getArguments()) {
         if (!isPtrTypeLike(arg.getType())) {
           continue;
@@ -241,10 +246,20 @@ public:
             b.getIntegerAttr(IntegerType::get(&getContext(), defaultBitWidth),
                              0));
 
+        Value z = b.create<arith::ConstantOp>(
+            arg.getLoc(),
+            b.getIntegerAttr(IntegerType::get(&getContext(), 8), ptrArgIndex));
+
+        args.push_back(arg);
         ptrArgs.insert(arg);
-        offsetMap.insert({arg, {arg, arg.getType(), defaultBitWidth, zero}});
+        offsetMap.insert({arg, {z, arg.getType(), defaultBitWidth, zero}});
         workList.push(arg);
+
+        ptrArgIndex++;
       }
+
+      OpBuilder b(func->getRegion(0));
+      base = b.create<tensor::FromElementsOp>(func->getLoc(), args);
     });
 
     llvm::SmallVector<Operation *> toDelete;
@@ -254,7 +269,7 @@ public:
       auto val = workList.front();
       workList.pop();
 
-      for (auto &use : val.getUses()) {
+      for (auto &use : llvm::make_early_inc_range(val.getUses())) {
         auto user = use.getOwner();
 
         llvm::TypeSwitch<Operation *>(user)
@@ -310,7 +325,12 @@ public:
                   ValueRange{offsetInfo.offset},
                   TypeRange{getPtrOffsetType(resType, offsetInfo.bitWidth)});
 
-              PtrOffset newOffsetInfo{offsetInfo.ptr, resType,
+              auto newBase =
+                  b.create(op->getLoc(), op->getName().getIdentifier(),
+                           ValueRange{offsetInfo.ptr},
+                           TypeRange{getPtrOffsetType(resType, 8)});
+
+              PtrOffset newOffsetInfo{newBase->getResult(0), resType,
                                       offsetInfo.bitWidth, clone->getResult(0)};
 
               offsetMap.insert({
@@ -410,7 +430,7 @@ public:
             }
 
             auto gather = b.create<tts::GatherOp>(
-                loc, load.getType(), offsetInfo.ptr, offsetInfo.offset,
+                loc, load.getType(), base, offsetInfo.ptr, offsetInfo.offset,
                 load.getMask(), other);
 
             load->replaceAllUsesWith(gather->getResults());
@@ -418,9 +438,9 @@ public:
           })
           .Case<triton::StoreOp>([&](triton::StoreOp store) {
             auto offsetInfo = offsetMap.at(store.getPtr());
-            auto scatter =
-                b.create<tts::ScatterOp>(loc, offsetInfo.ptr, offsetInfo.offset,
-                                         store.getValue(), store.getMask());
+            auto scatter = b.create<tts::ScatterOp>(
+                loc, base, offsetInfo.ptr, offsetInfo.offset, store.getValue(),
+                store.getMask());
 
             store->erase();
           })
@@ -477,12 +497,12 @@ public:
   void runOnOperation() override {
     foldUnstructuredAddptr(offsetBitWidth);
 
-    PassManager pm(&getContext(), getOperation().getOperationName());
-    pm.addPass(createCanonicalizerPass());
-    pm.addPass(createCSEPass());
-    if (failed(runPipeline(pm, getOperation()))) {
-      signalPassFailure();
-    }
+    // PassManager pm(&getContext(), getOperation().getOperationName());
+    // pm.addPass(createCanonicalizerPass());
+    // pm.addPass(createCSEPass());
+    // if (failed(runPipeline(pm, getOperation()))) {
+    //   signalPassFailure();
+    // }
   }
 };
 } // namespace

@@ -32,6 +32,7 @@
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/Support/ErrorHandling.h"
 #include <cstdint>
+#include <optional>
 
 #define DEBUG_TYPE "unstructured-to-memref"
 
@@ -59,6 +60,16 @@ public:
     });
   }
 };
+
+static Value castToUnrankedMemref(Value v, Location loc, OpBuilder &b) {
+  if (auto ptrType = dyn_cast<triton::PointerType>(v.getType())) {
+    auto memrefType = UnrankedMemRefType::get(ptrType.getPointeeType(), 0);
+    return b.create<UnrealizedConversionCastOp>(loc, memrefType, ValueRange{v})
+        .getResult(0);
+  }
+  v.dump();
+  llvm_unreachable("Expect value to have pointer type");
+}
 
 static MemRefType getMemrefTypeForScalarPtr(triton::PointerType ptrType,
                                             MLIRContext *context) {
@@ -186,28 +197,10 @@ struct GatherConverter : public OpConversionPattern<tts::GatherOp> {
     auto loadResultType =
         dyn_cast<RankedTensorType>(gatherOp.getResult().getType());
 
-    // Treat the base pointer (memref) as 1D because the offsets are all
-    // relative to a single base pointer (already collapsed).
-    auto baseMemref = rewriter.create<memref::CastOp>(
-        loc,
-        MemRefType::get({ShapedType::kDynamic},
-                        loadResultType.getElementType()),
-        ptr);
-
-    auto baseTensor =
-        rewriter
-            .create<bufferization::ToTensorOp>(
-                loc,
-                RankedTensorType::get(
-                    SmallVector<int64_t>(1, ShapedType::kDynamic),
-                    loadResultType.getElementType()),
-                baseMemref, true /* restrict */, false /* writable */)
-            .getResult();
-
     // The linalg.generic op should have the following inputs:
     // - the offset tensor
     // - an optional mask tensor if the load op contains mask
-    SmallVector<Value> inputs{offsetTensor};
+    SmallVector<Value> inputs{ptr, offsetTensor};
 
     if (gatherOp.getMask()) {
       inputs.push_back(gatherOp.getMask());
@@ -225,7 +218,7 @@ struct GatherConverter : public OpConversionPattern<tts::GatherOp> {
     // If mask is used, the first 2 maps are for the offset and mask tensors
     // while the last map is for the output tensor.
     SmallVector<AffineMap> affineMaps(
-        gatherOp.getMask() ? 3 : 2,
+        gatherOp.getMask() ? 4 : 3,
         rewriter.getMultiDimIdentityMap(loadResultType.getRank()));
 
     auto genericOp = rewriter.create<linalg::GenericOp>(
@@ -234,6 +227,32 @@ struct GatherConverter : public OpConversionPattern<tts::GatherOp> {
         SmallVector<utils::IteratorType>(loadResultType.getRank(),
                                          utils::IteratorType::parallel),
         [&](OpBuilder &b, Location loc, ValueRange args) {
+          auto ptrIndex = args[0];
+
+          ptrIndex =
+              b.create<arith::IndexCastOp>(loc, b.getIndexType(), ptrIndex);
+
+          Value ptr = b.create<tensor::ExtractOp>(loc, gatherOp.getBase(),
+                                                  ValueRange{ptrIndex});
+
+          // Treat the base pointer (memref) as 1D because the offsets are all
+          // relative to a single base pointer (already collapsed).
+          auto baseMemref = rewriter.create<memref::CastOp>(
+              loc,
+              MemRefType::get({ShapedType::kDynamic},
+                              loadResultType.getElementType()),
+              castToUnrankedMemref(ptr, loc, b));
+
+          auto baseTensor =
+              rewriter
+                  .create<bufferization::ToTensorOp>(
+                      loc,
+                      RankedTensorType::get(
+                          SmallVector<int64_t>(1, ShapedType::kDynamic),
+                          loadResultType.getElementType()),
+                      baseMemref, true /* restrict */, false /* writable */)
+                  .getResult();
+
           auto getValueAtIndex = [baseTensor](Value indexValue, Location loc,
                                               OpBuilder &b) -> Value {
             Value index0 =
@@ -246,19 +265,19 @@ struct GatherConverter : public OpConversionPattern<tts::GatherOp> {
           if (!gatherOp.getMask()) {
             // If there is no mask, simply extract the current element from the
             // base tensor and use it as the yield value.
-            auto loadValue = getValueAtIndex(args[0], loc, rewriter);
+            auto loadValue = getValueAtIndex(args[1], loc, rewriter);
             rewriter.create<linalg::YieldOp>(loc, loadValue);
           } else {
             // If the mask value is truthy, the current element is loaded from
             // the base tensor using its offset. Otherwise, if `other` is
             // present, yield `other`. If `other` is not present, a default
             // value of 0 is used.
-            auto mask = args[1];
+            auto mask = args[2];
             auto ifOp = rewriter.create<scf::IfOp>(
                 loc, mask,
                 [&](OpBuilder &b, Location loc) {
                   // Truthy case, load from the index
-                  auto loadValue = getValueAtIndex(args[0], loc, b);
+                  auto loadValue = getValueAtIndex(args[1], loc, b);
                   b.create<scf::YieldOp>(loc, loadValue);
                 },
                 [&](OpBuilder &b, Location loc) {
@@ -319,16 +338,11 @@ struct ScatterConverter : public OpConversionPattern<tts::ScatterOp> {
     auto resultType =
         dyn_cast<RankedTensorType>(scatterOp.getValue().getType());
 
-    auto storeMemref = rewriter.create<memref::CastOp>(
-        loc,
-        MemRefType::get({ShapedType::kDynamic}, resultType.getElementType()),
-        ptr);
-
     SmallVector<AffineMap> affineMaps(
-        scatterOp.getMask() ? 4 : 3,
+        scatterOp.getMask() ? 5 : 4,
         rewriter.getMultiDimIdentityMap(resultType.getRank()));
 
-    SmallVector<Value> inputs{scatterOp.getValue(), offsetTensor};
+    SmallVector<Value> inputs{ptr, scatterOp.getValue(), offsetTensor};
 
     if (scatterOp.getMask()) {
       inputs.push_back(scatterOp.getMask());
@@ -347,6 +361,20 @@ struct ScatterConverter : public OpConversionPattern<tts::ScatterOp> {
         [&](OpBuilder &b, Location loc, ValueRange args) {
           auto ip = b.saveInsertionPoint();
 
+          auto ptrIndex = args[0];
+
+          ptrIndex =
+              b.create<arith::IndexCastOp>(loc, b.getIndexType(), ptrIndex);
+
+          Value ptr = b.create<tensor::ExtractOp>(loc, scatterOp.getBase(),
+                                                  ValueRange{ptrIndex});
+
+          auto storeMemref = rewriter.create<memref::CastOp>(
+              loc,
+              MemRefType::get({ShapedType::kDynamic},
+                              resultType.getElementType()),
+              castToUnrankedMemref(ptr, loc, b));
+
           if (scatterOp.getMask()) {
             // Mask case, only store the value if the mask value at `ivs` is
             // truthy
@@ -361,8 +389,8 @@ struct ScatterConverter : public OpConversionPattern<tts::ScatterOp> {
 
           // Generate ops to store the value at each index. Note that with
           // masking, these ops are created in the `if` block generated above.
-          auto storeValue = args[0];
-          auto offsetValue = args[1];
+          auto storeValue = args[1];
+          auto offsetValue = args[2];
           Value storeIndex =
               b.create<arith::IndexCastOp>(loc, b.getIndexType(), offsetValue);
           b.create<memref::StoreOp>(loc, storeValue, storeMemref, storeIndex);
@@ -403,6 +431,7 @@ public:
         ttx::TritonTilingExtDialect>();
 
     target.addIllegalOp<tts::GatherOp, tts::ScatterOp>();
+    target.addLegalOp<UnrealizedConversionCastOp>();
 
     PtrToUnrankedMemrefConverter typeConverter;
 

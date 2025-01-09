@@ -153,13 +153,14 @@ def TTS_GatherOp : TTS_Op<"gather", [
   MemoryEffects<[MemRead]>,
   AttrSizedOperandSegments,
   OptionalTypesMatchWith<"mask type matches ptr type", "offset", "mask", "triton::getI1SameShape($_self)">,
-  OptionalTypesMatchWith<"other matches ptr type", "ptr", "other", "triton::getPointeeType($_self)">
+  OptionalTypesMatchWith<"other matches ptr type", "base", "other", "tts::getInnerType($_self)">
 ]> {
   let summary = "optionally load data from in memory to fill a portion of the tensor";
 
   let arguments = (
     ins
-    TT_Ptr:$ptr,
+    AnyTypeOf<[TT_PtrLike, AnyRankedOrUnrankedMemRef]>:$base,
+    TT_IntLike:$ptr,
     TT_IntLike:$offset,
     Optional<TT_BoolLike>:$mask,
     Optional<TT_Type>:$other
@@ -168,8 +169,8 @@ def TTS_GatherOp : TTS_Op<"gather", [
   let results = (outs TT_Type:$result);
 
   let assemblyFormat = [{
-    $ptr `[` $offset `]` (`mask` `=` $mask^)? (`default` `=` $other^)?
-    attr-dict `:` `(` type($ptr) `,` type($offset) `)` `->` type($result)
+    $base $ptr `[` $offset `]` (`mask` `=` $mask^)? (`default` `=` $other^)?
+    attr-dict `:` `(` type($base) `,` type($ptr) `,` type($offset) `)` `->` type($result)
   }];
 }
 
@@ -182,15 +183,16 @@ def TTS_ScatterOp : TTS_Op<"scatter", [
 
   let arguments = (
     ins
-    TT_Ptr:$ptr,
+    AnyTypeOf<[TT_PtrLike, AnyRankedOrUnrankedMemRef]>:$base,
+    TT_IntLike:$ptr,
     TT_IntLike:$offset,
     TT_Type:$value,
     Optional<TT_BoolLike>:$mask
   );
 
   let assemblyFormat = [{
-    $value `into` $ptr `[` $offset `]` (`mask` `=` $mask^)?
-    attr-dict `:` type($value) `into` ` ` `(` type($ptr) `,` type($offset) `)`
+    $value `into` $base $ptr `[` $offset `]` (`mask` `=` $mask^)?
+    attr-dict `:` type($value) `into` ` ` `(` type($base) `,` type($ptr) `,` type($offset) `)`
   }];
 }
 
