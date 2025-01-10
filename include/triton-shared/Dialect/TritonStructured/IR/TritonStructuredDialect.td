@@ -178,7 +178,7 @@ def TTS_ScatterOp : TTS_Op<"scatter", [
   OptionalTypesMatchWith<"mask type matches offset type", "offset", "mask",
                  "triton::getI1SameShape($_self)">
 ]> {
-  let summary = "optionally load data from in memory to fill a portion of the tensor";
+  let summary = "optionally store data from in memory to fill a portion of the tensor";
 
   let arguments = (
     ins
@@ -231,7 +231,7 @@ def TTS_LoadOp : TTS_Op<"load", [
 def TTS_StoreOp : TTS_Op<"store", [
   MemoryEffects<[MemWrite]>
 ]> {
-  let summary = "optionally load data from in memory to fill a portion of the tensor";
+  let summary = "optionally store data from in memory to fill a portion of the tensor";
 
   let arguments = (ins TT_PtrLike:$ptr,
                        TT_Tensor:$value,
