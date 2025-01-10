@@ -369,5 +369,9 @@ class CPUDriver(DriverBase):
     def get_current_target(self):
         return GPUTarget("cpu", 0, 0)
 
+    def get_active_torch_device(self):
+        import torch
+        return torch.device("cpu")
+
     def assemble_tensormap_to_arg(self, tensormaps_info, args):
         return args
