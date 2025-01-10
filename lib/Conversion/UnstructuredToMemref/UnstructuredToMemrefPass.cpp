@@ -69,29 +69,26 @@ static MemRefType getMemrefTypeForScalarPtr(triton::PointerType ptrType,
   return memrefType;
 }
 
-struct ScalarLoadConverter : public OpConversionPattern<triton::LoadOp> {
-  using OpConversionPattern<triton::LoadOp>::OpConversionPattern;
+struct ScalarLoadConverter : public OpConversionPattern<tts::GatherOp> {
+  using OpConversionPattern<tts::GatherOp>::OpConversionPattern;
 
   ScalarLoadConverter(const TypeConverter &typeConverter, MLIRContext *context)
-      : OpConversionPattern<triton::LoadOp>(typeConverter, context) {}
+      : OpConversionPattern<tts::GatherOp>(typeConverter, context) {}
 
   ScalarLoadConverter(MLIRContext *context)
-      : OpConversionPattern<triton::LoadOp>(context) {}
+      : OpConversionPattern<tts::GatherOp>(context) {}
 
   LogicalResult
-  matchAndRewrite(triton::LoadOp loadOp, OpAdaptor adaptor,
+  matchAndRewrite(tts::GatherOp gatherOp, OpAdaptor adaptor,
                   ConversionPatternRewriter &rewriter) const override {
-    if (!loadOp.getType().isIntOrIndexOrFloat()) {
+    if (!gatherOp.getType().isIntOrIndexOrFloat()) {
       return failure();
     }
 
-    auto loc = loadOp->getLoc();
-
-    auto makePtrOp =
-        loadOp.getPtr().getDefiningOp<tts::MakeUnstructuredTensorPtrOp>();
+    auto loc = gatherOp->getLoc();
 
     auto basePtr = adaptor.getPtr();
-    auto offset = makePtrOp.getOffset();
+    auto offset = adaptor.getOffset();
 
     Value loadIndex = rewriter.create<arith::IndexCastOp>(
         loc, rewriter.getIndexType(), offset);
@@ -99,7 +96,7 @@ struct ScalarLoadConverter : public OpConversionPattern<triton::LoadOp> {
     auto memref = rewriter.create<memref::ReinterpretCastOp>(
         loc,
         getMemrefTypeForScalarPtr(
-            cast<triton::PointerType>(loadOp.getPtr().getType()),
+            cast<triton::PointerType>(gatherOp.getPtr().getType()),
             rewriter.getContext()),
         basePtr, getAsOpFoldResult(loadIndex) /*offset*/,
         ArrayRef<OpFoldResult>{rewriter.getIndexAttr(1)} /*sizes*/,
@@ -110,36 +107,33 @@ struct ScalarLoadConverter : public OpConversionPattern<triton::LoadOp> {
     auto scalarLoadOp = rewriter.create<affine::AffineLoadOp>(
         loc, memref, zeroMap, std::nullopt);
 
-    rewriter.replaceOp(loadOp, scalarLoadOp.getResult());
+    rewriter.replaceOp(gatherOp, scalarLoadOp.getResult());
 
     return success();
   }
 };
 
-struct ScalarStoreConverter : public OpConversionPattern<triton::StoreOp> {
-  using OpConversionPattern<triton::StoreOp>::OpConversionPattern;
+struct ScalarStoreConverter : public OpConversionPattern<tts::ScatterOp> {
+  using OpConversionPattern<tts::ScatterOp>::OpConversionPattern;
 
   ScalarStoreConverter(const TypeConverter &typeConverter, MLIRContext *context)
-      : OpConversionPattern<triton::StoreOp>(typeConverter, context) {}
+      : OpConversionPattern<tts::ScatterOp>(typeConverter, context) {}
 
   ScalarStoreConverter(MLIRContext *context)
-      : OpConversionPattern<triton::StoreOp>(context) {}
+      : OpConversionPattern<tts::ScatterOp>(context) {}
 
   LogicalResult
-  matchAndRewrite(triton::StoreOp storeOp, OpAdaptor adaptor,
+  matchAndRewrite(tts::ScatterOp scatterOp, OpAdaptor adaptor,
                   ConversionPatternRewriter &rewriter) const override {
 
-    if (!storeOp.getValue().getType().isIntOrIndexOrFloat()) {
+    if (!scatterOp.getValue().getType().isIntOrIndexOrFloat()) {
       return failure();
     }
 
-    auto loc = storeOp->getLoc();
-
-    auto makePtrOp =
-        storeOp.getPtr().getDefiningOp<tts::MakeUnstructuredTensorPtrOp>();
+    auto loc = scatterOp->getLoc();
 
     auto basePtr = adaptor.getPtr();
-    auto offset = makePtrOp.getOffset();
+    auto offset = adaptor.getOffset();
 
     Value storeIndex = rewriter.create<arith::IndexCastOp>(
         loc, rewriter.getIndexType(), offset);
@@ -147,44 +141,41 @@ struct ScalarStoreConverter : public OpConversionPattern<triton::StoreOp> {
     auto memref = rewriter.create<memref::ReinterpretCastOp>(
         loc,
         getMemrefTypeForScalarPtr(
-            cast<triton::PointerType>(storeOp.getPtr().getType()),
+            cast<triton::PointerType>(scatterOp.getPtr().getType()),
             rewriter.getContext()),
         basePtr, getAsOpFoldResult(storeIndex) /*offset*/,
         ArrayRef<OpFoldResult>{rewriter.getIndexAttr(1)} /*sizes*/,
         ArrayRef<OpFoldResult>{rewriter.getIndexAttr(1)} /*strides*/);
 
-    auto storeVal = storeOp.getValue();
+    auto storeVal = scatterOp.getValue();
     auto zeroMap = AffineMap::getConstantMap(0, rewriter.getContext());
 
     rewriter.create<affine::AffineStoreOp>(loc, storeVal, memref, zeroMap,
                                            std::nullopt);
-    rewriter.eraseOp(storeOp);
+    rewriter.eraseOp(scatterOp);
 
     return success();
   }
 };
 
 // Lowering an unstructured load op (gather) into a linalg.generic op
-struct LoadOpConverter : public OpConversionPattern<triton::LoadOp> {
-  using OpConversionPattern<triton::LoadOp>::OpConversionPattern;
+struct GatherConverter : public OpConversionPattern<tts::GatherOp> {
+  using OpConversionPattern<tts::GatherOp>::OpConversionPattern;
 
-  LoadOpConverter(const TypeConverter &typeConverter, MLIRContext *context)
-      : OpConversionPattern<triton::LoadOp>(typeConverter, context) {}
+  GatherConverter(const TypeConverter &typeConverter, MLIRContext *context)
+      : OpConversionPattern<tts::GatherOp>(typeConverter, context) {}
 
-  LoadOpConverter(MLIRContext *context)
-      : OpConversionPattern<triton::LoadOp>(context) {}
+  GatherConverter(MLIRContext *context)
+      : OpConversionPattern<tts::GatherOp>(context) {}
 
   LogicalResult
-  matchAndRewrite(triton::LoadOp loadOp, OpAdaptor adaptor,
+  matchAndRewrite(tts::GatherOp gatherOp, OpAdaptor adaptor,
                   ConversionPatternRewriter &rewriter) const override {
 
-    auto loc = loadOp->getLoc();
-
-    auto makePtrOp =
-        loadOp.getPtr().getDefiningOp<tts::MakeUnstructuredTensorPtrOp>();
+    auto loc = gatherOp->getLoc();
 
     auto ptr = adaptor.getPtr();
-    auto offsetTensor = makePtrOp.getOffset();
+    auto offsetTensor = adaptor.getOffset();
     auto offsetType = dyn_cast<ShapedType>(offsetTensor.getType());
 
     // This must be a scalar load, skip processing
@@ -193,7 +184,7 @@ struct LoadOpConverter : public OpConversionPattern<triton::LoadOp> {
     }
 
     auto loadResultType =
-        dyn_cast<RankedTensorType>(loadOp.getResult().getType());
+        dyn_cast<RankedTensorType>(gatherOp.getResult().getType());
 
     // Treat the base pointer (memref) as 1D because the offsets are all
     // relative to a single base pointer (already collapsed).
@@ -218,8 +209,8 @@ struct LoadOpConverter : public OpConversionPattern<triton::LoadOp> {
     // - an optional mask tensor if the load op contains mask
     SmallVector<Value> inputs{offsetTensor};
 
-    if (loadOp.getMask()) {
-      inputs.push_back(loadOp.getMask());
+    if (gatherOp.getMask()) {
+      inputs.push_back(gatherOp.getMask());
     }
 
     auto emptyTensor =
@@ -234,7 +225,7 @@ struct LoadOpConverter : public OpConversionPattern<triton::LoadOp> {
     // If mask is used, the first 2 maps are for the offset and mask tensors
     // while the last map is for the output tensor.
     SmallVector<AffineMap> affineMaps(
-        loadOp.getMask() ? 3 : 2,
+        gatherOp.getMask() ? 3 : 2,
         rewriter.getMultiDimIdentityMap(loadResultType.getRank()));
 
     auto genericOp = rewriter.create<linalg::GenericOp>(
@@ -252,7 +243,7 @@ struct LoadOpConverter : public OpConversionPattern<triton::LoadOp> {
                                                ValueRange{index0});
           };
 
-          if (!loadOp.getMask()) {
+          if (!gatherOp.getMask()) {
             // If there is no mask, simply extract the current element from the
             // base tensor and use it as the yield value.
             auto loadValue = getValueAtIndex(args[0], loc, rewriter);
@@ -272,27 +263,8 @@ struct LoadOpConverter : public OpConversionPattern<triton::LoadOp> {
                 },
                 [&](OpBuilder &b, Location loc) {
                   // Falsy case, yield `other` or 0 as the default value
-                  if (loadOp.getOther()) {
-                    auto definingOp = loadOp.getOther().getDefiningOp();
-                    if (auto constOp =
-                            dyn_cast<arith::ConstantOp>(definingOp)) {
-                      if (auto attr =
-                              dyn_cast<DenseElementsAttr>(constOp.getValue())) {
-                        assert(attr.isSplat());
-                        auto elemValue = attr.getSplatValue<Attribute>();
-                        auto otherValue = arith::ConstantOp::materialize(
-                            b, elemValue, attr.getElementType(), loc);
-                        b.create<scf::YieldOp>(loc, otherValue.getResult());
-                      } else {
-                        llvm_unreachable("unexpected constant op");
-                      }
-                    } else if (auto fillOp =
-                                   dyn_cast<linalg::FillOp>(definingOp)) {
-                      b.create<scf::YieldOp>(loc, fillOp.value());
-                    } else {
-                      definingOp->dump();
-                      llvm_unreachable("unexpected defining op");
-                    }
+                  if (gatherOp.getOther()) {
+                    b.create<scf::YieldOp>(loc, gatherOp.getOther());
                   } else {
                     auto elemType = baseTensor.getType().getElementType();
                     Value extract;
@@ -314,32 +286,29 @@ struct LoadOpConverter : public OpConversionPattern<triton::LoadOp> {
           }
         });
 
-    rewriter.replaceOp(loadOp, genericOp);
+    rewriter.replaceOp(gatherOp, genericOp);
 
     return success();
   }
 };
 
 // Lowering an unstructured store op (scatter) into an affine loop nest
-struct StoreOpConverter : public OpConversionPattern<triton::StoreOp> {
-  using OpConversionPattern<triton::StoreOp>::OpConversionPattern;
+struct ScatterConverter : public OpConversionPattern<tts::ScatterOp> {
+  using OpConversionPattern<tts::ScatterOp>::OpConversionPattern;
 
-  StoreOpConverter(const TypeConverter &typeConverter, MLIRContext *context)
-      : OpConversionPattern<triton::StoreOp>(typeConverter, context) {}
+  ScatterConverter(const TypeConverter &typeConverter, MLIRContext *context)
+      : OpConversionPattern<tts::ScatterOp>(typeConverter, context) {}
 
-  StoreOpConverter(MLIRContext *context)
-      : OpConversionPattern<triton::StoreOp>(context) {}
+  ScatterConverter(MLIRContext *context)
+      : OpConversionPattern<tts::ScatterOp>(context) {}
 
   LogicalResult
-  matchAndRewrite(triton::StoreOp storeOp, OpAdaptor adaptor,
+  matchAndRewrite(tts::ScatterOp scatterOp, OpAdaptor adaptor,
                   ConversionPatternRewriter &rewriter) const override {
-    auto loc = storeOp->getLoc();
-
-    auto makePtrOp =
-        storeOp.getPtr().getDefiningOp<tts::MakeUnstructuredTensorPtrOp>();
+    auto loc = scatterOp->getLoc();
 
     auto ptr = adaptor.getPtr();
-    auto offsetTensor = makePtrOp.getOffset();
+    auto offsetTensor = adaptor.getOffset();
     auto offsetType = dyn_cast<ShapedType>(offsetTensor.getType());
 
     // This must be a scalar store, skip processing
@@ -347,7 +316,8 @@ struct StoreOpConverter : public OpConversionPattern<triton::StoreOp> {
       return failure();
     }
 
-    auto resultType = dyn_cast<RankedTensorType>(storeOp.getValue().getType());
+    auto resultType =
+        dyn_cast<RankedTensorType>(scatterOp.getValue().getType());
 
     auto storeMemref = rewriter.create<memref::CastOp>(
         loc,
@@ -365,10 +335,10 @@ struct StoreOpConverter : public OpConversionPattern<triton::StoreOp> {
       rewriter.setInsertionPointToStart(forOp.getBody());
     }
 
-    if (storeOp.getMask()) {
+    if (scatterOp.getMask()) {
       // Mask case, only store the value if the mask value at `ivs` is truthy
       auto maskValue =
-          rewriter.create<tensor::ExtractOp>(loc, storeOp.getMask(), ivs);
+          rewriter.create<tensor::ExtractOp>(loc, scatterOp.getMask(), ivs);
 
       auto ifOp = rewriter.create<scf::IfOp>(loc, maskValue,
                                              false /* withElseRegion */);
@@ -382,37 +352,14 @@ struct StoreOpConverter : public OpConversionPattern<triton::StoreOp> {
     auto offsetValue =
         rewriter.create<tensor::ExtractOp>(loc, offsetTensor, ivs);
     auto storeValue =
-        rewriter.create<tensor::ExtractOp>(loc, storeOp.getValue(), ivs);
+        rewriter.create<tensor::ExtractOp>(loc, scatterOp.getValue(), ivs);
     Value storeIndex = rewriter.create<arith::IndexCastOp>(
         loc, rewriter.getIndexType(), offsetValue);
     rewriter.create<memref::StoreOp>(loc, storeValue, storeMemref, storeIndex);
 
     // Finalize
-    rewriter.eraseOp(storeOp);
+    rewriter.eraseOp(scatterOp);
     rewriter.restoreInsertionPoint(ip);
-    return success();
-  }
-};
-
-struct MakePtrConverter
-    : public OpConversionPattern<tts::MakeUnstructuredTensorPtrOp> {
-  using OpConversionPattern<
-      tts::MakeUnstructuredTensorPtrOp>::OpConversionPattern;
-
-  MakePtrConverter(const TypeConverter &typeConverter, MLIRContext *context)
-      : OpConversionPattern<tts::MakeUnstructuredTensorPtrOp>(typeConverter,
-                                                              context) {}
-
-  MakePtrConverter(MLIRContext *context)
-      : OpConversionPattern<tts::MakeUnstructuredTensorPtrOp>(context) {}
-
-  LogicalResult
-  matchAndRewrite(tts::MakeUnstructuredTensorPtrOp op, OpAdaptor adaptor,
-                  ConversionPatternRewriter &rewriter) const override {
-    // The base pointer that is used in load/store comes from
-    // tts.make_unstructured_tptr. Simply replace the op with the base
-    // pointer.
-    rewriter.replaceOp(op, adaptor.getBase());
     return success();
   }
 };
@@ -442,14 +389,12 @@ public:
         bufferization::BufferizationDialect, memref::MemRefDialect,
         ttx::TritonTilingExtDialect>();
 
-    target.addIllegalOp<triton::LoadOp, triton::StoreOp,
-                        tts::MakeUnstructuredTensorPtrOp>();
+    target.addIllegalOp<tts::GatherOp, tts::ScatterOp>();
 
     PtrToUnrankedMemrefConverter typeConverter;
-    patterns.add<MakePtrConverter>(typeConverter, patterns.getContext());
 
-    patterns.add<LoadOpConverter, ScalarLoadConverter, StoreOpConverter,
-                 ScalarStoreConverter>(patterns.getContext());
+    patterns.add<GatherConverter, ScatterConverter, ScalarLoadConverter,
+                 ScalarStoreConverter>(typeConverter, patterns.getContext());
 
     if (failed(applyPartialConversion(moduleOp, target, std::move(patterns))))
       signalPassFailure();
