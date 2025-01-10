@@ -371,24 +371,6 @@ private:
         op, staticTargetOffset.value_or(ShapedType::kDynamic), staticStrides,
         resultShape);
 
-    // For block pointers, the base could come from a sequence of `tt.addptr`,
-    // which at this point has already been lowered a single
-    // tts.make_unstructured_tptr via --fold-unstructured-ptr. The offset in
-    // such cases is dynamic and comes from the second operand of
-    // tts.make_unstructured_tptr. See
-    // test/Conversion/StructuredToMemref/block_ptr_complex_offset.mlir
-    // Accumulate the target offset with the offset from
-    // tts.make_unstructured_tptr.
-    if (auto makePtr =
-            op.getBase().getDefiningOp<tts::MakeUnstructuredTensorPtrOp>()) {
-      auto prevOff =
-          rewriter
-              .create<arith::IndexCastOp>(op.getLoc(), rewriter.getIndexType(),
-                                          makePtr.getOffset())
-              .getResult();
-      targetOffset = addOFRs(prevOff, targetOffset, op->getLoc(), rewriter);
-    }
-
     auto castOp = rewriter.create<memref::ReinterpretCastOp>(
         op.getLoc(), resultType, adaptor.getBase(), targetOffset,
         op.getMixedSizes(), mixedStrides);
