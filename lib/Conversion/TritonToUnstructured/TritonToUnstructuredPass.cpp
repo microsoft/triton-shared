@@ -459,6 +459,9 @@ public:
               })
               .Case<triton::MakeTensorPtrOp,
                     tts::MakeTensorPtrOp>([&](auto makeTensorPtr) {
+                // For block pointers, the base could come from a sequence of
+                // `tt.addptr`. Accumulate the target offset with the offset we
+                // have saved.
                 auto offsetInfo = offsetMap.at(makeTensorPtr.getBase());
                 auto baseOffset = offsetInfo.offset;
 
