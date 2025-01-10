@@ -1,4 +1,4 @@
-// RUN: triton-shared-opt --fold-unstructured-ptr %s | FileCheck %s
+// RUN: triton-shared-opt --triton-to-unstructured %s | FileCheck %s
 
 module {
   tt.func public @nested2_complex_body(%arg0: !tt.ptr<f32>, %arg1: !tt.ptr<f32>, %arg2: i32, %arg3: i32) attributes {noinline = false} {
@@ -66,10 +66,8 @@ module {
 // CHECK:           scf.for [[I_0_:%.+]] = [[CST_0_]] to [[CST_2_]] step [[CST_1_]]  : i32 {
 // CHECK:             [[VAR_10_:%.+]] = arith.addi [[VAR_9_]], [[VAR_cst_]] : tensor<2x2xi32>
 // CHECK:             scf.for [[I_1_:%.+]] = [[CST_0_]] to [[CST_2_]] step [[CST_1_]]  : i32 {
-// CHECK:               [[VAR_11_:%.+]] = "tts.make_unstructured_tptr"([[PARAM_0_]], [[VAR_10_]]) : (!tt.ptr<f32>, tensor<2x2xi32>) -> tensor<2x2x!tt.ptr<f32>>
-// CHECK-DAG:           [[LOAD_VAR_11_MEM_:%.+]] = tt.load [[VAR_11_]] : tensor<2x2x!tt.ptr<f32>>
-// CHECK-DAG:           [[VAR_13_:%.+]] = "tts.make_unstructured_tptr"([[PARAM_1_]], [[VAR_10_]]) : (!tt.ptr<f32>, tensor<2x2xi32>) -> tensor<2x2x!tt.ptr<f32>>
-// CHECK:               tt.store [[VAR_13_]], [[LOAD_VAR_11_MEM_]] : tensor<2x2x!tt.ptr<f32>>
+// CHECK:               [[VAR_11_:%.+]] = tts.gather [[PARAM_0_]]{{.}}[[VAR_10_]]{{.}} : (<f32>, tensor<2x2xi32>) -> tensor<2x2xf32>
+// CHECK:               tts.scatter [[VAR_11_]] into [[PARAM_1_]]{{.}}[[VAR_10_]]{{.}} : tensor<2x2xf32> into (<f32>, tensor<2x2xi32>)
 // CHECK:             }
 // CHECK:           }
 // CHECK:           tt.return

@@ -1,4 +1,4 @@
-// RUN: triton-shared-opt --fold-unstructured-ptr %s | FileCheck %s
+// RUN: triton-shared-opt --triton-to-unstructured %s | FileCheck %s
 
 module {
   tt.func public @gather_simple(%arg0: !tt.ptr<f32>, %arg1: !tt.ptr<f32>) attributes {noinline = false} {
@@ -31,5 +31,8 @@ module {
 }
 
 // CHECK-NOT: tt.addptr
-// CHECK-COUNT-2: "tts.make_unstructured_tptr"(%arg{{[0-9]+}}
-// CHECK-NOT:    "tts.make_unstructured_tptr"(%arg{{[0-9]+}}
+// CHECK-NOT: tt.load
+// CHECK-NOT: tt.store
+
+// CHECK: [[tensor:%.+]] = tts.gather %arg0
+// CHECK: tts.scatter [[tensor]] into %arg1

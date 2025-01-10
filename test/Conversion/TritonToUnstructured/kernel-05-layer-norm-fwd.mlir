@@ -1,4 +1,4 @@
-// RUN: triton-shared-opt --fold-unstructured-ptr %s | FileCheck %s
+// RUN: triton-shared-opt --triton-to-unstructured %s | FileCheck %s
 
 module {
   tt.func public @_layer_norm_fwd_fused_0123456789(%arg0: !tt.ptr<f32>, %arg1: !tt.ptr<f32>, %arg2: !tt.ptr<f32>, %arg3: !tt.ptr<f32>, %arg4: !tt.ptr<f32>, %arg5: !tt.ptr<f32>, %arg6: i32, %arg7: i32, %arg8: f32) {
@@ -89,5 +89,8 @@ module {
 }
 
 // CHECK-NOT: tt.addptr
-// CHECK-COUNT-8: "tts.make_unstructured_tptr"(%arg{{[0-9]+}}
-// CHECK-NOT:    "tts.make_unstructured_tptr"(%arg{{[0-9]+}}
+// CHECK-NOT: tt.load
+// CHECK-NOT: tt.store
+
+// CHECK-COUNT-5: tts.gather %arg{{[0-9]+}}
+// CHECK-NOT: tts.gather %arg{{[0-9]+}}
