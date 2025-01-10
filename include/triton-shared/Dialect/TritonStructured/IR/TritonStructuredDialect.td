@@ -143,12 +143,6 @@ def TTS_GetStructuredStateOp : TTS_Op<"get_structured_state", [AttrSizedResultSe
   let hasVerifier = 1;
 }
 
-def TTS_MakeUnstructuredTensorPtrOp : TTS_Op<"make_unstructured_tptr", [Pure]> {
-  let summary = "Create triton pointer from a base pointer and offsets";
-  let arguments = (ins AnyTypeOf<[TT_PtrLike, AnyRankedOrUnrankedMemRef]>:$base, AnyTypeOf<[TT_I64Like, TT_I32Like]>:$offset);
-  let results = (outs TT_PtrLike:$ptr);
-}
-
 def TTS_GatherOp : TTS_Op<"gather", [
   MemoryEffects<[MemRead]>,
   AttrSizedOperandSegments,
