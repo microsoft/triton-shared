@@ -1058,7 +1058,7 @@ LogicalResult PtrAnalysis::rewriteLoadOp(triton::LoadOp op,
   auto loc = op.getLoc();
 
   if (!ptr) {
-    op->emitRemark("PtrAnalysis: pointer is not replaced with tts.make_tptr so "
+    op->emitRemark("PtrAnalysis: pointer is not replace with tts.make_tptr so "
                    "loadOp cannot be rewritten");
     return failure();
   }
@@ -1195,7 +1195,7 @@ LogicalResult PtrAnalysis::rewriteStoreOp(triton::StoreOp op,
   auto loc = op.getLoc();
 
   if (!ptr) {
-    op->emitRemark("PtrAnalysis: pointer is not replaced with tts.make_tptr so "
+    op->emitRemark("PtrAnalysis: pointer is not replace with tts.make_tptr so "
                    "storeOp cannot be rewritten");
     return failure();
   }
@@ -1229,30 +1229,6 @@ LogicalResult PtrAnalysis::rewriteStoreOp(triton::StoreOp op,
   });
 
   op->erase();
-  return success();
-}
-
-LogicalResult PtrAnalysis::rewriteSplatOp(triton::SplatOp op) {
-  if (isa<triton::PointerType>(op.getSrc().getType())) {
-    LLVM_DEBUG({
-      llvm::dbgs() << "SplatOp has ptr-typed src: " << op.getSrc()
-	           << "\nsplatted into type: " << op.getType() << "\n";
-    });
-
-    OpBuilder builder(op);
-    PtrState state;
-    if (visitOperandSplat(op, state, op.getLoc(), builder).failed())
-      return failure();
-
-    knownPtrs[op.getResult()] = state;
-
-    if (isa<RankedTensorType>(op.getResult().getType())) {
-      auto maketptrOp = state.createTTSMakeTensorPtrOp(builder, op.getLoc());
-      ptrMap.map(op.getResult(), maketptrOp.getResult());
-    } else {
-      ptrMap.map(op.getResult(), op.getResult());
-    }
-  }
   return success();
 }
 
@@ -1300,13 +1276,6 @@ LogicalResult PtrAnalysis::rewriteOp(Operation *rootOp, bool useUnsafeMask) {
           }
           return WalkResult::skip();
         })
-	.Case<triton::SplatOp>([&](auto splat) {
-          if (rewriteSplatOp(splat).failed()) {
-            splat->emitRemark("PtrAnalysis: Failed rewrite SplatOp");
-            return WalkResult::advance();
-	  }
-          return WalkResult::skip();
-	})
         .Case<scf::ForOp>([&](auto forOp) {
           // `rewriteForOp` recursively visits its children, so regardless
           // whether the rewrite succeeds or not, we need to return "skip" so

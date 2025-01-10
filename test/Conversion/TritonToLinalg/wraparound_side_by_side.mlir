@@ -1,5 +1,4 @@
 // XFAIL: *
-// triton-to-linalg to be retired
 // RUN: triton-shared-opt --triton-to-linalg %s | FileCheck %s
 
 module {
