@@ -1,9 +1,9 @@
-add_triton_library(FoldUnstructuredPtr
-  FoldUnstructuredPtrPass.cpp
+add_triton_library(TritonToUnstructured
+  TritonToUnstructuredPass.cpp
 
   DEPENDS
   TritonStructuredTableGen
-  FoldUnstructuredPtrConversionPassIncGen
+  TritonToUnstructuredConversionPassIncGen
 
   LINK_LIBS PUBLIC
   MLIRArithDialect

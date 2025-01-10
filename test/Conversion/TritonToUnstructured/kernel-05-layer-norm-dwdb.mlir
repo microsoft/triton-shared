@@ -1,4 +1,4 @@
-// RUN: triton-shared-opt --fold-unstructured-ptr %s | FileCheck %s
+// RUN: triton-shared-opt --triton-to-unstructured %s | FileCheck %s
 
 module {
   tt.func public @_layer_norm_bwd_dwdb_0123456(%arg0: !tt.ptr<f32>, %arg1: !tt.ptr<f32>, %arg2: !tt.ptr<f32>, %arg3: !tt.ptr<f32>, %arg4: i32, %arg5: i32) {
@@ -61,5 +61,10 @@ module {
 }
 
 // CHECK-NOT: tt.addptr
-// CHECK-COUNT-4: "tts.make_unstructured_tptr"(%arg{{[0-9]+}}
-// CHECK-NOT:    "tts.make_unstructured_tptr"(%arg{{[0-9]+}}
+// CHECK-NOT: tt.load
+// CHECK-NOT: tt.store
+
+// CHECK-COUNT-2: tts.gather %arg{{[0-9]+}}
+// CHECK-NOT: tts.gather %arg{{[0-9]+}}
+// CHECK-COUNT-2: tts.scatter {{.+}} into %arg{{[0-9]+}}
+// CHECK-NOT:    tts.scatter {{.+}} into %arg{{[0-9]+}}
