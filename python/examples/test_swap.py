@@ -3,6 +3,11 @@ import torch
 import triton
 import triton.language as tl
 
+# The purpose of this kernel and test is to catch incorrectly optimized kernels
+# where copy elimination happens erroneously in the absence of explicit memory allocation.
+# Such optimization bugs can result in incorrect behavior when swapping two arrays,
+# particularly when both arrays unintentionally end up with the same data due to
+# missing intermediate storage or mismanaged memory access.
 
 @triton.jit
 def swap_kernel(
