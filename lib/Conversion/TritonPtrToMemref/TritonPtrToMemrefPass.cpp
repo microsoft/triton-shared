@@ -47,7 +47,8 @@ public:
     // The order of type conversion is important: later ones are tried earlier.
     addConversion([](Type type) { return type; });
     addConversion([](triton::PointerType ptrType) {
-      return UnrankedMemRefType::get(ptrType.getPointeeType(), 0);
+      return UnrankedMemRefType::get(ptrType.getPointeeType(),
+                                     /*memorySpace=*/0);
     });
     addConversion([](RankedTensorType tensorType) -> std::optional<Type> {
       if (auto ptrType =
@@ -56,21 +57,15 @@ public:
       }
       return std::nullopt;
     });
-    // Used for converting memref<*> back to tt.ptr type, these ops will then be
-    // handled when we convert addptr op later.
-    addSourceMaterialization([&](OpBuilder &builder, Type resultType,
-                                 ValueRange inputs,
-                                 Location loc) -> std::optional<Value> {
-      return builder.create<UnrealizedConversionCastOp>(loc, resultType, inputs)
-          .getResult(0);
-    });
 
-    addArgumentMaterialization([&](OpBuilder &builder, Type resultType,
-                                   ValueRange inputs,
-                                   Location loc) -> std::optional<Value> {
+    auto createUnrealizedCast = [&](OpBuilder &builder, Type resultType,
+                                    ValueRange inputs,
+                                    Location loc) -> std::optional<Value> {
       return builder.create<UnrealizedConversionCastOp>(loc, resultType, inputs)
           .getResult(0);
-    });
+    };
+    addSourceMaterialization(createUnrealizedCast);
+    addArgumentMaterialization(createUnrealizedCast);
   }
 };
 
@@ -93,12 +88,11 @@ public:
     TritonFunctionSignatureConverter typeConverter;
 
     // Update function signature and call ops to use memrefs
-    target.addDynamicallyLegalOp<func::FuncOp>([&](func::FuncOp op) {
-      return typeConverter.isSignatureLegal(op.getFunctionType());
+    target.addDynamicallyLegalOp<func::FuncOp, triton::FuncOp>([&](auto op) {
+      return typeConverter.isSignatureLegal(
+          cast<FunctionType>(cast<FunctionOpInterface>(op).getFunctionType()));
     });
-    target.addDynamicallyLegalOp<triton::FuncOp>([&](triton::FuncOp op) {
-      return typeConverter.isSignatureLegal(op.getFunctionType());
-    });
+
     target.addDynamicallyLegalOp<func::CallOp>([&](func::CallOp op) {
       return typeConverter.isLegal(op.getResultTypes()) &&
              typeConverter.isLegal(op.getOperandTypes());
