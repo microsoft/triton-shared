@@ -59,6 +59,8 @@ struct PtrState {
 
   bool isBlockPtr() const;
 
+  void dump() const;
+
   // Process addition of two PtrStates.
   LogicalResult addState(const PtrState &lhsState, const PtrState &rhsState,
                          Operation *op, OpBuilder &builder);
@@ -258,11 +260,11 @@ public:
   // strides, offsets, and modulos.
   LogicalResult rewriteForOp(scf::ForOp op);
 
-  LogicalResult rewriteLoadOp(triton::LoadOp op);
+  LogicalResult rewriteLoadOp(triton::LoadOp op, bool useUnsafeMask = false);
 
-  LogicalResult rewriteStoreOp(triton::StoreOp op);
+  LogicalResult rewriteStoreOp(triton::StoreOp op, bool useUnsafeMask = false);
 
-  LogicalResult rewriteOp(Operation *op);
+  LogicalResult rewriteOp(Operation *op, bool useUnsafeMask = false);
 };
 
 } // namespace tts

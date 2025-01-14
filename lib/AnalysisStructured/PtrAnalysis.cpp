@@ -8,11 +8,8 @@
 #include "triton-shared/AnalysisStructured/PtrAnalysis.h"
 #include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/SCF/IR/SCF.h"
-#include "mlir/Dialect/Utils/StaticValueUtils.h"
-#include "mlir/IR/BuiltinOps.h"
 #include "mlir/IR/BuiltinTypes.h"
 #include "mlir/IR/Value.h"
-#include "mlir/IR/ValueRange.h"
 #include "mlir/IR/Visitors.h"
 #include "mlir/Support/LLVM.h"
 #include "mlir/Support/LogicalResult.h"
@@ -33,7 +30,6 @@
 #include "llvm/Support/LogicalResult.h"
 #include <cassert>
 #include <cstddef>
-#include <functional>
 #include <optional>
 #include <queue>
 #include <string>
@@ -41,74 +37,6 @@
 #define DEBUG_TYPE "triton-ptr-analysis"
 
 namespace mlir {
-
-// Extract a scalar value from v.
-// If v is a scalar, return that directly. Otherwise, parse through operations
-// (currently only support splat, sitofp, and truncf) that produce it to
-// extract the underlying scalar value. We then reconstruct the chain of
-// operations that can produce this constant with the original type. If no
-// scalar value can be extracted, a nullptr is returned.
-static Value getScalarValue(Value operand, Location loc, OpBuilder &builder) {
-  SmallVector<Operation *> ops;
-
-  auto reconstructScalarValue = [&](Value src) {
-    for (auto op = ops.rbegin(); op != ops.rend(); ++op) {
-      src = TypeSwitch<Operation *, Value>(*op)
-                .Case<arith::SIToFPOp>([&](Operation *op) {
-                  auto resType = op->getResults()[0].getType();
-                  if (auto shapedType = dyn_cast<ShapedType>(resType)) {
-                    resType = shapedType.getElementType();
-                  }
-                  return builder.create<arith::SIToFPOp>(loc, resType, src);
-                })
-                .Case<arith::TruncFOp>([&](Operation *op) {
-                  auto resType = op->getResults()[0].getType();
-                  if (auto shapedType = dyn_cast<ShapedType>(resType)) {
-                    resType = shapedType.getElementType();
-                  }
-                  return builder.create<arith::TruncFOp>(loc, resType, src);
-                })
-                .Default([](Operation *op) {
-                  llvm_unreachable("unsupported op in generating ");
-                  return nullptr;
-                });
-    }
-    return src;
-  };
-
-  while (true) {
-    if (!dyn_cast<ShapedType>(operand.getType())) {
-      return reconstructScalarValue(operand);
-    } else if (auto op = operand.getDefiningOp<arith::ConstantOp>()) {
-      if (auto attr = dyn_cast<DenseElementsAttr>(op.getValue())) {
-        if (!attr.isSplat()) {
-          InFlightDiagnostic diag = emitError(loc)
-                                    << "other value used in masked load "
-                                       "produced by unsupported instruction";
-          return nullptr;
-        }
-        auto elemValue = attr.getSplatValue<Attribute>();
-        auto constOp = arith::ConstantOp::materialize(
-            builder, elemValue, attr.getElementType(), op.getLoc());
-        return reconstructScalarValue(constOp.getResult());
-      }
-    } else if (auto op = operand.getDefiningOp<triton::SplatOp>()) {
-      operand = op.getSrc();
-    } else if (auto op = operand.getDefiningOp<arith::SIToFPOp>()) {
-      ops.push_back(op.getOperation());
-      operand = op.getIn();
-    } else if (auto op = operand.getDefiningOp<arith::TruncFOp>()) {
-      ops.push_back(op.getOperation());
-      operand = op.getIn();
-    } else {
-      InFlightDiagnostic diag = emitError(loc)
-                                << "other value used in masked load produced "
-                                   "by unsupported instruction";
-      return nullptr;
-    }
-  }
-  return nullptr;
-}
 
 namespace tts {
 
@@ -251,6 +179,28 @@ LogicalResult PtrState::addState(const PtrState &lhsState,
   return success();
 }
 
+void PtrState::dump() const {
+  llvm::dbgs() << "PtrState: ";
+  if (source) {
+    llvm::dbgs() << "source: " << source << "\n";
+  }
+  if (scalar) {
+    llvm::dbgs() << "scalar: " << scalar << "\n";
+  }
+
+  llvm::dbgs() << "offsets: ";
+  llvm::interleave(offsets, llvm::dbgs(), "\n");
+  llvm::dbgs() << "\nstrides: ";
+  llvm::interleave(strides, llvm::dbgs(), "\n");
+  llvm::dbgs() << "\nsizes: ";
+  llvm::interleave(sizes, llvm::dbgs(), "\n");
+  llvm::dbgs() << "\nshape: ";
+  llvm::interleave(shape, llvm::dbgs(), "\n");
+  llvm::dbgs() << "\norder: ";
+  llvm::interleave(order, llvm::dbgs(), "\n");
+  llvm::dbgs() << "\n";
+}
+
 LogicalResult PtrState::mulState(const PtrState &lhsState,
                                  const PtrState &rhsState, Operation *op,
                                  OpBuilder &builder) {
@@ -265,9 +215,6 @@ LogicalResult PtrState::mulState(const PtrState &lhsState,
     return failure();
   }
 
-  assert(!(lhsState.scalar && rhsState.scalar) &&
-         "do not expect to see both lhs and rhs are scalars");
-
   // currently do not support both tensors are effectively non-scalar
   if (!lhsState.scalar && !rhsState.scalar) {
     op->emitRemark(
@@ -281,6 +228,11 @@ LogicalResult PtrState::mulState(const PtrState &lhsState,
 
   if (!rhs->scalar && lhs->scalar) {
     std::swap(lhs, rhs);
+  }
+
+  if (lhsState.scalar && rhsState.scalar) {
+    scalar = builder.create<arith::MulIOp>(
+        loc, lhsState.scalar, rhsState.scalar);
   }
 
   for (uint64_t i = 0; i < lhs->sizes.size(); i++) {
@@ -1055,13 +1007,21 @@ PtrAnalysis::rewriteGetStructuredStateOp(tts::GetStructuredStateOp op) {
       ptrMap.contains(tritonValue) ? ptrMap.lookup(tritonValue) : tritonValue;
 
   SmallVector<Value> replacements{remappedValue};
+  OpBuilder builder(op);
 
   if (state.getRank() == 0) {
     // For scalar pointers, the scalar contains the offset and is the only
     // relevant state that could be updated by the loop.
-    replacements.push_back(state.scalar);
+    if (state.scalar) {
+      replacements.push_back(state.scalar);
+    } else {
+      // This operand is a pointer directly from the kernel arguments.
+      // Use offset 0.
+      assert(!tritonValue.getDefiningOp());
+      replacements.push_back(builder.create<arith::ConstantOp>(
+          op.getLoc(), builder.getIndexAttr(0)));
+    }
   } else {
-    OpBuilder builder(op);
     for (auto [j, s] : llvm::enumerate(state.offsets)) {
       auto sIntAttr = getIntAttr(s);
       if (sIntAttr) {
@@ -1090,7 +1050,8 @@ PtrAnalysis::rewriteGetStructuredStateOp(tts::GetStructuredStateOp op) {
   return success();
 }
 
-LogicalResult PtrAnalysis::rewriteLoadOp(triton::LoadOp op) {
+LogicalResult PtrAnalysis::rewriteLoadOp(triton::LoadOp op,
+                                         bool useUnsafeMask) {
   auto ptr = ptrMap.lookupOrNull(op.getPtr());
   auto mask = op.getMask();
   auto other = op.getOther();
@@ -1109,7 +1070,7 @@ LogicalResult PtrAnalysis::rewriteLoadOp(triton::LoadOp op) {
   }
 
   ArrayRef<OpFoldResult> dims;
-  mlir::triton::MaskState mstate;
+  mlir::triton::MaskState mstate(useUnsafeMask);
   Value scalarOther;
 
   OpBuilder builder(op);
@@ -1126,7 +1087,7 @@ LogicalResult PtrAnalysis::rewriteLoadOp(triton::LoadOp op) {
   if (other) {
     assert(mask && "other value used while no masks are specified");
 
-    scalarOther = getScalarValue(other, loc, builder);
+    scalarOther = utils::getScalarValue(other, loc, builder);
     if (!scalarOther) {
       op->emitRemark("other value used in masked load produced by "
                      "unsupported instruction");
@@ -1226,7 +1187,8 @@ void PtrAnalysis::initializeMaybeStructuredArgs(Operation *op) {
   }
 }
 
-LogicalResult PtrAnalysis::rewriteStoreOp(triton::StoreOp op) {
+LogicalResult PtrAnalysis::rewriteStoreOp(triton::StoreOp op,
+                                          bool useUnsafeMask) {
   auto ptr = ptrMap.lookupOrNull(op.getPtr());
   auto val = op.getValue();
   auto mask = op.getMask();
@@ -1245,7 +1207,7 @@ LogicalResult PtrAnalysis::rewriteStoreOp(triton::StoreOp op) {
   }
 
   ArrayRef<OpFoldResult> dims;
-  mlir::triton::MaskState mstate;
+  mlir::triton::MaskState mstate(useUnsafeMask);
 
   OpBuilder builder(op);
 
@@ -1270,7 +1232,7 @@ LogicalResult PtrAnalysis::rewriteStoreOp(triton::StoreOp op) {
   return success();
 }
 
-LogicalResult PtrAnalysis::rewriteOp(Operation *rootOp) {
+LogicalResult PtrAnalysis::rewriteOp(Operation *rootOp, bool useUnsafeMask) {
   LLVM_DEBUG({
     llvm::dbgs() << "rewriting rootOp\n";
     rootOp->dump();
@@ -1301,14 +1263,14 @@ LogicalResult PtrAnalysis::rewriteOp(Operation *rootOp) {
           return WalkResult::advance();
         })
         .Case<triton::LoadOp>([&](auto load) {
-          if (rewriteLoadOp(load).failed()) {
+          if (rewriteLoadOp(load, useUnsafeMask).failed()) {
             load->emitRemark("PtrAnalysis: Failed to rewrite LoadOp");
             return WalkResult::advance();
           }
           return WalkResult::skip();
         })
         .Case<triton::StoreOp>([&](auto store) {
-          if (rewriteStoreOp(store).failed()) {
+          if (rewriteStoreOp(store, useUnsafeMask).failed()) {
             store->emitRemark("PtrAnalysis: Failed to rewrite StoreOp");
             return WalkResult::advance();
           }

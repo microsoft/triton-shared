@@ -36,6 +36,7 @@ module {
 // CHECK-DAG:   [[MAP_3_:#.+]] = affine_map<(d0, d1) -> (0, d1)>
 // CHECK-LABEL:  func.func @kernel
 // CHECK-SAME:   ([[PARAM_0_:%.+]]: !tt.ptr<bf16>, [[PARAM_1_:%.+]]: !tt.ptr<bf16>, [[PARAM_2_:%.+]]: i32, [[PARAM_3_:%.+]]: i32, [[PARAM_4_:%.+]]: i32, [[PARAM_5_:%.+]]: i32, [[PARAM_6_:%.+]]: i32, [[PARAM_7_:%.+]]: i32) {
+// CHECK-DAG:       [[CST_0_dot_000000_:%.+]] = arith.constant 0.000000e+00 : bf16
 // CHECK-DAG:       [[CST_256_:%.+]] = arith.constant 256 : i32
 // CHECK-DAG:       [[VAR_0_:%.+]] = tensor.empty() : tensor<512xi32>
 // CHECK-NOT: separator of consecutive DAGs
@@ -91,7 +92,6 @@ module {
 // CHECK:             linalg.yield [[VAR_21_5_]] : !tt.ptr<bf16>
 // CHECK:           } -> tensor<256x!tt.ptr<bf16>>
 // CHECK-DAG:       [[LOAD_VAR_14_MEM_:%.+]] = tt.load [[VAR_14_]] : tensor<512x256x!tt.ptr<bf16>>
-// CHECK-DAG:       [[CST_0_dot_000000_:%.+]] = arith.constant 0.000000e+00 : bf16
 // CHECK-DAG:       [[VAR_19_:%.+]] = tensor.empty() : tensor<256xbf16>
 // CHECK:           [[VAR_20_:%.+]] = linalg.fill ins([[CST_0_dot_000000_]] : bf16) outs([[VAR_19_]] : tensor<256xbf16>) -> tensor<256xbf16>
 // CHECK:           [[VAR_reduced_:%.+]] = linalg.reduce ins([[LOAD_VAR_14_MEM_]] : tensor<512x256xbf16>) outs([[VAR_20_]] : tensor<256xbf16>) dimensions = [0]

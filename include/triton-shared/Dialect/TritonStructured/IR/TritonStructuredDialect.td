@@ -120,8 +120,6 @@ def TTS_MakeTensorPtrOp
   //let hasCanonicalizer = 1;
 }
 
-// SameVariadicResultSize
-// AttrSizedResultSegments
 def TTS_GetStructuredStateOp : TTS_Op<"get_structured_state", [AttrSizedResultSegments, Pure]> {
   let summary = "Placeholder for the structured pointer states computed during PtrAnalysis.";
   let description = "Used to pass the offsets and strides to scf.for op to simplify IR rewrites.";
@@ -143,6 +141,51 @@ def TTS_GetStructuredStateOp : TTS_Op<"get_structured_state", [AttrSizedResultSe
 
   let hasFolder = 0;
   let hasVerifier = 1;
+}
+
+def TTS_GatherOp : TTS_Op<"gather", [
+  MemoryEffects<[MemRead]>,
+  AttrSizedOperandSegments,
+  OptionalTypesMatchWith<"mask type matches ptr type", "offset", "mask", "triton::getI1SameShape($_self)">,
+  OptionalTypesMatchWith<"other matches ptr type", "ptr", "other", "triton::getPointeeType($_self)">
+]> {
+  let summary = "optionally load data from in memory to fill a portion of the tensor";
+
+  let arguments = (
+    ins
+    TT_Ptr:$ptr,
+    TT_IntLike:$offset,
+    Optional<TT_BoolLike>:$mask,
+    Optional<TT_Type>:$other
+  );
+
+  let results = (outs TT_Type:$result);
+
+  let assemblyFormat = [{
+    $ptr `[` $offset `]` (`mask` `=` $mask^)? (`default` `=` $other^)?
+    attr-dict `:` `(` type($ptr) `,` type($offset) `)` `->` type($result)
+  }];
+}
+
+def TTS_ScatterOp : TTS_Op<"scatter", [
+  MemoryEffects<[MemWrite]>,
+  OptionalTypesMatchWith<"mask type matches offset type", "offset", "mask",
+                 "triton::getI1SameShape($_self)">
+]> {
+  let summary = "optionally store data from in memory to fill a portion of the tensor";
+
+  let arguments = (
+    ins
+    TT_Ptr:$ptr,
+    TT_IntLike:$offset,
+    TT_Type:$value,
+    Optional<TT_BoolLike>:$mask
+  );
+
+  let assemblyFormat = [{
+    $value `into` $ptr `[` $offset `]` (`mask` `=` $mask^)?
+    attr-dict `:` type($value) `into` ` ` `(` type($ptr) `,` type($offset) `)`
+  }];
 }
 
 def TTS_LoadOp : TTS_Op<"load", [
@@ -170,7 +213,7 @@ def TTS_LoadOp : TTS_Op<"load", [
     }
 
     bool hasMask() {
-      return !getStaticMaskDims().empty();
+      return !getMixedMaskDims().empty();
     }
   }];
 
@@ -182,7 +225,7 @@ def TTS_LoadOp : TTS_Op<"load", [
 def TTS_StoreOp : TTS_Op<"store", [
   MemoryEffects<[MemWrite]>
 ]> {
-  let summary = "optionally load data from in memory to fill a portion of the tensor";
+  let summary = "optionally store data from in memory to fill a portion of the tensor";
 
   let arguments = (ins TT_PtrLike:$ptr,
                        TT_Tensor:$value,
@@ -201,7 +244,7 @@ def TTS_StoreOp : TTS_Op<"store", [
     }
 
     bool hasMask() {
-      return !getStaticMaskDims().empty();
+      return !getMixedMaskDims().empty();
     }
   }];
 

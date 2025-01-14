@@ -33,6 +33,8 @@ void mlir::triton::populateTritonToLinalgConversionPatterns(
     unsigned int launchGridRank) {
   populateFunctionOpInterfaceTypeConversionPattern<triton::FuncOp>(
       patterns, typeConverter);
+  populateFunctionOpInterfaceTypeConversionPattern<triton::CallOp>(
+      patterns, typeConverter);
 
   patterns.add<MetaOpConverter>(patterns.getContext());
   patterns.add<StoreConverter>(patterns.getContext());
@@ -49,9 +51,13 @@ void mlir::triton::populateTritonToLinalgConversionPatterns(
   patterns.add<MakeRangeConverter>(patterns.getContext());
   patterns.add<ExpandDimsConverter>(patterns.getContext());
   patterns.add<BitcastConverter>(patterns.getContext());
+  patterns.add<CallConverter>(patterns.getContext());
   patterns.add<MulHiUIOpConverter>(patterns.getContext());
   patterns.add<PreciseSqrtConverter>(patterns.getContext());
   patterns.add<PreciseDivConverter>(patterns.getContext());
+  patterns.add<CatConverter>(patterns.getContext());
+  patterns.add<SplitConverter>(patterns.getContext());
+  patterns.add<JoinConverter>(patterns.getContext());
   patterns.add<FpToFpConverter>(patterns.getContext());
   patterns.add<ClampConverter>(patterns.getContext());
   patterns.add<AssertConverter>(patterns.getContext());

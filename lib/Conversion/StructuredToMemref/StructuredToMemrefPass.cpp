@@ -25,6 +25,7 @@
 #include "mlir/Dialect/Bufferization/IR/Bufferization.h"
 #include "mlir/Dialect/Linalg/IR/Linalg.h"
 #include "mlir/Dialect/SCF/Transforms/Patterns.h"
+#include "mlir/Dialect/Tensor/TransformOps/TensorTransformOps.h"
 #include "mlir/Pass/PassManager.h"
 #include "mlir/Transforms/Passes.h"
 #include "triton/Dialect/Triton/IR/Types.h"
@@ -224,17 +225,23 @@ public:
 
   LogicalResult convertArgsToMemrefType() {
     auto moduleOp = getOperation();
-
     RewritePatternSet patterns(&getContext());
     ConversionTarget target(getContext());
     TritonFunctionSignatureConverter typeConverter;
 
-    // Update function signature to use memrefs
+    // Update function signatures and calls to use memrefs
     target.addDynamicallyLegalOp<func::FuncOp>([&](func::FuncOp op) {
       return typeConverter.isSignatureLegal(op.getFunctionType());
     });
 
     populateFunctionOpInterfaceTypeConversionPattern<func::FuncOp>(
+        patterns, typeConverter);
+
+    target.addDynamicallyLegalOp<func::CallOp>([&](func::CallOp op) {
+      return typeConverter.isLegal(op.getResultTypes()) && typeConverter.isLegal(op.getOperandTypes());
+    });
+
+    populateFunctionOpInterfaceTypeConversionPattern<func::CallOp>(
         patterns, typeConverter);
 
     return applyPartialConversion(moduleOp, target, std::move(patterns));
