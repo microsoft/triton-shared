@@ -1,18 +1,20 @@
 #ifndef MLIR_DIALECT_TRITON_STRUCTURED_IR_TRITON_STRUCTURED_DIALECT_H_
 #define MLIR_DIALECT_TRITON_STRUCTURED_IR_TRITON_STRUCTURED_DIALECT_H_
 
-#include "mlir/IR/BuiltinOps.h"
-#include "mlir/IR/BuiltinTypes.h"
 #include "mlir/IR/Dialect.h"
 #include "mlir/IR/MLIRContext.h"
 #include "mlir/IR/OpDefinition.h"
-#include "mlir/IR/SymbolTable.h"
-#include "mlir/IR/TypeSupport.h"
-#include "mlir/IR/Types.h"
-#include "mlir/Interfaces/SideEffectInterfaces.h"
+
 #include "triton/Dialect/Triton/IR/Dialect.h"
 
-#include "mlir/IR/Dialect.h"
+namespace mlir {
+namespace tts {
+namespace utils {
+mlir::Value getScalarValue(mlir::Value operand, mlir::Location loc,
+                           mlir::OpBuilder &builder);
+}
+} // namespace tts
+} // namespace mlir
 
 //===----------------------------------------------------------------------===//
 // TritonStructured Operations
