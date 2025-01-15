@@ -3,6 +3,7 @@ import torch
 import triton
 import triton.language as tl
 
+from triton.backends.triton_shared.driver import CPUDriver
 
 @triton.jit
 def reduce_kernel_2d(
@@ -17,12 +18,41 @@ def reduce_kernel_2d(
         base_ptr += 1
 
 
+def compile():
+    src = triton.compiler.ASTSource(
+        fn=reduce_kernel_2d,
+        signature="*fp32",
+        constants={
+            "BLOCK_SIZE": 8
+        }
+    )
+    ret = triton.compile(
+        src
+    )
+    print(ret.asm["ttir"])
+
+
+
 def test(device):
+    if device == 'cpu':
+        triton.runtime.driver.set_active(CPUDriver())
+
     BLOCK_SIZE = 8
     x = torch.full([BLOCK_SIZE], -1, device=device, dtype=torch.float32)
-    output = torch.full((BLOCK_SIZE,), -99, device=x.device, dtype=x.dtype)
+    output = torch.full((BLOCK_SIZE,), -99, device=device, dtype=x.dtype)
     grid = lambda meta: (1,)
 
+    print(x)
+    print(output)
+
     reduce_kernel_2d[grid](output, BLOCK_SIZE=BLOCK_SIZE)
+    print('---')
+    print(output)
     ans = torch.arange(BLOCK_SIZE, device=device, dtype=torch.float32)
     torch.testing.assert_close(output, ans, rtol=0.001, atol=1e-5)
+
+
+# compile()
+
+test('cpu')
+

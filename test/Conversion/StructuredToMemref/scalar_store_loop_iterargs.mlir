@@ -27,13 +27,15 @@ module {
 // CHECK-DAG:       [[VAR_0_:%.+]] = arith.index_cast [[PARAM_7_]] : i32 to index
 // CHECK-DAG:       [[VAR_1_:%.+]] = arith.sitofp [[PARAM_7_]] : i32 to f32
 // CHECK-NOT: separator of consecutive DAGs
-// CHECK-DAG:       [[VAR_2_:%.+]]:2 = scf.for [[VAR_arg16_:%.+]] = [[CST_0_]] to [[CST_5_]] step [[CST_1_]] iter_args([[VAR_arg17_:%.+]] = [[VAR_0_]], [[VAR_arg18_:%.+]] = [[VAR_0_]]) -> (index, index)  : i32 {
-// CHECK-DAG:         [[VAR_reinterpret_cast_:%.+]] = memref.reinterpret_cast [[PARAM_1_]] to offset: {{.}}[[VAR_0_]]{{.}}, sizes: [1], strides: [1] : memref<*xf32> to memref<1xf32, strided<[1], offset: ?>>
+// CHECK-DAG:       [[VAR_2_:%.+]]:3 = scf.for [[VAR_arg16_:%.+]] = [[CST_0_]] to [[CST_5_]] step [[CST_1_]] iter_args([[VAR_arg17_:%.+]] = [[PARAM_7_]], [[VAR_arg18_:%.+]] = [[VAR_0_]], [[VAR_arg19_:%.+]] = [[VAR_0_]]) -> (i32, index, index)  : i32 {
+// CHECK-DAG:         [[VAR_3_:%.+]] = arith.index_cast [[VAR_arg17_]] : i32 to index
+// CHECK:             [[VAR_reinterpret_cast_:%.+]] = memref.reinterpret_cast [[PARAM_1_]] to offset: {{.}}[[VAR_3_]]{{.}}, sizes: [1], strides: [1] : memref<*xf32> to memref<1xf32, strided<[1], offset: ?>>
 // CHECK:             affine.store [[VAR_1_]], [[VAR_reinterpret_cast_]][0] : memref<1xf32, strided<[1], offset: ?>>
-// CHECK:             [[VAR_3_:%.+]] = arith.index_cast [[VAR_arg16_]] : i32 to index
-// CHECK-DAG:         [[VAR_4_:%.+]] = arith.addi [[VAR_arg17_]], [[VAR_3_]] : index
-// CHECK-DAG:         [[VAR_5_:%.+]] = arith.addi [[VAR_arg18_]], [[VAR_3_]] : index
-// CHECK:             scf.yield [[VAR_4_]], [[VAR_5_]] : index, index
+// CHECK:             [[VAR_4_:%.+]] = arith.index_cast [[VAR_arg16_]] : i32 to index
+// CHECK-DAG:         [[VAR_5_:%.+]] = arith.addi [[VAR_arg18_]], [[VAR_4_]] : index
+// CHECK-DAG:         [[VAR_6_:%.+]] = arith.addi [[VAR_arg17_]], [[VAR_arg16_]] : i32
+// CHECK-DAG:         [[VAR_7_:%.+]] = arith.addi [[VAR_arg19_]], [[VAR_4_]] : index
+// CHECK:             scf.yield [[VAR_6_]], [[VAR_5_]], [[VAR_7_]] : i32, index, index
 // CHECK:           }
 // CHECK:           return
 // CHECK:         }

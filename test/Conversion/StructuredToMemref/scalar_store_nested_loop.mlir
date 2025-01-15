@@ -35,11 +35,12 @@ module {
 // CHECK-DAG:           [[VAR_3_:%.+]] = arith.muli [[VAR_arg13_]], [[VAR_arg16_]] : i32
 // CHECK-NOT: separator of consecutive DAGs
 // CHECK-DAG:           [[VAR_4_:%.+]] = arith.sitofp [[VAR_3_]] : i32 to f32
-// CHECK-DAG:           [[VAR_reinterpret_cast_:%.+]] = memref.reinterpret_cast [[PARAM_0_]] to offset: {{.}}[[VAR_0_]]{{.}}, sizes: [1], strides: [1] : memref<*xf32> to memref<1xf32, strided<[1], offset: ?>>
+// CHECK-DAG:           [[VAR_5_:%.+]] = arith.index_cast [[VAR_arg17_]] : i32 to index
+// CHECK:               [[VAR_reinterpret_cast_:%.+]] = memref.reinterpret_cast [[PARAM_0_]] to offset: {{.}}[[VAR_5_]]{{.}}, sizes: [1], strides: [1] : memref<*xf32> to memref<1xf32, strided<[1], offset: ?>>
 // CHECK:               affine.store [[VAR_4_]], [[VAR_reinterpret_cast_]][0] : memref<1xf32, strided<[1], offset: ?>>
-// CHECK-DAG:           [[VAR_5_:%.+]] = arith.addi [[VAR_arg18_]], [[CST_1_]] : index
-// CHECK-DAG:           [[VAR_6_:%.+]] = arith.addi [[PARAM_4_]], [[CST_1_1_]] : i32
-// CHECK:               scf.yield [[VAR_6_]], [[VAR_5_]] : i32, index
+// CHECK-DAG:           [[VAR_6_:%.+]] = arith.addi [[VAR_arg18_]], [[CST_1_]] : index
+// CHECK-DAG:           [[VAR_7_:%.+]] = arith.addi [[VAR_arg17_]], [[CST_1_1_]] : i32
+// CHECK:               scf.yield [[VAR_7_]], [[VAR_6_]] : i32, index
 // CHECK:             }
 // CHECK:             scf.yield [[VAR_2_]]#0, [[VAR_2_]]#1 : i32, index
 // CHECK:           }

@@ -161,3 +161,5 @@ def test_complex_gather_scatter(device):
         -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
         -1, -1], device=device, dtype=torch.int32)
     run_test(complex_gather_scatter, device, expected_output)
+
+test_complex_gather_scatter('cpu')

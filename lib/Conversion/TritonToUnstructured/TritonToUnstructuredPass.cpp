@@ -374,6 +374,7 @@ public:
                   auto init = forOp.getInitArgs()[argIndex];
 
                   auto offsetInfo = offsetMap.at(init);
+
                   auto offsetType =
                       getPtrOffsetType(offsetInfo.ptrType, offsetInfo.bitWidth);
 
@@ -392,13 +393,19 @@ public:
                   // worklist. But for scf.for, the iter-arg corresponding to
                   // the init-arg is used in the op's body instead, we have to
                   // process uses of the iter-arg.
+                  PtrOffset iterArgOffset{offsetInfo.ptr, offsetInfo.ptrType,
+                                          offsetInfo.bitWidth, iterArg};
+                  // offsetInfo.offset = iterArg;
                   offsetMap.insert({
                       iterArg,
-                      offsetInfo,
+                      iterArgOffset,
                   });
+
+                  PtrOffset resOffset{offsetInfo.ptr, offsetInfo.ptrType,
+                                      offsetInfo.bitWidth, res};
                   offsetMap.insert({
                       res,
-                      offsetInfo,
+                      resOffset,
                   });
                   workList.push(iterArg);
                   workList.push(res);

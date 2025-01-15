@@ -57,18 +57,18 @@ module {
 // CHECK-DAG:   [[MAP_0_:#.+]] = affine_map<(d0, d1) -> (d0, d1)>
 // CHECK-LABEL:  func.func @kernel
 // CHECK-SAME:   ([[PARAM_0_:%.+]]: memref<*xf32> {tt.divisibility = 16 : i32}, [[PARAM_1_:%.+]]: memref<*xf32> {tt.divisibility = 16 : i32}, [[PARAM_2_:%.+]]: i32, [[PARAM_3_:%.+]]: i32, [[PARAM_4_:%.+]]: i32, [[PARAM_5_:%.+]]: i32, [[PARAM_6_:%.+]]: i32, [[PARAM_7_:%.+]]: i32, [[PARAM_8_:%.+]]: i32, [[PARAM_9_:%.+]]: i32, [[PARAM_10_:%.+]]: i32) {
-// CHECK-DAG:       [[CST_0_:%.+]] = arith.constant 0 : index
-// CHECK-DAG:       [[CST_12_:%.+]] = arith.constant 12 : index
-// CHECK-DAG:       [[CST_3_:%.+]] = arith.constant 3 : index
 // CHECK-DAG:       [[CST_0_dot_000000_:%.+]] = arith.constant 0.000000e+00 : f32
 // CHECK-DAG:       [[CST_128_:%.+]] = arith.constant 128 : index
+// CHECK-DAG:       [[CST_3_:%.+]] = arith.constant 3 : index
+// CHECK-DAG:       [[CST_12_:%.+]] = arith.constant 12 : index
+// CHECK-DAG:       [[CST_0_:%.+]] = arith.constant 0 : index
 // CHECK-DAG:       [[VAR_0_:%.+]] = tensor.empty() : tensor<128x128xf32>
 // CHECK-NOT: separator of consecutive DAGs
 // CHECK-DAG:       [[VAR_1_:%.+]] = linalg.fill ins([[CST_0_dot_000000_]] : f32) outs([[VAR_0_]] : tensor<128x128xf32>) -> tensor<128x128xf32>
 // CHECK-DAG:       [[VAR_2_:%.+]] = arith.muli [[PARAM_8_]], [[PARAM_2_]] : i32
 // CHECK:           [[VAR_3_:%.+]] = arith.index_cast [[VAR_2_]] : i32 to index
-// CHECK-DAG:       [[VAR_4_:%.+]]:2 = scf.for [[VAR_arg11_:%.+]] = [[CST_0_]] to [[CST_12_]] step [[CST_3_]] iter_args([[VAR_arg12_:%.+]] = [[VAR_1_]], [[VAR_arg13_:%.+]] = [[VAR_3_]]) -> (tensor<128x128xf32>, index) {
-// CHECK-DAG:         [[VAR_8_:%.+]] = arith.addi [[VAR_arg13_]], [[CST_128_]] : index
+// CHECK-DAG:       [[VAR_4_:%.+]]:3 = scf.for [[VAR_arg11_:%.+]] = [[CST_0_]] to [[CST_12_]] step [[CST_3_]] iter_args([[VAR_arg12_:%.+]] = [[VAR_1_]], [[VAR_arg13_:%.+]] = [[VAR_2_]], [[VAR_arg14_:%.+]] = [[VAR_3_]]) -> (tensor<128x128xf32>, i32, index) {
+// CHECK-DAG:         [[VAR_8_:%.+]] = arith.addi [[VAR_arg14_]], [[CST_128_]] : index
 // CHECK-NOT: separator of consecutive DAGs
 // CHECK-DAG:         [[VAR_reinterpret_cast_0_:%.+]] = memref.reinterpret_cast [[PARAM_1_]] to offset: {{.}}[[VAR_8_]]{{.}}, sizes: [128, 128], strides: [1, 1] : memref<*xf32> to memref<128x128xf32, strided<[1, 1], offset: ?>>
 // CHECK-DAG:         [[RES_:%.+]] = memref.alloc() : memref<128x128xf32>
@@ -76,16 +76,18 @@ module {
 // CHECK:             [[VAR_9_:%.+]] = bufferization.to_tensor [[RES_]] restrict writable : memref<128x128xf32>
 // CHECK:             [[VAR_10_:%.+]] = linalg.generic {indexing_maps = [#map, #map], iterator_types = ["parallel", "parallel"]} ins([[VAR_9_]] : tensor<128x128xf32>) outs([[VAR_9_]] : tensor<128x128xf32>) {
 // CHECK:             ^bb0([[IN_0_:%.+]]: f32, [[IN_1_:%.+]]: f32):
-// CHECK:               [[VAR_13_:%.+]] = math.exp [[IN_0_]] : f32
-// CHECK:               linalg.yield [[VAR_13_]] : f32
+// CHECK:               [[VAR_15_:%.+]] = math.exp [[IN_0_]] : f32
+// CHECK:               linalg.yield [[VAR_15_]] : f32
 // CHECK:             } -> tensor<128x128xf32>
 // CHECK:             [[VAR_11_:%.+]] = linalg.generic {indexing_maps = [#map, #map, #map], iterator_types = ["parallel", "parallel"]} ins([[VAR_arg12_]], [[VAR_10_]] : tensor<128x128xf32>, tensor<128x128xf32>) outs([[VAR_arg12_]] : tensor<128x128xf32>) {
 // CHECK:             ^bb0([[IN_2_:%.+]]: f32, [[IN_3_:%.+]]: f32, [[IN_4_:%.+]]: f32):
-// CHECK:               [[VAR_13_1_:%.+]] = arith.addf [[IN_2_]], [[IN_3_]] : f32
-// CHECK:               linalg.yield [[VAR_13_1_]] : f32
+// CHECK:               [[VAR_15_1_:%.+]] = arith.addf [[IN_2_]], [[IN_3_]] : f32
+// CHECK:               linalg.yield [[VAR_15_1_]] : f32
 // CHECK:             } -> tensor<128x128xf32>
-// CHECK:             [[VAR_12_:%.+]] = arith.addi [[VAR_arg13_]], [[VAR_arg11_]] : index
-// CHECK:             scf.yield [[VAR_11_]], [[VAR_12_]] : tensor<128x128xf32>, index
+// CHECK-DAG:         [[VAR_12_:%.+]] = arith.index_cast [[VAR_arg11_]] : index to i32
+// CHECK-DAG:         [[VAR_13_:%.+]] = arith.addi [[VAR_arg14_]], [[VAR_arg11_]] : index
+// CHECK:             [[VAR_14_:%.+]] = arith.addi [[VAR_arg13_]], [[VAR_12_]] : i32
+// CHECK:             scf.yield [[VAR_11_]], [[VAR_14_]], [[VAR_13_]] : tensor<128x128xf32>, i32, index
 // CHECK:           }
 // CHECK:           [[VAR_5_:%.+]] = arith.muli [[PARAM_8_]], [[PARAM_3_]] : i32
 // CHECK:           [[VAR_6_:%.+]] = arith.index_cast [[VAR_5_]] : i32 to index
