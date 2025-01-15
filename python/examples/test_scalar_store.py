@@ -52,6 +52,3 @@ def test(device):
     print(output)
     ans = torch.arange(BLOCK_SIZE, device=device, dtype=torch.float32)
     torch.testing.assert_close(output, ans, rtol=0.001, atol=1e-5)
-
-
-compile()
