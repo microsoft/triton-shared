@@ -6,21 +6,23 @@ import triton.language as tl
 from triton.backends.triton_shared.driver import CPUDriver
 
 @triton.jit
-def reduce_kernel_2d(
+def test_scalar_store(
     output_ptr,
     BLOCK_SIZE: tl.constexpr,
 ):
     pid0 = tl.program_id(axis=0)
     base_ptr = output_ptr + pid0
-    for i in range(0, BLOCK_SIZE):
-        output = i
-        tl.store(base_ptr, output)
-        base_ptr += 1
+    for i in range(0, BLOCK_SIZE // 2):
+        output = i * 2
+        for j in range(0, BLOCK_SIZE // 4):
+            output += j
+            tl.store(base_ptr, output)
+            base_ptr += 1
 
 
 def compile():
     src = triton.compiler.ASTSource(
-        fn=reduce_kernel_2d,
+        fn=test_scalar_store,
         signature="*fp32",
         constants={
             "BLOCK_SIZE": 8
@@ -45,14 +47,11 @@ def test(device):
     print(x)
     print(output)
 
-    reduce_kernel_2d[grid](output, BLOCK_SIZE=BLOCK_SIZE)
+    test_scalar_store[grid](output, BLOCK_SIZE=BLOCK_SIZE)
     print('---')
     print(output)
     ans = torch.arange(BLOCK_SIZE, device=device, dtype=torch.float32)
     torch.testing.assert_close(output, ans, rtol=0.001, atol=1e-5)
 
 
-# compile()
-
-test('cpu')
-
+compile()
