@@ -7,7 +7,7 @@ tt.func public @assert_lol(%arg0: i32) {
   tt.return
 }
 
-// mlir2FileCheck.py
+
 // CHECK-LABEL:  func.func @assert_lol
 // CHECK-SAME:   ([[PARAM_0_:%.+]]: i32, [[PARAM_1_:%.+]]: i32, [[PARAM_2_:%.+]]: i32, [[PARAM_3_:%.+]]: i32, [[PARAM_4_:%.+]]: i32, [[PARAM_5_:%.+]]: i32, [[PARAM_6_:%.+]]: i32) {
 // CHECK:           [[CST_0_:%.+]] = arith.constant 0 : i32

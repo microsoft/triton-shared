@@ -51,14 +51,15 @@ module {
 // CHECK-DAG:       [[VAR_7_:%.+]] = tt.splat [[VAR_1_]] : i32 -> tensor<64xi32>
 // CHECK:           [[VAR_8_:%.+]] = arith.addi [[VAR_2_]], [[VAR_7_]] : tensor<64xi32>
 // CHECK:           [[VAR_9_:%.+]] = arith.extsi [[VAR_8_]] : tensor<64xi32> to tensor<64xi64>
-// CHECK-DAG:       [[VAR_10_:%.+]] = arith.addi [[VAR_6_]], [[VAR_9_]] : tensor<64xi64>
-// CHECK-DAG:       [[VAR_11_:%.+]] = scf.for [[VAR_arg2_:%.+]] = [[CST_0_]] to [[CST_2_]] step [[CST_1_]] iter_args([[VAR_arg3_:%.+]] = [[VAR_0_]]) -> (tensor<64xi32>)  : i32 {
-// CHECK-NOT: separator of consecutive DAGs
-// CHECK-DAG:         [[VAR_12_:%.+]] = tts.gather [[PARAM_0_]]{{.}}[[VAR_10_]]{{.}} : (<f32>, tensor<64xi64>) -> tensor<64xf32>
-// CHECK-DAG:         [[VAR_13_:%.+]] = arith.extsi [[VAR_arg3_]] : tensor<64xi32> to tensor<64xi64>
+// CHECK:           [[VAR_10_:%.+]] = arith.addi [[VAR_6_]], [[VAR_9_]] : tensor<64xi64>
+// CHECK-DAG:       [[VAR_11_:%.+]]:2 = scf.for [[VAR_arg2_:%.+]] = [[CST_0_]] to [[CST_2_]] step [[CST_1_]] iter_args([[VAR_arg3_:%.+]] = [[VAR_10_]], [[VAR_arg4_:%.+]] = [[VAR_0_]]) -> (tensor<64xi64>, tensor<64xi32>)  : i32 {
+// CHECK-DAG:         [[VAR_12_:%.+]] = tts.gather [[PARAM_0_]]{{.}}[[VAR_arg3_]]{{.}} : (<f32>, tensor<64xi64>) -> tensor<64xf32>
+// CHECK-DAG:         [[VAR_13_:%.+]] = arith.extsi [[VAR_arg4_]] : tensor<64xi32> to tensor<64xi64>
 // CHECK:             tts.scatter [[VAR_12_]] into [[PARAM_1_]]{{.}}[[VAR_13_]]{{.}} : tensor<64xf32> into (<f32>, tensor<64xi64>)
-// CHECK:             [[VAR_14_:%.+]] = arith.addi [[VAR_arg3_]], [[VAR_cst_]] : tensor<64xi32>
-// CHECK:             scf.yield [[VAR_14_]] : tensor<64xi32>
+// CHECK:             [[VAR_14_:%.+]] = arith.extsi [[VAR_7_]] : tensor<64xi32> to tensor<64xi64>
+// CHECK-DAG:         [[VAR_15_:%.+]] = arith.addi [[VAR_arg3_]], [[VAR_14_]] : tensor<64xi64>
+// CHECK-DAG:         [[VAR_16_:%.+]] = arith.addi [[VAR_arg4_]], [[VAR_cst_]] : tensor<64xi32>
+// CHECK:             scf.yield [[VAR_15_]], [[VAR_16_]] : tensor<64xi64>, tensor<64xi32>
 // CHECK:           }
 // CHECK:           tt.return
 // CHECK:         }
