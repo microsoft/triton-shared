@@ -71,12 +71,32 @@ tests_not_supported = {
     "test_if",
     "test_if_call",
     "test_convert2d",
-    "test_convertmma2mma",
     "test_dot_max_num_imprecise_acc",
     "test_propagate_nan",
     "test_clamp_symmetric",
     "test_temp_var_in_loop",
-    "test_math_extern"
+    "test_math_extern",
+    # attribute 'launch_cooperative_grid' not supported
+    "test_load_scope_sem_coop_grid_cta_one",
+    # fp8 support on CPUs is unclear
+    "test_scaled_dot",
+    # triton-shared-opt failures:
+    # PtrAnalysis: encountered addptr operand produced by an unsupported operation
+    "test_chained_reductions",
+    # failed to legalize unresolved materialization
+    "test_constexpr_if_return",
+    "test_unroll_attr",
+    # Dialect `ub' not found for custom op 'ub.poison'
+    "test_poison_return",
+    # tt.gather not supported yet
+    "test_gather",
+    "test_gather_warp_shuffle",
+    # device 'cpu' does not have 'index
+    "test_zero_strided_tensors",
+    # hard-coded with 'ttg' attributes
+    "test_convert_mma2mma",
+    "test_local_load_store",
+    "test_local_load_store_mma"
 }
 
 # probably different version of MLIR on the nightly build machine is complaining
