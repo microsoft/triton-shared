@@ -61,7 +61,7 @@ public:
 
     auto createUnrealizedCast = [&](OpBuilder &builder, Type resultType,
                                     ValueRange inputs,
-                                    Location loc) -> std::optional<Value> {
+                                    Location loc) -> Value {
       return builder.create<UnrealizedConversionCastOp>(loc, resultType, inputs)
           .getResult(0);
     };

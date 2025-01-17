@@ -53,7 +53,7 @@ public:
     addTargetMaterialization([&](OpBuilder &builder,
                                  UnrankedMemRefType resultType,
                                  ValueRange inputs,
-                                 Location loc) -> std::optional<Value> {
+                                 Location loc) -> Value {
       return builder.create<UnrealizedConversionCastOp>(loc, resultType, inputs)
           .getResult(0);
     });
