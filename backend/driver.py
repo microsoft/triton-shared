@@ -16,6 +16,8 @@ from triton.backends.compiler import GPUTarget
 def _ty_to_cpp(ty):
     if ty[0] == '*':
         return "void*"
+    if ty == "constexpr":
+        return "PyObject*"
     return {
         "i1": "int32_t",
         "i8": "int8_t",
@@ -37,11 +39,14 @@ def _ty_to_cpp(ty):
 def _extracted_type(ty):
     if ty[0] == '*':
         return "PyObject*"
+    if ty == "constexpr":
+        return "PyObject*"
     return _ty_to_cpp(ty)
 
 def _format_of(ty):
     return {
       "PyObject*": "O",
+      "constexpr": "O",
       "float": "f",
       "double": "d",
       "long": "l",
@@ -61,10 +66,10 @@ def _generate_launcher(constants, signature, kernel_name):
     format = "iiiOOOO" + args_format
     args_list = ', ' + ', '.join(f"&_arg{i}" for i, ty in signature.items()) if len(signature) > 0 else ''
 
-    kernel_arg_decls = ', '.join(_ty_to_cpp(ty) if ty[0] != "*" else f"int64_t, void*" for i, ty in signature.items() if i not in constants)
+    kernel_arg_decls = ', '.join(_ty_to_cpp(ty) if ty[0] != "*" else f"int64_t, void*" for i, ty in signature.items() if ty != "constexpr")
     kernel_arg_decls += ', ' if kernel_arg_decls else ''
 
-    kernel_parameters = ', '.join(f"static_cast<{_ty_to_cpp(ty)}>(arg{i})" if ty[0] != "*" else f"0, &ptr_arg{i}" for i, ty in signature.items() if i not in constants)
+    kernel_parameters = ', '.join(f"static_cast<{_ty_to_cpp(ty)}>(arg{i})" if ty[0] != "*" else f"0, &ptr_arg{i}" for i, ty in signature.items() if ty != "constexpr")
     kernel_parameters += ', ' if kernel_parameters else ''
 
     return f"""
