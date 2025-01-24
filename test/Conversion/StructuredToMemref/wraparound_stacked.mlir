@@ -1,6 +1,3 @@
-// XFAIL: *
-// Note: LLVM commit 889b67c9d30e3024a1317431d66c22599f6c2011 asserts that dynamic shapes like
-// <?x?> and <2x?> are mismatch.
 // RUN: triton-shared-opt --split-input-file --triton-to-linalg-experimental %s | FileCheck %s
 
 module {
