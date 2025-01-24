@@ -1,4 +1,11 @@
 // XFAIL: *
+// Note: PtrAnalysis pass can create a tts.makeptr for below pattern:
+//         %3 = arith.constant 0 : index
+//         %6 = tt.splat %arg0 : !tt.ptr<i32> -> tensor<1x!tt.ptr<i32>>
+//         %7 = tt.addptr %6, %3 : tensor<1x!tt.ptr<i32>>, tensor<1xi32>
+//       But not if creating constant 0 and add it to a pointer is optimized away:
+//         %6 = tt.splat %arg0 : !tt.ptr<i32> -> tensor<1x!tt.ptr<i32>>
+//       A patch that rewrites tt.splat in such case will be sent separately.
 // RUN: triton-shared-opt --split-input-file --triton-to-linalg-experimental %s | FileCheck %s
 
 module {
