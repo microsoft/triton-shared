@@ -177,8 +177,9 @@ private:
         /* result shape */
         SmallVector<int64_t>{
 
-            // Row stays the same
-            resultShape[0],
+            // Row stays the same, but mlir doesn't allow this anymore. Put
+            // dynamic.
+            ShapedType::kDynamic,
 
             // Column is dynamic, in most cases, this
             // should be the same as the original column.
@@ -286,9 +287,9 @@ private:
             // around.
             ShapedType::kDynamic,
 
-            // Col stays the same.
-            resultShape[1],
-        });
+            // Col stays the same, which is resultShape[1], but mlir doesn't
+            // allow this anymore. So we put dynamic instead.
+            ShapedType::kDynamic});
 
     Value rowSize = rewriter.create<arith::ConstantOp>(
         loc, rewriter.getIndexAttr(op.getSizes()[0]));

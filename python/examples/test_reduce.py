@@ -44,8 +44,12 @@ def test(device):
     # TODO: need to check some conditions otherwise the code below does not make any difference for the test
     src = triton.compiler.ASTSource(
         fn=reduce_kernel_2d,
-        signature="*fp32,*fp32,i32,i32",
-        constants={"BLOCK_SIZE": 32}
+        signature={"x_ptr": "*fp32",
+                   "output_ptr": "*fp32",
+                   "stride": "i32",
+                   "n_elements": "i32",
+                   "BLOCK_SIZE": "constexpr"},
+        constexprs={"BLOCK_SIZE": 32}
     )
     ret = triton.compile(
         src,

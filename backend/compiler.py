@@ -137,8 +137,12 @@ class CPUOptions:
     extern_libs = None
     cluster_dims: tuple = (1, 1, 1)
     shared: bool = False
+    # Disable FP8 here since this is a sample CPU backend.
+    # Target specific backends can eanble it with supported types.
+    supported_fp8_dtypes: Tuple[str] = ()
     allow_fp8e4nv: bool = False
     allowed_dot_input_precisions: Tuple[str] = ("ieee", )
+    sanitize_overflow: bool = True
 
     def __post_init__(self):
         pass

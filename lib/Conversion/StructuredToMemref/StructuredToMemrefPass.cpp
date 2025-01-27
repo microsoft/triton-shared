@@ -84,7 +84,7 @@ public:
     // reinterpret_cast.
     addTargetMaterialization([&](OpBuilder &builder, MemRefType memrefType,
                                  ValueRange inputs,
-                                 Location loc) -> std::optional<Value> {
+                                 Location loc) -> Value {
       auto reinterpretCast =
           inputs[0].getDefiningOp<memref::ReinterpretCastOp>();
       if (!reinterpretCast) {
@@ -99,14 +99,14 @@ public:
 
     addSourceMaterialization([&](OpBuilder &builder, Type resultType,
                                  ValueRange inputs,
-                                 Location loc) -> std::optional<Value> {
+                                 Location loc) -> Value {
       return builder.create<UnrealizedConversionCastOp>(loc, resultType, inputs)
           .getResult(0);
     });
 
     addArgumentMaterialization([&](OpBuilder &builder, Type resultType,
                                    ValueRange inputs,
-                                   Location loc) -> std::optional<Value> {
+                                   Location loc) -> Value {
       return builder.create<UnrealizedConversionCastOp>(loc, resultType, inputs)
           .getResult(0);
     });
@@ -123,7 +123,7 @@ public:
     addTargetMaterialization([&](OpBuilder &builder,
                                  UnrankedMemRefType resultType,
                                  ValueRange inputs,
-                                 Location loc) -> std::optional<Value> {
+                                 Location loc) -> Value {
       return builder.create<UnrealizedConversionCastOp>(loc, resultType, inputs)
           .getResult(0);
     });
