@@ -9,6 +9,7 @@ target_link_libraries(triton-shared-opt PRIVATE
   TritonAnalysis
   TritonTransforms
   TritonGPUTransforms
+  TritonTestDialectTritonGPU
   TritonSharedAnalysis
   ${dialect_libs}
   ${conversion_libs}

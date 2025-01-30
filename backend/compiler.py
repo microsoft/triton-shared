@@ -167,7 +167,7 @@ class CPUBackend(BaseBackend):
         args.update({k: opts[k] for k in CPUOptions.__dataclass_fields__.keys() if k in opts})
         return CPUOptions(**args)
 
-    def get_codegen_implementation(self):
+    def get_codegen_implementation(self, options):
         codegen_fns = {"min_dot_size": lambda lhsType, rhsType: (1, 1, 1)}
         return codegen_fns
 

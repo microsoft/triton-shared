@@ -72,7 +72,7 @@ module {
 // CHECK:           %[[VAL_16:.*]] = bufferization.to_tensor %[[VAL_15]] restrict writable : memref<4x256xbf16>
 // CHECK:           %[[VAL_17:.*]] = arith.index_cast %[[VAL_3]] : i32 to index
 // CHECK:           %[[VAL_18:.*]] = memref.reinterpret_cast %[[VAL_1]] to offset: {{\[}}%[[VAL_17]]], sizes: [4, 256], strides: {{\[}}%[[VAL_9]], %[[VAL_8]]] : memref<*xbf16> to memref<4x256xbf16, strided<[?, ?], offset: ?>>
-// CHECK:           %[[VAL_19:.*]]:4 = scf.for %[[VAL_20:.*]] = %[[VAL_12]] to %[[VAL_11]] step %[[VAL_10]] iter_args(%[[VAL_21:.*]] = %[[VAL_16]], %[[VAL_22:.*]] = %[[VAL_18]], %[[VAL_23:.*]] = %[[VAL_17]], %[[VAL_24:.*]] = %[[VAL_12]]) -> (tensor<4x256xbf16>, memref<4x256xbf16, strided<[?, ?], offset: ?>>, index, index) {
+// CHECK:           %[[VAL_19:.*]]:3 = scf.for %[[VAL_20:.*]] = %[[VAL_12]] to %[[VAL_11]] step %[[VAL_10]] iter_args(%[[VAL_21:.*]] = %[[VAL_16]], %[[VAL_22:.*]] = %[[VAL_18]], %[[VAL_23:.*]] = %[[VAL_17]]) -> (tensor<4x256xbf16>, memref<4x256xbf16, strided<[?, ?], offset: ?>>, index) {
 // CHECK:             %[[VAL_25:.*]] = memref.alloc() : memref<4x256xbf16>
 // CHECK:             memref.copy %[[VAL_22]], %[[VAL_25]] : memref<4x256xbf16, strided<[?, ?], offset: ?>> to memref<4x256xbf16>
 // CHECK:             %[[VAL_26:.*]] = bufferization.to_tensor %[[VAL_25]] restrict writable : memref<4x256xbf16>
@@ -81,10 +81,9 @@ module {
 // CHECK:               %[[VAL_31:.*]] = arith.addf %[[VAL_28]], %[[VAL_29]] : bf16
 // CHECK:               linalg.yield %[[VAL_31]] : bf16
 // CHECK:             } -> tensor<4x256xbf16>
-// CHECK:             %[[VAL_32:.*]] = arith.addi %[[VAL_23]], %[[VAL_10]] : index
-// CHECK:             %[[VAL_33:.*]] = arith.addi %[[VAL_32]], %[[VAL_24]] : index
+// CHECK:             %[[VAL_33:.*]] = arith.addi %[[VAL_23]], %[[VAL_10]] : index
 // CHECK:             %[[VAL_34:.*]] = memref.reinterpret_cast %[[VAL_1]] to offset: {{\[}}%[[VAL_33]]], sizes: [4, 256], strides: {{\[}}%[[VAL_9]], %[[VAL_8]]] : memref<*xbf16> to memref<4x256xbf16, strided<[?, ?], offset: ?>>
-// CHECK:             scf.yield %[[VAL_35:.*]], %[[VAL_34]], %[[VAL_33]], %[[VAL_12]] : tensor<4x256xbf16>, memref<4x256xbf16, strided<[?, ?], offset: ?>>, index, index
+// CHECK:             scf.yield %[[VAL_35:.*]], %[[VAL_34]], %[[VAL_33]] : tensor<4x256xbf16>, memref<4x256xbf16, strided<[?, ?], offset: ?>>, index
 // CHECK:           }
 // CHECK:           %[[VAL_36:.*]] = arith.index_cast %[[VAL_3]] : i32 to index
 // CHECK:           %[[VAL_37:.*]] = memref.reinterpret_cast %[[VAL_2]] to offset: {{\[}}%[[VAL_36]]], sizes: [4, 256], strides: [1, %[[VAL_8]]] : memref<*xbf16> to memref<4x256xbf16, strided<[1, ?], offset: ?>>

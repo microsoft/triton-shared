@@ -16,8 +16,8 @@
 namespace mlir {
 
 std::optional<int64_t> getIntAttr(const OpFoldResult ofr) {
-  if (ofr.is<Attribute>() && isa<IntegerAttr>(ofr.get<Attribute>()))
-    return dyn_cast<IntegerAttr>(ofr.get<Attribute>()).getInt();
+  if (isa<Attribute>(ofr) && isa<IntegerAttr>(cast<Attribute>(ofr)))
+    return dyn_cast<IntegerAttr>(cast<Attribute>(ofr)).getInt();
 
   return std::nullopt;
 }
@@ -185,7 +185,7 @@ OpFoldResult mulOFRValue(const OpFoldResult lhs, const Value rhs,
 
   // 2. if lhs is not constant
   assert(!lhsIntAttr);
-  auto mulOp = b.create<arith::MulIOp>(loc, lhs.get<Value>(), rhs);
+  auto mulOp = b.create<arith::MulIOp>(loc, cast<Value>(lhs), rhs);
   return mulOp.getResult();
 }
 

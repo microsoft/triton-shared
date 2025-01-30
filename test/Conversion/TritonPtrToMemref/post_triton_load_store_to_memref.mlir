@@ -15,7 +15,7 @@ module {
     %8 = tt.splat %arg3 : i32 -> tensor<1024xi32>
     %9 = arith.cmpi slt, %7, %8 : tensor<1024xi32>
     %cast = memref.cast %2 : memref<*xf32> to memref<?xf32>
-    %10 = bufferization.to_tensor %cast restrict : memref<?xf32>
+    %10 = bufferization.to_tensor %cast restrict : memref<?xf32> to tensor<?xf32>
     %11 = tensor.empty() : tensor<1024xf32>
     %12 = linalg.generic {indexing_maps = [#map, #map, #map], iterator_types = ["parallel"]} ins(%7, %9 : tensor<1024xi32>, tensor<1024xi1>) outs(%11 : tensor<1024xf32>) {
     ^bb0(%in: i32, %in_2: i1, %out: f32):
@@ -30,7 +30,7 @@ module {
       linalg.yield %17 : f32
     } -> tensor<1024xf32>
     %cast_0 = memref.cast %1 : memref<*xf32> to memref<?xf32>
-    %13 = bufferization.to_tensor %cast_0 restrict : memref<?xf32>
+    %13 = bufferization.to_tensor %cast_0 restrict : memref<?xf32> to tensor<?xf32>
     %14 = tensor.empty() : tensor<1024xf32>
     %15 = linalg.generic {indexing_maps = [#map, #map, #map], iterator_types = ["parallel"]} ins(%7, %9 : tensor<1024xi32>, tensor<1024xi1>) outs(%14 : tensor<1024xf32>) {
     ^bb0(%in: i32, %in_2: i1, %out: f32):

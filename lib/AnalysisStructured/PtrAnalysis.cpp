@@ -793,12 +793,12 @@ LogicalResult PtrAnalysis::rewriteAdvanceOp(triton::AdvanceOp op) {
           loc, builder.getIndexAttr(offsetIntAttr.value()));
       offsetValue = constOp.getResult();
     } else {
-      offsetValue = offset.get<Value>();
+      offsetValue = cast<Value>(offset);
     }
     auto castOp = builder.create<arith::IndexCastOp>(
         loc, builder.getIndexType(), increment);
     auto mulOp = builder.create<arith::MulIOp>(loc, castOp.getResult(),
-                                               stride.get<Value>());
+                                               cast<Value>(stride));
     auto addOp =
         builder.create<arith::AddIOp>(loc, mulOp.getResult(), offsetValue);
     newOffsets.push_back(addOp.getResult());
@@ -1029,7 +1029,7 @@ PtrAnalysis::rewriteGetStructuredStateOp(tts::GetStructuredStateOp op) {
             op.getLoc(), builder.getIndexAttr(sIntAttr.value()));
         replacements.push_back(constOp.getResult());
       } else {
-        replacements.push_back(s.get<Value>());
+        replacements.push_back(cast<Value>(s));
       }
     }
 
@@ -1040,7 +1040,7 @@ PtrAnalysis::rewriteGetStructuredStateOp(tts::GetStructuredStateOp op) {
             op.getLoc(), builder.getIndexAttr(sIntAttr.value()));
         replacements.push_back(constOp.getResult());
       } else {
-        replacements.push_back(s.get<Value>());
+        replacements.push_back(cast<Value>(s));
       }
     }
   }

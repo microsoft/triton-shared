@@ -36,7 +36,6 @@ module {
 // CHECK: module {
 // CHECK:   func.func @matmul_kernel_with_block_pointers_01234567891011(%arg0: memref<*xbf16>, %arg1: memref<*xbf16>, %arg2: memref<*xbf16>, %arg3: i32, %arg4: i32, %arg5: i32, %arg6: i32, %arg7: i32, %arg8: i32, %arg9: i32, %arg10: i32, %arg11: i32, %arg12: i32, %arg13: i32, %arg14: i32, %arg15: i32, %arg16: i32, %arg17: i32, %arg18: i32, %arg19: i32) {
 // CHECK:     %c64 = arith.constant 64 : index
-// CHECK:     %c0 = arith.constant 0 : index
 // CHECK:     %c256_i32 = arith.constant 256 : i32
 // CHECK:     %c0_i32 = arith.constant 0 : i32
 // CHECK:     %c64_i32 = arith.constant 64 : i32
@@ -51,7 +50,7 @@ module {
 // CHECK:     %7 = arith.addi %5, %6 : index
 // CHECK:     %reinterpret_cast = memref.reinterpret_cast %arg0 to offset: [%7], sizes: [128, 64], strides: [%3, %4] : memref<*xbf16> to memref<128x64xbf16, strided<[?, ?], offset: ?>>
 // CHECK:     %reinterpret_cast_0 = memref.reinterpret_cast %arg0 to offset: [%5], sizes: [128, 64], strides: [%3, %4] : memref<*xbf16> to memref<128x64xbf16, strided<[?, ?], offset: ?>>
-// CHECK:     %8:7 = scf.for %arg20 = %c0_i32 to %arg5 step %c64_i32 iter_args(%arg21 = %1, %arg22 = %reinterpret_cast, %arg23 = %reinterpret_cast_0, %arg24 = %7, %arg25 = %c0, %arg26 = %5, %arg27 = %c0) -> (tensor<128x64xbf16>, memref<128x64xbf16, strided<[?, ?], offset: ?>>, memref<128x64xbf16, strided<[?, ?], offset: ?>>, index, index, index, index)  : i32 {
+// CHECK:     %8:5 = scf.for %arg20 = %c0_i32 to %arg5 step %c64_i32 iter_args(%arg21 = %1, %arg22 = %reinterpret_cast, %arg23 = %reinterpret_cast_0, %arg24 = %7, %arg25 = %5) -> (tensor<128x64xbf16>, memref<128x64xbf16, strided<[?, ?], offset: ?>>, memref<128x64xbf16, strided<[?, ?], offset: ?>>, index, index)  : i32 {
 // CHECK:       %alloc = memref.alloc() : memref<128x64xbf16>
 // CHECK:       memref.copy %arg22, %alloc : memref<128x64xbf16, strided<[?, ?], offset: ?>> to memref<128x64xbf16>
 // CHECK:       %17 = bufferization.to_tensor %alloc restrict writable : memref<128x64xbf16>
@@ -60,23 +59,21 @@ module {
 // CHECK:       %18 = bufferization.to_tensor %alloc_2 restrict writable : memref<128x64xbf16>
 // CHECK:       %19 = linalg.generic {indexing_maps = [#map, #map, #map], iterator_types = ["parallel", "parallel"]} ins(%17, %18 : tensor<128x64xbf16>, tensor<128x64xbf16>) outs(%17 : tensor<128x64xbf16>) {
 // CHECK:       ^bb0(%in: bf16, %in_5: bf16, %out: bf16):
-// CHECK:         %27 = arith.addf %in, %in_5 : bf16
-// CHECK:         linalg.yield %27 : bf16
+// CHECK:         %25 = arith.addf %in, %in_5 : bf16
+// CHECK:         linalg.yield %25 : bf16
 // CHECK:       } -> tensor<128x64xbf16>
 // CHECK:       %20 = linalg.generic {indexing_maps = [#map, #map, #map], iterator_types = ["parallel", "parallel"]} ins(%arg21, %19 : tensor<128x64xbf16>, tensor<128x64xbf16>) outs(%arg21 : tensor<128x64xbf16>) {
 // CHECK:       ^bb0(%in: bf16, %in_5: bf16, %out: bf16):
-// CHECK:         %27 = arith.addf %in, %in_5 : bf16
-// CHECK:         linalg.yield %27 : bf16
+// CHECK:         %25 = arith.addf %in, %in_5 : bf16
+// CHECK:         linalg.yield %25 : bf16
 // CHECK:       } -> tensor<128x64xbf16>
 // CHECK:       %21 = arith.muli %4, %c64 : index
-// CHECK:       %22 = arith.addi %21, %arg25 : index
-// CHECK:       %23 = arith.addi %arg24, %22 : index
-// CHECK:       %reinterpret_cast_3 = memref.reinterpret_cast %arg0 to offset: [%23], sizes: [128, 64], strides: [%3, %4] : memref<*xbf16> to memref<128x64xbf16, strided<[?, ?], offset: ?>>
-// CHECK:       %24 = arith.muli %3, %c64 : index
-// CHECK:       %25 = arith.addi %24, %arg26 : index
-// CHECK:       %26 = arith.addi %25, %arg27 : index
-// CHECK:       %reinterpret_cast_4 = memref.reinterpret_cast %arg0 to offset: [%26], sizes: [128, 64], strides: [%3, %4] : memref<*xbf16> to memref<128x64xbf16, strided<[?, ?], offset: ?>>
-// CHECK:       scf.yield %20, %reinterpret_cast_3, %reinterpret_cast_4, %23, %c0, %26, %c0 : tensor<128x64xbf16>, memref<128x64xbf16, strided<[?, ?], offset: ?>>, memref<128x64xbf16, strided<[?, ?], offset: ?>>, index, index, index, index
+// CHECK:       %22 = arith.addi %arg24, %21 : index
+// CHECK:       %reinterpret_cast_3 = memref.reinterpret_cast %arg0 to offset: [%22], sizes: [128, 64], strides: [%3, %4] : memref<*xbf16> to memref<128x64xbf16, strided<[?, ?], offset: ?>>
+// CHECK:       %23 = arith.muli %3, %c64 : index
+// CHECK:       %24 = arith.addi %23, %arg25 : index
+// CHECK:       %reinterpret_cast_4 = memref.reinterpret_cast %arg0 to offset: [%24], sizes: [128, 64], strides: [%3, %4] : memref<*xbf16> to memref<128x64xbf16, strided<[?, ?], offset: ?>>
+// CHECK:       scf.yield %20, %reinterpret_cast_3, %reinterpret_cast_4, %22, %24 : tensor<128x64xbf16>, memref<128x64xbf16, strided<[?, ?], offset: ?>>, memref<128x64xbf16, strided<[?, ?], offset: ?>>, index, index
 // CHECK:     }
 // CHECK:     %9 = arith.muli %arg13, %c256_i32 : i32
 // CHECK:     %10 = arith.index_cast %arg12 : i32 to index
