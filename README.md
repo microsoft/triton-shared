@@ -33,7 +33,7 @@ To build with Clang:
 
 ```sh
 python3 -m pip install --upgrade pip
-python3 -m pip install cmake==3.24 ninja pytest-xdist
+python3 -m pip install cmake==3.24 ninja pytest-xdist pybind11 setuptools
 sudo apt-get update -y
 sudo apt-get install -y ccache clang lld
 TRITON_BUILD_WITH_CLANG_LLD=true TRITON_BUILD_WITH_CCACHE=true python3 -m pip install --no-build-isolation -vvv '.[tests]'
@@ -45,8 +45,8 @@ To build with a virtualenv:
 python3 -m venv .venv --prompt triton
 source .venv/bin/activate
 
-pip3 install ninja cmake wheel pytest
-pip3 install -e python --no-build-isolation
+pip3 install ninja cmake wheel pytest pybind11 setuptools
+pip3 install -e . --no-build-isolation
 ```
 
 The resulting `triton-shared` binaries will be placed under `triton/python/build/{current_cmake_version}/third_party/triton_shared`
