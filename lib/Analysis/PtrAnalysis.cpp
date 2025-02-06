@@ -862,12 +862,12 @@ void PtrAnalysis::rewriteAdvanceOp(
           op.getLoc(), rewriter.getIndexAttr(0));
       offsetValue = constOp.getResult();
     } else {
-      offsetValue = offset.get<Value>();
+      offsetValue = cast<Value>(offset);
     }
     auto castOp = rewriter.create<arith::IndexCastOp>(
         loc, rewriter.getIndexType(), increment);
     auto mulOp = rewriter.create<arith::MulIOp>(loc, castOp.getResult(),
-                                                stride.get<Value>());
+                                                cast<Value>(stride));
     auto addOp =
         rewriter.create<arith::AddIOp>(loc, mulOp.getResult(), offsetValue);
     newOffsets.push_back(addOp.getResult());
@@ -999,7 +999,7 @@ void PtrAnalysis::rewriteYieldOp(
             op.getLoc(), rewriter.getIndexAttr(0));
         operands.push_back(constOp.getResult());
       } else {
-        operands.push_back(s.get<Value>());
+        operands.push_back(cast<Value>(s));
       }
     }
 
@@ -1007,7 +1007,7 @@ void PtrAnalysis::rewriteYieldOp(
       assert(!getIntAttr(s) && "PtrState strides for yield within for "
                                "loop not expected to be "
                                "attribute.");
-      operands.push_back(s.get<Value>());
+      operands.push_back(cast<Value>(s));
     }
   }
 
@@ -1171,7 +1171,7 @@ void PtrAnalysis::rewriteForOp(
         newInitArgs.push_back(constOp.getResult());
         state.offsets[j] = constOp.getResult();
       } else {
-        newInitArgs.push_back(s.get<Value>());
+        newInitArgs.push_back(cast<Value>(s));
       }
     }
 
@@ -1183,7 +1183,7 @@ void PtrAnalysis::rewriteForOp(
         newInitArgs.push_back(constOp.getResult());
         state.strides[j] = constOp.getResult();
       } else {
-        newInitArgs.push_back(s.get<Value>());
+        newInitArgs.push_back(cast<Value>(s));
       }
     }
 

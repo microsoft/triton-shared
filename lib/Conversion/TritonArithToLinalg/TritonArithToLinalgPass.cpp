@@ -81,7 +81,7 @@ class TritonArithToLinalgPass
 
     tensor::populateDecomposeTensorConcatPatterns(patterns);
 
-    if (failed(applyPatternsAndFoldGreedily(moduleOp, std::move(patterns)))) {
+    if (failed(applyPatternsGreedily(moduleOp, std::move(patterns)))) {
       return failure();
     }
     return success();
@@ -103,7 +103,7 @@ public:
     {
       RewritePatternSet patterns(&getContext());
       populateTritonArithToLinalgCanonicalizationPatterns(patterns);
-      if (failed(applyPatternsAndFoldGreedily(moduleOp, std::move(patterns)))) {
+      if (failed(applyPatternsGreedily(moduleOp, std::move(patterns)))) {
         signalPassFailure();
       }
     }

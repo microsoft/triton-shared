@@ -91,12 +91,17 @@ tests_not_supported = {
     # tt.gather not supported yet
     "test_gather",
     "test_gather_warp_shuffle",
-    # device 'cpu' does not have 'index
+    # device 'cpu' does not have 'index'
     "test_zero_strided_tensors",
     # hard-coded with 'ttg' attributes
     "test_convert_mma2mma",
     "test_local_load_store",
-    "test_local_load_store_mma"
+    "test_local_load_store_mma",
+    "test_convert_warp_local",
+    # hard-code to use 'cuda' device
+    "test_scan_1d",
+    "test_tma_load_block_shape_err",
+    "test_tma_store_block_shape_err"
 }
 
 # probably different version of MLIR on the nightly build machine is complaining

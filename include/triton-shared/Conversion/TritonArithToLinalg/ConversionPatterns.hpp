@@ -215,8 +215,8 @@ struct MakeTensorPtrConverter
     SmallVector<Value> newOffsets;
     for (auto [offset, stride] :
          llvm::zip(pointerState.offsets, pointerState.strides)) {
-      auto mulOp = rewriter.create<arith::MulIOp>(loc, offset.get<Value>(),
-                                                  stride.get<Value>());
+      auto mulOp = rewriter.create<arith::MulIOp>(loc, cast<Value>(offset),
+                                                  cast<Value>(stride));
       newOffsets.push_back(mulOp.getResult());
     }
 
@@ -435,7 +435,7 @@ public:
         Value dimi = dyn_cast<Value>(mstate.dims[i]);
         if (!dimi) {
           dimi = rewriter.create<arith::ConstantOp>(
-              loc, cast<IntegerAttr>(mstate.dims[i].get<Attribute>()));
+              loc, cast<IntegerAttr>(cast<Attribute>(mstate.dims[i])));
         }
 
         auto cmpOp = rewriter.create<arith::CmpIOp>(
@@ -1236,9 +1236,10 @@ private:
   }
 
   bool requiresF32Conversion(const Type elemType, Operation *redOp) const {
+    unsigned width =
+	cast<FloatType>(Float32Type::get(elemType.getContext())).getWidth();
     return isa<FloatType>(elemType) &&
-           elemType.getIntOrFloatBitWidth() <
-               Float32Type::get(elemType.getContext()).getWidth() &&
+           elemType.getIntOrFloatBitWidth() < width &&
            isa<arith::AddFOp>(redOp);
   }
 
