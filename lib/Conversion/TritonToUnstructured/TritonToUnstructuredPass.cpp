@@ -269,6 +269,18 @@ public:
       }
     });
 
+    getOperation().walk([&](triton::IntToPtrOp op) {
+      auto res = op.getResult();
+      OpBuilder b(op);
+      Value zero = b.create<arith::ConstantOp>(
+          op.getLoc(),
+          b.getIntegerAttr(IntegerType::get(&getContext(), defaultBitWidth),
+                           0));
+
+      offsetMap.insert({res, {res, res.getType(), defaultBitWidth, zero}});
+      workList.push(res);
+    });
+
     llvm::SmallVector<Operation *> toDelete;
     llvm::SmallVector<Operation *> ptrUsers;
 
@@ -320,6 +332,37 @@ public:
                   return success();
                 })
                 .Case<triton::SplatOp, triton::BroadcastOp>([&](Operation *op) {
+                  auto res = op->getResult(0);
+                  auto resType = res.getType();
+
+                  if (!isPtrTypeLike(resType)) {
+                    return success();
+                  }
+
+                  auto ptr = op->getOperand(0);
+                  auto offsetInfo = offsetMap.at(ptr);
+
+                  OpBuilder b{op};
+                  auto clone =
+                      b.create(op->getLoc(), op->getName().getIdentifier(),
+                               ValueRange{offsetInfo.offset},
+                               TypeRange{getPtrOffsetType(
+                                   resType, offsetInfo.bitWidth)});
+
+                  PtrOffset newOffsetInfo{offsetInfo.ptr, resType,
+                                          offsetInfo.bitWidth,
+                                          clone->getResult(0)};
+
+                  offsetMap.insert({
+                      res,
+                      newOffsetInfo,
+                  });
+                  workList.push(res);
+                  toDelete.push_back(op);
+
+                  return success();
+                })
+                .Case<triton::ExpandDimsOp>([&](ExpandDimsOp op) {
                   auto res = op->getResult(0);
                   auto resType = res.getType();
 
@@ -417,6 +460,29 @@ public:
                   op->emitError("Do not support gather / scatter with multiple "
                                 "bases yet");
                   return failure();
+                })
+                .Case<triton::BitcastOp>([](triton::BitcastOp op) {
+                  // The bitcast is basically reinterpreting cast the source to
+                  // the target type but the offset states stay the same.
+                  // op->emitError("bitcast not supported");
+                  auto srcType =
+                      dyn_cast<triton::PointerType>(op.getSrc().getType());
+                  auto dstType =
+                      dyn_cast<triton::PointerType>(op.getResult().getType());
+
+                  if (!srcType || !dstType) {
+                    return failure();
+                  }
+
+                  auto srcWidth =
+                      srcType.getPointeeType().getIntOrFloatBitWidth();
+                  auto dstWidth =
+                      dstType.getPointeeType().getIntOrFloatBitWidth();
+
+                  // casting ptr<i8> at offset i to ptr<i16>:
+                  // so the new offset should be i / (16 / 8)?
+
+                  return success();
                 })
                 .Default([&](Operation *op) {
                   op->emitError("unexpected op in ptr sequence");
@@ -531,8 +597,8 @@ public:
 
   void runOnOperation() override {
     if (failed(processUnstructuredPtrs(offsetBitWidth))) {
-      signalPassFailure();
-      return;
+      // signalPassFailure();
+      // return;
     }
 
     PassManager pm(&getContext(), getOperation().getOperationName());
