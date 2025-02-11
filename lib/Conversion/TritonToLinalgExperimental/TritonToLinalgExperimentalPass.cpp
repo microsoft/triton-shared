@@ -54,7 +54,7 @@ public:
     pm.addPass(createCSEPass());
     pm.addPass(createCanonicalizerPass());
 
-    pm.addPass(createTritonToUnstructuredPass());
+    // pm.addPass(createTritonToUnstructuredPass());
     pm.addPass(createTritonArithToLinalgPass());
 
     pm.addPass(createStructuredToMemrefPass());
