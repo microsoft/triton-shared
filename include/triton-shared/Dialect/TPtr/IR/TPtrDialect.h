@@ -5,19 +5,7 @@
 #include "mlir/IR/MLIRContext.h"
 #include "mlir/IR/OpDefinition.h"
 
-#include "mlir/Dialect/Ptr/IR/PtrDialect.h"
-#include "mlir/Dialect/Ptr/IR/PtrTypes.h"
-
 #include "triton/Dialect/Triton/IR/Dialect.h"
-
-namespace mlir {
-namespace tts {
-namespace utils {
-mlir::Value getScalarValue(mlir::Value operand, mlir::Location loc,
-                           mlir::OpBuilder &builder);
-}
-} // namespace tts
-} // namespace mlir
 
 //===----------------------------------------------------------------------===//
 // TritonStructured Operations
@@ -28,5 +16,8 @@ mlir::Value getScalarValue(mlir::Value operand, mlir::Location loc,
 // TritonStructured operations.
 #define GET_OP_CLASSES
 #include "triton-shared/Dialect/TPtr/IR/TPtrOps.h.inc"
+
+#define GET_TYPEDEF_CLASSES
+#include "triton-shared/Dialect/TPtr/IR/TPtrTypes.h.inc"
 
 #endif

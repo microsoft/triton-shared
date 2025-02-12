@@ -25,4 +25,5 @@ add_triton_library(TritonToLinalg
   TritonIR
   TritonTransforms
   TritonSharedAnalysis
+  TPtrIR
 )
