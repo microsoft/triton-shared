@@ -20,6 +20,10 @@ def TPtr_Dialect : Dialect {
     Typed Pointer Dialect.
   }];
 
+  let extraClassDeclaration = [{
+    void registerTypes();
+  }];
+
   let dependentDialects = [
     "triton::TritonDialect",
     "mlir::ptr::PtrDialect"
@@ -35,7 +39,7 @@ class TPtrTypeDef<string name, string _mnemonic, list<Trait> traits = []>
 }
 
 // Pointer Type in C++ (corresponding to `TT_PtrOf`)
-def TPTR_PtrType : TPtrTypeDef<"Pointer", "ptr", [
+def TPTR_HelloType : TPtrTypeDef<"Pointer", "ptr", [
     MemRefElementTypeInterface
 ]> {
     let summary = "Pointer type (`::mlir::triton::PointerType`) in Triton IR type system";

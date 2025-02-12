@@ -19,6 +19,8 @@
 #include "mlir/Transforms/GreedyPatternRewriteDriver.h"
 #include "mlir/Transforms/Passes.h"
 
+#include "triton-shared/Dialect/TPtr/IR/TPtrDialect.h"
+
 #include "llvm/Support/Debug.h"
 
 #define DEBUG_TYPE "triton-to-linalg"
@@ -37,7 +39,7 @@ public:
     // The order of type conversion is important: later ones are tried earlier.
     addConversion([](Type type) { return type; });
     addConversion([](triton::PointerType ptrType) {
-      return UnrankedMemRefType::get(ptrType.getPointeeType(), 0);
+      return tptr::PointerType::get(ptrType, 0);
     });
     addConversion([](TensorType tensorType) -> Type {
       auto elemType = tensorType.getElementType();
@@ -96,21 +98,6 @@ public:
 
   void runOnOperation() override {
     auto moduleOp = getOperation();
-
-    {
-      RewritePatternSet patterns(&getContext());
-      populateTritonToLinalgCanonicalizationPatterns(patterns);
-      if (failed(applyPatternsGreedily(moduleOp, std::move(patterns)))) {
-        signalPassFailure();
-      }
-    }
-
-    moduleOp.walk([this](triton::FuncOp op) {
-      if (failed(runUseAnalysis(op))) {
-        signalPassFailure();
-      }
-    });
-
     RewritePatternSet patterns(&getContext());
     ConversionTarget target(getContext());
     TritonTypeConverter tritonTypeConverter;
