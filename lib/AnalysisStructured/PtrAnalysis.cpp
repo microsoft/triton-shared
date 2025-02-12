@@ -716,6 +716,10 @@ LogicalResult PtrAnalysis::visitOperand(Value operand, PtrState &state,
         llvm_unreachable("Unexpected operand defining operation");
       }
     } else {
+      OpBuilder::InsertionGuard guard(builder);
+      builder.setInsertionPointToStart(operand.getParentBlock());
+      state.scalar =
+          builder.create<arith::ConstantOp>(loc, builder.getIndexAttr(0));
       state.source = operand;
       return success();
     }
