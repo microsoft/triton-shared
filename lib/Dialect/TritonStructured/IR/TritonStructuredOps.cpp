@@ -249,6 +249,8 @@ GetStructuredStateOp::getOffsetAndStrideSegmentSizes(Type type) {
     return std::nullopt;
   }
 
+  Attribute t;
+
   return std::make_pair(offsetSegmentSize, strideSegmentSize);
 }
 

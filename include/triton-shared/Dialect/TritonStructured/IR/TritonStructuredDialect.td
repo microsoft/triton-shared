@@ -394,4 +394,20 @@ def TTS_PtrToIntOp : TTS_Op<"ptrtoint", [
 }
 
 
+// def TTS_PtrToMemrefOp : TTS_Op<"ptr_to_memref", [
+//     Pure  ]> {
+//   let arguments = (ins AnyType:$arg);
+//   let results = (outs AnyType:$res);
+//   let assemblyFormat = "$arg attr-dict `:` type($arg) `to` type($res)";
+// }
+
+
+// def TTS_MemrefToPtrOp : TTS_Op<"memref_to_ptr", [
+//     Pure  ]> {
+//   let arguments = (ins AnyType:$arg);
+//   let results = (outs AnyType:$res);
+//   let assemblyFormat = "$arg attr-dict `:` type($arg) `to` type($res)";
+// }
+
+
 #endif // TRITON_STRUCTURED_DIALECT
