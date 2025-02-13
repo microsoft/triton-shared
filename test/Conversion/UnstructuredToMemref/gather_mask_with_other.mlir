@@ -65,16 +65,16 @@ module {
 // CHECK:               linalg.yield [[VAR_13_]] : f32
 // CHECK:             } -> tensor<64xf32>
 // CHECK:             [[VAR_cast_2_:%.+]] = memref.cast [[VAR_0_]] : memref<*xf32> to memref<?xf32>
-// CHECK:             affine.for [[I_0_:%.+]] = 0 to 64 {
-// CHECK-DAG:           [[VAR_extracted_1_:%.+]] = tensor.extract [[VAR_arg5_]]{{.}}[[I_0_]]{{.}} : tensor<64xi32>
-// CHECK-DAG:           [[VAR_extracted_3_:%.+]] = tensor.extract [[VAR_9_]]{{.}}[[I_0_]]{{.}} : tensor<64xf32>
-// CHECK:               [[VAR_13_1_:%.+]] = arith.index_cast [[VAR_extracted_1_]] : i32 to index
-// CHECK:               memref.store [[VAR_extracted_3_]], [[VAR_cast_2_]]{{.}}[[VAR_13_1_]]{{.}} : memref<?xf32>
+// CHECK:             linalg.generic {indexing_maps = [[[MAP_0_]], [[MAP_0_]]], iterator_types = ["parallel"]} ins([[VAR_arg5_]], [[VAR_9_]] : tensor<64xi32>, tensor<64xf32>) {
+// CHECK:             ^bb0([[IN_3_:%.+]]: i32, [[IN_4_:%.+]]: f32):
+// CHECK:               [[VAR_12_:%.+]] = arith.index_cast [[IN_3_]] : i32 to index
+// CHECK:               memref.store [[IN_4_]], [[VAR_cast_2_]]{{.}}[[VAR_12_]]{{.}} : memref<?xf32>
+// CHECK:               linalg.yield
 // CHECK:             }
-// CHECK-DAG:         [[VAR_10_:%.+]] = arith.addi [[VAR_arg3_]], [[CST_16_]] : i32
-// CHECK-DAG:         [[VAR_11_:%.+]] = arith.addi [[VAR_arg4_]], [[VAR_cst_0_]] : tensor<64xi32>
-// CHECK-DAG:         [[VAR_12_:%.+]] = arith.addi [[VAR_arg5_]], [[VAR_cst_0_]] : tensor<64xi32>
-// CHECK:             scf.yield [[VAR_10_]], [[VAR_11_]], [[VAR_12_]] : i32, tensor<64xi32>, tensor<64xi32>
+// CHECK-DAG:         [[VAR_15_:%.+]] = arith.addi [[VAR_arg3_]], [[CST_16_]] : i32
+// CHECK-DAG:         [[VAR_16_:%.+]] = arith.addi [[VAR_arg4_]], [[VAR_cst_0_]] : tensor<64xi32>
+// CHECK-DAG:         [[VAR_17_:%.+]] = arith.addi [[VAR_arg5_]], [[VAR_cst_0_]] : tensor<64xi32>
+// CHECK:             scf.yield [[VAR_15_]], [[VAR_16_]], [[VAR_17_]] : i32, tensor<64xi32>, tensor<64xi32>
 // CHECK:           }
 // CHECK:           tt.return
 // CHECK:         }
