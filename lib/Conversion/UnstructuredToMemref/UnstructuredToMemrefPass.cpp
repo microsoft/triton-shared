@@ -52,8 +52,7 @@ public:
     });
     addTargetMaterialization([&](OpBuilder &builder,
                                  UnrankedMemRefType resultType,
-                                 ValueRange inputs,
-                                 Location loc) -> Value {
+                                 ValueRange inputs, Location loc) -> Value {
       return builder.create<UnrealizedConversionCastOp>(loc, resultType, inputs)
           .getResult(0);
     });
@@ -158,7 +157,7 @@ struct ScalarStoreConverter : public OpConversionPattern<tts::ScatterOp> {
   }
 };
 
-// Lowering an unstructured load op (gather) into a linalg.generic op
+// Lowering an unstructured load op (gather) into a linalg.generic op.
 struct GatherConverter : public OpConversionPattern<tts::GatherOp> {
   using OpConversionPattern<tts::GatherOp>::OpConversionPattern;
 
@@ -171,28 +170,29 @@ struct GatherConverter : public OpConversionPattern<tts::GatherOp> {
   LogicalResult
   matchAndRewrite(tts::GatherOp gatherOp, OpAdaptor adaptor,
                   ConversionPatternRewriter &rewriter) const override {
-
     auto loc = gatherOp->getLoc();
 
     auto ptr = adaptor.getPtr();
     auto offsetTensor = adaptor.getOffset();
     auto offsetType = dyn_cast<ShapedType>(offsetTensor.getType());
 
-    // This must be a scalar load, skip processing
+    // This must be a scalar load, skip processing.
     if (!offsetType) {
       return failure();
     }
 
-    auto loadResultType =
+    auto resultType =
         dyn_cast<RankedTensorType>(gatherOp.getResult().getType());
 
     // Treat the base pointer (memref) as 1D because the offsets are all
     // relative to a single base pointer (already collapsed).
-    auto baseMemref = rewriter.create<memref::CastOp>(
-        loc,
-        MemRefType::get({ShapedType::kDynamic},
-                        loadResultType.getElementType()),
-        ptr);
+    auto baseMemref = rewriter
+                          .create<memref::CastOp>(
+                              loc,
+                              MemRefType::get({ShapedType::kDynamic},
+                                              resultType.getElementType()),
+                              ptr)
+                          .getResult();
 
     auto baseTensor =
         rewriter
@@ -200,89 +200,79 @@ struct GatherConverter : public OpConversionPattern<tts::GatherOp> {
                 loc,
                 RankedTensorType::get(
                     SmallVector<int64_t>(1, ShapedType::kDynamic),
-                    loadResultType.getElementType()),
+                    resultType.getElementType()),
                 baseMemref, true /* restrict */, false /* writable */)
             .getResult();
 
     // The linalg.generic op should have the following inputs:
-    // - the offset tensor
-    // - an optional mask tensor if the load op contains mask
+    // - the offset tensor.
+    // - an optional mask tensor if the gather op contains mask.
     SmallVector<Value> inputs{offsetTensor};
 
     if (gatherOp.getMask()) {
       inputs.push_back(gatherOp.getMask());
     }
 
-    auto emptyTensor =
-        rewriter
-            .create<tensor::EmptyOp>(loc, loadResultType.getShape(),
-                                     loadResultType.getElementType())
-            .getResult();
+    auto emptyTensor = rewriter
+                           .create<tensor::EmptyOp>(loc, resultType.getShape(),
+                                                    resultType.getElementType())
+                           .getResult();
 
-    // Affine maps for the inputs and output
-    // If no mask is used, 2 affine maps are generated; one for the input offset
-    // tensor, the other for the output tensor.
-    // If mask is used, the first 2 maps are for the offset and mask tensors
-    // while the last map is for the output tensor.
+    // Affine maps for the inputs and one additional output.
     SmallVector<AffineMap> affineMaps(
-        gatherOp.getMask() ? 3 : 2,
-        rewriter.getMultiDimIdentityMap(loadResultType.getRank()));
+        inputs.size() + 1,
+        rewriter.getMultiDimIdentityMap(resultType.getRank()));
+
+    // All iterator types are parallel.
+    SmallVector<utils::IteratorType> iteratorTypes(
+        resultType.getRank(), utils::IteratorType::parallel);
 
     auto genericOp = rewriter.create<linalg::GenericOp>(
-        loc, SmallVector<Type>({loadResultType}), inputs,
-        ValueRange{emptyTensor}, affineMaps,
-        SmallVector<utils::IteratorType>(loadResultType.getRank(),
-                                         utils::IteratorType::parallel),
-        [&](OpBuilder &b, Location loc, ValueRange args) {
-          auto getValueAtIndex = [baseTensor](Value indexValue, Location loc,
-                                              OpBuilder &b) -> Value {
+        loc, TypeRange{resultType}, inputs, ValueRange{emptyTensor}, affineMaps,
+        iteratorTypes, [&](OpBuilder &b, Location loc, ValueRange args) {
+          auto getValueAtIndex = [baseTensor](OpBuilder &b, Location loc,
+                                              Value index) -> Value {
             Value index0 =
-                b.create<arith::IndexCastOp>(loc, b.getIndexType(), indexValue);
+                b.create<arith::IndexCastOp>(loc, b.getIndexType(), index);
 
             return b.create<tensor::ExtractOp>(loc, baseTensor,
                                                ValueRange{index0});
           };
 
+          auto offset = args[0];
+
           if (!gatherOp.getMask()) {
             // If there is no mask, simply extract the current element from the
             // base tensor and use it as the yield value.
-            auto loadValue = getValueAtIndex(args[0], loc, rewriter);
-            rewriter.create<linalg::YieldOp>(loc, loadValue);
+            auto loadValue = getValueAtIndex(b, loc, offset);
+            b.create<linalg::YieldOp>(loc, loadValue);
           } else {
             // If the mask value is truthy, the current element is loaded from
             // the base tensor using its offset. Otherwise, if `other` is
             // present, yield `other`. If `other` is not present, a default
             // value of 0 is used.
             auto mask = args[1];
-            auto ifOp = rewriter.create<scf::IfOp>(
+            auto ifOp = b.create<scf::IfOp>(
                 loc, mask,
                 [&](OpBuilder &b, Location loc) {
-                  // Truthy case, load from the index
-                  auto loadValue = getValueAtIndex(args[0], loc, b);
-                  b.create<scf::YieldOp>(loc, loadValue);
+                  // Truthy case, load from the index.
+                  auto value = getValueAtIndex(b, loc, offset);
+                  b.create<scf::YieldOp>(loc, value);
                 },
                 [&](OpBuilder &b, Location loc) {
-                  // Falsy case, yield `other` or 0 as the default value
+                  // Falsy case, yield `other` or 0 as the default value.
                   if (gatherOp.getOther()) {
                     b.create<scf::YieldOp>(loc, gatherOp.getOther());
                   } else {
-                    auto elemType = baseTensor.getType().getElementType();
-                    Value extract;
-                    if (isa<IntegerType>(elemType)) {
-                      extract = rewriter.create<arith::ConstantOp>(
-                          loc, b.getIntegerAttr(elemType, 0));
-                    } else if (isa<FloatType>(elemType)) {
-                      extract = rewriter.create<arith::ConstantOp>(
-                          loc, b.getFloatAttr(elemType, 0));
-                    } else {
-                      elemType.dump();
-                      llvm_unreachable("unexpected type");
-                    }
+                    auto elemType = resultType.getElementType();
+                    auto zeroAttr = b.getZeroAttr(elemType);
+                    assert(zeroAttr && "unexpected element type");
+                    Value extract = b.create<arith::ConstantOp>(loc, zeroAttr);
                     b.create<scf::YieldOp>(loc, extract);
                   }
                 });
 
-            rewriter.create<linalg::YieldOp>(loc, ifOp->getResult(0));
+            b.create<linalg::YieldOp>(loc, ifOp->getResult(0));
           }
         });
 
@@ -292,7 +282,7 @@ struct GatherConverter : public OpConversionPattern<tts::GatherOp> {
   }
 };
 
-// Lowering an unstructured store op (scatter) into an affine loop nest
+// Lowering an unstructured store op (scatter) into a linalg.generic op.
 struct ScatterConverter : public OpConversionPattern<tts::ScatterOp> {
   using OpConversionPattern<tts::ScatterOp>::OpConversionPattern;
 
@@ -309,57 +299,81 @@ struct ScatterConverter : public OpConversionPattern<tts::ScatterOp> {
 
     auto ptr = adaptor.getPtr();
     auto offsetTensor = adaptor.getOffset();
+    auto valueTensor = adaptor.getValue();
     auto offsetType = dyn_cast<ShapedType>(offsetTensor.getType());
 
-    // This must be a scalar store, skip processing
+    // This must be a scalar store, skip processing.
     if (!offsetType) {
       return failure();
     }
 
-    auto resultType =
-        dyn_cast<RankedTensorType>(scatterOp.getValue().getType());
+    auto valueType = dyn_cast<RankedTensorType>(scatterOp.getValue().getType());
 
-    auto storeMemref = rewriter.create<memref::CastOp>(
-        loc,
-        MemRefType::get({ShapedType::kDynamic}, resultType.getElementType()),
-        ptr);
+    // Treat the base pointer (memref) as 1D because the offsets are all
+    // relative to a single base pointer (already collapsed).
+    auto baseMemref =
+        rewriter
+            .create<memref::CastOp>(loc,
+                                    MemRefType::get({ShapedType::kDynamic},
+                                                    valueType.getElementType()),
+                                    ptr)
+            .getResult();
 
-    auto ip = rewriter.saveInsertionPoint();
-
-    SmallVector<Value> ivs;
-    for (auto dim : resultType.getShape()) {
-      auto ub =
-          rewriter.create<arith::ConstantOp>(loc, rewriter.getIndexAttr(dim));
-      auto forOp = rewriter.create<affine::AffineForOp>(loc, 0, dim);
-      ivs.push_back(forOp.getInductionVar());
-      rewriter.setInsertionPointToStart(forOp.getBody());
-    }
+    // The linalg.generic op should have the following inputs:
+    // - the offset tensor.
+    // - the value tensor.
+    // - an optional mask tensor if the scatter op contains mask.
+    SmallVector<Value> inputs{offsetTensor, valueTensor};
 
     if (scatterOp.getMask()) {
-      // Mask case, only store the value if the mask value at `ivs` is truthy
-      auto maskValue =
-          rewriter.create<tensor::ExtractOp>(loc, scatterOp.getMask(), ivs);
-
-      auto ifOp = rewriter.create<scf::IfOp>(loc, maskValue,
-                                             false /* withElseRegion */);
-
-      rewriter.setInsertionPointToStart(
-          &ifOp.getThenRegion().getBlocks().front());
+      inputs.push_back(scatterOp.getMask());
     }
 
-    // Generate ops to store the value at each index. Note that with masking,
-    // these ops are created in the `if` block generated above.
-    auto offsetValue =
-        rewriter.create<tensor::ExtractOp>(loc, offsetTensor, ivs);
-    auto storeValue =
-        rewriter.create<tensor::ExtractOp>(loc, scatterOp.getValue(), ivs);
-    Value storeIndex = rewriter.create<arith::IndexCastOp>(
-        loc, rewriter.getIndexType(), offsetValue);
-    rewriter.create<memref::StoreOp>(loc, storeValue, storeMemref, storeIndex);
+    // Affine maps for the inputs.
+    SmallVector<AffineMap> affineMaps(
+        inputs.size(), rewriter.getMultiDimIdentityMap(valueType.getRank()));
 
-    // Finalize
+    // All iterator types are parallel.
+    SmallVector<utils::IteratorType> iteratorTypes(
+        valueType.getRank(), utils::IteratorType::parallel);
+
+    rewriter.setInsertionPoint(scatterOp);
+
+    auto genericOp = rewriter.create<linalg::GenericOp>(
+        loc, TypeRange{}, inputs, ValueRange{}, affineMaps, iteratorTypes,
+        [&](OpBuilder &b, Location loc, ValueRange args) {
+          auto storeValueAtIndex = [baseMemref](OpBuilder &b, Location loc,
+                                                Value index, Value value) {
+            Value index0 =
+                b.create<arith::IndexCastOp>(loc, b.getIndexType(), index);
+
+            b.create<memref::StoreOp>(loc, value, baseMemref,
+                                      ValueRange{index0});
+          };
+
+          auto offset = args[0];
+          auto value = args[1];
+
+          if (!scatterOp.getMask()) {
+            // If there is no mask, simply insert the current value to the
+            // base memref using its offset.
+            storeValueAtIndex(b, loc, offset, value);
+          } else {
+            // If the mask value is truthy, insert the current value to the
+            // the base memref using its offset. Otherwise, noop.
+            auto mask = args[2];
+            auto ifOp =
+                b.create<scf::IfOp>(loc, mask, [&](OpBuilder &b, Location loc) {
+                  storeValueAtIndex(b, loc, offset, value);
+                  b.create<scf::YieldOp>(loc);
+                });
+          }
+
+          b.create<linalg::YieldOp>(loc);
+        });
+
     rewriter.eraseOp(scatterOp);
-    rewriter.restoreInsertionPoint(ip);
+
     return success();
   }
 };

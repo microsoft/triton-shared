@@ -63,14 +63,13 @@ module {
 // CHECK:               linalg.yield [[VAR_13_]] : f32
 // CHECK:             } -> tensor<4xf32>
 // CHECK:             [[VAR_cast_3_:%.+]] = memref.cast [[VAR_0_]] : memref<*xf32> to memref<?xf32>
-// CHECK:             affine.for [[I_0_:%.+]] = 0 to 4 {
-// CHECK:               [[VAR_extracted_1_:%.+]] = tensor.extract [[VAR_7_]]{{.}}[[I_0_]]{{.}} : tensor<4xi1>
-// CHECK:               scf.if [[VAR_extracted_1_]] {
-// CHECK-DAG:             [[VAR_extracted_4_:%.+]] = tensor.extract [[VAR_6_]]{{.}}[[I_0_]]{{.}} : tensor<4xi32>
-// CHECK-DAG:             [[VAR_extracted_5_:%.+]] = tensor.extract [[VAR_10_]]{{.}}[[I_0_]]{{.}} : tensor<4xf32>
-// CHECK:                 [[VAR_13_1_:%.+]] = arith.index_cast [[VAR_extracted_4_]] : i32 to index
-// CHECK:                 memref.store [[VAR_extracted_5_]], [[VAR_cast_3_]]{{.}}[[VAR_13_1_]]{{.}} : memref<?xf32>
+// CHECK:             linalg.generic {indexing_maps = [[[MAP_0_]], [[MAP_0_]], [[MAP_0_]]], iterator_types = ["parallel"]} ins([[VAR_6_]], [[VAR_10_]], [[VAR_7_]] : tensor<4xi32>, tensor<4xf32>, tensor<4xi1>) {
+// CHECK:             ^bb0([[IN_3_:%.+]]: i32, [[IN_4_:%.+]]: f32, [[IN_5_:%.+]]: i1):
+// CHECK:               scf.if [[IN_5_]] {
+// CHECK:                 [[VAR_17_:%.+]] = arith.index_cast [[IN_3_]] : i32 to index
+// CHECK:                 memref.store [[IN_4_]], [[VAR_cast_3_]]{{.}}[[VAR_17_]]{{.}} : memref<?xf32>
 // CHECK:               }
+// CHECK:               linalg.yield
 // CHECK:             }
 // CHECK-DAG:         [[VAR_11_:%.+]] = arith.addi [[VAR_6_]], [[VAR_cst_1_]] : tensor<4xi32>
 // CHECK-DAG:         [[VAR_12_:%.+]] = arith.addi [[VAR_arg4_]], [[VAR_cst_1_]] : tensor<4xi32>

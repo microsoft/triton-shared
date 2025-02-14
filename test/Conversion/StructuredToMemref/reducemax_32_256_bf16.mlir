@@ -41,9 +41,12 @@ module {
     }
 }
 
+// CHECK-DAG:   [[MAP_0_:#.+]] = affine_map<(d0, d1) -> (d0, d1)>
 // CHECK-LABEL:  func.func @kernel
 // CHECK-SAME:   ([[PARAM_0_:%.+]]: memref<*xbf16>, [[PARAM_1_:%.+]]: memref<*xbf16>, [[PARAM_2_:%.+]]: i32, [[PARAM_3_:%.+]]: i32, [[PARAM_4_:%.+]]: i32, [[PARAM_5_:%.+]]: i32, [[PARAM_6_:%.+]]: i32, [[PARAM_7_:%.+]]: i32) {
-// CHECK-DAG:       [[CST_0_:%.+]] = arith.constant 0 : index
+// CHECK-DAG:       [[CST_0_:%.+]] = arith.constant 0 : i32
+// CHECK-DAG:       [[VAR_empty_offsets_:%.+]] = tensor.empty() : tensor<256x16xi32>
+// CHECK-DAG:       [[VAR_zero_offsets_:%.+]] = linalg.fill ins([[CST_0_]] : i32) outs([[VAR_empty_offsets_]] : tensor<256x16xi32>) -> tensor<256x16xi32>
 // CHECK-DAG:       [[CST_0_1_:%.+]] = arith.constant 0xFF80 : bf16
 // CHECK-DAG:       [[CST_256_:%.+]] = arith.constant 256 : index
 // CHECK-NOT: separator of consecutive DAGs
@@ -59,11 +62,11 @@ module {
 // CHECK:               linalg.yield [[VAR_3_]] : bf16
 // CHECK:             }
 // CHECK:           [[VAR_cast_:%.+]] = memref.cast [[PARAM_1_]] : memref<*xbf16> to memref<?xbf16>
-// CHECK:           affine.for [[I_0_:%.+]] = 0 to 256 {
-// CHECK:             affine.for [[I_1_:%.+]] = 0 to 16 {
-// CHECK:               [[VAR_extracted_:%.+]] = tensor.extract [[VAR_reduced_]]{{.}}[[I_0_]], [[I_1_]]{{.}} : tensor<256x16xbf16>
-// CHECK:               memref.store [[VAR_extracted_]], [[VAR_cast_]]{{.}}[[CST_0_]]{{.}} : memref<?xbf16>
-// CHECK:             }
+// CHECK:           linalg.generic {indexing_maps = [[[MAP_0_]], [[MAP_0_]]], iterator_types = ["parallel", "parallel"]} ins([[VAR_zero_offsets_]], [[VAR_reduced_]] : tensor<256x16xi32>, tensor<256x16xbf16>) {
+// CHECK:           ^bb0([[IN_0_:%.+]]: i32, [[IN_1_:%.+]]: bf16):
+// CHECK:             [[VAR_4_:%.+]] = arith.index_cast [[IN_0_]] : i32 to index
+// CHECK:             memref.store [[IN_1_]], [[VAR_cast_]]{{.}}[[VAR_4_]]{{.}} : memref<?xbf16>
+// CHECK:             linalg.yield
 // CHECK:           }
 // CHECK:           return
 // CHECK:         }
