@@ -6,10 +6,7 @@ add_llvm_executable(triton-shared-opt triton-shared-opt.cpp PARTIAL_SOURCES_INTE
 # TODO: what's this?
 llvm_update_compile_flags(triton-shared-opt)
 target_link_libraries(triton-shared-opt PRIVATE
-  TritonAnalysis
   TritonTransforms
-  TritonGPUTransforms
-  TritonTestDialectTritonGPU
   TritonSharedAnalysis
   ${dialect_libs}
   ${conversion_libs}
