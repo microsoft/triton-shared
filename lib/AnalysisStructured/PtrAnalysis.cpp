@@ -231,8 +231,8 @@ LogicalResult PtrState::mulState(const PtrState &lhsState,
   }
 
   if (lhsState.scalar && rhsState.scalar) {
-    scalar = builder.create<arith::MulIOp>(
-        loc, lhsState.scalar, rhsState.scalar);
+    scalar =
+        builder.create<arith::MulIOp>(loc, lhsState.scalar, rhsState.scalar);
   }
 
   for (uint64_t i = 0; i < lhs->sizes.size(); i++) {
@@ -687,9 +687,15 @@ LogicalResult PtrAnalysis::visitOperand(Value operand, PtrState &state,
       } else if (auto makeTensorOp = dyn_cast<triton::MakeTensorPtrOp>(op)) {
         llvm_unreachable("Unexpected operand defining operation tts.make_tptr");
       } else {
+        op->dump();
+        return failure();
         llvm_unreachable("Unexpected operand defining operation");
       }
     } else {
+      OpBuilder::InsertionGuard guard(builder);
+      builder.setInsertionPointToStart(operand.getParentBlock());
+      state.scalar =
+          builder.create<arith::ConstantOp>(loc, builder.getIndexAttr(0));
       state.source = operand;
       return success();
     }

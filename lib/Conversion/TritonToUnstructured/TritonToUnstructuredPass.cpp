@@ -269,6 +269,18 @@ public:
       }
     });
 
+    getOperation().walk([&](triton::IntToPtrOp op) {
+      auto res = op.getResult();
+      OpBuilder b(op);
+      Value zero = b.create<arith::ConstantOp>(
+          op.getLoc(),
+          b.getIntegerAttr(IntegerType::get(&getContext(), defaultBitWidth),
+                           0));
+
+      offsetMap.insert({res, {res, res.getType(), defaultBitWidth, zero}});
+      workList.push(res);
+    });
+
     llvm::SmallVector<Operation *> toDelete;
     llvm::SmallVector<Operation *> ptrUsers;
 
@@ -320,6 +332,37 @@ public:
                   return success();
                 })
                 .Case<triton::SplatOp, triton::BroadcastOp>([&](Operation *op) {
+                  auto res = op->getResult(0);
+                  auto resType = res.getType();
+
+                  if (!isPtrTypeLike(resType)) {
+                    return success();
+                  }
+
+                  auto ptr = op->getOperand(0);
+                  auto offsetInfo = offsetMap.at(ptr);
+
+                  OpBuilder b{op};
+                  auto clone =
+                      b.create(op->getLoc(), op->getName().getIdentifier(),
+                               ValueRange{offsetInfo.offset},
+                               TypeRange{getPtrOffsetType(
+                                   resType, offsetInfo.bitWidth)});
+
+                  PtrOffset newOffsetInfo{offsetInfo.ptr, resType,
+                                          offsetInfo.bitWidth,
+                                          clone->getResult(0)};
+
+                  offsetMap.insert({
+                      res,
+                      newOffsetInfo,
+                  });
+                  workList.push(res);
+                  toDelete.push_back(op);
+
+                  return success();
+                })
+                .Case<triton::ExpandDimsOp>([&](ExpandDimsOp op) {
                   auto res = op->getResult(0);
                   auto resType = res.getType();
 
