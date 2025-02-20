@@ -27,3 +27,17 @@
 
 using namespace mlir;
 using namespace mlir::tptr;
+
+void LoadOp::getEffects(
+    SmallVectorImpl<SideEffects::EffectInstance<MemoryEffects::Effect>>
+        &effects) {
+  effects.emplace_back(MemoryEffects::Read::get(), &getAddrMutable(),
+                       SideEffects::DefaultResource::get());
+}
+
+void StoreOp::getEffects(
+    SmallVectorImpl<SideEffects::EffectInstance<MemoryEffects::Effect>>
+        &effects) {
+  effects.emplace_back(MemoryEffects::Write::get(), &getAddrMutable(),
+                       SideEffects::DefaultResource::get());
+}
