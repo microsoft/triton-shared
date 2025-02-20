@@ -59,10 +59,10 @@ struct AddPtrConverter : public OpConversionPattern<triton::AddPtrOp> {
     auto loc = op->getLoc();
     auto pointeeType = cast<triton::PointerType>(op.getType()).getPointeeType();
     auto offsetType = op.getOffset().getType();
-    auto pointeeByteSize = rewriter.create<arith::ConstantIntOp>(
+    auto pointeeSizeInBytes = rewriter.create<arith::ConstantIntOp>(
         loc, pointeeType.getIntOrFloatBitWidth() / 8, offsetType);
     auto scaledOffset =
-        rewriter.create<arith::MulIOp>(loc, op.getOffset(), pointeeByteSize);
+        rewriter.create<arith::MulIOp>(loc, op.getOffset(), pointeeSizeInBytes);
     auto add = rewriter.create<tptr::PtrAddOp>(
         loc, ptr::PtrType::get(rewriter.getContext()), adaptor.getPtr(),
         scaledOffset);
