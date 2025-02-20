@@ -71,25 +71,96 @@ class TPTR_Op<string mnemonic, list<Trait> traits = []> :
     Op<TPtr_Dialect, mnemonic, traits> {
 }
 
-def TPTR_PtrToMemrefOp : TPTR_Op<"ptr_to_memref", [
+def TPTR_FromMemrefOp : TPTR_Op<"from_memref", [
     Pure  ]> {
   let arguments = (ins AnyType:$arg);
   let results = (outs AnyType:$res);
   let assemblyFormat = "$arg attr-dict `:` type($arg) `to` type($res)";
 }
 
-def TPTR_MemrefToPtrOp : TPTR_Op<"memref_to_ptr", [
+def TPTR_ToMemrefOp : TPTR_Op<"to_memref", [
     Pure  ]> {
   let arguments = (ins AnyType:$arg);
   let results = (outs AnyType:$res);
   let assemblyFormat = "$arg attr-dict `:` type($arg) `to` type($res)";
 }
 
-def TPTR_Add : TPTR_Op<"memref_to_ptr", [
+def TPTR_PtrAddOp : TPTR_Op<"ptradd", [
     Pure  ]> {
-  let arguments = (ins AnyType:$arg);
+  let arguments = (ins AnyType:$arg, AnyType:$offset);
   let results = (outs AnyType:$res);
-  let assemblyFormat = "$arg attr-dict `:` type($arg) `to` type($res)";
+  let assemblyFormat = "$arg $offset attr-dict `:` type($arg) `,` type($offset) `to` type($res)";
 }
+
+def TPTR_LoadOp : TPTR_Op<"load", [
+    DeclareOpInterfaceMethods<MemoryEffectsOpInterface>
+  ]> {
+  let summary = "Load operation";
+  let description = [{
+    The `load` operation is used to read from memory. A load may be marked as
+    atomic, volatile, and/or nontemporal, and takes a number of optional
+    attributes that specify aliasing information.
+
+    An atomic load only supports a limited set of pointer, integer, and
+    floating point types, and requires an explicit alignment.
+
+    Examples:
+    ```mlir
+    // A volatile load of a float variable.
+    %0 = ptr.load volatile %ptr : !ptr.ptr -> f32
+
+    // A nontemporal load of a float variable.
+    %0 = ptr.load %ptr {nontemporal} : !ptr.ptr -> f32
+
+    // An atomic load of an integer variable.
+    %0 = ptr.load %ptr atomic monotonic {alignment = 8 : i64}
+        : !ptr.ptr -> i64
+    ```
+  }];
+  let arguments = (ins AnyType:$addr);
+  let results = (outs AnyType:$res);
+  let assemblyFormat = [{
+    $addr
+    attr-dict `:` qualified(type($addr)) `->` type($res)
+  }];
+}
+
+//===----------------------------------------------------------------------===//
+// StoreOp
+//===----------------------------------------------------------------------===//
+
+def TTPTR_StoreOp : TPTR_Op<"store", [
+    DeclareOpInterfaceMethods<MemoryEffectsOpInterface>
+  ]> {
+  let summary = "Store operation";
+  let description = [{
+    The `store` operation is used to write to memory. A store may be marked as
+    atomic, volatile, and/or nontemporal, and takes a number of optional
+    attributes that specify aliasing information.
+
+    An atomic store only supports a limited set of pointer, integer, and
+    floating point types, and requires an explicit alignment.
+
+    Examples:
+    ```mlir
+    // A volatile store of a float variable.
+    ptr.store volatile %val, %ptr : f32, !ptr.ptr
+
+    // A nontemporal store of a float variable.
+    ptr.store %val, %ptr {nontemporal} : f32, !ptr.ptr
+
+    // An atomic store of an integer variable.
+    ptr.store %val, %ptr atomic monotonic {alignment = 8 : i64}
+        : i64, !ptr.ptr
+    ```
+  }];
+  let arguments = (ins AnyType:$value,
+                       AnyType:$addr);
+  let assemblyFormat = [{
+    $value `,` $addr
+    attr-dict `:` type($value) `,` qualified(type($addr))
+  }];
+}
+
 
 #endif // TPTR_DIALECT
