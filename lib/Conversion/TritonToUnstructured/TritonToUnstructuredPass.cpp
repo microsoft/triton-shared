@@ -293,6 +293,9 @@ public:
 
         auto res =
             llvm::TypeSwitch<Operation *, LogicalResult>(user)
+                // .Case<arith::SelectOp>([&](arith::SelectOp op) {
+
+                // })
                 .Case<triton::AddPtrOp>([&](triton::AddPtrOp addptr) {
                   OpBuilder b{addptr};
                   auto loc = addptr->getLoc();
