@@ -461,26 +461,33 @@ public:
                                 "bases yet");
                   return failure();
                 })
-                .Case<triton::BitcastOp>([](triton::BitcastOp op) {
-                  // The bitcast is basically reinterpreting cast the source to
-                  // the target type but the offset states stay the same.
-                  // op->emitError("bitcast not supported");
-                  auto srcType =
-                      dyn_cast<triton::PointerType>(op.getSrc().getType());
-                  auto dstType =
-                      dyn_cast<triton::PointerType>(op.getResult().getType());
+                .Case<triton::BitcastOp>([&](triton::BitcastOp op) {
+                  auto offsetInfo = offsetMap.at(op.getSrc());
 
-                  if (!srcType || !dstType) {
-                    return failure();
-                  }
+                  OpBuilder b{op};
 
-                  auto srcWidth =
-                      srcType.getPointeeType().getIntOrFloatBitWidth();
-                  auto dstWidth =
-                      dstType.getPointeeType().getIntOrFloatBitWidth();
+                  // Bitcast changes the scale offset because the underlying
+                  // type changes, we have to materialize the addptr as the base
+                  auto materializedAddPtr = b.create<triton::AddPtrOp>(
+                      op->getLoc(), offsetInfo.ptrType, offsetInfo.ptr,
+                      offsetInfo.offset);
 
-                  // casting ptr<i8> at offset i to ptr<i16>:
-                  // so the new offset should be i / (16 / 8)?
+                  op->setOperand(0, materializedAddPtr);
+
+                  auto zero = b.create<arith::ConstantOp>(
+                      op.getLoc(),
+                      b.getIntegerAttr(
+                          IntegerType::get(&getContext(), defaultBitWidth), 0));
+
+                  PtrOffset resOffset{op.getResult(), op.getType(),
+                                      offsetInfo.bitWidth, zero};
+
+                  offsetMap.insert({
+                      op.getResult(),
+                      resOffset,
+                  });
+
+                  workList.push(op.getResult());
 
                   return success();
                 })
