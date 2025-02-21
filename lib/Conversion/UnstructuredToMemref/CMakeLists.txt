@@ -21,7 +21,6 @@ add_triton_library(UnstructuredToMemref
   MLIRTensorDialect
   MLIRTransforms
   MLIRSupport
-  TritonAnalysis
   TritonIR
   TritonTransforms
   TritonSharedAnalysis
