@@ -121,10 +121,10 @@ struct UnrealizedCastConverter
     : public OpConversionPattern<UnrealizedConversionCastOp> {
   using OpConversionPattern<UnrealizedConversionCastOp>::OpConversionPattern;
 
-  // UnrealizedCastConverter(const TypeConverter &typeConverter,
-  //                         MLIRContext *context)
-  //     : OpConversionPattern<UnrealizedConversionCastOp>(typeConverter,
-  //                                                       context) {}
+  UnrealizedCastConverter(const TypeConverter &typeConverter,
+                          MLIRContext *context)
+      : OpConversionPattern<UnrealizedConversionCastOp>(typeConverter,
+                                                        context) {}
 
   LogicalResult
   matchAndRewrite(UnrealizedConversionCastOp op, OpAdaptor adaptor,
@@ -135,8 +135,12 @@ struct UnrealizedCastConverter
         isa<triton::PointerType>(output.getType())) {
       rewriter.replaceOp(op, adaptor.getInputs().front());
       return success();
+    } else if (isa<triton::PointerType>(input.getType()) &&
+               isa<UnrankedMemRefType>(output.getType())) {
+      op->dump();
     }
-    assert(0);
+
+    // assert(0);
     return failure();
   }
 };
@@ -165,6 +169,11 @@ public:
     };
     addSourceMaterialization(createUnrealizedCast);
     addArgumentMaterialization(createUnrealizedCast);
+    // addTargetMaterialization([&](OpBuilder &builder, Type resultType,
+    //                              ValueRange inputs, Location loc) -> Value {
+    //   return builder.create<tptr::FromMemrefOp>(loc, resultType, inputs)
+    //       .getResult();
+    // });
   }
 };
 
@@ -182,6 +191,13 @@ public:
       return builder.create<tptr::FromMemrefOp>(loc, resultType, inputs)
           .getResult();
     });
+    auto createUnrealizedCast = [&](OpBuilder &builder, Type resultType,
+                                    ValueRange inputs, Location loc) -> Value {
+      return builder.create<UnrealizedConversionCastOp>(loc, resultType, inputs)
+          .getResult(0);
+    };
+    addSourceMaterialization(createUnrealizedCast);
+    addArgumentMaterialization(createUnrealizedCast);
   }
 };
 
@@ -248,14 +264,23 @@ public:
     // target.addDynamicallyLegalOp<tptr::FromMemrefOp>(
     //     [&](tptr::FromMemrefOp op) { return op.getType(); });
 
-    target.addIllegalOp<UnrealizedConversionCastOp>();
+    target.addDynamicallyLegalOp<UnrealizedConversionCastOp>(
+        [](UnrealizedConversionCastOp op) {
+          auto input = op.getInputs().front();
+          auto output = op.getResult(0);
+          if (isa<UnrankedMemRefType>(input.getType()) &&
+              isa<triton::PointerType>(output.getType())) {
+            return false;
+          }
+          return true;
+        });
     target.addLegalDialect<arith::ArithDialect>();
 
-    patterns
-        .add<AddPtrConverter, BitCastConverter, StoreConverter, LoadConverter>(
-            typeConverter, patterns.getContext());
+    patterns.add<AddPtrConverter, BitCastConverter, StoreConverter,
+                 LoadConverter, UnrealizedCastConverter>(typeConverter,
+                                                         patterns.getContext());
 
-    patterns.add<UnrealizedCastConverter>(patterns.getContext());
+    // patterns.add<UnrealizedCastConverter>(patterns.getContext());
 
     if (failed(applyPartialConversion(moduleOp, target, std::move(patterns)))) {
       signalPassFailure();
