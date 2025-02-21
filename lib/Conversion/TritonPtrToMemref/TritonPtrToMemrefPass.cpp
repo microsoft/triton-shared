@@ -130,14 +130,19 @@ struct UnrealizedCastConverter
   matchAndRewrite(UnrealizedConversionCastOp op, OpAdaptor adaptor,
                   ConversionPatternRewriter &rewriter) const override {
     auto input = op.getInputs().front();
+    auto inType = input.getType();
     auto output = op.getResult(0);
-    if (isa<UnrankedMemRefType>(input.getType()) &&
-        isa<triton::PointerType>(output.getType())) {
+    auto outType = output.getType();
+    if (isa<UnrankedMemRefType>(inType) && isa<triton::PointerType>(outType)) {
       rewriter.replaceOp(op, adaptor.getInputs().front());
       return success();
-    } else if (isa<triton::PointerType>(input.getType()) &&
-               isa<UnrankedMemRefType>(output.getType())) {
-      op->dump();
+    } else if (isa<triton::PointerType>(inType) &&
+               isa<UnrankedMemRefType>(outType)) {
+      rewriter.replaceOp(op, adaptor.getInputs().front());
+      return success();
+    } else if (isa<ptr::PtrType>(inType) && isa<triton::PointerType>(outType)) {
+      rewriter.replaceOp(op, adaptor.getInputs().front());
+      return success();
     }
 
     // assert(0);
@@ -191,13 +196,13 @@ public:
       return builder.create<tptr::FromMemrefOp>(loc, resultType, inputs)
           .getResult();
     });
-    auto createUnrealizedCast = [&](OpBuilder &builder, Type resultType,
-                                    ValueRange inputs, Location loc) -> Value {
-      return builder.create<UnrealizedConversionCastOp>(loc, resultType, inputs)
-          .getResult(0);
+    auto createToMemref = [&](OpBuilder &builder, UnrankedMemRefType memrefType,
+                              ValueRange inputs, Location loc) -> Value {
+      return builder.create<tptr::ToMemrefOp>(loc, memrefType, inputs)
+          .getResult();
     };
-    addSourceMaterialization(createUnrealizedCast);
-    addArgumentMaterialization(createUnrealizedCast);
+    addSourceMaterialization(createToMemref);
+    addArgumentMaterialization(createToMemref);
   }
 };
 
@@ -266,6 +271,7 @@ public:
 
     target.addDynamicallyLegalOp<UnrealizedConversionCastOp>(
         [](UnrealizedConversionCastOp op) {
+          return false;
           auto input = op.getInputs().front();
           auto output = op.getResult(0);
           if (isa<UnrankedMemRefType>(input.getType()) &&
