@@ -293,6 +293,9 @@ public:
 
         auto res =
             llvm::TypeSwitch<Operation *, LogicalResult>(user)
+                // .Case<arith::SelectOp>([&](arith::SelectOp op) {
+
+                // })
                 .Case<triton::AddPtrOp>([&](triton::AddPtrOp addptr) {
                   OpBuilder b{addptr};
                   auto loc = addptr->getLoc();
@@ -540,8 +543,8 @@ public:
               .Case<triton::MakeTensorPtrOp,
                     tts::MakeTensorPtrOp>([&](auto makeTensorPtr) {
                 // For block pointers, the base could come from a sequence of
-                // `tt.addptr`. Accumulate the target offset with the offset we
-                // have saved.
+                // `tt.addptr`. Accumulate the target offset with the offset
+                // we have saved.
                 auto offsetInfo = offsetMap.at(makeTensorPtr.getBase());
                 auto baseOffset = offsetInfo.offset;
 
