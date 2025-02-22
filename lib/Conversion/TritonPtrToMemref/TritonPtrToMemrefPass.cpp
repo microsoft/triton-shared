@@ -117,6 +117,39 @@ struct StoreConverter : public OpConversionPattern<triton::StoreOp> {
   }
 };
 
+struct PtrToIntConverter : public OpConversionPattern<triton::PtrToIntOp> {
+  using OpConversionPattern<triton::PtrToIntOp>::OpConversionPattern;
+
+  PtrToIntConverter(const TypeConverter &typeConverter, MLIRContext *context)
+      : OpConversionPattern<triton::PtrToIntOp>(typeConverter, context) {}
+
+  LogicalResult
+  matchAndRewrite(triton::PtrToIntOp op, OpAdaptor adaptor,
+                  ConversionPatternRewriter &rewriter) const override {
+    auto replacement = rewriter.create<tptr::PtrToIntOp>(
+        op->getLoc(), op.getType(), adaptor.getSrc());
+    rewriter.replaceOp(op, replacement);
+    return success();
+  }
+};
+
+struct IntToPtrConverter : public OpConversionPattern<triton::IntToPtrOp> {
+  using OpConversionPattern<triton::IntToPtrOp>::OpConversionPattern;
+
+  IntToPtrConverter(const TypeConverter &typeConverter, MLIRContext *context)
+      : OpConversionPattern<triton::IntToPtrOp>(typeConverter, context) {}
+
+  LogicalResult
+  matchAndRewrite(triton::IntToPtrOp op, OpAdaptor adaptor,
+                  ConversionPatternRewriter &rewriter) const override {
+    auto storeOp = rewriter.create<tptr::IntToPtrOp>(
+        op->getLoc(), ptr::PtrType::get(rewriter.getContext()),
+        adaptor.getSrc());
+    rewriter.replaceOp(op, storeOp);
+    return success();
+  }
+};
+
 struct UnrealizedCastConverter
     : public OpConversionPattern<UnrealizedConversionCastOp> {
   using OpConversionPattern<UnrealizedConversionCastOp>::OpConversionPattern;
@@ -196,10 +229,14 @@ public:
       return builder.create<tptr::FromMemrefOp>(loc, resultType, inputs)
           .getResult();
     });
-    auto createToMemref = [&](OpBuilder &builder, UnrankedMemRefType memrefType,
+    auto createToMemref = [&](OpBuilder &builder, Type resultType,
                               ValueRange inputs, Location loc) -> Value {
-      return builder.create<tptr::ToMemrefOp>(loc, memrefType, inputs)
-          .getResult();
+      if (isa<UnrankedMemRefType>(resultType)) {
+        return builder.create<tptr::ToMemrefOp>(loc, resultType, inputs)
+            .getResult();
+      }
+      return builder.create<UnrealizedConversionCastOp>(loc, resultType, inputs)
+          .getResult(0);
     };
     addSourceMaterialization(createToMemref);
     addArgumentMaterialization(createToMemref);
@@ -263,7 +300,8 @@ public:
     // TODO: This needs to be a dynamic check, we want to lower any ops with
     // pointer operands
     target.addIllegalOp<triton::AddPtrOp, triton::BitcastOp, triton::LoadOp,
-                        triton::StoreOp>();
+                        triton::StoreOp, triton::IntToPtrOp,
+                        triton::PtrToIntOp>();
     target.addLegalDialect<tptr::TPtrDialect>();
     // target.addLegalOp<UnrealizedConversionCastOp>();
     // target.addDynamicallyLegalOp<tptr::FromMemrefOp>(
@@ -282,9 +320,10 @@ public:
         });
     target.addLegalDialect<arith::ArithDialect>();
 
-    patterns.add<AddPtrConverter, BitCastConverter, StoreConverter,
-                 LoadConverter, UnrealizedCastConverter>(typeConverter,
-                                                         patterns.getContext());
+    patterns
+        .add<AddPtrConverter, BitCastConverter, StoreConverter, LoadConverter,
+             UnrealizedCastConverter, PtrToIntConverter, IntToPtrConverter>(
+            typeConverter, patterns.getContext());
 
     // patterns.add<UnrealizedCastConverter>(patterns.getContext());
 
