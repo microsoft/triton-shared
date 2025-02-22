@@ -293,9 +293,24 @@ public:
 
         auto res =
             llvm::TypeSwitch<Operation *, LogicalResult>(user)
-                // .Case<arith::SelectOp>([&](arith::SelectOp op) {
+                .Case<arith::SelectOp>(
+                    [&](arith::SelectOp op) { return failure(); })
 
-                // })
+                .Case<triton::PtrToIntOp>([&](triton::PtrToIntOp op) {
+                  auto offsetInfo = offsetMap.at(op.getSrc());
+
+                  OpBuilder b{op};
+
+                  auto materializedAddPtr = b.create<triton::AddPtrOp>(
+                      op->getLoc(), offsetInfo.ptrType, offsetInfo.ptr,
+                      offsetInfo.offset);
+
+                  // TODO: Does this affect the traversal?
+                  op->setOperand(0, materializedAddPtr);
+
+                  return success();
+                })
+
                 .Case<triton::AddPtrOp>([&](triton::AddPtrOp addptr) {
                   OpBuilder b{addptr};
                   auto loc = addptr->getLoc();
@@ -475,6 +490,7 @@ public:
                       op->getLoc(), offsetInfo.ptrType, offsetInfo.ptr,
                       offsetInfo.offset);
 
+                  // TODO: Does this affect the traversal?
                   op->setOperand(0, materializedAddPtr);
 
                   auto zero = b.create<arith::ConstantOp>(
