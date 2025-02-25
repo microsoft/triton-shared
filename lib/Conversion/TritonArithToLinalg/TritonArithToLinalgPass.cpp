@@ -122,6 +122,10 @@ public:
 
     target.addLegalOp<triton::FuncOp, triton::ReturnOp>();
 
+    target.addDynamicallyLegalOp<triton::BitcastOp>([](triton::BitcastOp op) {
+      return isa<triton::PointerType>(op.getSrc().getType());
+    });
+
     target.addDynamicallyLegalDialect<arith::ArithDialect, math::MathDialect>(
         [](Operation *op) {
           // Lower dense constant to linalg.fill

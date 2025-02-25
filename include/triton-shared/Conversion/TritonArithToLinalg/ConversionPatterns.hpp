@@ -852,6 +852,11 @@ struct BitcastConverter : public OpConversionPattern<triton::BitcastOp> {
   LogicalResult
   matchAndRewrite(triton::BitcastOp op, OpAdaptor adaptor,
                   ConversionPatternRewriter &rewriter) const override {
+    // arith::bitcast does not support casting pointers
+    if (isa<triton::PointerType>(op.getSrc().getType())) {
+      return failure();
+    }
+
     auto arithBitcast = rewriter.create<arith::BitcastOp>(
         op.getLoc(), op.getType(), op.getOperand());
 
