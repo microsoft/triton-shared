@@ -225,6 +225,18 @@ public:
                                           PtrState &state, const Location loc,
                                           OpBuilder &builder);
 
+  // Operand is the result of tt.int_to_ptr.
+  // Expected result:
+  //  Directly grab op result
+  LogicalResult visitOperandIntToPtr(triton::IntToPtrOp intToPtrOp, PtrState &state,
+                                     const Location loc, OpBuilder &builder);
+
+  // Operand is the result of tt.bitcast.
+  // Expected result:
+  //  Directly grab op result
+  LogicalResult visitOperandBitcast(triton::BitcastOp bitcastOp, PtrState &state,
+                                    const Location loc, OpBuilder &builder);
+
   // Get the computed PtrState for the forOp's init-arg at the provided index.
   FailureOr<PtrState> getLoopInitArgPtrState(scf::ForOp forOp, size_t index);
 

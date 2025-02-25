@@ -654,6 +654,26 @@ LogicalResult PtrAnalysis::visitOperandForOp(scf::ForOp forOp, Value operand,
   return success();
 }
 
+LogicalResult PtrAnalysis::visitOperandIntToPtr(triton::IntToPtrOp op,
+                                                PtrState &state,
+                                                const Location loc,
+                                                OpBuilder &builder) {
+  state.source = op.getResult();
+  return success();
+}
+
+LogicalResult PtrAnalysis::visitOperandBitcast(triton::BitcastOp op,
+                                               PtrState &state,
+                                               const Location loc,
+                                               OpBuilder &builder) {
+  auto resType = op.getResult().getType();
+  if (isa<ShapedType>(resType)) {
+    return visitOperand(op.getSrc(), state, loc, builder);
+  }
+  state.source = op.getResult();
+  return success();
+}
+
 LogicalResult PtrAnalysis::visitOperand(Value operand, PtrState &state,
                                         const Location loc,
                                         OpBuilder &builder) {
@@ -684,6 +704,10 @@ LogicalResult PtrAnalysis::visitOperand(Value operand, PtrState &state,
       if (auto addPtrOp = dyn_cast<triton::AddPtrOp>(op)) {
         return visitOperandAddptr(cast<triton::AddPtrOp>(op), state, loc,
                                   builder);
+      } else if (auto castOp = dyn_cast<triton::BitcastOp>(op)) {
+        return visitOperandBitcast(castOp, state, loc, builder);
+      } else if (auto intToPtrOp = dyn_cast<triton::IntToPtrOp>(op)) {
+        return visitOperandIntToPtr(intToPtrOp, state, loc, builder);
       } else if (auto makeTensorOp = dyn_cast<triton::MakeTensorPtrOp>(op)) {
         llvm_unreachable("Unexpected operand defining operation tts.make_tptr");
       } else {
