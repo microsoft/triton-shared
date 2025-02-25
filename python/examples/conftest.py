@@ -18,95 +18,44 @@ def device(request):
     return "cpu"
 
 
-tests_not_supported = {
-    "test_bin_op",
-    "test_split_to_scalar",
-    "test_interleave_scalars",
-    "test_pointer_arguments",
-    "test_masked_load_shared_memory",
-    "test_bin_op_constexpr",
-    "test_num_warps_pow2",
-    "test_math_divide_op",
-    "test_atomic_rmw_predicate",
-    "test_tensor_atomic_rmw_block",
-    "test_nested_if_else_return",
-    "test_ptx_cast",
-    "test_compare_op",
-    "test_maxnreg",
-    "test_join_scalars",
-    "test_join_with_mma",
-    "test_interleave",
-    "test_slice",
-    "test_where",
-    "test_math_erf_op",
-    "test_abs_fp8",
-    "test_shapes_as_params",
-    "test_transpose",
-    "test_where_broadcast",
-    "test_noinline",
-    "test_atomic_rmw",
-    "test_tensor_atomic_rmw",
-    "test_atomic_cas",
-    "test_tensor_atomic_cas",
-    "test_cast",
-    "test_store_constant",
-    "test_reduce",
-    "test_reduce1d",
-    "test_scan2d",
-    "test_histogram",
-    "test_optimize_thread_locality",
-    "test_scan_layouts",
-    "test_reduce_layouts",
-    "test_store_op",
-    "test_convert1d",
-    "test_chain_reduce",
-    "test_generic_reduction",
-    "test_trans_4d",
-    "test_dot3d",
-    "test_constexpr",
-    "test_arange",
-    "test_masked_load",
-    "test_reshape",
-    "test_trans_reshape",
-    "test_if",
-    "test_if_call",
-    "test_convert2d",
-    "test_dot_max_num_imprecise_acc",
-    "test_propagate_nan",
-    "test_clamp_symmetric",
-    "test_temp_var_in_loop",
-    "test_math_extern",
-    # attribute 'launch_cooperative_grid' not supported
-    "test_load_scope_sem_coop_grid_cta_one",
-    # fp8 support on CPUs is unclear
-    "test_scaled_dot",
-    # triton-shared-opt failures:
-    # PtrAnalysis: encountered addptr operand produced by an unsupported operation
-    "test_chained_reductions",
-    # failed to legalize unresolved materialization
-    "test_constexpr_if_return",
-    "test_unroll_attr",
-    # Dialect `ub' not found for custom op 'ub.poison'
-    "test_poison_return",
-    # tt.gather not supported yet
-    "test_gather",
-    "test_gather_warp_shuffle",
-    # device 'cpu' does not have 'index'
-    "test_zero_strided_tensors",
-    # hard-coded with 'ttg' attributes
-    "test_convert_mma2mma",
-    "test_local_load_store",
-    "test_local_load_store_mma",
-    "test_convert_warp_local",
-    # hard-code to use 'cuda' device
-    "test_scan_1d",
-    "test_tma_load_block_shape_err",
-    "test_tma_store_block_shape_err"
+tests_supported = {
+    "test_store_eviction_policy",
+    "test_unary_op",
+    "test_umulhi",
+    "test_for_iv",
+    "test_trans_2d",
+    "test_math_op",
+    "test_math_fma_op",
+    "test_abs",
+    "test_call",
+    "test_vectorization",
+    "test_convert_float16_to_float32",
+    "test_index1d",
+    "test_shift_op",
+    "test_full",
+    "test_floordiv",
+    "test_empty_kernel",
+    "test_if_return",
+    "test_value_specialization",
+    "test_clamp",
+    "test_store_cache_modifier",
+    "test_permute",
+    "test_broadcast",
+    "test_precise_math",
+    "test_vectorization_hints",
+    "test_dot",
+    "test_value_specialization_overflow",
+    "test_bitwise_op",
+    "test_const",
+    "test_unary_math",
+    "test_dot_mulbroadcasted",
+    "test_masked_load_scalar",
+    "test_enable_fp_fusion",
+    "test_load_cache_modifier",
+    "test_dot_without_load",
+    "test_cat",
+    "test_addptr"
 }
-
-# probably different version of MLIR on the nightly build machine is complaining
-# about unregistered dialect for llvm.intr.assume, pre-commit checks are passing
-tests_not_supported.add("test_assume")
 
 def pytest_collection_modifyitems(config, items):
     skip_marker = pytest.mark.skip(reason="CPU backend does not support it yet")
@@ -118,7 +67,8 @@ def pytest_collection_modifyitems(config, items):
     for item in items:
         test_func_name = item.originalname if item.originalname else item.name
 
-        if test_func_name in tests_not_supported:
+        test_file = str(item.fspath)
+        if test_file.endswith("test_core.py") and test_func_name not in tests_supported:
             item.add_marker(skip_marker)
             continue
 
