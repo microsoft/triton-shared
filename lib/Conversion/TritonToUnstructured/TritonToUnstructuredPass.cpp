@@ -412,6 +412,7 @@ public:
 
                   return success();
                 })
+                .Case<triton::BitcastOp>([](auto) { return success(); })
                 .Case<scf::YieldOp>([](auto) { return success(); })
                 .Case<triton::CatOp>([](triton::CatOp op) {
                   op->emitError("Do not support gather / scatter with multiple "

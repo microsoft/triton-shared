@@ -256,6 +256,10 @@ public:
   // PtrState for knownPtrs.
   LogicalResult rewriteAddptrOp(triton::AddPtrOp op);
 
+  // Move the BitcastOp on tensor of pointers to the source scalar pointer
+  // tracked by PtrAnalysis.
+  LogicalResult rewriteBitcastOp(triton::BitcastOp op);
+
   LogicalResult rewriteMakeTensorPtrOp(triton::MakeTensorPtrOp op);
 
   LogicalResult rewriteAdvanceOp(triton::AdvanceOp op);
