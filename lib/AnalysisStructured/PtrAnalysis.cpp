@@ -780,6 +780,40 @@ LogicalResult PtrAnalysis::rewriteAddptrOp(triton::AddPtrOp op) {
   return success();
 }
 
+LogicalResult PtrAnalysis::rewriteBitcastOp(triton::BitcastOp op) {
+  // Only rewrite bitcast on tensor of pointers.
+  auto resultType = dyn_cast<RankedTensorType>(op.getType());
+  if (!resultType) {
+    return failure();
+  }
+  auto ptrType = dyn_cast<triton::PointerType>(resultType.getElementType());
+  if (!ptrType) {
+    return failure();
+  }
+
+  OpBuilder builder(op);
+
+  PtrState state;
+  if (visitOperandBitcast(op, state, op.getLoc(), builder).failed()) {
+    return failure();
+  }
+
+  if (!isa<triton::PointerType>(state.source.getType())) {
+    return failure();
+  }
+  Value castedPtr =
+      builder.create<triton::BitcastOp>(op.getLoc(), ptrType, state.source)
+          .getResult();
+  state.source = castedPtr;
+
+  knownPtrs[op.getResult()] = state;
+
+  auto maketptrOp = state.createTTSMakeTensorPtrOp(builder, op.getLoc());
+  ptrMap.map(op.getResult(), maketptrOp.getResult());
+
+  return success();
+}
+
 LogicalResult PtrAnalysis::rewriteMakeTensorPtrOp(triton::MakeTensorPtrOp op) {
   OpBuilder builder(op);
 
@@ -1270,6 +1304,12 @@ LogicalResult PtrAnalysis::rewriteOp(Operation *rootOp, bool useUnsafeMask) {
         .Case<triton::AddPtrOp>([&](auto addptr) {
           if (rewriteAddptrOp(addptr).failed()) {
             addptr->emitRemark("PtrAnalysis: Failed to rewrite AddPtrOp");
+          }
+          return WalkResult::advance();
+        })
+        .Case<triton::BitcastOp>([&](auto bitcast) {
+          if (rewriteBitcastOp(bitcast).failed()) {
+            bitcast->emitRemark("PtrAnalysis: Failed to rewrite BitcastOp");
           }
           return WalkResult::advance();
         })
