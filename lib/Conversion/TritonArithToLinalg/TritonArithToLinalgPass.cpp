@@ -158,10 +158,11 @@ public:
 
     if (addptrToLinalg) {
       target.addDynamicallyLegalOp<triton::AddPtrOp, triton::LoadOp,
-                                   triton::StoreOp>([](auto op) {
-        // return true;
-        return !isa<ShapedType>(op->getOperands()[0].getType());
-      });
+                                   triton::StoreOp, triton::BitcastOp>(
+          [](auto op) {
+            // return true;
+            return !isa<ShapedType>(op->getOperands()[0].getType());
+          });
     }
 
     if (!assertToCf) {
