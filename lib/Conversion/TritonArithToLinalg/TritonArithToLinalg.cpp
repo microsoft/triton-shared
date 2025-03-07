@@ -49,7 +49,8 @@ void mlir::triton::populateTritonArithToLinalgConversionPatterns(
         patterns.getContext());
   }
   if (addptrToLinalg) {
-    patterns.add<AddPtrConverter>(patterns.getContext());
+    patterns.add<AddPtrConverter<triton::AddPtrOp>, LoadPtrConverter,
+                 StorePtrConverter>(patterns.getContext());
   }
   if (assertToCf) {
     patterns.add<AssertConverter>(patterns.getContext());

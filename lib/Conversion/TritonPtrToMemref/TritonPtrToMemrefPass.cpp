@@ -8,6 +8,7 @@
 #include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/Func/Transforms/FuncConversions.h"
 #include "mlir/Dialect/MemRef/IR/MemRef.h"
+#include "mlir/Dialect/Ptr/IR/PtrDialect.h"
 #include "mlir/Dialect/Ptr/IR/PtrTypes.h"
 #include "mlir/Dialect/SCF/IR/SCF.h"
 #include "mlir/IR/Builders.h"
@@ -248,10 +249,10 @@ class TritonPtrToMemrefPass
 
 public:
   void getDependentDialects(DialectRegistry &registry) const override {
-    registry
-        .insert<arith::ArithDialect, math::MathDialect, affine::AffineDialect,
-                scf::SCFDialect, tensor::TensorDialect, triton::TritonDialect,
-                tts::TritonStructuredDialect, tptr::TPtrDialect>();
+    registry.insert<
+        arith::ArithDialect, math::MathDialect, affine::AffineDialect,
+        scf::SCFDialect, tensor::TensorDialect, triton::TritonDialect,
+        tts::TritonStructuredDialect, tptr::TPtrDialect, ptr::PtrDialect>();
   }
 
   void convertTritonPtrToMemref() {
@@ -334,7 +335,7 @@ public:
 
   void runOnOperation() override {
     convertTritonPtrToMemref();
-    convertTritonPtr();
+    // convertTritonPtr();
   }
 };
 } // namespace

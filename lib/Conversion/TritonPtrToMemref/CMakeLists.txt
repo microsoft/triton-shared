@@ -16,4 +16,5 @@ add_triton_library(TritonPtrToMemref
   MLIRReconcileUnrealizedCasts
   TritonIR
   TPtrIR
+  MLIRPtrDialect
 )
