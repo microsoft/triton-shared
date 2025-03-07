@@ -43,10 +43,10 @@
 
 using namespace mlir;
 
-#define GEN_PASS_CLASSES
-#include "triton-shared/Conversion/TritonPtrToMemref/Passes.h.inc"
-
 namespace {
+
+#define GEN_PASS_DEF_TRITONPTRTOMEMREF
+#include "triton-shared/Conversion/TritonPtrToMemref/Passes.h.inc"
 
 struct AddPtrConverter : public OpConversionPattern<triton::AddPtrOp> {
   using OpConversionPattern<triton::AddPtrOp>::OpConversionPattern;
@@ -203,8 +203,8 @@ public:
 
     auto createUnrealizedCast = [&](OpBuilder &builder, Type resultType,
                                     ValueRange inputs, Location loc) -> Value {
-      return builder.create<UnrealizedConversionCastOp>(loc, resultType, inputs)
-          .getResult(0);
+      return builder.create<tptr::FromMemrefOp>(loc, resultType, inputs)
+          .getResult();
     };
     addSourceMaterialization(createUnrealizedCast);
     addArgumentMaterialization(createUnrealizedCast);
@@ -245,16 +245,9 @@ public:
 };
 
 class TritonPtrToMemrefPass
-    : public TritonPtrToMemrefBase<TritonPtrToMemrefPass> {
+    : public impl::TritonPtrToMemrefBase<TritonPtrToMemrefPass> {
 
 public:
-  void getDependentDialects(DialectRegistry &registry) const override {
-    registry.insert<
-        arith::ArithDialect, math::MathDialect, affine::AffineDialect,
-        scf::SCFDialect, tensor::TensorDialect, triton::TritonDialect,
-        tts::TritonStructuredDialect, tptr::TPtrDialect, ptr::PtrDialect>();
-  }
-
   void convertTritonPtrToMemref() {
     auto moduleOp = getOperation();
 
