@@ -22,7 +22,6 @@ void mlir::tptr::TPtrDialect::registerTypes() {
 /// Dialect creation, the instance will be owned by the context. This is the
 /// point of registration of custom types and operations for the dialect.
 void mlir::tptr::TPtrDialect::initialize() {
-  // addTypes<mlir::ptr::PtrType>();
   registerTypes();
   addOperations<
 #define GET_OP_LIST
