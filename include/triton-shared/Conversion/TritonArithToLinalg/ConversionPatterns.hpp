@@ -8,6 +8,7 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "mlir/Dialect/Tensor/IR/Tensor.h"
 #include "mlir/IR/BuiltinTypes.h"
 #include "triton-shared/Analysis/MaskAnalysis.h"
 #include "triton-shared/Analysis/OpFoldResultUtils.h"
@@ -1955,11 +1956,12 @@ public:
   }
 };
 
-class AddPtrConverter : public OpConversionPattern<triton::AddPtrOp> {
-  using OpConversionPattern<triton::AddPtrOp>::OpConversionPattern;
+template <typename OpType>
+class AddPtrConverter : public OpConversionPattern<OpType> {
+  using OpConversionPattern<OpType>::OpConversionPattern;
 
   LogicalResult
-  matchAndRewrite(triton::AddPtrOp op, OpAdaptor adaptor,
+  matchAndRewrite(OpType op, typename OpType::Adaptor adaptor,
                   ConversionPatternRewriter &rewriter) const override {
     auto resType = op.getResult().getType();
     assert(isa<ShapedType>(resType));
@@ -1969,6 +1971,74 @@ class AddPtrConverter : public OpConversionPattern<triton::AddPtrOp> {
     SmallVector<utils::IteratorType, 6> iteratorTypes(
         rank, utils::IteratorType::parallel);
     SmallVector<Value> outputs = {op.getPtr()};
+    rewriter.replaceOpWithNewOp<linalg::GenericOp>(
+        op, op->getResultTypes(), op->getOperands(), outputs, indexingMaps,
+        iteratorTypes,
+        [&](OpBuilder &builder, Location loc, ValueRange regionArgs) {
+          auto resultTypes = llvm::to_vector<6>(
+              llvm::map_range(op->getResultTypes(), [](Type type) {
+                return cast<TensorType>(type).getElementType();
+              }));
+          auto *scalarOp =
+              builder.create(loc, op->getName().getIdentifier(),
+                             regionArgs.take_front(op->getNumOperands()),
+                             resultTypes, op->getAttrs());
+          builder.create<linalg::YieldOp>(loc, scalarOp->getResults());
+        });
+    return success();
+  }
+};
+
+class LoadPtrConverter : public OpConversionPattern<triton::LoadOp> {
+  using OpConversionPattern<triton::LoadOp>::OpConversionPattern;
+
+  LogicalResult
+  matchAndRewrite(triton::LoadOp op, OpAdaptor adaptor,
+                  ConversionPatternRewriter &rewriter) const override {
+    auto resType = op.getResult().getType();
+    assert(isa<ShapedType>(resType));
+    auto loadTensorType = cast<RankedTensorType>(resType);
+    auto rank = loadTensorType.getRank();
+    SmallVector<AffineMap> indexingMaps(
+        /*numResult + numOperands*/ op->getNumResults() + op.getNumOperands(),
+        rewriter.getMultiDimIdentityMap(rank));
+    SmallVector<utils::IteratorType> iteratorTypes(
+        rank, utils::IteratorType::parallel);
+    SmallVector<Value> outputs = {rewriter.create<tensor::EmptyOp>(
+        op->getLoc(), loadTensorType.getShape(),
+        loadTensorType.getElementType())};
+    rewriter.replaceOpWithNewOp<linalg::GenericOp>(
+        op, op->getResultTypes(), op->getOperands(), outputs, indexingMaps,
+        iteratorTypes,
+        [&](OpBuilder &builder, Location loc, ValueRange regionArgs) {
+          auto resultTypes = llvm::to_vector<6>(
+              llvm::map_range(op->getResultTypes(), [](Type type) {
+                return cast<TensorType>(type).getElementType();
+              }));
+          auto *scalarOp =
+              builder.create(loc, op->getName().getIdentifier(),
+                             regionArgs.take_front(op->getNumOperands()),
+                             resultTypes, op->getAttrs());
+          builder.create<linalg::YieldOp>(loc, scalarOp->getResults());
+        });
+    return success();
+  }
+};
+
+class StorePtrConverter : public OpConversionPattern<triton::StoreOp> {
+  using OpConversionPattern<triton::StoreOp>::OpConversionPattern;
+
+  LogicalResult
+  matchAndRewrite(triton::StoreOp op, OpAdaptor adaptor,
+                  ConversionPatternRewriter &rewriter) const override {
+    auto storeTensorType = cast<RankedTensorType>(op.getValue().getType());
+    auto rank = storeTensorType.getRank();
+    SmallVector<AffineMap> indexingMaps(
+        /*numResult + numOperands*/ op->getNumResults() + op.getNumOperands(),
+        rewriter.getMultiDimIdentityMap(rank));
+    SmallVector<utils::IteratorType> iteratorTypes(
+        rank, utils::IteratorType::parallel);
+    SmallVector<Value> outputs;
     rewriter.replaceOpWithNewOp<linalg::GenericOp>(
         op, op->getResultTypes(), op->getOperands(), outputs, indexingMaps,
         iteratorTypes,
