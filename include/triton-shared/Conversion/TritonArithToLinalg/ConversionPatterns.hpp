@@ -1966,9 +1966,10 @@ class AddPtrConverter : public OpConversionPattern<OpType> {
     auto resType = op.getResult().getType();
     assert(isa<ShapedType>(resType));
     auto rank = cast<RankedTensorType>(resType).getRank();
-    SmallVector<AffineMap, 3> indexingMaps(
-        /*numResult + numOperands*/ 3, rewriter.getMultiDimIdentityMap(rank));
-    SmallVector<utils::IteratorType, 6> iteratorTypes(
+    SmallVector<AffineMap> indexingMaps(
+        /*numResult + numOperands*/ op->getNumResults() + op.getNumOperands(),
+        rewriter.getMultiDimIdentityMap(rank));
+    SmallVector<utils::IteratorType> iteratorTypes(
         rank, utils::IteratorType::parallel);
     SmallVector<Value> outputs = {op.getPtr()};
     rewriter.replaceOpWithNewOp<linalg::GenericOp>(
@@ -1989,11 +1990,45 @@ class AddPtrConverter : public OpConversionPattern<OpType> {
   }
 };
 
-class LoadPtrConverter : public OpConversionPattern<triton::LoadOp> {
-  using OpConversionPattern<triton::LoadOp>::OpConversionPattern;
+template <typename OpType>
+class UnaryPtrConverter : public OpConversionPattern<OpType> {
+  using OpConversionPattern<OpType>::OpConversionPattern;
 
   LogicalResult
-  matchAndRewrite(triton::LoadOp op, OpAdaptor adaptor,
+  matchAndRewrite(OpType op, typename OpType::Adaptor adaptor,
+                  ConversionPatternRewriter &rewriter) const override {
+    auto resType = cast<RankedTensorType>(op.getResult().getType());
+    auto rank = resType.getRank();
+    SmallVector<AffineMap> indexingMaps(
+        /*numResult + numOperands*/ 2, rewriter.getMultiDimIdentityMap(rank));
+    SmallVector<utils::IteratorType> iteratorTypes(
+        rank, utils::IteratorType::parallel);
+    SmallVector<Value> outputs = {rewriter.create<tensor::EmptyOp>(
+        op->getLoc(), resType.getShape(), resType.getElementType())};
+    rewriter.replaceOpWithNewOp<linalg::GenericOp>(
+        op, op->getResultTypes(), op->getOperands(), outputs, indexingMaps,
+        iteratorTypes,
+        [&](OpBuilder &builder, Location loc, ValueRange regionArgs) {
+          auto resultTypes = llvm::to_vector<6>(
+              llvm::map_range(op->getResultTypes(), [](Type type) {
+                return cast<TensorType>(type).getElementType();
+              }));
+          auto *scalarOp =
+              builder.create(loc, op->getName().getIdentifier(),
+                             regionArgs.take_front(op->getNumOperands()),
+                             resultTypes, op->getAttrs());
+          builder.create<linalg::YieldOp>(loc, scalarOp->getResults());
+        });
+    return success();
+  }
+};
+
+template <typename OpType>
+class LoadPtrConverter : public OpConversionPattern<OpType> {
+  using OpConversionPattern<OpType>::OpConversionPattern;
+
+  LogicalResult
+  matchAndRewrite(OpType op, typename OpType::Adaptor adaptor,
                   ConversionPatternRewriter &rewriter) const override {
     auto resType = op.getResult().getType();
     assert(isa<ShapedType>(resType));
