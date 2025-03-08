@@ -100,9 +100,8 @@ inline void registerTritonSharedDialects(mlir::DialectRegistry &registry) {
       mlir::tptr::TPtrDialect, mlir::ptr::PtrDialect,
       mlir::ttx::TritonTilingExtDialect, mlir::tts::TritonStructuredDialect,
       mlir::triton::TritonDialect, mlir::cf::ControlFlowDialect,
-      mlir::triton::gpu::TritonGPUDialect, mlir::math::MathDialect,
-      mlir::arith::ArithDialect, mlir::scf::SCFDialect, mlir::gpu::GPUDialect,
-      mlir::linalg::LinalgDialect, mlir::func::FuncDialect,
-      mlir::tensor::TensorDialect, mlir::memref::MemRefDialect,
-      mlir::bufferization::BufferizationDialect>();
+      mlir::math::MathDialect, mlir::arith::ArithDialect, mlir::scf::SCFDialect,
+      mlir::gpu::GPUDialect, mlir::linalg::LinalgDialect,
+      mlir::func::FuncDialect, mlir::tensor::TensorDialect,
+      mlir::memref::MemRefDialect, mlir::bufferization::BufferizationDialect>();
 }

@@ -8,6 +8,7 @@
 #include "triton/Dialect/Triton/IR/Dialect.h"
 
 #include "triton-shared/Conversion/StructuredToMemref/StructuredToMemref.h"
+#include "triton-shared/Dialect/TPtr/IR/TPtrDialect.h"
 #include "triton-shared/Dialect/TritonStructured/IR/TritonStructuredDialect.h"
 #include "triton-shared/Dialect/TritonTilingExt/IR/TritonTilingExtDialect.h"
 
@@ -83,8 +84,7 @@ public:
     // Canonicalization will simplify this sequence by removing the inital
     // reinterpret_cast.
     addTargetMaterialization([&](OpBuilder &builder, MemRefType memrefType,
-                                 ValueRange inputs,
-                                 Location loc) -> Value {
+                                 ValueRange inputs, Location loc) -> Value {
       auto reinterpretCast =
           inputs[0].getDefiningOp<memref::ReinterpretCastOp>();
       if (!reinterpretCast) {
@@ -98,15 +98,13 @@ public:
     });
 
     addSourceMaterialization([&](OpBuilder &builder, Type resultType,
-                                 ValueRange inputs,
-                                 Location loc) -> Value {
+                                 ValueRange inputs, Location loc) -> Value {
       return builder.create<UnrealizedConversionCastOp>(loc, resultType, inputs)
           .getResult(0);
     });
 
     addArgumentMaterialization([&](OpBuilder &builder, Type resultType,
-                                   ValueRange inputs,
-                                   Location loc) -> Value {
+                                   ValueRange inputs, Location loc) -> Value {
       return builder.create<UnrealizedConversionCastOp>(loc, resultType, inputs)
           .getResult(0);
     });
@@ -122,10 +120,9 @@ public:
     });
     addTargetMaterialization([&](OpBuilder &builder,
                                  UnrankedMemRefType resultType,
-                                 ValueRange inputs,
-                                 Location loc) -> Value {
-      return builder.create<UnrealizedConversionCastOp>(loc, resultType, inputs)
-          .getResult(0);
+                                 ValueRange inputs, Location loc) -> Value {
+      return builder.create<tptr::ToMemrefOp>(loc, resultType, inputs)
+          .getResult();
     });
   }
 };
@@ -136,11 +133,12 @@ class StructuredToMemrefPass
 
 public:
   void getDependentDialects(DialectRegistry &registry) const override {
-    registry.insert<func::FuncDialect, arith::ArithDialect, math::MathDialect,
-                    linalg::LinalgDialect, affine::AffineDialect,
-                    scf::SCFDialect, tensor::TensorDialect,
-                    bufferization::BufferizationDialect, triton::TritonDialect,
-                    ttx::TritonTilingExtDialect, memref::MemRefDialect>();
+    registry
+        .insert<tptr::TPtrDialect, func::FuncDialect, arith::ArithDialect,
+                math::MathDialect, linalg::LinalgDialect, affine::AffineDialect,
+                scf::SCFDialect, tensor::TensorDialect,
+                bufferization::BufferizationDialect, triton::TritonDialect,
+                ttx::TritonTilingExtDialect, memref::MemRefDialect>();
   }
 
   void runOnOperation() override {
