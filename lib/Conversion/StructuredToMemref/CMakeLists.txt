@@ -16,6 +16,7 @@ add_triton_library(StructuredToMemref
   MLIRTransforms
   MLIRSupport
   TritonIR
+  TPtrIR
   TritonTransforms
   TritonTilingExtIR
   TritonStructuredIR
