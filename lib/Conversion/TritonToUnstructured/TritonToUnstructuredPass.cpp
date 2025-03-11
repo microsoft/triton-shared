@@ -412,7 +412,40 @@ public:
 
                   return success();
                 })
-                .Case<triton::BitcastOp>([](auto) { return success(); })
+                .Case<triton::BitcastOp>([&](triton::BitcastOp bitcast) {
+                  for (auto *user : bitcast->getUsers()) {
+                    if (isa<tts::MakeTensorPtrOp>(user)) {
+                      // If this bitcast is used by a tts.make_tptr op, ignore
+                      // it.
+                      return success();
+                    }
+                  }
+
+                  auto offsetInfo = offsetMap.at(bitcast.getSrc());
+
+                  Value castedPtr;
+                  if (ptrArgs.contains(bitcast.getSrc())) {
+                    castedPtr = bitcast.getResult();
+                  } else {
+                    // Move the bitcast to source pointer.
+                    OpBuilder b{bitcast};
+                    castedPtr = b.create<triton::BitcastOp>(
+                        bitcast.getLoc(), bitcast.getType(), offsetInfo.ptr);
+
+                    offsetMap.erase(bitcast.getResult());
+                    bitcast.replaceAllUsesWith(castedPtr);
+                    bitcast.erase();
+                  }
+
+                  PtrOffset updatedOffsetInfo{castedPtr, castedPtr.getType(),
+                                              offsetInfo.bitWidth,
+                                              offsetInfo.offset};
+
+                  offsetMap.insert({castedPtr, updatedOffsetInfo});
+                  workList.push(castedPtr);
+
+                  return success();
+                })
                 .Case<scf::YieldOp>([](auto) { return success(); })
                 .Case<triton::CatOp>([](triton::CatOp op) {
                   op->emitError("Do not support gather / scatter with multiple "
