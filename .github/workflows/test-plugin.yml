@@ -67,7 +67,7 @@ jobs:
       working-directory: triton_shared/triton/python
       run: |
         python3 -m pip install --upgrade pip
-        python3 -m pip install cmake==3.24 ninja pytest-xdist pybind11
+        python3 -m pip install cmake==3.24 ninja pytest-xdist pybind11 setuptools
         sudo apt-get update -y
         sudo apt-get install -y ccache clang lld
         export TRITON_PLUGIN_DIRS="${GITHUB_WORKSPACE}/triton_shared"
@@ -102,7 +102,7 @@ jobs:
 
 
   build_and_test_triton_shared_arm:
-    runs-on: ["self-hosted", "1ES.Pool=triton-shared-github-arm"]
+    runs-on: ubuntu-24.04-arm
 
     steps:
     - name: Check Architecture
@@ -111,7 +111,6 @@ jobs:
     - name: Force Failure
       if: ${{ inputs.force-failure }}
       run: exit 1
-
 
     - name: Checkout Triton-Shared
       uses: actions/checkout@v4
@@ -142,7 +141,7 @@ jobs:
       working-directory: triton_shared/triton/python
       run: |
         python3 -m pip install --upgrade pip
-        python3 -m pip install cmake==3.24 ninja pytest-xdist pybind11
+        python3 -m pip install cmake==3.24 ninja pytest-xdist pybind11 setuptools
         sudo apt-get update -y
         sudo apt-get install -y ccache clang lld
         export TRITON_PLUGIN_DIRS="${GITHUB_WORKSPACE}/triton_shared"
