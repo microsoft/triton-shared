@@ -97,6 +97,10 @@ int32_t PtrState::getIndirectDim() const {
   return dims.front();
 }
 
+bool PtrState::noContinuousDim() const {
+  return getRank() == 1 && dimIsIndirect(0);
+}
+
 bool PtrState::isStructured() const {
   return llvm::all_of(offsets, [](OpFoldResult offset) {
     auto value = dyn_cast<Value>(offset);
@@ -1168,6 +1172,9 @@ LogicalResult PtrAnalysis::rewriteForOp(scf::ForOp op) {
           std::to_string(i));
       continue;
     }
+    // Skip when not have continuous dimension.
+    if (state->noContinuousDim())
+      continue;
 
     // Save the current init arg's PtrState
     knownPtrs[arg] = state.value();
@@ -1531,7 +1538,8 @@ LogicalResult PtrAnalysis::rewriteOp(Operation *rootOp, bool useUnsafeMask) {
                 PtrState state;
                 OpBuilder b(getStateOp);
                 if (succeeded(visitOperand(tritonValue, state,
-                                           getStateOp->getLoc(), b))) {
+                                           getStateOp->getLoc(), b)) &&
+                    state.isStructured()) {
                   knownPtrs[tritonValue] = state;
                 } else {
                   getStateOp->emitRemark("PtrAnalysis: Failed to populate ptr "

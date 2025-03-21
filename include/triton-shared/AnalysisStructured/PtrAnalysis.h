@@ -59,6 +59,9 @@ struct PtrState {
 
   bool dimIsIndirect(uint32_t dim) const;
   int32_t getIndirectDim() const;
+  // When rank is 1, and the only dimension is not continuous.
+  // There's no dimension is continuous.
+  bool noContinuousDim() const;
 
   bool isStructured() const;
 
