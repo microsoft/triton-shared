@@ -969,6 +969,10 @@ LogicalResult PtrAnalysis::rewriteAddptrOp(triton::AddPtrOp op) {
       auto maketptrOp = state.createTTSMakeTensorPtrOp(builder, op.getLoc());
       ptrMap.map(op.getResult(), maketptrOp.getResult());
     } else {
+      // If there is only one dimension, return failure since there are no
+      // continuous dimensions.
+      if (state.getRank() == 1)
+        return failure();
       auto maketptrOp = state.createTTSMakeIndirectTensorPtrOp(builder, op.getLoc());
       ptrMap.map(op.getResult(), maketptrOp.getResult());
     }
