@@ -131,6 +131,34 @@ void MakeTensorPtrOp::build(OpBuilder &b, OperationState &state, Value base,
         b.getDenseI64ArrayAttr(staticShape), order);
 }
 
+void MakeIndirectTensorPtrOp::build(OpBuilder &b, OperationState &state,
+                                    Value base, Value indirectOffset,
+                                    int indirectDim, ArrayRef<int64_t> sizes,
+                                    ArrayRef<OpFoldResult> strides,
+                                    ArrayRef<OpFoldResult> offsets) {
+  SmallVector<int64_t> staticStrides, staticOffsets;
+  SmallVector<Value> dynamicStrides, dynamicOffsets;
+  for (auto [i, offset] : llvm::enumerate(offsets)) {
+    if (i != indirectDim)
+      dispatchIndexOpFoldResult(offset, dynamicOffsets, staticOffsets);
+    else
+      staticOffsets.push_back(0);
+  }
+  dispatchIndexOpFoldResults(strides, dynamicStrides, staticStrides);
+
+  Type resType;
+  auto basePtr = cast<triton::PointerType>(base.getType());
+  auto elemType = basePtr.getPointeeType();
+
+  resType = triton::PointerType::get(RankedTensorType::get(sizes, elemType),
+                                     basePtr.getAddressSpace());
+
+  build(b, state, resType, base, indirectOffset,
+        b.getI32IntegerAttr(indirectDim), b.getDenseI64ArrayAttr(sizes),
+        dynamicStrides, dynamicOffsets, b.getDenseI64ArrayAttr(staticStrides),
+        b.getDenseI64ArrayAttr(staticOffsets));
+}
+
 void LoadOp::build(OpBuilder &b, OperationState &state, Value ptr,
                    ArrayRef<OpFoldResult> dims, Value other) {
   SmallVector<int64_t> staticDims;

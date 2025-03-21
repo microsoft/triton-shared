@@ -74,7 +74,106 @@ bool PtrState::dimHasModulo(uint32_t dim) const {
   return intAttr.value() != 0;
 }
 
+bool PtrState::dimIsIndirect(uint32_t dim) const {
+  assert(dim < getRank());
+
+  auto intAttr = getIntAttr(offsets[dim]);
+  if (intAttr && intAttr.has_value()) {
+    return false;
+  }
+  auto value = dyn_cast<Value>(offsets[dim]);
+
+  return isa<ShapedType>(value.getType());
+}
+
+int32_t PtrState::getIndirectDim() const {
+  SmallVector<int32_t> dims;
+  for (int32_t i = 0; i < getRank(); i++) {
+    if (!dimIsIndirect(i))
+      continue;
+    dims.emplace_back(i);
+  }
+  assert(dims.size() == 1 && "must have single indirect dimension");
+  return dims.front();
+}
+
+bool PtrState::isStructured() const {
+  return llvm::all_of(offsets, [](OpFoldResult offset) {
+    auto value = dyn_cast<Value>(offset);
+    if (!value)
+      return true;
+
+    return !isa<ShapedType>(value.getType());
+  });
+}
+
 bool PtrState::isBlockPtr() const { return !order.empty(); }
+
+bool isNotSingleDim(Value op) {
+  auto shapedTy = dyn_cast<ShapedType>(op.getType());
+  if (!shapedTy)
+    return false;
+  auto opShape = shapedTy.getShape();
+
+  // Make sure there is only 1 dimension with size > 1.
+  return llvm::find_singleton<int64_t>(
+             opShape,
+             [](int64_t size, bool) {
+               return size > 1 ? (int64_t *)size : nullptr;
+             },
+             false) == nullptr;
+}
+
+LogicalResult PtrState::rebuildAsUnsupportedOp(Value operand) {
+  // Make sure there is only 1 dimension with size > 1.
+  if (isNotSingleDim(operand))
+    return failure();
+
+  // Must empty for unsupported operation.
+  if (!isEmpty())
+    return failure();
+
+  // Scalar has been take care early.
+  // Assume here must be shape type.
+  auto opShape = cast<ShapedType>(operand.getType()).getShape();
+
+  // Setup state for unsupported operation.
+  auto indexTy = IndexType::get(operand.getContext());
+  auto index0 = IntegerAttr::get(indexTy, APInt(64, 0));
+  for (auto size : opShape) {
+    if (size == 1)
+      offsets.push_back(index0);
+    else
+      offsets.push_back(operand);
+    sizes.push_back(IntegerAttr::get(indexTy, APInt(64, size)));
+    strides.push_back(index0);
+    shape.push_back(index0);
+  }
+  return success();
+}
+
+LogicalResult PtrState::rebuildAsIndirect(Value op, int indirectDim) {
+  // Make sure there is only 1 dimension with size > 1.
+  if (isNotSingleDim(op))
+    return failure();
+  if (indirectDim >= getRank())
+    return failure();
+
+  // Scalar has been take care early.
+  // Assume here must be shape type.
+  auto opShape = cast<ShapedType>(op.getType()).getShape();
+  if (opShape[indirectDim] <= 1)
+    return failure();
+
+  // Setup state for indirect dimension.
+  auto indexTy = IndexType::get(op.getContext());
+  auto index0 = IntegerAttr::get(indexTy, APInt(64, 0));
+
+  offsets[indirectDim] = op;
+  strides[indirectDim] = index0;
+  shape[indirectDim] = index0;
+  return success();
+}
 
 LogicalResult PtrState::addState(const PtrState &lhsState,
                                  const PtrState &rhsState, Operation *op,
@@ -100,13 +199,38 @@ LogicalResult PtrState::addState(const PtrState &lhsState,
   }
 
   for (uint64_t i = 0; i < lhsState.getRank(); i++) {
-    auto newOffset =
-        addOFRs(lhsState.offsets[i], rhsState.offsets[i], loc, builder);
-    offsets.push_back(newOffset);
-
-    auto newStride =
-        addOFRs(lhsState.strides[i], rhsState.strides[i], loc, builder);
-    strides.push_back(newStride);
+    if (!lhsState.dimIsIndirect(i) && !rhsState.dimIsIndirect(i)) {
+      auto newOffset =
+          addOFRs(lhsState.offsets[i], rhsState.offsets[i], loc, builder);
+      offsets.push_back(newOffset);
+      auto newStride =
+          addOFRs(lhsState.strides[i], rhsState.strides[i], loc, builder);
+      strides.push_back(newStride);
+    } else {
+      // Set stride to 1 when not continuous.
+      strides.push_back(builder.getIndexAttr(1));
+      // New offset is offset * stride.
+      auto newLhsOffset = lhsState.offsets[i];
+      if (!hasConstZero(lhsState.strides[i])) {
+        auto stride = expandOFRIndex(lhsState.strides[i], lhsState.offsets[i], loc, builder);
+        newLhsOffset =
+            mulOFRs(lhsState.offsets[i], stride, loc, builder);
+      }
+      auto newRhsOffset = rhsState.offsets[i];
+      if (!hasConstZero(rhsState.strides[i])) {
+        auto stride = expandOFRIndex(rhsState.strides[i], rhsState.offsets[i], loc, builder);
+        newRhsOffset =
+            mulOFRs(rhsState.offsets[i], stride, loc, builder);
+      }
+      // Make sure newLhsOffset and newRhsOffset get same type.
+      if (lhsState.dimIsIndirect(i)) {
+        newRhsOffset = expandOFRIndex(newRhsOffset, newLhsOffset, loc, builder);
+      } else {
+        newLhsOffset = expandOFRIndex(newLhsOffset, newRhsOffset, loc, builder);
+      }
+      auto newOffset = addOFRs(newLhsOffset, newRhsOffset, loc, builder);
+      offsets.push_back(newOffset);
+    }
 
     sizes.push_back(lhsState.sizes[i]);
   }
@@ -188,16 +312,29 @@ void PtrState::dump() const {
     llvm::dbgs() << "scalar: " << scalar << "\n";
   }
 
-  llvm::dbgs() << "offsets: ";
+  llvm::dbgs() << "offsets:\n";
   llvm::interleave(offsets, llvm::dbgs(), "\n");
-  llvm::dbgs() << "\nstrides: ";
+  llvm::dbgs() << "\nstrides:\n";
   llvm::interleave(strides, llvm::dbgs(), "\n");
-  llvm::dbgs() << "\nsizes: ";
+  llvm::dbgs() << "\nsizes:\n";
   llvm::interleave(sizes, llvm::dbgs(), "\n");
-  llvm::dbgs() << "\nshape: ";
+  llvm::dbgs() << "\nshape:\n";
   llvm::interleave(shape, llvm::dbgs(), "\n");
-  llvm::dbgs() << "\norder: ";
+  llvm::dbgs() << "\norder:\n";
   llvm::interleave(order, llvm::dbgs(), "\n");
+  if (isStructured()) {
+    llvm::dbgs() << "structured\n";
+  } else {
+    for (int i=0;i<getRank();i++) {
+      llvm::dbgs() << "dim " << i;
+      if (dimIsIndirect(i))
+        llvm::dbgs() << " indirect\n";
+      else
+        llvm::dbgs() << " structured\n";
+        
+    }
+  }
+  
   llvm::dbgs() << "\n";
 }
 
@@ -236,14 +373,23 @@ LogicalResult PtrState::mulState(const PtrState &lhsState,
   }
 
   for (uint64_t i = 0; i < lhs->sizes.size(); i++) {
-    OpFoldResult newOffset =
-        mulOFRValue(lhs->offsets[i], rhs->scalar, loc, builder);
-    OpFoldResult newStride =
-        mulOFRValue(lhs->strides[i], rhs->scalar, loc, builder);
+    if (!lhsState.dimIsIndirect(i)) {
+      OpFoldResult newOffset =
+          mulOFRs(lhs->offsets[i], rhs->scalar, loc, builder);
+      offsets.push_back(newOffset);
+      OpFoldResult newStride =
+          mulOFRs(lhs->strides[i], rhs->scalar, loc, builder);
+      strides.push_back(newStride);
+    } else {
+      auto rhsStride = expandOFRIndex(rhs->scalar, lhs->offsets[i], loc, builder);
+      OpFoldResult newOffset =
+          mulOFRs(lhs->offsets[i], rhsStride, loc, builder);
+      offsets.push_back(newOffset);
+      // Set stride to 1 when not continuous.
+      strides.push_back(builder.getIndexAttr(1));
+    }
     OpFoldResult newShape =
-        mulOFRValue(lhs->shape[i], rhs->scalar, loc, builder);
-    offsets.push_back(newOffset);
-    strides.push_back(newStride);
+        mulOFRs(lhs->shape[i], rhs->scalar, loc, builder);
     shape.push_back(newShape);
     sizes.push_back(lhs->sizes[i]);
   }
@@ -277,6 +423,28 @@ tts::MakeTensorPtrOp PtrState::createTTSMakeTensorPtrOp(OpBuilder &builder,
   return op;
 }
 
+tts::MakeIndirectTensorPtrOp
+PtrState::createTTSMakeIndirectTensorPtrOp(OpBuilder &builder, Location loc) {
+  SmallVector<int64_t> staticSizes;
+  for (size_t i = 0; i < getRank(); i++) {
+    auto s = getIntAttr(sizes[i]);
+    assert(s.has_value());
+    staticSizes.push_back(s.value());
+  }
+
+  int indirectDim = getIndirectDim();
+
+  Value indirectOffset = cast<Value>(offsets[indirectDim]);
+  auto op = builder.create<mlir::tts::MakeIndirectTensorPtrOp>(
+      loc, source, indirectOffset, indirectDim, staticSizes, strides, offsets);
+  LLVM_DEBUG({
+    llvm::dbgs() << "creating tts::make_indirect_tensor_ptr:\n";
+    op->dump();
+  });
+
+  return op;
+}
+
 LogicalResult PtrAnalysis::visitOperandAdd(arith::AddIOp addOp, PtrState &state,
                                            const Location loc,
                                            OpBuilder &builder) {
@@ -297,6 +465,16 @@ LogicalResult PtrAnalysis::visitOperandAdd(arith::AddIOp addOp, PtrState &state,
     return failure();
   }
 
+  // When one state hasModulo while other state is not structured.
+  // Need to clear the modulo and use the operand as offset directly.
+  if (!lhsState.isStructured() && rhsState.hasModulo()) {
+    if (rhsState.rebuildAsIndirect(addOp.getRhs(), lhsState.getIndirectDim()).failed())
+      return failure();
+  } else if (lhsState.hasModulo() && !rhsState.isStructured()) {
+    if (lhsState.rebuildAsIndirect(addOp.getLhs(), rhsState.getIndirectDim()).failed())
+    return failure();
+  }
+
   return state.addState(lhsState, rhsState, addOp, builder);
 }
 
@@ -311,6 +489,16 @@ LogicalResult PtrAnalysis::visitOperandMul(arith::MulIOp mulOp, PtrState &state,
   PtrState rhsState;
   if (visitOperand(mulOp.getRhs(), rhsState, loc, builder).failed()) {
     return failure();
+  }
+
+  // When one state hasModulo while other state is not structured.
+  // Need to clear the modulo and use the operand as offset directly.
+  if (!lhsState.isStructured() && rhsState.hasModulo()) {
+    if (rhsState.rebuildAsIndirect(mulOp.getRhs(), lhsState.getIndirectDim()).failed())
+      return failure();
+  } else if (lhsState.hasModulo() && !rhsState.isStructured()) {
+    if(lhsState.rebuildAsIndirect(mulOp.getLhs(), rhsState.getIndirectDim()).failed())
+      return failure();
   }
 
   return state.mulState(lhsState, rhsState, mulOp, builder);
@@ -334,6 +522,11 @@ LogicalResult PtrAnalysis::visitOperandRem(arith::RemSIOp remOp,
 
   if (visitOperand(remOp.getLhs(), state, loc, builder).failed()) {
     return failure();
+  }
+
+  // When lhs already not structured, just build state from current op.
+  if (!state.isStructured()) {
+    return state.rebuildAsIndirect(remOp.getResult(), state.getIndirectDim());
   }
 
   // If there are multiple modulo ops on an expression (e.g.: (a % b) % c), we
@@ -755,7 +948,8 @@ LogicalResult PtrAnalysis::visitOperand(Value operand, PtrState &state,
     llvm::dbgs() << "PtrAnalysis: encountered addptr operand produced by an "
                     "unsupported operation\n";
     operand.dump();
-    return failure();
+
+    return state.rebuildAsUnsupportedOp(operand);
   }
 }
 
@@ -770,8 +964,13 @@ LogicalResult PtrAnalysis::rewriteAddptrOp(triton::AddPtrOp op) {
   knownPtrs[op.getResult()] = state;
 
   if (isa<RankedTensorType>(op.getPtr().getType())) {
-    auto maketptrOp = state.createTTSMakeTensorPtrOp(builder, op.getLoc());
-    ptrMap.map(op.getResult(), maketptrOp.getResult());
+    if (state.isStructured()) {
+      auto maketptrOp = state.createTTSMakeTensorPtrOp(builder, op.getLoc());
+      ptrMap.map(op.getResult(), maketptrOp.getResult());
+    } else {
+      auto maketptrOp = state.createTTSMakeIndirectTensorPtrOp(builder, op.getLoc());
+      ptrMap.map(op.getResult(), maketptrOp.getResult());
+    }
   } else {
     // record the ptr as we have visited and built up the state for this scalar
     // pointer, which may be used by rewriteForOp later.
