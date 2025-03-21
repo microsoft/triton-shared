@@ -77,7 +77,7 @@
 // CHECK:           %[[VAL_71:.*]] = arith.minsi %[[VAL_70]], %[[VAL_13]] : index
 // CHECK:           "tts.store"(%[[VAL_67]], %[[VAL_48]], %[[VAL_71]]) <{static_mask_dims = array<i64: -9223372036854775808, 8>}> : (!tt.ptr<tensor<16x16xf32>>, tensor<16x16xf32>, index) -> ()
 
-module attributes {maia.triton_kernel} {
+module {
   tt.func public @row_gather2(%arg0: !tt.ptr<f32>, %arg1: !tt.ptr<f32>, %arg2: i32, %arg3: i32, %arg4: i32, %arg5: i32, %arg6: i64, %arg7: i64, %arg8: i64, %arg9: i64, %arg10: i64, %arg11: i64, %arg12: i64) attributes {noinline = false} {
     %cst = arith.constant dense<8> : tensor<1x16xi32>
     %cst_0 = arith.constant dense<8> : tensor<16x1xi32>

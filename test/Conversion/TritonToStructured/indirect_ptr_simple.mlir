@@ -12,7 +12,7 @@
 // CHECK: %[[INDIRECT_TPTR:.*]] = tts.make_indirect_tptr %arg0 to sizes: [8, 8] indirect_dim: 0 indirect_offset: %[[MULI2]], strides: [1, 1], offsets: [0, 0] : tensor<8xi32> <f32> to !tt.ptr<tensor<8x8xf32>>
 // CHECK: "tts.load"(%[[INDIRECT_TPTR]]) <{operandSegmentSizes = array<i32: 1, 0, 0>, static_mask_dims = array<i64>}> : (!tt.ptr<tensor<8x8xf32>>) -> tensor<8x8xf32>
 
-module attributes {maia.triton_kernel} {
+module {
   tt.func public @row_gather(%arg0: !tt.ptr<f32>, %arg1: !tt.ptr<i32>, %arg2: !tt.ptr<f32>) attributes {noinline = false} {
     %cst = arith.constant dense<8> : tensor<8x1xi32>
     %cst_0 = arith.constant dense<8> : tensor<8xi32>
