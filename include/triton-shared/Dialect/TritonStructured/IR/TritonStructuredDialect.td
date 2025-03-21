@@ -120,6 +120,70 @@ def TTS_MakeTensorPtrOp
   //let hasCanonicalizer = 1;
 }
 
+def TTS_MakeIndirectTensorPtrOp
+  : TTS_Op<"make_indirect_tptr", [AttrSizedOperandSegments, Pure]> {
+  // NOTE: only support case that the offset could be identified for each dimension.
+  //       Not support case where the offset is a tensor load from other ptr which for multiple dimension.
+  //
+  //       offset_m = tl.arange(0, M)
+  //       offset_n = tl.arange(0, N)
+  //       offset_k = tl.arange(0, K)
+  //       ld_offsets = tl.load(a_ptr + offset_m[:,None]+offsets_n[None,:])
+  //       not_support = tl.load(b_ptr + ld_offsets)
+  //       not_support2 = tl.load(b_ptr + ld_offsets * (offset_m[:,None]+offsets_n[None,:]))
+  //       not_support3 = tl.load(b_ptr + (ld_offsets * (offset_m[:,None]+offsets_n[None,:]))[:, :, None] + offset_k[None,None,:])
+
+  let summary = "create an indirect pointer that points to a tensor in memory for gather/scatter";
+
+  // base:    Base pointer used to contruct the tensor of pointers or pointer to tensor.
+  // indirect_offset: The offset for gather/scatter.
+  // indirect_dim: The dimension for indirect_offset.
+  // sizes:   Size of the data being loaded or stored.
+  // strides: The strides of the parent tensor, which means how much to increase the pointer
+  //          by when moving by 1 element in a specific axis.
+  // offsets: Offset of the block along each dimension from base.
+  // result:  If order is present, this op produces a pointer to a tensor; otherwise,
+  //          it produces a tensor of pointers.
+
+  let arguments = (ins TT_Ptr:$base,
+                       I32Tensor:$indirect_offset,
+                       I32Attr:$indirect_dim,
+                       DenseI64ArrayAttr:$sizes,
+                       Variadic<Index>:$strides,
+                       Variadic<Index>:$offsets,
+                       DenseI64ArrayAttr:$static_strides,
+                       DenseI64ArrayAttr:$static_offsets);
+
+  let results = (outs TT_PtrLike:$result);
+
+  let assemblyFormat = [{
+    $base `to` `sizes` `` `:` $sizes
+    `indirect_dim` `` `:` $indirect_dim
+    `indirect_offset` `` `:` $indirect_offset
+    `` `,` `strides` `` `:`
+    custom<DynamicIndexList>($strides, $static_strides)
+    `` `,` `offsets` `` `:`
+    custom<DynamicIndexList>($offsets, $static_offsets)
+    attr-dict `:`  type($indirect_offset) type($base) `to` type($result)
+  }];
+
+
+  let builders = [
+    // Build with mixed static and dynamic entries.
+    OpBuilder<(ins
+      "Value":$base,
+      "Value":$indirect_offset,
+      "int":$indirect_dim,
+      "ArrayRef<int64_t>":$sizes,
+      "ArrayRef<OpFoldResult>":$strides,
+      "ArrayRef<OpFoldResult>":$offsets)>,
+  ];
+
+  // TODO
+  //let hasVerifier = 1;
+  //let hasCanonicalizer = 1;
+}
+
 def TTS_GetStructuredStateOp : TTS_Op<"get_structured_state", [AttrSizedResultSegments, Pure]> {
   let summary = "Placeholder for the structured pointer states computed during PtrAnalysis.";
   let description = "Used to pass the offsets and strides to scf.for op to simplify IR rewrites.";
