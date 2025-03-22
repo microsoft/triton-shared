@@ -46,7 +46,7 @@
 // CHECK:           %[[VAL_40:.*]] = arith.index_cast %[[VAL_28]] : index to i32
 // CHECK:           %[[VAL_41:.*]] = tt.splat %[[VAL_40]] : i32 -> tensor<16x1xi32>
 // CHECK:           %[[VAL_42:.*]] = arith.addi %[[VAL_41]], %[[VAL_39]] : tensor<16x1xi32>
-// CHECK:           %[[VAL_43:.*]] = tts.make_indirect_tptr %[[VAL_0]] to sizes: [16, 16] indirect_dim: 0 indirect_offset: %[[VAL_42]], strides: [1, 1], offsets: [0, 0] : tensor<16x1xi32> <f32> to !tt.ptr<tensor<16x16xf32>>
+// CHECK:           %[[VAL_43:.*]] = tts.make_gather_scatter_tptr %[[VAL_0]] to sizes: [16, 16] gather_scatter_dim: 0 gather_scatter_offset: %[[VAL_42]], strides: [1, 1], offsets: [0, 0] : tensor<16x1xi32> <f32> to !tt.ptr<tensor<16x16xf32>>
 // CHECK:           %[[VAL_44:.*]] = arith.index_cast %[[VAL_18]] : i32 to index
 // CHECK:           %[[VAL_45:.*]] = arith.minsi %[[VAL_44]], %[[VAL_13]] : index
 // CHECK:           %[[VAL_46:.*]] = arith.maxsi %[[VAL_45]], %[[VAL_14]] : index
@@ -70,7 +70,7 @@
 // CHECK:           %[[VAL_64:.*]] = arith.index_cast %[[VAL_53]] : index to i32
 // CHECK:           %[[VAL_65:.*]] = tt.splat %[[VAL_64]] : i32 -> tensor<16x1xi32>
 // CHECK:           %[[VAL_66:.*]] = arith.addi %[[VAL_65]], %[[VAL_63]] : tensor<16x1xi32>
-// CHECK:           %[[VAL_67:.*]] = tts.make_indirect_tptr %[[VAL_1]] to sizes: [16, 16] indirect_dim: 0 indirect_offset: %[[VAL_66]], strides: [1, 1], offsets: [0, 0] : tensor<16x1xi32> <f32> to !tt.ptr<tensor<16x16xf32>>
+// CHECK:           %[[VAL_67:.*]] = tts.make_gather_scatter_tptr %[[VAL_1]] to sizes: [16, 16] gather_scatter_dim: 0 gather_scatter_offset: %[[VAL_66]], strides: [1, 1], offsets: [0, 0] : tensor<16x1xi32> <f32> to !tt.ptr<tensor<16x16xf32>>
 // CHECK:           %[[VAL_68:.*]] = arith.index_cast %[[VAL_18]] : i32 to index
 // CHECK:           %[[VAL_69:.*]] = arith.minsi %[[VAL_68]], %[[VAL_13]] : index
 // CHECK:           %[[VAL_70:.*]] = arith.maxsi %[[VAL_69]], %[[VAL_14]] : index

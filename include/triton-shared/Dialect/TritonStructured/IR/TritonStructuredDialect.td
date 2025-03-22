@@ -120,8 +120,8 @@ def TTS_MakeTensorPtrOp
   //let hasCanonicalizer = 1;
 }
 
-def TTS_MakeIndirectTensorPtrOp
-  : TTS_Op<"make_indirect_tptr", [AttrSizedOperandSegments, Pure]> {
+def TTS_MakeGatherScatterTensorPtrOp
+  : TTS_Op<"make_gather_scatter_tptr", [AttrSizedOperandSegments, Pure]> {
   // NOTE: only support case that the offset could be identified for each dimension.
   //       Not support case where the offset is a tensor load from other ptr which for multiple dimension.
   //
@@ -133,11 +133,18 @@ def TTS_MakeIndirectTensorPtrOp
   //       not_support2 = tl.load(b_ptr + ld_offsets * (offset_m[:,None]+offsets_n[None,:]))
   //       not_support3 = tl.load(b_ptr + (ld_offsets * (offset_m[:,None]+offsets_n[None,:]))[:, :, None] + offset_k[None,None,:])
 
-  let summary = "create an indirect pointer that points to a tensor in memory for gather/scatter";
+  let summary = "create an pointer that points to a tensor in memory for gather/scatter";
+  let description = [{
+    The `tts.make_gather_scatter_tptr` operation is similar to `tts.make_tptr`.
+    The key difference is that `make_gather_scatter_tptr` accesses the tensor non-continuously.
+    Currently, only one dimension is allowed to be non-continuous.
+    This dimension is saved in `gather_scatter_dim`, and the offset for that dimension is saved in `gather_scatter_offset`.
+    Cases with more than one non-continuous dimension are not supported.
+  }];
 
   // base:    Base pointer used to contruct the tensor of pointers or pointer to tensor.
-  // indirect_offset: The offset for gather/scatter.
-  // indirect_dim: The dimension for indirect_offset.
+  // gather_scatter_offset: The offset for gather/scatter.
+  // gather_scatter_dim: The dimension for gather_scatter_offset.
   // sizes:   Size of the data being loaded or stored.
   // strides: The strides of the parent tensor, which means how much to increase the pointer
   //          by when moving by 1 element in a specific axis.
@@ -146,8 +153,8 @@ def TTS_MakeIndirectTensorPtrOp
   //          it produces a tensor of pointers.
 
   let arguments = (ins TT_Ptr:$base,
-                       I32Tensor:$indirect_offset,
-                       I32Attr:$indirect_dim,
+                       I32Tensor:$gather_scatter_offset,
+                       I32Attr:$gather_scatter_dim,
                        DenseI64ArrayAttr:$sizes,
                        Variadic<Index>:$strides,
                        Variadic<Index>:$offsets,
@@ -158,13 +165,13 @@ def TTS_MakeIndirectTensorPtrOp
 
   let assemblyFormat = [{
     $base `to` `sizes` `` `:` $sizes
-    `indirect_dim` `` `:` $indirect_dim
-    `indirect_offset` `` `:` $indirect_offset
+    `gather_scatter_dim` `` `:` $gather_scatter_dim
+    `gather_scatter_offset` `` `:` $gather_scatter_offset
     `` `,` `strides` `` `:`
     custom<DynamicIndexList>($strides, $static_strides)
     `` `,` `offsets` `` `:`
     custom<DynamicIndexList>($offsets, $static_offsets)
-    attr-dict `:`  type($indirect_offset) type($base) `to` type($result)
+    attr-dict `:`  type($gather_scatter_offset) type($base) `to` type($result)
   }];
 
 
@@ -172,8 +179,8 @@ def TTS_MakeIndirectTensorPtrOp
     // Build with mixed static and dynamic entries.
     OpBuilder<(ins
       "Value":$base,
-      "Value":$indirect_offset,
-      "int":$indirect_dim,
+      "Value":$gather_scatter_offset,
+      "int":$gather_scatter_dim,
       "ArrayRef<int64_t>":$sizes,
       "ArrayRef<OpFoldResult>":$strides,
       "ArrayRef<OpFoldResult>":$offsets)>,
