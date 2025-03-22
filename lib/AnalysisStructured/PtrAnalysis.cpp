@@ -74,31 +74,34 @@ bool PtrState::dimHasModulo(uint32_t dim) const {
   return intAttr.value() != 0;
 }
 
-bool PtrState::dimIsIndirect(uint32_t dim) const {
+bool PtrState::dimIsNotContinuous(uint32_t dim) const {
   assert(dim < getRank());
 
-  auto intAttr = getIntAttr(offsets[dim]);
-  if (intAttr && intAttr.has_value()) {
-    return false;
-  }
   auto value = dyn_cast<Value>(offsets[dim]);
-
+  if (!value)
+    return false;
   return isa<ShapedType>(value.getType());
 }
 
-int32_t PtrState::getIndirectDim() const {
+int32_t PtrState::getNonContinuousDim() const {
   SmallVector<int32_t> dims;
   for (int32_t i = 0; i < getRank(); i++) {
-    if (!dimIsIndirect(i))
+    if (!dimIsNotContinuous(i))
       continue;
     dims.emplace_back(i);
   }
-  assert(dims.size() == 1 && "must have single indirect dimension");
+  assert(dims.size() == 1 && "must have single non-continuous dimension");
   return dims.front();
 }
 
 bool PtrState::noContinuousDim() const {
-  return getRank() == 1 && dimIsIndirect(0);
+  return getRank() > 0 && llvm::all_of(offsets, [](OpFoldResult offset) {
+    auto value = dyn_cast<Value>(offset);
+    if (!value)
+      return false;
+
+    return isa<ShapedType>(value.getType());
+  });
 }
 
 bool PtrState::isStructured() const {
@@ -156,26 +159,26 @@ LogicalResult PtrState::rebuildAsUnsupportedOp(Value operand) {
   return success();
 }
 
-LogicalResult PtrState::rebuildAsIndirect(Value op, int indirectDim) {
+LogicalResult PtrState::rebuildAsGatherScatter(Value op, int nonContinuousDim) {
   // Make sure there is only 1 dimension with size > 1.
   if (isNotSingleDim(op))
     return failure();
-  if (indirectDim >= getRank())
+  if (nonContinuousDim >= getRank())
     return failure();
 
   // Scalar has been take care early.
   // Assume here must be shape type.
   auto opShape = cast<ShapedType>(op.getType()).getShape();
-  if (opShape[indirectDim] <= 1)
+  if (opShape[nonContinuousDim] <= 1)
     return failure();
 
   // Setup state for indirect dimension.
   auto indexTy = IndexType::get(op.getContext());
   auto index0 = IntegerAttr::get(indexTy, APInt(64, 0));
 
-  offsets[indirectDim] = op;
-  strides[indirectDim] = index0;
-  shape[indirectDim] = index0;
+  offsets[nonContinuousDim] = op;
+  strides[nonContinuousDim] = index0;
+  shape[nonContinuousDim] = index0;
   return success();
 }
 
@@ -202,8 +205,16 @@ LogicalResult PtrState::addState(const PtrState &lhsState,
     scalar = lhsState.scalar ? lhsState.scalar : rhsState.scalar;
   }
 
+  if (!lhsState.isStructured() && !rhsState.isStructured()) {
+    if (lhsState.getNonContinuousDim() != rhsState.getNonContinuousDim()) {
+      op->emitRemark("PtrAnalysis: do not support adding two pointer states "
+                     "that have different non-continuous dimension");
+      return failure();
+    }
+  }
+
   for (uint64_t i = 0; i < lhsState.getRank(); i++) {
-    if (!lhsState.dimIsIndirect(i) && !rhsState.dimIsIndirect(i)) {
+    if (!lhsState.dimIsNotContinuous(i) && !rhsState.dimIsNotContinuous(i)) {
       auto newOffset =
           addOFRs(lhsState.offsets[i], rhsState.offsets[i], loc, builder);
       offsets.push_back(newOffset);
@@ -227,7 +238,7 @@ LogicalResult PtrState::addState(const PtrState &lhsState,
             mulOFRs(rhsState.offsets[i], stride, loc, builder);
       }
       // Make sure newLhsOffset and newRhsOffset get same type.
-      if (lhsState.dimIsIndirect(i)) {
+      if (lhsState.dimIsNotContinuous(i)) {
         newRhsOffset = expandOFRIndex(newRhsOffset, newLhsOffset, loc, builder);
       } else {
         newLhsOffset = expandOFRIndex(newLhsOffset, newRhsOffset, loc, builder);
@@ -331,10 +342,10 @@ void PtrState::dump() const {
   } else {
     for (int i=0;i<getRank();i++) {
       llvm::dbgs() << "dim " << i;
-      if (dimIsIndirect(i))
-        llvm::dbgs() << " indirect\n";
+      if (dimIsNotContinuous(i))
+        llvm::dbgs() << " non-continuous\n";
       else
-        llvm::dbgs() << " structured\n";
+        llvm::dbgs() << " continuous\n";
         
     }
   }
@@ -377,7 +388,7 @@ LogicalResult PtrState::mulState(const PtrState &lhsState,
   }
 
   for (uint64_t i = 0; i < lhs->sizes.size(); i++) {
-    if (!lhsState.dimIsIndirect(i)) {
+    if (!lhsState.dimIsNotContinuous(i)) {
       OpFoldResult newOffset =
           mulOFRs(lhs->offsets[i], rhs->scalar, loc, builder);
       offsets.push_back(newOffset);
@@ -427,8 +438,9 @@ tts::MakeTensorPtrOp PtrState::createTTSMakeTensorPtrOp(OpBuilder &builder,
   return op;
 }
 
-tts::MakeIndirectTensorPtrOp
-PtrState::createTTSMakeIndirectTensorPtrOp(OpBuilder &builder, Location loc) {
+tts::MakeGatherScatterTensorPtrOp
+PtrState::createTTSMakeGatherScatterTensorPtrOp(OpBuilder &builder,
+                                                Location loc) {
   SmallVector<int64_t> staticSizes;
   for (size_t i = 0; i < getRank(); i++) {
     auto s = getIntAttr(sizes[i]);
@@ -436,13 +448,14 @@ PtrState::createTTSMakeIndirectTensorPtrOp(OpBuilder &builder, Location loc) {
     staticSizes.push_back(s.value());
   }
 
-  int indirectDim = getIndirectDim();
+  int nonContinuousDim = getNonContinuousDim();
 
-  Value indirectOffset = cast<Value>(offsets[indirectDim]);
-  auto op = builder.create<mlir::tts::MakeIndirectTensorPtrOp>(
-      loc, source, indirectOffset, indirectDim, staticSizes, strides, offsets);
+  Value nonContinuousOffset = cast<Value>(offsets[nonContinuousDim]);
+  auto op = builder.create<mlir::tts::MakeGatherScatterTensorPtrOp>(
+      loc, source, nonContinuousOffset, nonContinuousDim, staticSizes, strides,
+      offsets);
   LLVM_DEBUG({
-    llvm::dbgs() << "creating tts::make_indirect_tensor_ptr:\n";
+    llvm::dbgs() << "creating tts::make_gather_scatter_tensor_ptr:\n";
     op->dump();
   });
 
@@ -472,10 +485,10 @@ LogicalResult PtrAnalysis::visitOperandAdd(arith::AddIOp addOp, PtrState &state,
   // When one state hasModulo while other state is not structured.
   // Need to clear the modulo and use the operand as offset directly.
   if (!lhsState.isStructured() && rhsState.hasModulo()) {
-    if (rhsState.rebuildAsIndirect(addOp.getRhs(), lhsState.getIndirectDim()).failed())
+    if (rhsState.rebuildAsGatherScatter(addOp.getRhs(), lhsState.getNonContinuousDim()).failed())
       return failure();
   } else if (lhsState.hasModulo() && !rhsState.isStructured()) {
-    if (lhsState.rebuildAsIndirect(addOp.getLhs(), rhsState.getIndirectDim()).failed())
+    if (lhsState.rebuildAsGatherScatter(addOp.getLhs(), rhsState.getNonContinuousDim()).failed())
     return failure();
   }
 
@@ -498,10 +511,16 @@ LogicalResult PtrAnalysis::visitOperandMul(arith::MulIOp mulOp, PtrState &state,
   // When one state hasModulo while other state is not structured.
   // Need to clear the modulo and use the operand as offset directly.
   if (!lhsState.isStructured() && rhsState.hasModulo()) {
-    if (rhsState.rebuildAsIndirect(mulOp.getRhs(), lhsState.getIndirectDim()).failed())
+    if (rhsState
+            .rebuildAsGatherScatter(mulOp.getRhs(),
+                                    lhsState.getNonContinuousDim())
+            .failed())
       return failure();
   } else if (lhsState.hasModulo() && !rhsState.isStructured()) {
-    if(lhsState.rebuildAsIndirect(mulOp.getLhs(), rhsState.getIndirectDim()).failed())
+    if (lhsState
+            .rebuildAsGatherScatter(mulOp.getLhs(),
+                                    rhsState.getNonContinuousDim())
+            .failed())
       return failure();
   }
 
@@ -530,7 +549,8 @@ LogicalResult PtrAnalysis::visitOperandRem(arith::RemSIOp remOp,
 
   // When lhs already not structured, just build state from current op.
   if (!state.isStructured()) {
-    return state.rebuildAsIndirect(remOp.getResult(), state.getIndirectDim());
+    return state.rebuildAsGatherScatter(remOp.getResult(),
+                                        state.getNonContinuousDim());
   }
 
   // If there are multiple modulo ops on an expression (e.g.: (a % b) % c), we
@@ -977,7 +997,7 @@ LogicalResult PtrAnalysis::rewriteAddptrOp(triton::AddPtrOp op) {
       // continuous dimensions.
       if (state.getRank() == 1)
         return failure();
-      auto maketptrOp = state.createTTSMakeIndirectTensorPtrOp(builder, op.getLoc());
+      auto maketptrOp = state.createTTSMakeGatherScatterTensorPtrOp(builder, op.getLoc());
       ptrMap.map(op.getResult(), maketptrOp.getResult());
     }
   } else {

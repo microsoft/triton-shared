@@ -9,7 +9,7 @@
 // CHECK: %[[MULI1:.*]] = arith.muli %[[LOAD1]], %[[CST_0]] : tensor<8xi32>
 // CHECK: %[[REMSI:.*]] = arith.remsi %[[MULI1]], %[[CST_1]] : tensor<8xi32>
 // CHECK: %[[MULI2:.*]] = arith.muli %[[REMSI]], %[[CST]] : tensor<8xi32>
-// CHECK: %[[INDIRECT_TPTR:.*]] = tts.make_indirect_tptr %arg0 to sizes: [8, 8] indirect_dim: 0 indirect_offset: %[[MULI2]], strides: [1, 1], offsets: [0, 0] : tensor<8xi32> <f32> to !tt.ptr<tensor<8x8xf32>>
+// CHECK: %[[INDIRECT_TPTR:.*]] = tts.make_gather_scatter_tptr %arg0 to sizes: [8, 8] gather_scatter_dim: 0 gather_scatter_offset: %[[MULI2]], strides: [1, 1], offsets: [0, 0] : tensor<8xi32> <f32> to !tt.ptr<tensor<8x8xf32>>
 // CHECK: "tts.load"(%[[INDIRECT_TPTR]]) <{operandSegmentSizes = array<i32: 1, 0, 0>, static_mask_dims = array<i64>}> : (!tt.ptr<tensor<8x8xf32>>) -> tensor<8x8xf32>
 
 module {

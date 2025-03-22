@@ -57,8 +57,8 @@ struct PtrState {
 
   bool dimHasModulo(uint32_t dim) const;
 
-  bool dimIsIndirect(uint32_t dim) const;
-  int32_t getIndirectDim() const;
+  bool dimIsNotContinuous(uint32_t dim) const;
+  int32_t getNonContinuousDim() const;
   // When rank is 1, and the only dimension is not continuous.
   // There's no dimension is continuous.
   bool noContinuousDim() const;
@@ -72,15 +72,15 @@ struct PtrState {
   // For unsupported op, save the op to the state.
   LogicalResult rebuildAsUnsupportedOp(Value op);
 
-  // When merge with other state which is indirect, set the indirect dimension
+  // When merge with other state which is not structured, set the nonContinuous dimension
   // offset as op.
-  // Still need to make sure the op only contribute to indirectDim.
+  // Still need to make sure the op only contribute to nonContinuousDim.
   // Fail if the op already mix of different dims.
   // For case
   //    add  %remsi(on dim0), %mul(dim1)
   //    the add will have both dim0 and dim1
-  //    to rebuild use the op, it has to use op[indirectDim] which is not supported.
-  LogicalResult rebuildAsIndirect(Value op, int indirectDim);
+  //    to rebuild use the op, it has to use op[nonContinuousDim] which is not supported.
+  LogicalResult rebuildAsGatherScatter(Value op, int nonContinuousDim);
 
   // Process addition of two PtrStates.
   LogicalResult addState(const PtrState &lhsState, const PtrState &rhsState,
@@ -92,8 +92,8 @@ struct PtrState {
 
   tts::MakeTensorPtrOp createTTSMakeTensorPtrOp(OpBuilder &builder,
                                                 Location loc);
-  tts::MakeIndirectTensorPtrOp
-  createTTSMakeIndirectTensorPtrOp(OpBuilder &builder, Location loc);
+  tts::MakeGatherScatterTensorPtrOp
+  createTTSMakeGatherScatterTensorPtrOp(OpBuilder &builder, Location loc);
 };
 
 class PtrAnalysis {
