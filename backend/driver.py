@@ -253,7 +253,7 @@ def compile_module(launcher_src, kernel_placeholder_name):
 
         if cache_path is None:
           with tempfile.TemporaryDirectory() as tmpdir:
-              asm_src_path = os.path.join(tmpdir, "kernel.s")
+              asm_src_path = os.path.join(tmpdir, "kernel.o")
               launcher_src_path = os.path.join(tmpdir, "main.cxx")
               so_path = os.path.join(tmpdir, "kernel.so")
               Path(asm_src_path).write_bytes(asm_src)
