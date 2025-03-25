@@ -58,4 +58,4 @@ def test(device):
     print(ret.asm["ttir"])
     print(ret.asm["ttsharedir"])
     print(ret.asm["llir"])
-    print(ret.asm["cpuasm"])
+    print(ret.asm["obj"])
