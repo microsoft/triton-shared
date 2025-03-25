@@ -57,11 +57,11 @@ struct PtrState {
 
   bool dimHasModulo(uint32_t dim) const;
 
-  bool dimIsNotContinuous(uint32_t dim) const;
-  int32_t getNonContinuousDim() const;
+  bool dimIsStructured(uint32_t dim) const;
+  int32_t getNonStructuredDim() const;
   // When rank is 1, and the only dimension is not continuous.
   // There's no dimension is continuous.
-  bool noContinuousDim() const;
+  bool noStructuredDim() const;
 
   bool isStructured() const;
 
