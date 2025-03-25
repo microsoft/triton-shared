@@ -238,14 +238,14 @@ def compile_module(launcher_src, kernel_placeholder_name):
         kernel_metadata, launch_metadata,
         launch_enter_hook, launch_exit_hook, *args):
         # Unlike CUDA/HIP, we cannot easily pass function pointer across different pybind libraries.
-        # Let's compile a kernel every time.
-        # The cu_function parameter actually contains our assembly source code.
+        # Let's compile one kernel every time.
+        # The cu_function parameter actually contains our kernel obj.
         # See CPUUtils.load_binary method.
-        asm_src = cu_function
+        kernel_obj = cu_function
         kernel_name = kernel_metadata[6] # see pack_metadata in compiler.py
         src = launcher_src.replace(kernel_placeholder_name, kernel_name)
 
-        key = hashlib.md5(src.encode("utf-8") + asm_src).hexdigest()
+        key = hashlib.md5(src.encode("utf-8") + kernel_obj).hexdigest()
         cache = get_cache_manager(key)
         name = "__triton_shared_ref_cpu_kernel_launcher"
         filename = f"{name}.so"
@@ -253,14 +253,14 @@ def compile_module(launcher_src, kernel_placeholder_name):
 
         if cache_path is None:
           with tempfile.TemporaryDirectory() as tmpdir:
-              asm_src_path = os.path.join(tmpdir, "kernel.s")
+              obj_path = os.path.join(tmpdir, "kernel.o")
               launcher_src_path = os.path.join(tmpdir, "main.cxx")
               so_path = os.path.join(tmpdir, "kernel.so")
-              Path(asm_src_path).write_bytes(asm_src)
+              Path(obj_path).write_bytes(kernel_obj)
               Path(launcher_src_path).write_text(src)
               # Compile it together.
               subprocess.check_call([
-                "g++", "-std=c++17", launcher_src_path, asm_src_path,
+                "g++", "-std=c++17", launcher_src_path, obj_path,
                 f"-I{py_include_dir}", f"-I{include_dir}", f"-L{py_lib_dir}",
                 "-shared", f"-l{py_lib}", "-fPIC", "-o", so_path
               ])
@@ -326,13 +326,13 @@ class CPUUtils(object):
 
     # Important note:
     # Since we cannot easy pass function pointers around, we pass along the
-    # assembly source code so that compile_module above can recompile the
+    # obj of the kernel so that compile_module above can recompile the
     # module every time.
     @staticmethod
-    def load_binary(name, kernel_asm, shared, device):
+    def load_binary(name, kernel_obj, shared, device):
         return (
           None,       # module
-          kernel_asm, # function
+          kernel_obj, # function
           None,       # n_regs
           None        # n_spills
         )
@@ -344,7 +344,7 @@ class CPUDriver(DriverBase):
         super().__init__()
         self.utils = CPUUtils()
         self.launcher_cls = CPULauncher
-        self.binary_ext = "cpuasm"
+        self.binary_ext = "obj"
 
     # CPU driver won't be automatically chosen unless explicitly set through
     # triton.runtime.driver.set_active(CPUDriver())

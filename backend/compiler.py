@@ -119,9 +119,8 @@ def _llir_to_bin(llir: str, metadata):
         dst_path = os.path.join(tmpdir, "kernel.o")
         Path(src_path).write_text(llir)
         llc_path = _get_llvm_bin_path("llc")
-        subprocess.check_call([llc_path, src_path, "-o", dst_path])
-        # Actually it's text-format assembly.  Use read_text().
-        return Path(dst_path).read_text()
+        subprocess.check_call([llc_path, src_path, "-filetype=obj", "-o", dst_path])
+        return Path(dst_path).read_bytes()
 
 
 
@@ -153,7 +152,7 @@ class CPUOptions:
 
 
 class CPUBackend(BaseBackend):
-    binary_ext = 'cpuasm'
+    binary_ext = 'obj'
 
     @staticmethod
     def supports_target(target: GPUTarget):
@@ -208,7 +207,7 @@ class CPUBackend(BaseBackend):
         stages["ttir"] = lambda src, metadata: self.make_ttir(src, metadata, options)
         stages["ttsharedir"] = lambda src, metadata: _optimize_ttsharedir(_ttir_to_ttsharedir(src))
         stages["llir"] = lambda src, metadata: _optimize_llir(_ttsharedir_to_llir(src))
-        stages["cpuasm"] = lambda src, metadata: _llir_to_bin(src, metadata)
+        stages["obj"] = lambda src, metadata: _llir_to_bin(src, metadata)
 
 
     @functools.lru_cache()
