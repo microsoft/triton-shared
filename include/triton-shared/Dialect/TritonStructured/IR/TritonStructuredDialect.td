@@ -122,7 +122,7 @@ def TTS_MakeTensorPtrOp
 
 def TTS_MakeGatherScatterTensorPtrOp
   : TTS_Op<"make_gather_scatter_tptr", [AttrSizedOperandSegments, Pure]> {
-  // NOTE: only support case that the offset could be identified for each dimension.
+  // NOTE: Only support cases where the offset for each dimension is defined in a different operation.
   //       Not support case where the offset is a tensor load from other ptr which for multiple dimension.
   //
   //       offset_m = tl.arange(0, M)
@@ -139,6 +139,7 @@ def TTS_MakeGatherScatterTensorPtrOp
     The key difference is that `make_gather_scatter_tptr` accesses the tensor non-continuously.
     Currently, only one dimension is allowed to be non-continuous.
     This dimension is saved in `gather_scatter_dim`, and the offset for that dimension is saved in `gather_scatter_offset`.
+    Each contiguous load will load from this offset.
     Cases with more than one non-continuous dimension are not supported.
   }];
 

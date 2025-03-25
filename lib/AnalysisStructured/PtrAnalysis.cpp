@@ -74,19 +74,19 @@ bool PtrState::dimHasModulo(uint32_t dim) const {
   return intAttr.value() != 0;
 }
 
-bool PtrState::dimIsNotContinuous(uint32_t dim) const {
+bool PtrState::dimIsStructured(uint32_t dim) const {
   assert(dim < getRank());
 
   auto value = dyn_cast<Value>(offsets[dim]);
   if (!value)
-    return false;
-  return isa<ShapedType>(value.getType());
+    return true;
+  return !isa<ShapedType>(value.getType());
 }
 
-int32_t PtrState::getNonContinuousDim() const {
+int32_t PtrState::getNonStructuredDim() const {
   SmallVector<int32_t> dims;
   for (int32_t i = 0; i < getRank(); i++) {
-    if (!dimIsNotContinuous(i))
+    if (dimIsStructured(i))
       continue;
     dims.emplace_back(i);
   }
@@ -94,7 +94,7 @@ int32_t PtrState::getNonContinuousDim() const {
   return dims.front();
 }
 
-bool PtrState::noContinuousDim() const {
+bool PtrState::noStructuredDim() const {
   return getRank() > 0 && llvm::all_of(offsets, [](OpFoldResult offset) {
     auto value = dyn_cast<Value>(offset);
     if (!value)
@@ -206,7 +206,7 @@ LogicalResult PtrState::addState(const PtrState &lhsState,
   }
 
   if (!lhsState.isStructured() && !rhsState.isStructured()) {
-    if (lhsState.getNonContinuousDim() != rhsState.getNonContinuousDim()) {
+    if (lhsState.getNonStructuredDim() != rhsState.getNonStructuredDim()) {
       op->emitRemark("PtrAnalysis: do not support adding two pointer states "
                      "that have different non-continuous dimension");
       return failure();
@@ -214,7 +214,7 @@ LogicalResult PtrState::addState(const PtrState &lhsState,
   }
 
   for (uint64_t i = 0; i < lhsState.getRank(); i++) {
-    if (!lhsState.dimIsNotContinuous(i) && !rhsState.dimIsNotContinuous(i)) {
+    if (lhsState.dimIsStructured(i) && rhsState.dimIsStructured(i)) {
       auto newOffset =
           addOFRs(lhsState.offsets[i], rhsState.offsets[i], loc, builder);
       offsets.push_back(newOffset);
@@ -238,7 +238,7 @@ LogicalResult PtrState::addState(const PtrState &lhsState,
             mulOFRs(rhsState.offsets[i], stride, loc, builder);
       }
       // Make sure newLhsOffset and newRhsOffset get same type.
-      if (lhsState.dimIsNotContinuous(i)) {
+      if (!lhsState.dimIsStructured(i)) {
         newRhsOffset = expandOFRIndex(newRhsOffset, newLhsOffset, loc, builder);
       } else {
         newLhsOffset = expandOFRIndex(newLhsOffset, newRhsOffset, loc, builder);
@@ -342,10 +342,10 @@ void PtrState::dump() const {
   } else {
     for (int i=0;i<getRank();i++) {
       llvm::dbgs() << "dim " << i;
-      if (dimIsNotContinuous(i))
-        llvm::dbgs() << " non-continuous\n";
+      if (dimIsStructured(i))
+        llvm::dbgs() << " structured\n";
       else
-        llvm::dbgs() << " continuous\n";
+        llvm::dbgs() << " not strucuted\n";
         
     }
   }
@@ -388,7 +388,7 @@ LogicalResult PtrState::mulState(const PtrState &lhsState,
   }
 
   for (uint64_t i = 0; i < lhs->sizes.size(); i++) {
-    if (!lhsState.dimIsNotContinuous(i)) {
+    if (lhsState.dimIsStructured(i)) {
       OpFoldResult newOffset =
           mulOFRs(lhs->offsets[i], rhs->scalar, loc, builder);
       offsets.push_back(newOffset);
@@ -448,7 +448,7 @@ PtrState::createTTSMakeGatherScatterTensorPtrOp(OpBuilder &builder,
     staticSizes.push_back(s.value());
   }
 
-  int nonContinuousDim = getNonContinuousDim();
+  int nonContinuousDim = getNonStructuredDim();
 
   Value nonContinuousOffset = cast<Value>(offsets[nonContinuousDim]);
   auto op = builder.create<mlir::tts::MakeGatherScatterTensorPtrOp>(
@@ -485,10 +485,11 @@ LogicalResult PtrAnalysis::visitOperandAdd(arith::AddIOp addOp, PtrState &state,
   // When one state hasModulo while other state is not structured.
   // Need to clear the modulo and use the operand as offset directly.
   if (!lhsState.isStructured() && rhsState.hasModulo()) {
-    if (rhsState.rebuildAsGatherScatter(addOp.getRhs(), lhsState.getNonContinuousDim()).failed())
+    // TODO: support modulo in this case.
+    if (rhsState.rebuildAsGatherScatter(addOp.getRhs(), lhsState.getNonStructuredDim()).failed())
       return failure();
   } else if (lhsState.hasModulo() && !rhsState.isStructured()) {
-    if (lhsState.rebuildAsGatherScatter(addOp.getLhs(), rhsState.getNonContinuousDim()).failed())
+    if (lhsState.rebuildAsGatherScatter(addOp.getLhs(), rhsState.getNonStructuredDim()).failed())
     return failure();
   }
 
@@ -511,15 +512,16 @@ LogicalResult PtrAnalysis::visitOperandMul(arith::MulIOp mulOp, PtrState &state,
   // When one state hasModulo while other state is not structured.
   // Need to clear the modulo and use the operand as offset directly.
   if (!lhsState.isStructured() && rhsState.hasModulo()) {
+    // TODO: support modulo in this case.
     if (rhsState
             .rebuildAsGatherScatter(mulOp.getRhs(),
-                                    lhsState.getNonContinuousDim())
+                                    lhsState.getNonStructuredDim())
             .failed())
       return failure();
   } else if (lhsState.hasModulo() && !rhsState.isStructured()) {
     if (lhsState
             .rebuildAsGatherScatter(mulOp.getLhs(),
-                                    rhsState.getNonContinuousDim())
+                                    rhsState.getNonStructuredDim())
             .failed())
       return failure();
   }
@@ -550,7 +552,7 @@ LogicalResult PtrAnalysis::visitOperandRem(arith::RemSIOp remOp,
   // When lhs already not structured, just build state from current op.
   if (!state.isStructured()) {
     return state.rebuildAsGatherScatter(remOp.getResult(),
-                                        state.getNonContinuousDim());
+                                        state.getNonStructuredDim());
   }
 
   // If there are multiple modulo ops on an expression (e.g.: (a % b) % c), we
@@ -1192,8 +1194,8 @@ LogicalResult PtrAnalysis::rewriteForOp(scf::ForOp op) {
           std::to_string(i));
       continue;
     }
-    // Skip when not have continuous dimension.
-    if (state->noContinuousDim())
+    // Skip when not have structured dimension.
+    if (state->noStructuredDim())
       continue;
 
     // Save the current init arg's PtrState
