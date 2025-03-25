@@ -132,6 +132,10 @@ def TTS_MakeGatherScatterTensorPtrOp
   //       not_support = tl.load(b_ptr + ld_offsets)
   //       not_support2 = tl.load(b_ptr + ld_offsets * (offset_m[:,None]+offsets_n[None,:]))
   //       not_support3 = tl.load(b_ptr + (ld_offsets * (offset_m[:,None]+offsets_n[None,:]))[:, :, None] + offset_k[None,None,:])
+  //       
+  //       # Support cases where one dimension is structured while the other is not.
+  //       # For example, `offset_m[:, None] // K` is not structured, whereas `offset_n[None, :]` is structured in next line.
+  //       supported = tl.load(b_ptr + offset_m[:, None] // K + offset_n[None, :])
 
   let summary = "create an pointer that points to a tensor in memory for gather/scatter";
   let description = [{
