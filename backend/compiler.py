@@ -152,7 +152,7 @@ class CPUOptions:
 
 
 class CPUBackend(BaseBackend):
-    binary_ext = 'cpuasm'
+    binary_ext = 'obj'
 
     @staticmethod
     def supports_target(target: GPUTarget):
@@ -207,7 +207,7 @@ class CPUBackend(BaseBackend):
         stages["ttir"] = lambda src, metadata: self.make_ttir(src, metadata, options)
         stages["ttsharedir"] = lambda src, metadata: _optimize_ttsharedir(_ttir_to_ttsharedir(src))
         stages["llir"] = lambda src, metadata: _optimize_llir(_ttsharedir_to_llir(src))
-        stages["cpuasm"] = lambda src, metadata: _llir_to_bin(src, metadata)
+        stages["obj"] = lambda src, metadata: _llir_to_bin(src, metadata)
 
 
     @functools.lru_cache()

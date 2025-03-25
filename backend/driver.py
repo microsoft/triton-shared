@@ -344,7 +344,7 @@ class CPUDriver(DriverBase):
         super().__init__()
         self.utils = CPUUtils()
         self.launcher_cls = CPULauncher
-        self.binary_ext = "cpuasm"
+        self.binary_ext = "obj"
 
     # CPU driver won't be automatically chosen unless explicitly set through
     # triton.runtime.driver.set_active(CPUDriver())
