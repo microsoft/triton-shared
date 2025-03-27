@@ -41,9 +41,9 @@ def _ttir_to_ttsharedir(mod):
         src_path = os.path.join(tmpdir, "tt.mlir")
         dst_path = os.path.join(tmpdir, "ttshared.mlir")
         Path(src_path).write_text(ttir_code)
+        _dump_ir_if_needed([src_path])
         triton_shared_opt_path = _get_triton_shared_opt_path()
         subprocess.check_call([triton_shared_opt_path, src_path, "--triton-to-linalg-experimental", "--mlir-print-debuginfo", "-o", dst_path])
-        _dump_ir_if_needed([src_path])
         return Path(dst_path).read_text()
 
 
