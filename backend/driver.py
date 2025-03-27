@@ -2,9 +2,9 @@ import hashlib
 import tempfile
 import sysconfig
 
-import os, subprocess, tempfile
+import os, subprocess, tempfile, platform
 import importlib.util
-import sysconfig
+import sys
 
 from pathlib import Path
 
@@ -217,19 +217,15 @@ PyMODINIT_FUNC PyInit___triton_shared_ref_cpu_kernel_launcher(void) {{
 
 
 def compile_module(launcher_src, kernel_placeholder_name):
-    # This function was renamed and made public in Python 3.10
-    if hasattr(sysconfig, 'get_default_scheme'):
-        scheme = sysconfig.get_default_scheme()
+    py_version = sys.version_info
+    if platform.system() == "Windows":
+        py_include_dir = os.path.join(sys.base_prefix, 'include')
+        py_lib_dir = os.path.join(sys.base_prefix, 'libs')
+        py_lib = '{name}{major}{minor}.lib'.format(name="python", major=py_version.major, minor=py_version.minor)
     else:
-        scheme = sysconfig._get_default_scheme()
-    # 'posix_local' is a custom scheme on Debian. However, starting Python 3.10, the default install
-    # path changes to include 'local'. This change is required to use triton with system-wide python.
-    if scheme == 'posix_local':
-        scheme = 'posix_prefix'
-    py_include_dir = sysconfig.get_paths(scheme=scheme)["include"]
-    py_lib_dir = sysconfig.get_config_var("LIBDIR")
-    py_version = sysconfig.get_config_var("LDVERSION")
-    py_lib = '{name}{py_version}'.format(name="python", py_version=py_version)
+        py_include_dir = os.path.join(sys.base_prefix, 'include', f'python{sys.version_info.major}.{sys.version_info.minor}')
+        py_lib_dir = os.path.join(sys.base_prefix, 'lib')
+        py_lib = '{name}{major}.{minor}'.format(name="python", major=py_version.major, minor=py_version.minor)
     cpu_backend_path = Path(__file__).resolve().parent
     include_dir = os.path.join(cpu_backend_path, "include")
 
@@ -248,28 +244,47 @@ def compile_module(launcher_src, kernel_placeholder_name):
         key = hashlib.md5(src.encode("utf-8") + kernel_obj).hexdigest()
         cache = get_cache_manager(key)
         name = "__triton_shared_ref_cpu_kernel_launcher"
-        filename = f"{name}.so"
+
+        if platform.system() == "Windows":
+          filename = f"{name}.pyd"
+        else:
+          filename = f"{name}.so"
         cache_path = cache.get_file(filename)
 
         if cache_path is None:
           with tempfile.TemporaryDirectory() as tmpdir:
-              obj_path = os.path.join(tmpdir, "kernel.o")
-              launcher_src_path = os.path.join(tmpdir, "main.cxx")
-              so_path = os.path.join(tmpdir, "kernel.so")
-              Path(obj_path).write_bytes(kernel_obj)
-              Path(launcher_src_path).write_text(src)
-              # Compile it together.
-              subprocess.check_call([
-                "g++", "-std=c++17", launcher_src_path, obj_path,
-                f"-I{py_include_dir}", f"-I{include_dir}", f"-L{py_lib_dir}",
-                "-shared", f"-l{py_lib}", "-fPIC", "-o", so_path
-              ])
+              if platform.system() == "Windows":
+                  obj_path = os.path.join(tmpdir, "kernel.obj")
+                  launcher_src_path = os.path.join(tmpdir, "main.cxx")
+                  so_path = os.path.join(tmpdir, "kernel.pyd")
+                  Path(obj_path).write_bytes(kernel_obj)
+                  Path(launcher_src_path).write_text(src)
+                  # Compile it together.
+                  subprocess.check_call([
+                    "cl", "/LD", "/std:c++17", launcher_src_path, obj_path,
+                    f"-I{py_include_dir}", f"-I{include_dir}", "/link", f"/LIBPATH:{py_lib_dir}",
+                    "/link", f"{py_lib}", f"/OUT:{so_path}"
+                  ])
+              else:
+                  obj_path = os.path.join(tmpdir, "kernel.o")
+                  launcher_src_path = os.path.join(tmpdir, "main.cxx")
+                  so_path = os.path.join(tmpdir, "kernel.so")
+                  Path(obj_path).write_bytes(kernel_obj)
+                  Path(launcher_src_path).write_text(src)
+                  # Compile it together.
+                  subprocess.check_call([
+                    "g++", "-std=c++17", launcher_src_path, obj_path,
+                    f"-I{py_include_dir}", f"-I{include_dir}", f"-L{py_lib_dir}",
+                    "-shared", f"-l{py_lib}", "-fPIC", "-o", so_path
+                  ])
 
               with open(so_path, "rb") as f:
                 cache_path = cache.put(f.read(), filename, binary=True)
 
         # Load and launch the compiled kernel.
         spec = importlib.util.spec_from_file_location(name, cache_path)
+        if spec is None:
+            raise RuntimeError(f"Cannot find {name} module in {cache_path}")
         mod = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(mod)
         return mod.launch(gridX, gridY, gridZ,
