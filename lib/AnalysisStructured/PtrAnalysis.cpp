@@ -470,6 +470,7 @@ PtrState::createTTSMakeGatherScatterTensorPtrOp(OpBuilder &builder,
             .create<tensor::CollapseShapeOp>(
                 loc, collapseTy, nonContinuousOffset, reassociationMap)
             .getResult();
+    offsets[nonContinuousDim] = nonContinuousOffset;
   }
   // Generate tts::make_gather_scatter_tensor_ptr.
   auto op = builder.create<mlir::tts::MakeGatherScatterTensorPtrOp>(
