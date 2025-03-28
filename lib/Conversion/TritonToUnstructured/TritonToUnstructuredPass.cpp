@@ -382,6 +382,7 @@ public:
 
                   return success();
                 })
+               .Case<tts::MakeGatherScatterTensorPtrOp>([&](Operation *op){return success();})
                 .Case<triton::LoadOp, triton::StoreOp, triton::MakeTensorPtrOp,
                       tts::MakeTensorPtrOp>([&](Operation *op) {
                   // Special case:
@@ -493,6 +494,8 @@ public:
                 store->erase();
                 return success();
               })
+              // .Case<tts::MakeGatherScatterTensorPtrOp>(
+              //     [&](auto makeIndirectTensorPtr) { return success(); })
               .Case<triton::MakeTensorPtrOp,
                     tts::MakeTensorPtrOp>([&](auto makeTensorPtr) {
                 // For block pointers, the base could come from a sequence of

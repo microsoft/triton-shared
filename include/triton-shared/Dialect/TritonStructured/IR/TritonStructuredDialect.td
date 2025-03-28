@@ -191,6 +191,24 @@ def TTS_MakeGatherScatterTensorPtrOp
       "ArrayRef<OpFoldResult>":$offsets)>,
   ];
 
+  let extraClassDeclaration = [{
+    /// Return a vector of all the static or dynamic fields
+    SmallVector<OpFoldResult> getMixedSizes() {
+      Builder b(getContext());
+      SmallVector<Value> dynSizes; // sizes are always static
+      return ::mlir::getMixedValues(getSizes(), dynSizes, b);
+    }
+    /// Return a vector of all the static or dynamic fields
+    SmallVector<OpFoldResult> getMixedStrides() {
+      Builder b(getContext());
+      return ::mlir::getMixedValues(getStaticStrides(), getStrides(), b);
+    }
+    SmallVector<OpFoldResult> getMixedOffsets() {
+      Builder b(getContext());
+      return ::mlir::getMixedValues(getStaticOffsets(), getOffsets(), b);
+    }
+  }];
+
   // TODO
   //let hasVerifier = 1;
   //let hasCanonicalizer = 1;
