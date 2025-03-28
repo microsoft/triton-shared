@@ -454,21 +454,23 @@ PtrState::createTTSMakeGatherScatterTensorPtrOp(OpBuilder &builder,
 
   // Collapse nonContinuousOffset to 1D.
   auto offsetTy = cast<ShapedType>(nonContinuousOffset.getType());
-  SmallVector<ReassociationExprs, 4> reassociationMap(1);
-  for (int i = 0; i < offsetTy.getRank(); ++i)
-    reassociationMap[0].push_back(builder.getAffineDimExpr(i));
+  if (offsetTy.getRank() > 1) {
+    SmallVector<ReassociationExprs, 4> reassociationMap(1);
+    for (int i = 0; i < offsetTy.getRank(); ++i)
+      reassociationMap[0].push_back(builder.getAffineDimExpr(i));
 
-  int offsetSize = 1;
-  for (int size : offsetTy.getShape())
-    offsetSize *= size;
+    int offsetSize = 1;
+    for (int size : offsetTy.getShape())
+      offsetSize *= size;
 
-  auto collapseTy =
-      RankedTensorType::get({offsetSize}, offsetTy.getElementType());
-  nonContinuousOffset =
-      builder
-          .create<tensor::CollapseShapeOp>(loc, collapseTy, nonContinuousOffset,
-                                           reassociationMap)
-          .getResult();
+    auto collapseTy =
+        RankedTensorType::get({offsetSize}, offsetTy.getElementType());
+    nonContinuousOffset =
+        builder
+            .create<tensor::CollapseShapeOp>(
+                loc, collapseTy, nonContinuousOffset, reassociationMap)
+            .getResult();
+  }
   // Generate tts::make_gather_scatter_tensor_ptr.
   auto op = builder.create<mlir::tts::MakeGatherScatterTensorPtrOp>(
       loc, source, nonContinuousOffset, nonContinuousDim, staticSizes, strides,
