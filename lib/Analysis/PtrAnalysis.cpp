@@ -130,9 +130,9 @@ void PtrState::mulState(const PtrState &lhsState, const PtrState &rhsState,
 
   for (uint64_t i = 0; i < lhs->sizes.size(); i++) {
     OpFoldResult newOffset =
-        mulOFRValue(lhs->offsets[i], rhs->scalar, loc, rewriter);
+        mulOFRs(lhs->offsets[i], rhs->scalar, loc, rewriter);
     OpFoldResult newStride =
-        mulOFRValue(lhs->strides[i], rhs->scalar, loc, rewriter);
+        mulOFRs(lhs->strides[i], rhs->scalar, loc, rewriter);
     offsets.push_back(newOffset);
     strides.push_back(newStride);
     sizes.push_back(lhs->sizes[i]);

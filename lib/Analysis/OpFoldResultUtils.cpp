@@ -12,6 +12,7 @@
 #include "mlir/IR/BuiltinTypes.h"
 #include "mlir/IR/OpDefinition.h"
 #include "mlir/Transforms/DialectConversion.h"
+#include "triton/Dialect/Triton/IR/Dialect.h"
 
 namespace mlir {
 
@@ -74,6 +75,69 @@ SmallVector<Value> ofrsToIndexValues(ArrayRef<OpFoldResult> ofrs,
       }));
 }
 
+Value indexTypeCast(Value v, Type targetTy, const Location loc, OpBuilder &b) {
+  Type ty = v.getType();
+  if (isa<IndexType>(targetTy) || isa<IndexType>(ty)) {
+    assert((isa<IntegerType>(targetTy) || isa<IntegerType>(ty)) &&
+           "Only cast between index type and integer type");
+    return b.create<arith::IndexCastOp>(loc, targetTy, v).getResult();
+  } else {
+    auto targetIntTy = cast<IntegerType>(targetTy);
+    auto intTy = cast<IntegerType>(ty);
+    if (targetIntTy.getWidth() > intTy.getWidth())
+      return b.create<arith::ExtSIOp>(loc, targetTy, v).getResult();
+    else
+      return b.create<arith::TruncIOp>(loc, targetTy, v).getResult();
+  }
+}
+
+OpFoldResult expandOFRIndex(OpFoldResult ofr, OpFoldResult targetForTy,
+                            const Location loc, OpBuilder &b) {
+  if (getIntAttr(targetForTy))
+    return ofr;
+  Value targetValueForTy = cast<Value>(targetForTy);
+  Type targetTy = targetValueForTy.getType();
+  auto targetShapedTy = dyn_cast<ShapedType>(targetTy);
+
+  Value v = dyn_cast<Value>(ofr);
+  if (!v)
+    v = b.create<arith::ConstantOp>(loc, cast<IntegerAttr>(cast<Attribute>(ofr)));
+
+  Type ty = v.getType();
+  if (targetTy == ty)
+    return ofr;
+
+  auto shapedTy = dyn_cast<ShapedType>(ty);
+  if (targetShapedTy && !shapedTy) {
+    Type targetEltTy = targetShapedTy.getElementType();
+    // cast to target element type first.
+    if (targetEltTy != ty)
+      v = indexTypeCast(v, targetEltTy, loc, b);
+    return b.create<triton::SplatOp>(loc, targetTy, v).getResult();
+  } else if (targetShapedTy && shapedTy) {
+    // TODO: support ShapedType to ShapedType.
+    Type targetEltTy = targetShapedTy.getElementType();
+    Type eltTy = shapedTy.getElementType();
+    if (targetShapedTy.getShape() != shapedTy.getShape())
+      llvm_unreachable("ShapedType to ShapedType must have same shape");
+    if (isa<IndexType>(targetEltTy) || isa<IndexType>(eltTy)) {
+      assert((isa<IntegerType>(targetEltTy) || isa<IntegerType>(eltTy)) &&
+             "Only cast between index type and integer type");
+      return b.create<arith::IndexCastOp>(loc, targetTy, v).getResult();
+    } else {
+      auto targetIntTy = cast<IntegerType>(targetEltTy);
+      auto intTy = cast<IntegerType>(eltTy);
+      if (targetIntTy.getWidth() > intTy.getWidth())
+        return b.create<arith::ExtSIOp>(loc, targetTy, v).getResult();
+      else
+        return b.create<arith::TruncIOp>(loc, targetTy, v).getResult();
+    }
+  } else {
+    assert(!shapedTy && "src type rank should be >= target type rank");
+    return indexTypeCast(v, targetTy, loc, b);
+  }
+}
+
 OpFoldResult addOFRs(const OpFoldResult lhs, const OpFoldResult rhs,
                      const Location loc, OpBuilder &b) {
   auto lhsIntAttr = getIntAttr(lhs);
@@ -95,8 +159,6 @@ OpFoldResult addOFRs(const OpFoldResult lhs, const OpFoldResult rhs,
     auto lhsOp =
         b.create<arith::ConstantOp>(loc, b.getIndexAttr(lhsIntAttr.value()));
     lhsValue = lhsOp.getResult();
-  } else {
-    assert(isa<IndexType>(lhsValue.getType()));
   }
 
   auto rhsValue = dyn_cast<Value>(rhs);
@@ -104,8 +166,6 @@ OpFoldResult addOFRs(const OpFoldResult lhs, const OpFoldResult rhs,
     auto rhsOp =
         b.create<arith::ConstantOp>(loc, b.getIndexAttr(rhsIntAttr.value()));
     rhsValue = rhsOp.getResult();
-  } else {
-    assert(isa<IndexType>(lhsValue.getType()));
   }
 
   return b.create<arith::AddIOp>(loc, lhsValue, rhsValue).getResult();
@@ -143,50 +203,57 @@ OpFoldResult subOFRs(const OpFoldResult lhs, const OpFoldResult rhs,
   return sumOp.getResult();
 }
 
-OpFoldResult mulOFRValue(const OpFoldResult lhs, const Value rhs,
+OpFoldResult mulOFRs(const OpFoldResult lhs, const OpFoldResult rhs,
                          const Location loc, OpBuilder &b) {
   auto lhsIntAttr = getIntAttr(lhs);
+  auto rhsIntAttr = getIntAttr(rhs);
 
-  auto rhsIsConst = false;
-  // if rhs is not a const, use max value since min is used to represent
-  // dynamic size or stride
-  auto rhsConstValue = std::numeric_limits<int64_t>::max();
-  auto rhsOp = rhs.getDefiningOp<arith::ConstantOp>();
-  if (rhsOp) {
-    rhsIsConst = true;
-    rhsConstValue = cast<IntegerAttr>(rhsOp.getValue()).getInt();
+  auto lhsValue = dyn_cast<Value>(lhs);
+  if (lhsValue) {
+    if (auto lhsOp = lhsValue.getDefiningOp<arith::ConstantOp>()) {
+      lhsIntAttr = cast<IntegerAttr>(lhsOp.getValue()).getInt();
+    }
+  }
+  auto rhsValue = dyn_cast<Value>(rhs);
+  if (rhsValue) {
+    if (auto rhsOp = rhsValue.getDefiningOp<arith::ConstantOp>()) {
+      rhsIntAttr = cast<IntegerAttr>(rhsOp.getValue()).getInt();
+    }
   }
 
-  // shortcuts for special cases
+  // shortcut for special cases
   if (lhsIntAttr) {
     if (lhsIntAttr.value() == 0)
       return lhs;
     if (lhsIntAttr.value() == 1)
       return rhs;
   }
-  if (rhsIsConst) {
-    if (rhsConstValue == 0)
-      return rhsOp.getResult();
-    if (rhsConstValue == 1)
+
+  if (rhsIntAttr) {
+    if (rhsIntAttr.value() == 0)
+      return rhs;
+    if (rhsIntAttr.value() == 1)
       return lhs;
   }
 
-  // 0. both lhs and rhs are constants
-  if (lhsIntAttr && rhsIsConst)
-    return b.getIndexAttr(lhsIntAttr.value() * rhsConstValue);
+  // both lhs and rhs are constants, return result directly
+  if (lhsIntAttr && rhsIntAttr)
+    return b.getIndexAttr(lhsIntAttr.value() * rhsIntAttr.value());
 
-  // 1. if lhs is constant but rhs is not
-  if (lhsIntAttr && !rhsIsConst) {
-    auto lhsConstOp =
+  // otherwise, need to create instructions to calculate new attribute value
+  if (lhsIntAttr) {
+    auto lhsOp =
         b.create<arith::ConstantOp>(loc, b.getIndexAttr(lhsIntAttr.value()));
-    auto mulOp = b.create<arith::MulIOp>(loc, lhsConstOp.getResult(), rhs);
-    return mulOp.getResult();
+    lhsValue = lhsOp.getResult();
   }
 
-  // 2. if lhs is not constant
-  assert(!lhsIntAttr);
-  auto mulOp = b.create<arith::MulIOp>(loc, cast<Value>(lhs), rhs);
-  return mulOp.getResult();
+  if (rhsIntAttr) {
+    auto rhsOp =
+        b.create<arith::ConstantOp>(loc, b.getIndexAttr(rhsIntAttr.value()));
+    rhsValue = rhsOp.getResult();
+  }
+
+  return b.create<arith::MulIOp>(loc, lhsValue, rhsValue).getResult();
 }
 
 OpFoldResult minOFRs(const OpFoldResult lhs, const OpFoldResult rhs,
