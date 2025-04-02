@@ -69,7 +69,6 @@ module {
 // CHECK-DAG:       [[CST_12_:%.+]] = arith.constant 12 : index
 // CHECK-DAG:       [[CST_3_:%.+]] = arith.constant 3 : index
 // CHECK-DAG:       [[CST_256_:%.+]] = arith.constant 256 : i32
-// CHECK-DAG:       [[CST_1_:%.+]] = arith.constant 1 : index
 // CHECK-DAG:       [[CST_0_dot_000000_:%.+]] = arith.constant 0.000000e+00 : bf16
 // CHECK-DAG:       [[CST_256_1_:%.+]] = arith.constant 256 : index
 // CHECK-DAG:       [[VAR_0_:%.+]] = tensor.empty() : tensor<4x256xbf16>
@@ -86,9 +85,9 @@ module {
 // CHECK-DAG:         [[VAR_5_:%.+]] = arith.index_cast [[VAR_arg8_]] : index to i32
 // CHECK:             [[VAR_6_:%.+]] = arith.muli [[VAR_5_]], [[CST_256_]] : i32
 // CHECK:             [[VAR_7_:%.+]] = arith.index_cast [[VAR_6_]] : i32 to index
-// CHECK-DAG:         [[VAR_reinterpret_cast_2_:%.+]] = memref.reinterpret_cast [[PARAM_0_]] to offset: {{.}}[[VAR_arg10_]]{{.}}, sizes: [4, 256], strides: {{.}}[[VAR_7_]], [[CST_1_]]{{.}} : memref<*xbf16> to memref<4x256xbf16, strided<[?, ?], offset: ?>>
+// CHECK-DAG:         [[VAR_reinterpret_cast_2_:%.+]] = memref.reinterpret_cast [[PARAM_0_]] to offset: {{.}}[[VAR_arg10_]]{{.}}, sizes: [4, 256], strides: {{.}}[[VAR_7_]], 1{{.}} : memref<*xbf16> to memref<4x256xbf16, strided<[?, 1], offset: ?>>
 // CHECK-DAG:         [[RES_1_:%.+]] = memref.alloc() : memref<4x256xbf16>
-// CHECK:             memref.copy [[VAR_reinterpret_cast_2_]], [[RES_1_]] : memref<4x256xbf16, strided<[?, ?], offset: ?>> to memref<4x256xbf16>
+// CHECK:             memref.copy [[VAR_reinterpret_cast_2_]], [[RES_1_]] : memref<4x256xbf16, strided<[?, 1], offset: ?>> to memref<4x256xbf16>
 // CHECK:             [[VAR_8_:%.+]] = bufferization.to_tensor [[RES_1_]] restrict writable : memref<4x256xbf16>
 // CHECK:             [[VAR_9_:%.+]] = linalg.generic {indexing_maps = [#map, #map, #map], iterator_types = ["parallel", "parallel"]} ins([[VAR_arg9_]], [[VAR_8_]] : tensor<4x256xbf16>, tensor<4x256xbf16>) outs([[VAR_arg9_]] : tensor<4x256xbf16>) {
 // CHECK:             ^bb0([[IN_0_:%.+]]: bf16, [[IN_1_:%.+]]: bf16, [[IN_2_:%.+]]: bf16):
@@ -98,7 +97,7 @@ module {
 // CHECK:             [[VAR_10_:%.+]] = arith.addi [[VAR_arg10_]], [[CST_256_1_]] : index
 // CHECK:             scf.yield [[VAR_9_]], [[VAR_10_]] : tensor<4x256xbf16>, index
 // CHECK:           }
-// CHECK:           [[VAR_reinterpret_cast_1_:%.+]] = memref.reinterpret_cast [[PARAM_0_]] to offset: [0], sizes: [4, 256], strides: {{.}}[[CST_256_1_]], 1] : memref<*xbf16> to memref<4x256xbf16, strided<[?, 1]>>
-// CHECK:           bufferization.materialize_in_destination [[VAR_4_]]#0 in writable [[VAR_reinterpret_cast_1_]] : (tensor<4x256xbf16>, memref<4x256xbf16, strided<[?, 1]>>) -> ()
+// CHECK:           [[VAR_reinterpret_cast_1_:%.+]] = memref.reinterpret_cast [[PARAM_0_]] to offset: [0], sizes: [4, 256], strides: [256, 1] : memref<*xbf16> to memref<4x256xbf16, strided<[256, 1]>>
+// CHECK:           bufferization.materialize_in_destination [[VAR_4_]]#0 in writable [[VAR_reinterpret_cast_1_]] : (tensor<4x256xbf16>, memref<4x256xbf16, strided<[256, 1]>>) -> ()
 // CHECK:           return
 // CHECK:         }

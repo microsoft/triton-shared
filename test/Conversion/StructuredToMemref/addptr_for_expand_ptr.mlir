@@ -59,16 +59,15 @@ module {
 // CHECK-DAG:       [[CST_12_:%.+]] = arith.constant 12 : index
 // CHECK-DAG:       [[CST_0_:%.+]] = arith.constant 0 : index
 // CHECK-DAG:       [[CST_1024_:%.+]] = arith.constant 1024 : index
-// CHECK-DAG:       [[CST_2_:%.+]] = arith.constant 2 : index
 // CHECK-NOT: separator of consecutive DAGs
 // CHECK-DAG:       [[VAR_0_:%.+]] = scf.for [[VAR_arg7_:%.+]] = [[CST_0_]] to [[CST_12_]] step [[CST_3_]] iter_args([[VAR_arg8_:%.+]] = [[CST_1024_]]) -> (index) {
 // CHECK-DAG:         [[VAR_1_:%.+]] = arith.addi [[VAR_arg8_]], [[CST_256_]] : index
 // CHECK-NOT: separator of consecutive DAGs
-// CHECK-DAG:         [[VAR_reinterpret_cast_:%.+]] = memref.reinterpret_cast [[PARAM_0_]] to offset: {{.}}[[VAR_1_]]{{.}}, sizes: [256, 256], strides: {{.}}[[CST_2_]], 1] : memref<*xbf16> to memref<256x256xbf16, strided<[?, 1], offset: ?>>
+// CHECK-DAG:         [[VAR_reinterpret_cast_:%.+]] = memref.reinterpret_cast [[PARAM_0_]] to offset: {{.}}[[VAR_1_]]{{.}}, sizes: [256, 256], strides: [2, 1] : memref<*xbf16> to memref<256x256xbf16, strided<[2, 1], offset: ?>>
 // CHECK-DAG:         [[RES_:%.+]] = memref.alloc() : memref<256x256xbf16>
-// CHECK:             memref.copy [[VAR_reinterpret_cast_]], [[RES_]] : memref<256x256xbf16, strided<[?, 1], offset: ?>> to memref<256x256xbf16>
+// CHECK:             memref.copy [[VAR_reinterpret_cast_]], [[RES_]] : memref<256x256xbf16, strided<[2, 1], offset: ?>> to memref<256x256xbf16>
 // CHECK:             [[VAR_2_:%.+]] = bufferization.to_tensor [[RES_]] restrict writable : memref<256x256xbf16>
-// CHECK:             bufferization.materialize_in_destination [[VAR_2_]] in writable [[VAR_reinterpret_cast_]] : (tensor<256x256xbf16>, memref<256x256xbf16, strided<[?, 1], offset: ?>>) -> ()
+// CHECK:             bufferization.materialize_in_destination [[VAR_2_]] in writable [[VAR_reinterpret_cast_]] : (tensor<256x256xbf16>, memref<256x256xbf16, strided<[2, 1], offset: ?>>) -> ()
 // CHECK:             [[VAR_3_:%.+]] = arith.addi [[VAR_arg8_]], [[CST_3_]] : index
 // CHECK:             scf.yield [[VAR_3_]] : index
 // CHECK:           }
