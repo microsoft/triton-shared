@@ -1108,7 +1108,7 @@ struct MatmulConverter : public OpConversionPattern<triton::DotOp> {
 
   // true means tensor elements are zeros
   // false means not zero or it cannot be determined
-  bool isZeroTensor(Value &v, bool integers) const {
+  static bool isZeroTensor(Value &v, bool integers) const {
       if (auto splatOp = v.getDefiningOp<triton::SplatOp>()) {
         if (auto constOp = splatOp.getSrc().getDefiningOp<arith::ConstantOp>()) {
           if (auto val = dyn_cast<FloatAttr>(constOp.getValue())) {
@@ -1145,32 +1145,15 @@ struct MatmulConverter : public OpConversionPattern<triton::DotOp> {
     auto dstType = cast<RankedTensorType>(op.getType());
     auto elementType = dstType.getElementType();
     bool integers = elementType.isInteger();
-    bool skipC = isZeroTensor(opc, integers);
-    auto init =
-        rewriter.create<tensor::EmptyOp>(loc, dstType.getShape(), elementType);
-    TypedAttr constantAttr = integers ?
-      static_cast<TypedAttr>(rewriter.getIntegerAttr(elementType, 0)) :
-      static_cast<TypedAttr>(rewriter.getFloatAttr(elementType, 0));
-
-    auto zero = rewriter.create<mlir::arith::ConstantOp>(
-        op.getLoc(), elementType, constantAttr);
-
-    auto zeroes =
-        rewriter.create<linalg::FillOp>(loc, ValueRange{zero}, ValueRange{init})
-            .result();
+    if (isZeroTensor(opc, integers)) {
+      opc = rewriter.create<tensor::EmptyOp>(loc, dstType.getShape(),
+                                             elementType);
+    }
 
     auto res = rewriter
                    .create<linalg::MatmulOp>(loc, ValueRange{opa, opb},
-                                             ValueRange{zeroes})
+                                             ValueRange{opc})
                    .getResult(0);
-
-    if (!skipC) {
-      if (integers) {
-        res = rewriter.create<arith::AddIOp>(loc, opc, res);
-      } else {
-        res = rewriter.create<arith::AddFOp>(loc, opc, res);
-      }
-    }
 
     rewriter.replaceOp(op, res);
     return success();
