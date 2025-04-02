@@ -1108,7 +1108,7 @@ struct MatmulConverter : public OpConversionPattern<triton::DotOp> {
 
   // true means tensor elements are zeros
   // false means not zero or it cannot be determined
-  static bool isZeroTensor(Value &v, bool integers) const {
+  static bool isZeroTensor(Value &v, bool integers) {
       if (auto splatOp = v.getDefiningOp<triton::SplatOp>()) {
         if (auto constOp = splatOp.getSrc().getDefiningOp<arith::ConstantOp>()) {
           if (auto val = dyn_cast<FloatAttr>(constOp.getValue())) {
