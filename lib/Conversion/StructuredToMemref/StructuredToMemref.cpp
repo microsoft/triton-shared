@@ -108,6 +108,9 @@ private:
       auto strideIntAttr = getIntAttr(stride);
       if (size == 1 && strideIntAttr && strideIntAttr.value() == 0) {
         strides.push_back(b.getIndexAttr(accumulate));
+      } else if (auto v = llvm::dyn_cast_if_present<Value>(stride)) {
+        OpFoldResult result = getAsOpFoldResult(v);
+        strides.push_back(result);
       } else {
         strides.push_back(stride);
       }

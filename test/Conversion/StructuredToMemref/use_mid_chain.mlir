@@ -41,7 +41,6 @@ module {
 // CHECK-DAG:   [[MAP_2_:#.+]] = affine_map<(d0, d1) -> (d0, d1)>
 // CHECK-LABEL:  func.func @kernel
 // CHECK-SAME:   ([[PARAM_0_:%.+]]: memref<*xbf16>, [[PARAM_1_:%.+]]: memref<*xbf16>, [[PARAM_2_:%.+]]: memref<*xi32>, [[PARAM_3_:%.+]]: i32, [[PARAM_4_:%.+]]: i32, [[PARAM_5_:%.+]]: i32, [[PARAM_6_:%.+]]: i32, [[PARAM_7_:%.+]]: i32, [[PARAM_8_:%.+]]: i32) {
-// CHECK-DAG:       [[CST_6_:%.+]] = arith.constant 6 : index
 // CHECK-DAG:       [[VAR_0_:%.+]] = tensor.empty() : tensor<256xi32>
 // CHECK:           [[VAR_1_:%.+]] = linalg.generic {indexing_maps = [#map], iterator_types = ["parallel"]} outs([[VAR_0_]] : tensor<256xi32>) {
 // CHECK:           ^bb0([[IN_0_:%.+]]: i32):
@@ -55,12 +54,12 @@ module {
 // CHECK:           ^bb0([[IN_1_:%.+]]: i32, [[IN_2_:%.+]]: i32):
 // CHECK:             linalg.yield [[IN_1_]] : i32
 // CHECK:           } -> tensor<256x128xi32>
-// CHECK-DAG:       [[VAR_reinterpret_cast_:%.+]] = memref.reinterpret_cast [[PARAM_1_]] to offset: [6656], sizes: [256, 128], strides: [1, [[CST_6_]]{{.}} : memref<*xbf16> to memref<256x128xbf16, strided<[1, ?], offset: 6656>>
+// CHECK-DAG:       [[VAR_reinterpret_cast_:%.+]] = memref.reinterpret_cast [[PARAM_1_]] to offset: [6656], sizes: [256, 128], strides: [1, 6] : memref<*xbf16> to memref<256x128xbf16, strided<[1, 6], offset: 6656>>
 // CHECK-DAG:       [[RES_:%.+]] = memref.alloc() : memref<256x128xbf16>
-// CHECK:           memref.copy [[VAR_reinterpret_cast_]], [[RES_]] : memref<256x128xbf16, strided<[1, ?], offset: 6656>> to memref<256x128xbf16>
+// CHECK:           memref.copy [[VAR_reinterpret_cast_]], [[RES_]] : memref<256x128xbf16, strided<[1, 6], offset: 6656>> to memref<256x128xbf16>
 // CHECK:           [[VAR_4_:%.+]] = bufferization.to_tensor [[RES_]] restrict writable : memref<256x128xbf16>
-// CHECK:           bufferization.materialize_in_destination [[VAR_4_]] in writable [[VAR_reinterpret_cast_]] : (tensor<256x128xbf16>, memref<256x128xbf16, strided<[1, ?], offset: 6656>>) -> ()
-// CHECK:           [[VAR_reinterpret_cast_0_:%.+]] = memref.reinterpret_cast [[PARAM_2_]] to offset: [6656], sizes: [256, 128], strides: [1, [[CST_6_]]{{.}} : memref<*xi32> to memref<256x128xi32, strided<[1, ?], offset: 6656>>
-// CHECK:           bufferization.materialize_in_destination [[VAR_3_]] in writable [[VAR_reinterpret_cast_0_]] : (tensor<256x128xi32>, memref<256x128xi32, strided<[1, ?], offset: 6656>>) -> ()
+// CHECK:           bufferization.materialize_in_destination [[VAR_4_]] in writable [[VAR_reinterpret_cast_]] : (tensor<256x128xbf16>, memref<256x128xbf16, strided<[1, 6], offset: 6656>>) -> ()
+// CHECK:           [[VAR_reinterpret_cast_0_:%.+]] = memref.reinterpret_cast [[PARAM_2_]] to offset: [6656], sizes: [256, 128], strides: [1, 6] : memref<*xi32> to memref<256x128xi32, strided<[1, 6], offset: 6656>>
+// CHECK:           bufferization.materialize_in_destination [[VAR_3_]] in writable [[VAR_reinterpret_cast_0_]] : (tensor<256x128xi32>, memref<256x128xi32, strided<[1, 6], offset: 6656>>) -> ()
 // CHECK:           return
 // CHECK:         }
