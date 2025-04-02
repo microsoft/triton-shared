@@ -71,10 +71,9 @@ module {
 // CHECK-DAG:       [[CST_2_:%.+]] = arith.constant 2 : index
 // CHECK-DAG:       [[CST_3_:%.+]] = arith.constant 3 : index
 // CHECK-DAG:       [[CST_1024_:%.+]] = arith.constant 1024 : index
-// CHECK-DAG:       [[CST_3072_:%.+]] = arith.constant 3072 : index
 // CHECK-NOT: separator of consecutive DAGs
-// CHECK-DAG:       [[VAR_0_:%.+]] = tts.make_tptr [[PARAM_0_]] to sizes: [128, 256], strides: [1, [[CST_1024_]]{{.}}, offsets: {{.}}[[CST_2_]], [[CST_3072_]]{{.}}, shape: [0, 0], order: [] : <bf16> to tensor<128x256x!tt.ptr<bf16>>
-// CHECK-DAG:       [[VAR_1_:%.+]] = tts.make_tptr [[PARAM_1_]] to sizes: [128, 256], strides: [1, [[CST_1024_]]{{.}}, offsets: {{.}}[[CST_2_]], [[CST_3072_]]{{.}}, shape: [0, 0], order: [] : <bf16> to tensor<128x256x!tt.ptr<bf16>>
+// CHECK-DAG:       [[VAR_0_:%.+]] = tts.make_tptr [[PARAM_0_]] to sizes: [128, 256], strides: [1, [[CST_1024_]]{{.}}, offsets: {{.}}[[CST_2_]], 3072{{.}}, shape: [0, 0], order: [] : <bf16> to tensor<128x256x!tt.ptr<bf16>>
+// CHECK-DAG:       [[VAR_1_:%.+]] = tts.make_tptr [[PARAM_1_]] to sizes: [128, 256], strides: [1, [[CST_1024_]]{{.}}, offsets: {{.}}[[CST_2_]], 3072{{.}}, shape: [0, 0], order: [] : <bf16> to tensor<128x256x!tt.ptr<bf16>>
 // CHECK-DAG:       [[VAR_2_:%.+]] = arith.index_cast [[PARAM_2_]] : i32 to index
 // CHECK:           [[VAR_3_:%.+]] = arith.minsi [[VAR_2_]], [[CST_130_]] : index
 // CHECK:           [[VAR_4_:%.+]] = arith.maxsi [[VAR_3_]], [[CST_2_]] : index

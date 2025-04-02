@@ -35,6 +35,10 @@ Value ofrToIndexValue(const OpFoldResult ofr, const Location loc, OpBuilder &b);
 SmallVector<Value> ofrsToIndexValues(ArrayRef<OpFoldResult> ofrs,
                                      const Location loc, OpBuilder &b);
 
+// Expand index to given type.
+OpFoldResult expandOFRIndex(OpFoldResult ofr, OpFoldResult targetOrfForTy,
+                            const Location loc, OpBuilder &b);
+
 // Process addition of two OFRs. If both OFRs are Integer Attributes, result
 // is an Integer Attribute. Otherwise, insert the arith.addi instruction if
 // needed and use its result Value.
@@ -50,7 +54,7 @@ OpFoldResult subOFRs(const OpFoldResult lhs, const OpFoldResult rhs,
 // Process multiplication of two OFRs. If both OFRs are Integer Attributes,
 // result is an Integer Attribtue. Otherwise, insert the arith.muli
 // instruction if needed and use its result Value.
-OpFoldResult mulOFRValue(const OpFoldResult lhs, const Value rhs,
+OpFoldResult mulOFRs(const OpFoldResult lhs, const OpFoldResult rhs,
                          const Location loc, OpBuilder &b);
 
 OpFoldResult minOFRs(const OpFoldResult lhs, const OpFoldResult rhs,
