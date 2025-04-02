@@ -24,7 +24,7 @@ def compile():
     src = triton.compiler.ASTSource(
         fn=test_scalar_store,
         signature="*fp32",
-        constants={
+        constexprs={
             "BLOCK_SIZE": 8
         }
     )
