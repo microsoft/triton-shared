@@ -10,7 +10,7 @@
 
 include "mlir/Pass/PassBase.td"
 
-def TritonToLinalg : Pass<"triton-to-linalg", "mlir::ModuleOp"> {
+def TritonToLinalg : Pass<"test", "mlir::ModuleOp"> {
   let summary = "Convert Triton to Linalg dialect";
   let constructor = "triton::createTritonToLinalgPass()";
 }

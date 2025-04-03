@@ -19,9 +19,6 @@
 #include <optional>
 #include <utility>
 
-#include "mlir/Dialect/Ptr/IR/PtrDialect.h"
-#include "mlir/Dialect/Ptr/IR/PtrTypes.h"
-
 #define GET_OP_CLASSES
 #include "triton-shared/Dialect/TritonStructured/IR/TritonStructuredOps.h.inc"
 
@@ -249,25 +246,8 @@ GetStructuredStateOp::getOffsetAndStrideSegmentSizes(Type type) {
     return std::nullopt;
   }
 
-  Attribute t;
-
   return std::make_pair(offsetSegmentSize, strideSegmentSize);
 }
 
-void PtrLoadOp::getEffects(
-    SmallVectorImpl<SideEffects::EffectInstance<MemoryEffects::Effect>>
-        &effects) {
-  effects.emplace_back(MemoryEffects::Read::get(), &getAddrMutable(),
-                       SideEffects::DefaultResource::get());
-}
-
-void PtrStoreOp::getEffects(
-    SmallVectorImpl<SideEffects::EffectInstance<MemoryEffects::Effect>>
-        &effects) {
-  effects.emplace_back(MemoryEffects::Write::get(), &getAddrMutable(),
-                       SideEffects::DefaultResource::get());
-}
-
 } // namespace tts
-
 } // namespace mlir

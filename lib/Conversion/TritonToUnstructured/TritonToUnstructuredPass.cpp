@@ -293,6 +293,24 @@ public:
 
         auto res =
             llvm::TypeSwitch<Operation *, LogicalResult>(user)
+                .Case<arith::SelectOp>(
+                    [&](arith::SelectOp op) { return failure(); })
+
+                .Case<triton::PtrToIntOp>([&](triton::PtrToIntOp op) {
+                  auto offsetInfo = offsetMap.at(op.getSrc());
+
+                  OpBuilder b{op};
+
+                  auto materializedAddPtr = b.create<triton::AddPtrOp>(
+                      op->getLoc(), offsetInfo.ptrType, offsetInfo.ptr,
+                      offsetInfo.offset);
+
+                  // TODO: Does this affect the traversal?
+                  op->setOperand(0, materializedAddPtr);
+
+                  return success();
+                })
+
                 .Case<triton::AddPtrOp>([&](triton::AddPtrOp addptr) {
                   OpBuilder b{addptr};
                   auto loc = addptr->getLoc();
@@ -332,6 +350,37 @@ public:
                   return success();
                 })
                 .Case<triton::SplatOp, triton::BroadcastOp>([&](Operation *op) {
+                  auto res = op->getResult(0);
+                  auto resType = res.getType();
+
+                  if (!isPtrTypeLike(resType)) {
+                    return success();
+                  }
+
+                  auto ptr = op->getOperand(0);
+                  auto offsetInfo = offsetMap.at(ptr);
+
+                  OpBuilder b{op};
+                  auto clone =
+                      b.create(op->getLoc(), op->getName().getIdentifier(),
+                               ValueRange{offsetInfo.offset},
+                               TypeRange{getPtrOffsetType(
+                                   resType, offsetInfo.bitWidth)});
+
+                  PtrOffset newOffsetInfo{offsetInfo.ptr, resType,
+                                          offsetInfo.bitWidth,
+                                          clone->getResult(0)};
+
+                  offsetMap.insert({
+                      res,
+                      newOffsetInfo,
+                  });
+                  workList.push(res);
+                  toDelete.push_back(op);
+
+                  return success();
+                })
+                .Case<triton::ExpandDimsOp>([&](ExpandDimsOp op) {
                   auto res = op->getResult(0);
                   auto resType = res.getType();
 
@@ -428,6 +477,37 @@ public:
                   op->emitError("Do not support gather / scatter with multiple "
                                 "bases yet");
                   return failure();
+                })
+                .Case<triton::BitcastOp>([&](triton::BitcastOp op) {
+                  auto offsetInfo = offsetMap.at(op.getSrc());
+
+                  OpBuilder b{op};
+
+                  // Bitcast changes the scale offset because the underlying
+                  // type changes, we have to materialize the addptr as the base
+                  auto materializedAddPtr = b.create<triton::AddPtrOp>(
+                      op->getLoc(), offsetInfo.ptrType, offsetInfo.ptr,
+                      offsetInfo.offset);
+
+                  // TODO: Does this affect the traversal?
+                  op->setOperand(0, materializedAddPtr);
+
+                  auto zero = b.create<arith::ConstantOp>(
+                      op.getLoc(),
+                      b.getIntegerAttr(
+                          IntegerType::get(&getContext(), defaultBitWidth), 0));
+
+                  PtrOffset resOffset{op.getResult(), op.getType(),
+                                      offsetInfo.bitWidth, zero};
+
+                  offsetMap.insert({
+                      op.getResult(),
+                      resOffset,
+                  });
+
+                  workList.push(op.getResult());
+
+                  return success();
                 })
                 .Default([&](Operation *op) {
                   op->emitError("unexpected op in ptr sequence");
