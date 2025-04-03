@@ -1,8 +1,6 @@
 #ifndef TPTR_DIALECT
 #define TPTR_DIALECT
 
-include "triton/Dialect/Triton/IR/TritonTypes.td"
-
 include "mlir/IR/OpBase.td"
 include "mlir/Interfaces/SideEffectInterfaces.td"
 include "mlir/Dialect/Ptr/IR/PtrDialect.td"
@@ -14,7 +12,7 @@ def TPtr_Dialect : Dialect {
 
   let cppNamespace = "::mlir::tptr";
 
-  let summary = "Structured Triton operations";
+  let summary = "Temporary Pointer Dialect";
 
   let description = [{
     Typed Pointer Dialect.

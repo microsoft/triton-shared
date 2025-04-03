@@ -1,5 +1,4 @@
-#include "mlir/IR/DialectImplementation.h" // required by `Types.cpp.inc`
-#include "llvm/ADT/TypeSwitch.h"           // required by `Types.cpp.inc`
+#include "mlir/IR/Builders.h"
 
 #include "triton-shared/Dialect/TPtr/IR/TPtrDialect.h"
 
