@@ -153,6 +153,7 @@
 #include "triton-shared/AnalysisStructured/PtrAnalysis.h"
 #include "triton-shared/Conversion/TritonToUnstructured/TritonToUnstructured.h"
 #include "triton-shared/Dialect/TritonStructured/IR/TritonStructuredDialect.h"
+#include "triton-shared/Utils/Utils.h"
 
 #include "triton/Dialect/Triton/IR/Dialect.h"
 
@@ -180,13 +181,6 @@ using namespace triton;
 #include "triton-shared/Conversion/TritonToUnstructured/Passes.h.inc"
 
 namespace {
-
-static bool isPtrTypeLike(Type t) {
-  if (auto tensorType = dyn_cast<RankedTensorType>(t)) {
-    return isa<triton::PointerType>(tensorType.getElementType());
-  }
-  return isa<triton::PointerType>(t);
-}
 
 // Given a type, return the offset type corresponding to that type with the
 // specified width.
@@ -253,7 +247,7 @@ public:
 
     getOperation().walk([&](FunctionOpInterface func) {
       for (auto arg : func.getArguments()) {
-        if (!isPtrTypeLike(arg.getType())) {
+        if (!triton::isPtrTypeLike(arg.getType())) {
           continue;
         }
 
@@ -270,6 +264,9 @@ public:
     });
 
     getOperation().walk([&](triton::IntToPtrOp op) {
+      if (isa<RankedTensorType>(op.getType())) {
+        return;
+      }
       auto res = op.getResult();
       OpBuilder b(op);
       Value zero = b.create<arith::ConstantOp>(
@@ -293,6 +290,24 @@ public:
 
         auto res =
             llvm::TypeSwitch<Operation *, LogicalResult>(user)
+
+                .Case<triton::PtrToIntOp>([&](triton::PtrToIntOp op) {
+                  auto offsetInfo = offsetMap.at(op.getSrc());
+
+                  OpBuilder b{op};
+
+                  auto materializedAddPtr = b.create<triton::AddPtrOp>(
+                      op->getLoc(), offsetInfo.ptrType, offsetInfo.ptr,
+                      offsetInfo.offset);
+
+                  // This should not affect the traversal of uses, but hacky.
+                  // We will need to revisit how we process the IRs in this pass
+                  // later.
+                  op->setOperand(0, materializedAddPtr);
+
+                  return success();
+                })
+
                 .Case<triton::AddPtrOp>([&](triton::AddPtrOp addptr) {
                   OpBuilder b{addptr};
                   auto loc = addptr->getLoc();
@@ -331,11 +346,12 @@ public:
 
                   return success();
                 })
-                .Case<triton::SplatOp, triton::BroadcastOp>([&](Operation *op) {
+                .Case<triton::SplatOp, triton::BroadcastOp,
+                      triton::ExpandDimsOp>([&](Operation *op) {
                   auto res = op->getResult(0);
                   auto resType = res.getType();
 
-                  if (!isPtrTypeLike(resType)) {
+                  if (!triton::isPtrTypeLike(resType)) {
                     return success();
                   }
 
@@ -428,6 +444,44 @@ public:
                   op->emitError("Do not support gather / scatter with multiple "
                                 "bases yet");
                   return failure();
+                })
+                .Case<triton::BitcastOp>([&](triton::BitcastOp op) {
+                  if (isa<RankedTensorType>(op.getType())) {
+                    return failure();
+                  }
+
+                  auto offsetInfo = offsetMap.at(op.getSrc());
+
+                  OpBuilder b{op};
+
+                  // Bitcast changes the scale offset because the underlying
+                  // type changes, we have to materialize the addptr as the base
+
+                  auto materializedAddPtr = b.create<triton::AddPtrOp>(
+                      op->getLoc(), offsetInfo.ptrType, offsetInfo.ptr,
+                      offsetInfo.offset);
+
+                  // This should not affect the traversal of uses, but hacky.
+                  // We will need to revisit how we process the IRs in this pass
+                  // later.
+                  op->setOperand(0, materializedAddPtr);
+
+                  auto zero = b.create<arith::ConstantOp>(
+                      op.getLoc(),
+                      b.getIntegerAttr(
+                          IntegerType::get(&getContext(), defaultBitWidth), 0));
+
+                  PtrOffset resOffset{op.getResult(), op.getType(),
+                                      offsetInfo.bitWidth, zero};
+
+                  offsetMap.insert({
+                      op.getResult(),
+                      resOffset,
+                  });
+
+                  workList.push(op.getResult());
+
+                  return success();
                 })
                 .Default([&](Operation *op) {
                   op->emitError("unexpected op in ptr sequence");
@@ -541,9 +595,12 @@ public:
   void runOnOperation() override {
     if (failed(processUnstructuredPtrs(offsetBitWidth))) {
       getOperation()->emitWarning(
-          "Cannot canonicalize tensor of pointers into a single base pointer");
+          "Cannot transform tensor of pointers into a single base pointer "
+          "with tensor of offsets");
       return;
     }
+
+    return;
 
     PassManager pm(&getContext(), getOperation().getOperationName());
     pm.addPass(createCanonicalizerPass());

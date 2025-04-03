@@ -19,4 +19,5 @@ add_triton_library(TritonToUnstructured
   TritonTransforms
   TritonSharedAnalysisStructured
   TritonStructuredIR
+  TritonSharedUtils
 )
