@@ -57,30 +57,9 @@ struct PtrState {
 
   bool dimHasModulo(uint32_t dim) const;
 
-  bool dimIsStructured(uint32_t dim) const;
-  int32_t getNonStructuredDim() const;
-  // When rank is 1, and the only dimension is not continuous.
-  // There's no dimension is continuous.
-  bool noStructuredDim() const;
-
-  bool isStructured() const;
-
   bool isBlockPtr() const;
 
   void dump() const;
-
-  // For unsupported op, save the op to the state.
-  LogicalResult rebuildAsUnsupportedOp(Value op);
-
-  // When merge with other state which is not structured, set the nonContinuous dimension
-  // offset as op.
-  // Still need to make sure the op only contribute to nonContinuousDim.
-  // Fail if the op already mix of different dims.
-  // For case
-  //    add  %remsi(on dim0), %mul(dim1)
-  //    the add will have both dim0 and dim1
-  //    to rebuild use the op, it has to use op[nonContinuousDim] which is not supported.
-  LogicalResult rebuildAsGatherScatter(Value op, int nonContinuousDim);
 
   // Process addition of two PtrStates.
   LogicalResult addState(const PtrState &lhsState, const PtrState &rhsState,
@@ -92,8 +71,6 @@ struct PtrState {
 
   tts::MakeTensorPtrOp createTTSMakeTensorPtrOp(OpBuilder &builder,
                                                 Location loc);
-  tts::MakeGatherScatterTensorPtrOp
-  createTTSMakeGatherScatterTensorPtrOp(OpBuilder &builder, Location loc);
 };
 
 class PtrAnalysis {
