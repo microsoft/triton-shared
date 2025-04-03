@@ -5,9 +5,6 @@
 #include "mlir/IR/MLIRContext.h"
 #include "mlir/IR/OpDefinition.h"
 
-#include "mlir/Dialect/Ptr/IR/PtrDialect.h"
-#include "mlir/Dialect/Ptr/IR/PtrTypes.h"
-
 #include "triton/Dialect/Triton/IR/Dialect.h"
 
 namespace mlir {
