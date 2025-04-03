@@ -9,8 +9,24 @@
 #define GET_TYPEDEF_CLASSES
 #include "triton-shared/Dialect/TPtr/IR/TPtrTypes.cpp.inc"
 
+using namespace mlir;
+
+namespace {
+ParseResult parseIntType(OpAsmParser &parser, Type &ty) {
+  if (succeeded(parser.parseOptionalColon()) && parser.parseType(ty))
+    return parser.emitError(parser.getNameLoc(), "expected a type");
+  if (!ty)
+    ty = parser.getBuilder().getIndexType();
+  return success();
+}
+void printIntType(OpAsmPrinter &p, Operation *op, Type ty) {
+  if (!ty.isIndex())
+    p << " : " << ty;
+}
+} // namespace
+
 //===----------------------------------------------------------------------===//
-// Triton Dialect
+// Dialect
 //===----------------------------------------------------------------------===//
 void mlir::tptr::TPtrDialect::registerTypes() {
   addTypes<

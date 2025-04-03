@@ -25,7 +25,6 @@ def TPtr_Dialect : Dialect {
   }];
 
   let dependentDialects = [
-    "triton::TritonDialect",
     "mlir::ptr::PtrDialect"
   ];
 
@@ -57,15 +56,10 @@ def TPTR_IntToPtrOp : TPTR_Op<"inttoptr", [
     %ptr = ptr.inttoptr %int : i32 to !ptr.ptr<1 : i32>
     ```
   }];
-  let arguments = (ins AnyType:$arg);
-  let results = (outs AnyType:$res);
+  let arguments = (ins AnySignlessIntegerOrIndex:$arg);
+  let results = (outs Ptr_PtrType:$res);
   let assemblyFormat = "$arg attr-dict `:` type($arg) `to` type($res)";
-  // let hasVerifier = 1;
 }
-
-//===----------------------------------------------------------------------===//
-// PtrToIntOp
-//===----------------------------------------------------------------------===//
 
 def TPTR_PtrToIntOp : TPTR_Op<"ptrtoint", [
     Pure
@@ -79,32 +73,64 @@ def TPTR_PtrToIntOp : TPTR_Op<"ptrtoint", [
     %int = ptr.ptrtoint %ptr : !ptr.ptr<1 : i32> to i32
     ```
   }];
-  let arguments = (ins AnyType:$arg);
-  let results = (outs AnyType:$res);
+  let arguments = (ins Ptr_PtrType:$arg);
+  let results = (outs AnySignlessIntegerOrIndex:$res);
   let assemblyFormat = "$arg attr-dict `:` type($arg) `to` type($res)";
-  // let hasVerifier = 1;
 }
 
+def TPTR_TypeOffsetOp : TPTR_Op<"type_offset", [ConstantLike, Pure]> {
+  let summary = "Creates a type offset constant.";
+  let description = [{
+    The `addr.type_offset` operation produces an int or index-typed SSA value
+    equal to a target-specific constant representing the offset of a single
+    element of the given type. The default return type is `index`.
+    Example:
 
-def TPTR_FromMemrefOp : TPTR_Op<"from_memref", [
-    Pure  ]> {
-  let arguments = (ins AnyType:$arg);
-  let results = (outs AnyType:$res);
-  let assemblyFormat = "$arg attr-dict `:` type($arg) `to` type($res)";
+    ```mlir
+    %0 = addr.type_offset f32
+    %1 = addr.type_offset memref<12 x f64> : i32
+    ```
+  }];
+
+  let arguments = (ins TypeAttr:$baseType);
+  let results = (outs AnySignlessIntegerOrIndex:$result);
+  let builders = [
+    OpBuilder<(ins "TypeAttr":$baseType, CArg<"Type", "nullptr">:$resultTy)>
+  ];
+  let assemblyFormat = [{
+     attr-dict $baseType custom<IntType>(type($result))
+  }];
+  let hasFolder = 1;
+}
+
+def TPTR_FromMemrefOp : TPTR_Op<"from_memref", [Pure]> {
+  let arguments = (ins AnyMemRef:$input);
+  let results = (outs Ptr_PtrType:$result);
+  let assemblyFormat = "$input attr-dict `:` type($input) `to` type($result)";
 }
 
 def TPTR_ToMemrefOp : TPTR_Op<"to_memref", [
     Pure  ]> {
-  let arguments = (ins AnyType:$arg);
-  let results = (outs AnyType:$res);
+  let arguments = (ins Ptr_PtrType:$arg);
+  let results = (outs AnyStaticShapeMemRef:$res);
   let assemblyFormat = "$arg attr-dict `:` type($arg) `to` type($res)";
 }
 
-def TPTR_PtrAddOp : TPTR_Op<"ptradd", [
-    Pure  ]> {
-  let arguments = (ins AnyType:$arg, AnyType:$offset);
-  let results = (outs AnyType:$res);
-  let assemblyFormat = "$arg $offset attr-dict `:` type($arg) `,` type($offset) `to` type($res)";
+def TPTR_PtrAddOp : TPTR_Op<"ptradd", [Pure, AllTypesMatch<["base", "result"]>]> {
+  let summary = "Pointer-index add operation";
+  let description = [{
+    The `ptradd` operation adds an `address` and an integer or index to
+    produce a new address.
+
+    Example:
+    ```mlir
+    %addr = ptr.ptradd %addr : !ptr.ptr<3 : i32>, %c10 : i32
+    ```
+  }];
+
+  let arguments = (ins Ptr_PtrType:$base, AnySignlessIntegerOrIndex:$offset);
+  let results = (outs Ptr_PtrType:$result);
+  let assemblyFormat = "$base $offset attr-dict `:` type($base) `,` type($offset) `to` type($result)";
 }
 
 def TPTR_LoadOp : TPTR_Op<"load", [
@@ -140,10 +166,6 @@ def TPTR_LoadOp : TPTR_Op<"load", [
   }];
 }
 
-//===----------------------------------------------------------------------===//
-// StoreOp
-//===----------------------------------------------------------------------===//
-
 def TTPTR_StoreOp : TPTR_Op<"store", [
     DeclareOpInterfaceMethods<MemoryEffectsOpInterface>
   ]> {
@@ -176,6 +198,5 @@ def TTPTR_StoreOp : TPTR_Op<"store", [
     attr-dict `:` type($value) `,` qualified(type($addr))
   }];
 }
-
 
 #endif // TPTR_DIALECT

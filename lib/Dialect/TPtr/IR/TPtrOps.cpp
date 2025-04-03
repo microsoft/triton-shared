@@ -41,3 +41,7 @@ void StoreOp::getEffects(
   effects.emplace_back(MemoryEffects::Write::get(), &getAddrMutable(),
                        SideEffects::DefaultResource::get());
 }
+
+OpFoldResult TypeOffsetOp::fold(FoldAdaptor adaptor) {
+  return adaptor.getBaseTypeAttr();
+}
