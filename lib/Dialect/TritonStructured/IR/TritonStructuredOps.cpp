@@ -248,5 +248,6 @@ GetStructuredStateOp::getOffsetAndStrideSegmentSizes(Type type) {
 
   return std::make_pair(offsetSegmentSize, strideSegmentSize);
 }
+
 } // namespace tts
 } // namespace mlir
