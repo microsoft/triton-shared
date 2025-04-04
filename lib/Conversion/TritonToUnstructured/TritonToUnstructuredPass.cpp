@@ -297,11 +297,14 @@ public:
                   auto offsetInfo = offsetMap.at(op.getSrc());
 
                   OpBuilder b{op};
-
+                  // We are converting a pointer to an integer here,
+                  // materialized the pointer using the accumulated offset
+                  // that we have stored so far.
                   auto materializedAddPtr = b.create<triton::AddPtrOp>(
                       op->getLoc(), offsetInfo.ptrType, offsetInfo.ptr,
                       offsetInfo.offset);
 
+                  // Change the op to use the "simplified" pointer above.
                   // This should not affect the traversal of uses, but hacky.
                   // We will need to revisit how we process the IRs in this pass
                   // later.
@@ -309,7 +312,6 @@ public:
 
                   return success();
                 })
-
                 .Case<triton::AddPtrOp>([&](triton::AddPtrOp addptr) {
                   OpBuilder b{addptr};
                   auto loc = addptr->getLoc();
@@ -446,44 +448,6 @@ public:
                   op->emitError("Do not support gather / scatter with multiple "
                                 "bases yet");
                   return failure();
-                })
-                .Case<triton::BitcastOp>([&](triton::BitcastOp op) {
-                  if (isa<RankedTensorType>(op.getType())) {
-                    return failure();
-                  }
-
-                  auto offsetInfo = offsetMap.at(op.getSrc());
-
-                  OpBuilder b{op};
-
-                  // Bitcast changes the scale offset because the underlying
-                  // type changes, we have to materialize the addptr as the base
-
-                  auto materializedAddPtr = b.create<triton::AddPtrOp>(
-                      op->getLoc(), offsetInfo.ptrType, offsetInfo.ptr,
-                      offsetInfo.offset);
-
-                  // This should not affect the traversal of uses, but hacky.
-                  // We will need to revisit how we process the IRs in this pass
-                  // later.
-                  op->setOperand(0, materializedAddPtr);
-
-                  auto zero = b.create<arith::ConstantOp>(
-                      op.getLoc(),
-                      b.getIntegerAttr(
-                          IntegerType::get(&getContext(), defaultBitWidth), 0));
-
-                  PtrOffset resOffset{op.getResult(), op.getType(),
-                                      offsetInfo.bitWidth, zero};
-
-                  offsetMap.insert({
-                      op.getResult(),
-                      resOffset,
-                  });
-
-                  workList.push(op.getResult());
-
-                  return success();
                 })
                 .Default([&](Operation *op) {
                   op->emitError("unexpected op in ptr sequence");
