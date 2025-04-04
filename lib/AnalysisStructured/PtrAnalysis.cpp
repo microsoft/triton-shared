@@ -711,7 +711,8 @@ LogicalResult PtrAnalysis::visitOperand(Value operand, PtrState &state,
       } else if (auto makeTensorOp = dyn_cast<triton::MakeTensorPtrOp>(op)) {
         llvm_unreachable("Unexpected operand defining operation tts.make_tptr");
       } else {
-        llvm_unreachable("Unexpected operand defining operation");
+        op->emitRemark("Unexpected defining op for triton pointer operand");
+        return failure();
       }
     } else {
       state.source = operand;
