@@ -10,6 +10,7 @@
 #include "triton-shared/Conversion/TritonArithToLinalg/TritonArithToLinalg.h"
 #include "triton-shared/Dialect/TritonStructured/IR/TritonStructuredDialect.h"
 #include "triton-shared/Dialect/TritonTilingExt/IR/TritonTilingExtDialect.h"
+#include "triton-shared/Utils/Utils.h"
 #include "triton/Dialect/Triton/IR/Dialect.h"
 
 #include "mlir/Dialect/Affine/IR/AffineOps.h"
@@ -123,7 +124,7 @@ public:
     target.addLegalOp<triton::FuncOp, triton::ReturnOp>();
 
     target.addDynamicallyLegalOp<triton::BitcastOp>([](triton::BitcastOp op) {
-      return isa<triton::PointerType>(op.getSrc().getType());
+      return triton::isPtrTypeLike(op.getType());
     });
 
     target.addDynamicallyLegalDialect<arith::ArithDialect, math::MathDialect>(

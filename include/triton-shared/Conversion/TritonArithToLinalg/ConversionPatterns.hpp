@@ -12,6 +12,7 @@
 #include "triton-shared/Analysis/OpFoldResultUtils.h"
 #include "triton-shared/Analysis/PtrAnalysis.h"
 #include "triton-shared/Dialect/TritonTilingExt/IR/TritonTilingExtDialect.h"
+#include "triton-shared/Utils/Utils.h"
 
 #include "triton/Dialect/Triton/IR/Dialect.h"
 
@@ -853,7 +854,7 @@ struct BitcastConverter : public OpConversionPattern<triton::BitcastOp> {
   matchAndRewrite(triton::BitcastOp op, OpAdaptor adaptor,
                   ConversionPatternRewriter &rewriter) const override {
     // arith::bitcast does not support casting pointers
-    if (isa<triton::PointerType>(op.getSrc().getType())) {
+    if (triton::isPtrTypeLike(op.getType())) {
       return failure();
     }
 
@@ -1577,7 +1578,7 @@ public:
     } else {
       return failure();
     }
-    
+
     auto loc = op.getLoc();
 
     auto elemTypes = op.getElementTypes();
