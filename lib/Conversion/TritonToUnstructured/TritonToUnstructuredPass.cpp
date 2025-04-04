@@ -264,6 +264,8 @@ public:
     });
 
     getOperation().walk([&](triton::IntToPtrOp op) {
+      // We only want to handle single source pointer,
+      // skip if this op produces tensor of pointers
       if (isa<RankedTensorType>(op.getType())) {
         return;
       }
@@ -599,8 +601,6 @@ public:
           "with tensor of offsets");
       return;
     }
-
-    return;
 
     PassManager pm(&getContext(), getOperation().getOperationName());
     pm.addPass(createCanonicalizerPass());
