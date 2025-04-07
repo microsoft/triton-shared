@@ -8,6 +8,7 @@
 #include "triton/Dialect/Triton/IR/Dialect.h"
 
 #include "triton-shared/Conversion/StructuredToMemref/StructuredToMemref.h"
+#include "triton-shared/Dialect/TPtr/IR/TPtrDialect.h"
 #include "triton-shared/Dialect/TritonStructured/IR/TritonStructuredDialect.h"
 #include "triton-shared/Dialect/TritonTilingExt/IR/TritonTilingExtDialect.h"
 
@@ -24,12 +25,7 @@
 #include "mlir/Dialect/Bufferization/IR/Bufferization.h"
 #include "mlir/Dialect/Linalg/IR/Linalg.h"
 #include "mlir/Dialect/SCF/Transforms/Patterns.h"
-#include "mlir/Pass/PassManager.h"
 #include "triton/Dialect/Triton/IR/Types.h"
-#include "llvm/ADT/STLExtras.h"
-#include "llvm/Support/Casting.h"
-
-#include <optional>
 
 #define DEBUG_TYPE "structured-to-memref"
 
@@ -45,67 +41,6 @@ namespace triton {
 
 namespace {
 
-class LoopTypeConverter : public TypeConverter {
-public:
-  LoopTypeConverter(MLIRContext *context) {
-    // The order of type conversion is important: later ones are tried earlier.
-    addConversion([](Type type) { return type; });
-    // addConversion([context](triton::PointerType ptrType) {
-    //   SmallVector<int64_t> strides{1};
-    //   auto layout =
-    //       StridedLayoutAttr::get(context, ShapedType::kDynamic, strides);
-
-    //   auto elemType = ptrType.getPointeeType();
-    //   auto memrefType = MemRefType::get({1}, elemType, layout);
-    //   return memrefType;
-    // });
-
-    // A tensor of pointers can be passed in as scf.for's init-args, in such
-    // cases, we convert the type to a memref with dynamic offsets and
-    // strides.
-    addConversion(
-        [context](RankedTensorType tensorType) -> std::optional<MemRefType> {
-          if (auto ptrType = llvm::dyn_cast<triton::PointerType>(
-                  tensorType.getElementType())) {
-            auto layout = StridedLayoutAttr::get(
-                context, ShapedType::kDynamic,
-                SmallVector<int64_t>(tensorType.getRank(),
-                                     ShapedType::kDynamic));
-            Type elemType = ptrType.getPointeeType();
-            return MemRefType::get(tensorType.getShape(), elemType, layout);
-          }
-
-          return std::nullopt;
-        });
-
-    // Convert the current memref type to a memref type with dynamic offsets and
-    // strides through another reinterpret_cast with the same offsets.
-    // Canonicalization will simplify this sequence by removing the inital
-    // reinterpret_cast.
-    addTargetMaterialization([&](OpBuilder &builder, MemRefType memrefType,
-                                 ValueRange inputs,
-                                 Location loc) -> Value {
-      auto reinterpretCast =
-          inputs[0].getDefiningOp<memref::ReinterpretCastOp>();
-      if (!reinterpretCast) {
-        return builder
-            .create<UnrealizedConversionCastOp>(loc, memrefType, inputs)
-            .getResult(0);
-      }
-      return builder.create<memref::ReinterpretCastOp>(
-          loc, memrefType, inputs[0], reinterpretCast.getMixedOffsets()[0],
-          reinterpretCast.getMixedSizes(), reinterpretCast.getMixedStrides());
-    });
-
-    addSourceMaterialization([&](OpBuilder &builder, Type resultType,
-                                 ValueRange inputs,
-                                 Location loc) -> Value {
-      return builder.create<UnrealizedConversionCastOp>(loc, resultType, inputs)
-          .getResult(0);
-    });
-  }
-};
-
 class PtrToUnrankedMemrefConverter : public TypeConverter {
 public:
   PtrToUnrankedMemrefConverter() {
@@ -120,6 +55,13 @@ public:
       return builder.create<UnrealizedConversionCastOp>(loc, resultType, inputs)
           .getResult(0);
     });
+
+    addSourceMaterialization([&](OpBuilder &builder, Type resultType,
+                                 ValueRange inputs,
+                                 Location loc) -> Value {
+      return builder.create<UnrealizedConversionCastOp>(loc, resultType, inputs)
+          .getResult(0);
+    });
   }
 };
 
@@ -129,11 +71,12 @@ class StructuredToMemrefPass
 
 public:
   void getDependentDialects(DialectRegistry &registry) const override {
-    registry.insert<func::FuncDialect, arith::ArithDialect, math::MathDialect,
-                    linalg::LinalgDialect, affine::AffineDialect,
-                    scf::SCFDialect, tensor::TensorDialect,
-                    bufferization::BufferizationDialect, triton::TritonDialect,
-                    ttx::TritonTilingExtDialect, memref::MemRefDialect>();
+    registry
+        .insert<tptr::TPtrDialect, func::FuncDialect, arith::ArithDialect,
+                math::MathDialect, linalg::LinalgDialect, affine::AffineDialect,
+                scf::SCFDialect, tensor::TensorDialect,
+                bufferization::BufferizationDialect, triton::TritonDialect,
+                ttx::TritonTilingExtDialect, memref::MemRefDialect>();
   }
 
   void runOnOperation() override {
@@ -157,11 +100,6 @@ public:
 
     triton::populateStructuredToMemrefConversionPatterns(patterns,
                                                          typeConverter);
-
-    LoopTypeConverter loopTypeConverter(patterns.getContext());
-
-    mlir::scf::populateSCFStructuralTypeConversionsAndLegality(
-        loopTypeConverter, patterns, target);
 
     if (failed(applyPartialConversion(moduleOp, target, std::move(patterns)))) {
       signalPassFailure();
