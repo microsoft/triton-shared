@@ -158,10 +158,9 @@ public:
     }
 
     if (addptrToLinalg) {
-      target.addDynamicallyLegalOp<triton::AddPtrOp>(
-          [](auto op) {
-            return !isa<ShapedType>(op->getOperands()[0].getType());
-          });
+      target.addDynamicallyLegalOp<triton::AddPtrOp>([](auto op) {
+        return !isa<ShapedType>(op->getOperands()[0].getType());
+      });
     }
 
     // TODO: Might want to consolidate this flag with addptrToLinalg later.
