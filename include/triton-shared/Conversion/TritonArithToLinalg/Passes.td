@@ -14,6 +14,8 @@ def TritonArithToLinalg : Pass<"triton-arith-to-linalg", "mlir::ModuleOp"> {
              "Convert tt.addptr on tensors to linalg">,
       Option<"assertToCf", "assert-to-cf", "bool", /*default*/"true",
              "Convert tt.assert to cf.assert">,
+      Option<"tensorPtrToLinalg", "tensor-ptr-to-linalg", "bool", /*default*/"false",
+             "Convert triton ops on tensor of pointers to linalg.generic">,
   ];
 }
 

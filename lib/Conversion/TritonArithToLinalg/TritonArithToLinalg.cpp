@@ -40,6 +40,14 @@ void mlir::triton::populateTritonArithToLinalgCanonicalizationPatterns(
       patterns.getContext());
 }
 
+void mlir::triton::populateTritonTensorPtrConversionPatterns(
+    RewritePatternSet &patterns) {
+  patterns.add<StorePtrToLinalgConverter, TensorOpConverter<triton::LoadOp>,
+               TensorOpConverter<triton::IntToPtrOp>,
+               TensorOpConverter<triton::PtrToIntOp>,
+               TensorOpConverter<triton::BitcastOp>>(patterns.getContext());
+}
+
 void mlir::triton::populateTritonArithToLinalgConversionPatterns(
     bool pidsToFuncArgs, bool addptrToLinalg, bool assertToCf,
     RewritePatternSet &patterns) {
