@@ -70,6 +70,21 @@ public:
   }
 };
 
+struct BitcastConverter : public OpConversionPattern<triton::BitcastOp> {
+  using OpConversionPattern<triton::BitcastOp>::OpConversionPattern;
+
+  LogicalResult
+  matchAndRewrite(triton::BitcastOp op, OpAdaptor adaptor,
+                  ConversionPatternRewriter &rewriter) const override {
+    if (!isa<triton::PointerType>(op.getSrc().getType())) {
+      return failure();
+    }
+
+    rewriter.replaceAllOpUsesWith(op, adaptor.getSrc());
+    return success();
+  }
+};
+
 class TritonPtrToMemrefPass
     : public TritonPtrToMemrefBase<TritonPtrToMemrefPass> {
 
@@ -99,11 +114,17 @@ public:
              typeConverter.isLegal(op.getOperandTypes());
     });
 
+    target.addDynamicallyLegalOp<triton::BitcastOp>(
+        [&](auto op) { return typeConverter.isLegal(op); });
+    target.addLegalOp<UnrealizedConversionCastOp>();
+
     populateFunctionOpInterfaceTypeConversionPattern<func::FuncOp>(
         patterns, typeConverter);
     populateFunctionOpInterfaceTypeConversionPattern<triton::FuncOp>(
         patterns, typeConverter);
     populateCallOpTypeConversionPattern(patterns, typeConverter);
+
+    patterns.add<BitcastConverter>(typeConverter, &getContext());
 
     if (failed(applyPartialConversion(moduleOp, target, std::move(patterns)))) {
       signalPassFailure();
