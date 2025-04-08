@@ -67,29 +67,6 @@ namespace {
 #define GEN_PASS_DEF_TRITONTOPTR
 #include "triton-shared/Conversion/TritonToLinalgExperimental/Passes.h.inc"
 
-struct TensorExtractConverter : public OpConversionPattern<tensor::ExtractOp> {
-  using OpConversionPattern<tensor::ExtractOp>::OpConversionPattern;
-
-  TensorExtractConverter(const TypeConverter &typeConverter,
-                         MLIRContext *context)
-      : OpConversionPattern<tensor::ExtractOp>(typeConverter, context) {}
-
-  LogicalResult
-  matchAndRewrite(tensor::ExtractOp op, OpAdaptor adaptor,
-                  ConversionPatternRewriter &rewriter) const override {
-    auto in = op.getTensor();
-    if (!isa<triton::PointerType>(in.getType().getElementType())) {
-      return failure();
-    }
-    IRMapping map;
-    map.map(op.getTensor(), adaptor.getTensor());
-    auto newExtract = rewriter.clone(*op, map);
-    newExtract->getResult(0).setType(ptr::PtrType::get(rewriter.getContext()));
-    rewriter.replaceOp(op, newExtract);
-    return success();
-  }
-};
-
 // Convert tensor.empty with !tt.ptr to tensor.empty with !ptr.ptr
 struct EmptyTensorConverter : public OpConversionPattern<tensor::EmptyOp> {
   using OpConversionPattern<tensor::EmptyOp>::OpConversionPattern;
@@ -476,16 +453,14 @@ public:
       return !triton::isPtrTypeLike(ptrType);
     });
 
-    target.addDynamicallyLegalOp<
-        linalg::FillOp, linalg::GenericOp, linalg::YieldOp, tensor::ExtractOp,
-        tensor::EmptyOp, tensor::ExpandShapeOp, arith::SelectOp>([](auto op) {
-      return llvm::all_of(
-          llvm::concat<Value>(op->getOperands(), op->getResults()),
-          [&](Value v) {
-            return !triton::isPtrTypeLike(v.getType()) ||
-                   triton::isTensorPointerType(v.getType());
-          });
-    });
+    target.addDynamicallyLegalOp<linalg::FillOp, linalg::GenericOp,
+                                 linalg::YieldOp, tensor::EmptyOp,
+                                 tensor::ExpandShapeOp, arith::SelectOp>(
+        [](auto op) {
+          return llvm::all_of(
+              llvm::concat<Value>(op->getOperands(), op->getResults()),
+              [&](Value v) { return !triton::isPtrTypeLike(v.getType()); });
+        });
 
     target.addLegalDialect<arith::ArithDialect, linalg::LinalgDialect,
                            tensor::TensorDialect, affine::AffineDialect,
@@ -493,10 +468,10 @@ public:
 
     patterns
         .add<AddPtrConverter, BitCastConverter, StoreConverter, LoadConverter,
-             PtrToIntConverter, IntToPtrConverter, /*TensorExtractConverter,*/
-             ExpandShapeConverter, SelectOpConverter, EmptyTensorConverter,
-             LinalgFillPtrConverter, LinalgPtrConverter, LinalgYieldConverter>(
-            typeConverter, patterns.getContext());
+             PtrToIntConverter, IntToPtrConverter, ExpandShapeConverter,
+             SelectOpConverter, EmptyTensorConverter, LinalgFillPtrConverter,
+             LinalgPtrConverter, LinalgYieldConverter>(typeConverter,
+                                                       patterns.getContext());
 
     mlir::scf::populateSCFStructuralTypeConversionsAndLegality(
         typeConverter, patterns, target);
