@@ -20,7 +20,11 @@ void populateTritonArithToLinalgConversionPatterns(bool pidsToFuncArgs,
                                                    bool assertToCf,
                                                    RewritePatternSet &patterns);
 
-std::unique_ptr<OperationPass<ModuleOp>> createTritonArithToLinalgPass();
+// Expand the triton pointer ops operating on pointers to linalg
+void populateTritonTensorPtrConversionPatterns(RewritePatternSet &patterns);
+
+std::unique_ptr<OperationPass<ModuleOp>>
+createTritonArithToLinalgPass(bool tensorPtrToLinalg = false);
 
 } // namespace triton
 } // namespace mlir

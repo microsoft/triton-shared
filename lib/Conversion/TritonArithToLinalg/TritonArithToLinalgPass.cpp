@@ -163,6 +163,16 @@ public:
       });
     }
 
+    // TODO: Might want to consolidate this flag with addptrToLinalg later.
+    if (tensorPtrToLinalg) {
+      target.addDynamicallyLegalOp<triton::LoadOp, triton::StoreOp,
+                                   triton::BitcastOp, triton::IntToPtrOp,
+                                   triton::PtrToIntOp>([](auto op) {
+        return !isa<ShapedType>(op->getOperands()[0].getType());
+      });
+      populateTritonTensorPtrConversionPatterns(patterns);
+    }
+
     if (!assertToCf) {
       target.addLegalOp<triton::AssertOp>();
     }
@@ -226,6 +236,8 @@ public:
 } // namespace
 
 std::unique_ptr<OperationPass<ModuleOp>>
-triton::createTritonArithToLinalgPass() {
-  return std::make_unique<TritonArithToLinalgPass>();
+triton::createTritonArithToLinalgPass(bool tensorPtrToLinalg) {
+  TritonArithToLinalgOptions options;
+  options.tensorPtrToLinalg = tensorPtrToLinalg;
+  return std::make_unique<TritonArithToLinalgPass>(options);
 }
