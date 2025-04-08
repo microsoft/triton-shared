@@ -39,13 +39,53 @@ module {
   }
 }
 
-// CHECK: tt.addptr %in, %in_0 : !tt.ptr<i32>, i32
-// CHECK: tt.load %in : !tt.ptr<i32>
-// CHECK: tt.int_to_ptr %in : i64 -> !tt.ptr<i32>
-// CHECK: tt.load %in : !tt.ptr<i32>
-// CHECK: tt.addptr %in, %in_0 : !tt.ptr<i32>, i32
-// CHECK: tt.ptr_to_int %in : !tt.ptr<i32> -> i64
-// CHECK: tt.bitcast %in : !tt.ptr<i32> -> !tt.ptr<i64>
-// CHECK: tt.addptr %in, %in_0 : !tt.ptr<i64>, i32
-// CHECK: tt.bitcast %in : !tt.ptr<i64> -> !tt.ptr<i32>
-// CHECK: tt.store %in, %in_0 : !tt.ptr<i32>
+// CHECK:  linalg.generic {indexing_maps = [#map, #map, #map], iterator_types = ["parallel"]}
+// CHECK:           ^bb0([[in0:%.+]]: !tt.ptr<i32>, [[in1:%.+]]: i32, [[IN_3_:%.+]]: !tt.ptr<i32>):
+// CHECK:             [[res:%.+]] = tt.addptr [[in0]], [[in1]] : !tt.ptr<i32>, i32
+// CHECK:             linalg.yield [[res]] : !tt.ptr<i32>
+// CHECK:           } -> tensor<16x!tt.ptr<i32>>
+// CHECK:  linalg.generic {indexing_maps = [#map, #map], iterator_types = ["parallel"]}
+// CHECK:           ^bb0([[in0:%.+]]: !tt.ptr<i32>, [[in1:%.+]]: i32):
+// CHECK:             [[res:%.+]] = tt.load [[in0]] : !tt.ptr<i32>
+// CHECK:             linalg.yield [[res]] : i32
+// CHECK:           } -> tensor<16xi32>
+// CHECK:  linalg.generic {indexing_maps = [#map, #map], iterator_types = ["parallel"]}
+// CHECK:           ^bb0([[in0:%.+]]: i64, [[in1:%.+]]: !tt.ptr<i32>):
+// CHECK:             [[res:%.+]] = tt.int_to_ptr [[in0]] : i64 -> !tt.ptr<i32>
+// CHECK:             linalg.yield [[res]] : !tt.ptr<i32>
+// CHECK:           } -> tensor<16x!tt.ptr<i32>>
+// CHECK:  linalg.generic {indexing_maps = [#map, #map], iterator_types = ["parallel"]}
+// CHECK:           ^bb0([[in0:%.+]]: !tt.ptr<i32>, [[in1:%.+]]: i32):
+// CHECK:             [[res:%.+]] = tt.load [[in0]] : !tt.ptr<i32>
+// CHECK:             linalg.yield [[res]] : i32
+// CHECK:           } -> tensor<16xi32>
+// CHECK:  linalg.generic {indexing_maps = [#map, #map, #map], iterator_types = ["parallel"]}
+// CHECK:           ^bb0([[in0:%.+]]: !tt.ptr<i32>, [[in1:%.+]]: i32, [[IN_14_:%.+]]: !tt.ptr<i32>):
+// CHECK:             [[res:%.+]] = tt.addptr [[in0]], [[in1]] : !tt.ptr<i32>, i32
+// CHECK:             linalg.yield [[res]] : !tt.ptr<i32>
+// CHECK:           } -> tensor<16x!tt.ptr<i32>>
+// CHECK:  linalg.generic {indexing_maps = [#map, #map], iterator_types = ["parallel"]}
+// CHECK:           ^bb0([[in0:%.+]]: !tt.ptr<i32>, [[in1:%.+]]: i64):
+// CHECK:             [[res:%.+]] = tt.ptr_to_int [[in0]] : !tt.ptr<i32> -> i64
+// CHECK:             linalg.yield [[res]] : i64
+// CHECK:           } -> tensor<16xi64>
+// CHECK:  linalg.generic {indexing_maps = [#map, #map], iterator_types = ["parallel"]}
+// CHECK:           ^bb0([[in0:%.+]]: !tt.ptr<i32>, [[in1:%.+]]: !tt.ptr<i64>):
+// CHECK:             [[res:%.+]] = tt.bitcast [[in0]] : !tt.ptr<i32> -> !tt.ptr<i64>
+// CHECK:             linalg.yield [[res]] : !tt.ptr<i64>
+// CHECK:           } -> tensor<16x!tt.ptr<i64>>
+// CHECK:  linalg.generic {indexing_maps = [#map, #map, #map], iterator_types = ["parallel"]}
+// CHECK:           ^bb0([[in0:%.+]]: !tt.ptr<i64>, [[in1:%.+]]: i32, [[IN_26_:%.+]]: !tt.ptr<i64>):
+// CHECK:             [[res:%.+]] = tt.addptr [[in0]], [[in1]] : !tt.ptr<i64>, i32
+// CHECK:             linalg.yield [[res]] : !tt.ptr<i64>
+// CHECK:           } -> tensor<16x!tt.ptr<i64>>
+// CHECK:  linalg.generic {indexing_maps = [#map, #map], iterator_types = ["parallel"]}
+// CHECK:           ^bb0([[in0:%.+]]: !tt.ptr<i64>, [[in1:%.+]]: !tt.ptr<i32>):
+// CHECK:             [[res:%.+]] = tt.bitcast [[in0]] : !tt.ptr<i64> -> !tt.ptr<i32>
+// CHECK:             linalg.yield [[res]] : !tt.ptr<i32>
+// CHECK:           } -> tensor<16x!tt.ptr<i32>>
+// CHECK:           linalg.generic
+// CHECK:           ^bb0([[in0:%.+]]: !tt.ptr<i32>, [[in1:%.+]]: i32):
+// CHECK:             tt.store [[in0]], [[in1]] : !tt.ptr<i32>
+// CHECK:             linalg.yield
+// CHECK:           }

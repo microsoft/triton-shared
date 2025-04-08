@@ -158,8 +158,8 @@ public:
     }
 
     if (addptrToLinalg) {
-      target.addDynamicallyLegalOp<triton::AddPtrOp>([](auto op) {
-        return !isa<ShapedType>(op->getOperands()[0].getType());
+      target.addDynamicallyLegalOp<triton::AddPtrOp>([](triton::AddPtrOp op) {
+        return !isa<ShapedType>(op.getResult().getType());
       });
     }
 
