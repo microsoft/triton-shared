@@ -77,10 +77,8 @@ struct EmptyTensorConverter : public OpConversionPattern<tensor::EmptyOp> {
   LogicalResult
   matchAndRewrite(tensor::EmptyOp op, OpAdaptor adaptor,
                   ConversionPatternRewriter &rewriter) const override {
-    auto newEmptyOp = rewriter.create<tensor::EmptyOp>(
-        op->getLoc(), op.getType().getShape(),
-        ptr::PtrType::get(rewriter.getContext()));
-    rewriter.replaceOp(op, newEmptyOp);
+    rewriter.replaceOpWithNewOp<tensor::EmptyOp>(
+        op, op.getType().getShape(), ptr::PtrType::get(rewriter.getContext()));
     return success();
   }
 };
@@ -98,10 +96,9 @@ struct ExpandShapeConverter
   LogicalResult
   matchAndRewrite(tensor::ExpandShapeOp op, OpAdaptor adaptor,
                   ConversionPatternRewriter &rewriter) const override {
-    auto newExpandShapeOp = rewriter.create<tensor::ExpandShapeOp>(
-        op->getLoc(), getTypeConverter()->convertType(op.getType()),
-        adaptor.getSrc(), op.getReassociationExprs());
-    rewriter.replaceOp(op, newExpandShapeOp);
+    rewriter.replaceOpWithNewOp<tensor::ExpandShapeOp>(
+        op, getTypeConverter()->convertType(op.getType()), adaptor.getSrc(),
+        op.getReassociationExprs());
     return success();
   }
 };
@@ -116,11 +113,10 @@ struct SelectOpConverter : public OpConversionPattern<arith::SelectOp> {
   LogicalResult
   matchAndRewrite(arith::SelectOp op, OpAdaptor adaptor,
                   ConversionPatternRewriter &rewriter) const override {
-    auto newSelectOp = rewriter.create<arith::SelectOp>(
-        op->getLoc(), getTypeConverter()->convertType(op.getType()),
+    rewriter.replaceOpWithNewOp<arith::SelectOp>(
+        op, getTypeConverter()->convertType(op.getType()),
         adaptor.getCondition(), adaptor.getTrueValue(),
         adaptor.getFalseValue());
-    rewriter.replaceOp(op, newSelectOp);
     return success();
   }
 };
@@ -167,10 +163,9 @@ struct AddPtrConverter : public OpConversionPattern<triton::AddPtrOp> {
         rewriter.create<tptr::TypeOffsetOp>(loc, offsetType, pointeeType);
     auto scaledOffset =
         rewriter.create<arith::MulIOp>(loc, op.getOffset(), pointeeSizeInBytes);
-    auto add = rewriter.create<tptr::PtrAddOp>(
-        loc, ptr::PtrType::get(rewriter.getContext()), adaptor.getPtr(),
+    rewriter.replaceOpWithNewOp<tptr::PtrAddOp>(
+        op, ptr::PtrType::get(rewriter.getContext()), adaptor.getPtr(),
         scaledOffset);
-    rewriter.replaceOp(op, add);
     return success();
   }
 };
@@ -284,9 +279,8 @@ struct PtrToIntConverter : public OpConversionPattern<triton::PtrToIntOp> {
     if (isa<ShapedType>(op.getType())) {
       return failure();
     }
-    auto replacement = rewriter.create<tptr::PtrToIntOp>(
-        op->getLoc(), op.getType(), adaptor.getSrc());
-    rewriter.replaceOp(op, replacement);
+    rewriter.replaceOpWithNewOp<tptr::PtrToIntOp>(op, op.getType(),
+                                                  adaptor.getSrc());
     return success();
   }
 };
@@ -304,10 +298,8 @@ struct IntToPtrConverter : public OpConversionPattern<triton::IntToPtrOp> {
     if (isa<ShapedType>(op.getType())) {
       return failure();
     }
-    auto replacement = rewriter.create<tptr::IntToPtrOp>(
-        op->getLoc(), ptr::PtrType::get(rewriter.getContext()),
-        adaptor.getSrc());
-    rewriter.replaceOp(op, replacement);
+    rewriter.replaceOpWithNewOp<tptr::IntToPtrOp>(
+        op, ptr::PtrType::get(rewriter.getContext()), adaptor.getSrc());
     return success();
   }
 };
@@ -368,9 +360,7 @@ struct LinalgYieldConverter : public OpConversionPattern<linalg::YieldOp> {
   LogicalResult
   matchAndRewrite(linalg::YieldOp op, OpAdaptor adaptor,
                   ConversionPatternRewriter &rewriter) const override {
-    auto newYield =
-        rewriter.create<linalg::YieldOp>(op->getLoc(), adaptor.getOperands());
-    rewriter.replaceOp(op, newYield);
+    rewriter.replaceOpWithNewOp<linalg::YieldOp>(op, adaptor.getOperands());
     return success();
   }
 };
@@ -387,14 +377,8 @@ struct LinalgFillPtrConverter : public OpConversionPattern<linalg::FillOp> {
   LogicalResult
   matchAndRewrite(linalg::FillOp op, OpAdaptor adaptor,
                   ConversionPatternRewriter &rewriter) const override {
-
-    auto loc = op.getLoc();
-    auto replacement = rewriter
-                           .create<linalg::FillOp>(loc, adaptor.getInputs(),
-                                                   adaptor.getOutputs())
-                           .result();
-
-    rewriter.replaceOp(op, replacement);
+    rewriter.replaceOpWithNewOp<linalg::FillOp>(op, adaptor.getInputs(),
+                                                adaptor.getOutputs());
     return success();
   }
 };

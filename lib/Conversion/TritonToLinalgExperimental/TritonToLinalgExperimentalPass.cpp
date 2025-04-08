@@ -57,8 +57,17 @@ public:
     pm.addPass(createCanonicalizerPass());
 
     pm.addPass(createTritonToUnstructuredPass());
-    pm.addPass(createTritonArithToLinalgPass(true /*tensorPtrToLinalg*/));
+    pm.addPass(createTritonArithToLinalgPass(/*tensorPtrToLinalg=*/true));
 
+    // TODO: structured-to-memref converts the loop iter-args to memref, while
+    // triton-to-ptr converts the loop iter-args to ptr. These two passes might
+    // end up conflicting with each other in cases where we have a mixed of
+    // structured and unstructured accesses. Fortunately, the structured ops do
+    // not need to use the loop iter-args at all (see code in PtrAnalysis.cpp),
+    // so if we run remove-dead-values after structured-to-memref, the memref
+    // iter-args that are used in structured loads and stores should be removed.
+    // Running this now may be too invasive and cause many IR changes, so
+    // leave as a TODO for now.
     pm.addPass(createStructuredToMemrefPass());
     pm.addPass(createUnstructuredToMemrefPass());
     pm.addPass(createTritonPtrToMemrefPass());
