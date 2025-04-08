@@ -15,4 +15,9 @@ def TritonToLinalgExperimental : Pass<"triton-to-linalg-experimental", "mlir::Mo
   let constructor = "triton::createTritonToLinalgExperimentalPass()";
 }
 
+def TritonToPtr : Pass<"triton-to-ptr", "mlir::ModuleOp"> {
+  let summary = "Convert Triton ops on pointers to the Ptr dialect";
+  let constructor = "triton::createTritonToPtrPass()";
+}
+
 #endif
