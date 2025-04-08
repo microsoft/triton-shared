@@ -4,6 +4,20 @@
 // Licensed under the MIT license.
 //
 //===----------------------------------------------------------------------===//
+// This pass lowers all triton ops on pointer to their equivalent form in the
+// proposed Pointer Dialect:
+// https://discourse.llvm.org/t/rfc-ptr-dialect-modularizing-ptr-ops-in-the-llvm-dialect/75142
+//
+// This pass is intended to be used after all running
+// triton-arith-to-linalg="tensor-ptr-to-linalg=true".
+// All triton ops on tensors of pointers are expected to have been lowered to
+// linalg ops, and that only triton ops on single pointers remain.
+//
+// Implementation notes:
+// Because triton pointers are typed whereas the !ptr.ptr type isn't. The
+// lowering for addptr will have to manually scale the offsets by pointee type.
+// As a result, bitcasts are no-op after this pass.
+//===----------------------------------------------------------------------===//
 
 #include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/Func/Transforms/FuncConversions.h"
@@ -53,6 +67,107 @@ namespace {
 #define GEN_PASS_DEF_TRITONTOPTR
 #include "triton-shared/Conversion/TritonToLinalgExperimental/Passes.h.inc"
 
+struct TensorExtractConverter : public OpConversionPattern<tensor::ExtractOp> {
+  using OpConversionPattern<tensor::ExtractOp>::OpConversionPattern;
+
+  TensorExtractConverter(const TypeConverter &typeConverter,
+                         MLIRContext *context)
+      : OpConversionPattern<tensor::ExtractOp>(typeConverter, context) {}
+
+  LogicalResult
+  matchAndRewrite(tensor::ExtractOp op, OpAdaptor adaptor,
+                  ConversionPatternRewriter &rewriter) const override {
+    auto in = op.getTensor();
+    if (!isa<triton::PointerType>(in.getType().getElementType())) {
+      return failure();
+    }
+    IRMapping map;
+    map.map(op.getTensor(), adaptor.getTensor());
+    auto newExtract = rewriter.clone(*op, map);
+    newExtract->getResult(0).setType(ptr::PtrType::get(rewriter.getContext()));
+    rewriter.replaceOp(op, newExtract);
+    return success();
+  }
+};
+
+// Convert tensor.empty with !tt.ptr to tensor.empty with !ptr.ptr
+struct EmptyTensorConverter : public OpConversionPattern<tensor::EmptyOp> {
+  using OpConversionPattern<tensor::EmptyOp>::OpConversionPattern;
+
+  EmptyTensorConverter(const TypeConverter &typeConverter, MLIRContext *context)
+      : OpConversionPattern<tensor::EmptyOp>(typeConverter, context) {}
+
+  LogicalResult
+  matchAndRewrite(tensor::EmptyOp op, OpAdaptor adaptor,
+                  ConversionPatternRewriter &rewriter) const override {
+    auto newEmptyOp = rewriter.create<tensor::EmptyOp>(
+        op->getLoc(), op.getType().getShape(),
+        ptr::PtrType::get(rewriter.getContext()));
+    rewriter.replaceOp(op, newEmptyOp);
+    return success();
+  }
+};
+
+// This expand shape op must have been lowered from tt.expand_dims which could
+// operate on tensor of pointers.
+// Convert expand shape op to operate on !ptr.ptr instead of !tt.ptr.
+struct ExpandShapeConverter
+    : public OpConversionPattern<tensor::ExpandShapeOp> {
+  using OpConversionPattern<tensor::ExpandShapeOp>::OpConversionPattern;
+
+  ExpandShapeConverter(const TypeConverter &typeConverter, MLIRContext *context)
+      : OpConversionPattern<tensor::ExpandShapeOp>(typeConverter, context) {}
+
+  LogicalResult
+  matchAndRewrite(tensor::ExpandShapeOp op, OpAdaptor adaptor,
+                  ConversionPatternRewriter &rewriter) const override {
+    auto newExpandShapeOp = rewriter.create<tensor::ExpandShapeOp>(
+        op->getLoc(), getTypeConverter()->convertType(op.getType()),
+        adaptor.getSrc(), op.getReassociationExprs());
+    rewriter.replaceOp(op, newExpandShapeOp);
+    return success();
+  }
+};
+
+// arith.select could operate on triton pointers. Convert to use !ptr.ptr
+struct SelectOpConverter : public OpConversionPattern<arith::SelectOp> {
+  using OpConversionPattern<arith::SelectOp>::OpConversionPattern;
+
+  SelectOpConverter(const TypeConverter &typeConverter, MLIRContext *context)
+      : OpConversionPattern<arith::SelectOp>(typeConverter, context) {}
+
+  LogicalResult
+  matchAndRewrite(arith::SelectOp op, OpAdaptor adaptor,
+                  ConversionPatternRewriter &rewriter) const override {
+    auto newSelectOp = rewriter.create<arith::SelectOp>(
+        op->getLoc(), getTypeConverter()->convertType(op.getType()),
+        adaptor.getCondition(), adaptor.getTrueValue(),
+        adaptor.getFalseValue());
+    rewriter.replaceOp(op, newSelectOp);
+    return success();
+  }
+};
+
+// Convert bitcast which is a no-op because !ptr.ptr is opaque with no pointee
+// type.
+struct BitCastConverter : public OpConversionPattern<triton::BitcastOp> {
+  using OpConversionPattern<triton::BitcastOp>::OpConversionPattern;
+
+  BitCastConverter(const TypeConverter &typeConverter, MLIRContext *context)
+      : OpConversionPattern<triton::BitcastOp>(typeConverter, context) {}
+
+  LogicalResult
+  matchAndRewrite(triton::BitcastOp op, OpAdaptor adaptor,
+                  ConversionPatternRewriter &rewriter) const override {
+    if (isa<ShapedType>(op.getType())) {
+      return failure();
+    }
+    // Bitcast is a no-op, simply forward the src
+    rewriter.replaceOp(op, adaptor.getSrc());
+    return success();
+  }
+};
+
 // Convert tt.addptr to ptr.ptradd. Since the !ptr.ptr type is opaque, we scale
 // the offset explicitly using type_offset op. This approach means that bitcast
 // is a no-op.
@@ -83,96 +198,9 @@ struct AddPtrConverter : public OpConversionPattern<triton::AddPtrOp> {
   }
 };
 
-// The linalg.yield op is still yielding the original !tt.ptr results, convert
-// them to use the new !ptr.ptr results
-struct LinalgYieldConverter : public OpConversionPattern<linalg::YieldOp> {
-  using OpConversionPattern<linalg::YieldOp>::OpConversionPattern;
-
-  LinalgYieldConverter(const TypeConverter &typeConverter, MLIRContext *context)
-      : OpConversionPattern<linalg::YieldOp>(typeConverter, context) {}
-
-  LogicalResult
-  matchAndRewrite(linalg::YieldOp op, OpAdaptor adaptor,
-                  ConversionPatternRewriter &rewriter) const override {
-    auto newYield =
-        rewriter.create<linalg::YieldOp>(op->getLoc(), adaptor.getOperands());
-    rewriter.replaceOp(op, newYield);
-    return success();
-  }
-};
-
-// Convert tensor.empty with !tt.ptr to tensor.empty with !ptr.ptr
-struct EmptyTensorConverter : public OpConversionPattern<tensor::EmptyOp> {
-  using OpConversionPattern<tensor::EmptyOp>::OpConversionPattern;
-
-  EmptyTensorConverter(const TypeConverter &typeConverter, MLIRContext *context)
-      : OpConversionPattern<tensor::EmptyOp>(typeConverter, context) {}
-
-  LogicalResult
-  matchAndRewrite(tensor::EmptyOp op, OpAdaptor adaptor,
-                  ConversionPatternRewriter &rewriter) const override {
-    auto newEmptyOp = rewriter.create<tensor::EmptyOp>(
-        op->getLoc(), op.getType().getShape(),
-        ptr::PtrType::get(rewriter.getContext()));
-    rewriter.replaceOp(op, newEmptyOp);
-    return success();
-  }
-};
-
-struct ExpandShapeConverter
-    : public OpConversionPattern<tensor::ExpandShapeOp> {
-  using OpConversionPattern<tensor::ExpandShapeOp>::OpConversionPattern;
-
-  ExpandShapeConverter(const TypeConverter &typeConverter, MLIRContext *context)
-      : OpConversionPattern<tensor::ExpandShapeOp>(typeConverter, context) {}
-
-  LogicalResult
-  matchAndRewrite(tensor::ExpandShapeOp op, OpAdaptor adaptor,
-                  ConversionPatternRewriter &rewriter) const override {
-    auto newExpandShapeOp = rewriter.create<tensor::ExpandShapeOp>(
-        op->getLoc(), getTypeConverter()->convertType(op.getType()),
-        adaptor.getSrc(), op.getReassociationExprs());
-    rewriter.replaceOp(op, newExpandShapeOp);
-    return success();
-  }
-};
-
-struct SelectOpConverter : public OpConversionPattern<arith::SelectOp> {
-  using OpConversionPattern<arith::SelectOp>::OpConversionPattern;
-
-  SelectOpConverter(const TypeConverter &typeConverter, MLIRContext *context)
-      : OpConversionPattern<arith::SelectOp>(typeConverter, context) {}
-
-  LogicalResult
-  matchAndRewrite(arith::SelectOp op, OpAdaptor adaptor,
-                  ConversionPatternRewriter &rewriter) const override {
-    auto newSelectOp = rewriter.create<arith::SelectOp>(
-        op->getLoc(), getTypeConverter()->convertType(op.getType()),
-        adaptor.getCondition(), adaptor.getTrueValue(),
-        adaptor.getFalseValue());
-    rewriter.replaceOp(op, newSelectOp);
-    return success();
-  }
-};
-
-struct BitCastConverter : public OpConversionPattern<triton::BitcastOp> {
-  using OpConversionPattern<triton::BitcastOp>::OpConversionPattern;
-
-  BitCastConverter(const TypeConverter &typeConverter, MLIRContext *context)
-      : OpConversionPattern<triton::BitcastOp>(typeConverter, context) {}
-
-  LogicalResult
-  matchAndRewrite(triton::BitcastOp op, OpAdaptor adaptor,
-                  ConversionPatternRewriter &rewriter) const override {
-    if (isa<ShapedType>(op.getType())) {
-      return failure();
-    }
-    // Bitcast is a no-op, simply forward the src
-    rewriter.replaceOp(op, adaptor.getSrc());
-    return success();
-  }
-};
-
+// Convert tt.load which loads from a single pointer into a pair of
+// to_memref and memref.load op.
+// In the case of mask, the load is guarded by an scf.if
 struct LoadConverter : public OpConversionPattern<triton::LoadOp> {
   using OpConversionPattern<triton::LoadOp>::OpConversionPattern;
 
@@ -226,6 +254,9 @@ struct LoadConverter : public OpConversionPattern<triton::LoadOp> {
   }
 };
 
+// Convert tt.store which stores to a single pointer into a pair of
+// to_memref and memref.store op.
+// In the case of mask, the store is guarded by an scf.if
 struct StoreConverter : public OpConversionPattern<triton::StoreOp> {
   using OpConversionPattern<triton::StoreOp>::OpConversionPattern;
 
@@ -263,6 +294,7 @@ struct StoreConverter : public OpConversionPattern<triton::StoreOp> {
   }
 };
 
+// Convert tt.ptr_to_int to ptr.ptrtoint
 struct PtrToIntConverter : public OpConversionPattern<triton::PtrToIntOp> {
   using OpConversionPattern<triton::PtrToIntOp>::OpConversionPattern;
 
@@ -282,6 +314,31 @@ struct PtrToIntConverter : public OpConversionPattern<triton::PtrToIntOp> {
   }
 };
 
+// Convert tt.int_to_ptr to ptr.ptrtoint
+struct IntToPtrConverter : public OpConversionPattern<triton::IntToPtrOp> {
+  using OpConversionPattern<triton::IntToPtrOp>::OpConversionPattern;
+
+  IntToPtrConverter(const TypeConverter &typeConverter, MLIRContext *context)
+      : OpConversionPattern<triton::IntToPtrOp>(typeConverter, context) {}
+
+  LogicalResult
+  matchAndRewrite(triton::IntToPtrOp op, OpAdaptor adaptor,
+                  ConversionPatternRewriter &rewriter) const override {
+    if (isa<ShapedType>(op.getType())) {
+      return failure();
+    }
+    auto replacement = rewriter.create<tptr::IntToPtrOp>(
+        op->getLoc(), ptr::PtrType::get(rewriter.getContext()),
+        adaptor.getSrc());
+    rewriter.replaceOp(op, replacement);
+    return success();
+  }
+};
+
+// Convert a linalg op on triton pointer to use !ptr.ptr
+// The conversion infrastructrure will recursively handle the inner op
+// which could be either tt.load, tt.store, tt.bitcast, tt.int_to_ptr, and
+// tt.ptr_to_int and use their corresponding converters.
 struct LinalgPtrConverter : public OpConversionPattern<linalg::GenericOp> {
   using OpConversionPattern<linalg::GenericOp>::OpConversionPattern;
 
@@ -323,6 +380,26 @@ struct LinalgPtrConverter : public OpConversionPattern<linalg::GenericOp> {
   }
 };
 
+// The linalg.yield op is still yielding the original !tt.ptr results, convert
+// them to use the new !ptr.ptr results
+struct LinalgYieldConverter : public OpConversionPattern<linalg::YieldOp> {
+  using OpConversionPattern<linalg::YieldOp>::OpConversionPattern;
+
+  LinalgYieldConverter(const TypeConverter &typeConverter, MLIRContext *context)
+      : OpConversionPattern<linalg::YieldOp>(typeConverter, context) {}
+
+  LogicalResult
+  matchAndRewrite(linalg::YieldOp op, OpAdaptor adaptor,
+                  ConversionPatternRewriter &rewriter) const override {
+    auto newYield =
+        rewriter.create<linalg::YieldOp>(op->getLoc(), adaptor.getOperands());
+    rewriter.replaceOp(op, newYield);
+    return success();
+  }
+};
+
+// Convert linalg.fill to use !ptr.ptr. linalg.fill on triton pointer is lowered
+// from tt.splat on a triton pointer.
 struct LinalgFillPtrConverter : public OpConversionPattern<linalg::FillOp> {
   using OpConversionPattern<linalg::FillOp>::OpConversionPattern;
 
@@ -341,49 +418,6 @@ struct LinalgFillPtrConverter : public OpConversionPattern<linalg::FillOp> {
                            .result();
 
     rewriter.replaceOp(op, replacement);
-    return success();
-  }
-};
-
-struct IntToPtrConverter : public OpConversionPattern<triton::IntToPtrOp> {
-  using OpConversionPattern<triton::IntToPtrOp>::OpConversionPattern;
-
-  IntToPtrConverter(const TypeConverter &typeConverter, MLIRContext *context)
-      : OpConversionPattern<triton::IntToPtrOp>(typeConverter, context) {}
-
-  LogicalResult
-  matchAndRewrite(triton::IntToPtrOp op, OpAdaptor adaptor,
-                  ConversionPatternRewriter &rewriter) const override {
-    if (isa<ShapedType>(op.getType())) {
-      return failure();
-    }
-    auto storeOp = rewriter.create<tptr::IntToPtrOp>(
-        op->getLoc(), ptr::PtrType::get(rewriter.getContext()),
-        adaptor.getSrc());
-    rewriter.replaceOp(op, storeOp);
-    return success();
-  }
-};
-
-struct TensorExtractConverter : public OpConversionPattern<tensor::ExtractOp> {
-  using OpConversionPattern<tensor::ExtractOp>::OpConversionPattern;
-
-  TensorExtractConverter(const TypeConverter &typeConverter,
-                         MLIRContext *context)
-      : OpConversionPattern<tensor::ExtractOp>(typeConverter, context) {}
-
-  LogicalResult
-  matchAndRewrite(tensor::ExtractOp op, OpAdaptor adaptor,
-                  ConversionPatternRewriter &rewriter) const override {
-    auto in = op.getTensor();
-    if (!isa<triton::PointerType>(in.getType().getElementType())) {
-      return failure();
-    }
-    IRMapping map;
-    map.map(op.getTensor(), adaptor.getTensor());
-    auto newExtract = rewriter.clone(*op, map);
-    newExtract->getResult(0).setType(ptr::PtrType::get(rewriter.getContext()));
-    rewriter.replaceOp(op, newExtract);
     return success();
   }
 };
@@ -430,16 +464,27 @@ public:
     ConversionTarget target(getContext());
     TritonPtrTypeConverter typeConverter(&getContext());
 
-    target.addIllegalOp<triton::AddPtrOp, triton::BitcastOp, triton::LoadOp,
-                        triton::StoreOp, triton::IntToPtrOp,
+    target.addIllegalOp<triton::AddPtrOp, triton::BitcastOp, triton::IntToPtrOp,
                         triton::PtrToIntOp>();
+
+    // We do not want to lower triton load and store on block pointers
+    target.addDynamicallyLegalOp<triton::LoadOp, triton::StoreOp>([](auto op) {
+      auto ptrType = op->getOperand(0).getType();
+      if (triton::isTensorPointerType(ptrType)) {
+        return true;
+      }
+      return !triton::isPtrTypeLike(ptrType);
+    });
 
     target.addDynamicallyLegalOp<
         linalg::FillOp, linalg::GenericOp, linalg::YieldOp, tensor::ExtractOp,
         tensor::EmptyOp, tensor::ExpandShapeOp, arith::SelectOp>([](auto op) {
       return llvm::all_of(
           llvm::concat<Value>(op->getOperands(), op->getResults()),
-          [&](Value v) { return !triton::isPtrTypeLike(v.getType()); });
+          [&](Value v) {
+            return !triton::isPtrTypeLike(v.getType()) ||
+                   triton::isTensorPointerType(v.getType());
+          });
     });
 
     target.addLegalDialect<arith::ArithDialect, linalg::LinalgDialect,
@@ -448,7 +493,7 @@ public:
 
     patterns
         .add<AddPtrConverter, BitCastConverter, StoreConverter, LoadConverter,
-             PtrToIntConverter, IntToPtrConverter, TensorExtractConverter,
+             PtrToIntConverter, IntToPtrConverter, /*TensorExtractConverter,*/
              ExpandShapeConverter, SelectOpConverter, EmptyTensorConverter,
              LinalgFillPtrConverter, LinalgPtrConverter, LinalgYieldConverter>(
             typeConverter, patterns.getContext());
