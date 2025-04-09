@@ -14,7 +14,7 @@
 // to_memref or from_memref accordingly.
 //===----------------------------------------------------------------------===//
 
-#include "triton-shared/Conversion/TritonToLinalgExperimental/ReconcilePtrUnrealizedCasts.h"
+#include "triton-shared/Conversion/TritonToLinalgExperimental/ReconcilePtrCasts.h"
 #include "mlir/Conversion/ReconcileUnrealizedCasts/ReconcileUnrealizedCasts.h"
 #include "mlir/Dialect/Ptr/IR/PtrTypes.h"
 #include "mlir/IR/Builders.h"
@@ -140,8 +140,8 @@ struct ToMemrefConverter : public OpRewritePattern<UnrealizedConversionCastOp> {
   }
 };
 
-class ReconcilePtrUnrealizedCastsPass
-    : public ReconcilePtrUnrealizedCastsBase<ReconcilePtrUnrealizedCastsPass> {
+class ReconcilePtrCastsPass
+    : public ReconcilePtrCastsBase<ReconcilePtrCastsPass> {
 
 public:
   void getDependentDialects(DialectRegistry &registry) const override {
@@ -162,6 +162,6 @@ public:
 } // namespace
 
 std::unique_ptr<OperationPass<ModuleOp>>
-triton::createReconcilePtrUnrealizedCastsPass() {
-  return std::make_unique<ReconcilePtrUnrealizedCastsPass>();
+triton::createReconcilePtrCastsPass() {
+  return std::make_unique<ReconcilePtrCastsPass>();
 }

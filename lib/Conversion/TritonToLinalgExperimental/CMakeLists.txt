@@ -6,7 +6,7 @@
 
 add_triton_library(TritonToLinalgExperimental
   TritonToLinalgExperimentalPass.cpp
-  ReconcilePtrUnrealizedCasts.cpp
+  ReconcilePtrCasts.cpp
 
   DEPENDS
   TritonToLinalgExperimentalConversionPassIncGen

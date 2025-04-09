@@ -9,7 +9,7 @@
 #define TRITON_TO_LINALG_EXPERIMENTAL_CONVERSION_PASSES_H
 
 #include "triton-shared/Conversion/TritonToLinalgExperimental/TritonToLinalgExperimental.h"
-#include "triton-shared/Conversion/TritonToLinalgExperimental/ReconcilePtrUnrealizedCasts.h"
+#include "triton-shared/Conversion/TritonToLinalgExperimental/ReconcilePtrCasts.h"
 
 namespace mlir {
 namespace triton {
