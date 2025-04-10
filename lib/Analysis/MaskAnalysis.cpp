@@ -215,6 +215,31 @@ LogicalResult MaskState::addStates(const MaskState &lhsState,
     return addStateScalar(lhsState, rhsState.scalar, loc, builder);
 }
 
+LogicalResult MaskState::minStateScalar(const MaskState &lhsState,
+                                        const MaskState &rhsState, Location loc,
+                                        OpBuilder &builder) {
+  if (lhsState.scalar && rhsState.scalar) {
+    dims.push_back(minOFRs(lhsState.dims[0], rhsState.dims[0], loc, builder));
+  } else if (lhsState.scalar) {
+    for (uint32_t i = 0; i < rhsState.getRank(); i++) {
+      auto lhsDim = lhsState.dims[0];
+      auto rhsDim = rhsState.dims[i];
+      dims.push_back(minOFRs(lhsDim, rhsDim, loc, builder));
+    }
+  } else if (rhsState.scalar) {
+    for (uint32_t i = 0; i < lhsState.getRank(); i++) {
+      auto lhsDim = lhsState.dims[i];
+      auto rhsDim = rhsState.dims[0];
+      dims.push_back(minOFRs(lhsDim, rhsDim, loc, builder));
+    }
+  } else {
+    InFlightDiagnostic diag =
+        emitError(loc) << "Unexpected case where both lhs and rhs are not scalars";
+    return failure();
+  }
+  return success();
+}
+
 LogicalResult MaskState::minStates(const MaskState &lhsState,
                                    const MaskState &rhsState, Location loc,
                                    OpBuilder &builder) {
@@ -296,15 +321,16 @@ LogicalResult MaskState::parseAnd(arith::AndIOp andOp, const Location loc,
   assert(this->isEmpty());
 
   MaskState lhsState;
-  if (failed(lhsState.parse(andOp.getLhs(), loc, builder)) ||
-      !lhsState.isMask())
+  if (failed(lhsState.parse(andOp.getLhs(), loc, builder)))
     return failure();
 
   MaskState rhsState;
-  if (failed(rhsState.parse(andOp.getRhs(), loc, builder)) ||
-      !rhsState.isMask())
+  if (failed(rhsState.parse(andOp.getRhs(), loc, builder)))
     return failure();
 
+  if(!lhsState.isMask() || !rhsState.isMask()) {
+    return this->minStateScalar(lhsState, rhsState, loc, builder);
+  }
   return this->minStates(lhsState, rhsState, loc, builder);
 }
 
