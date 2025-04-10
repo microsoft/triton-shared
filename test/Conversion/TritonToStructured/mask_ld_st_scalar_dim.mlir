@@ -42,3 +42,33 @@ module {
 // CHECK:   %{{.*}} = "tts.load"(%{{.*}}, %{{.*}}) <{operandSegmentSizes = array<i32: 1, 1, 0>, static_mask_dims = array<i64: -9223372036854775808, 1>}> : (tensor<2x1x!tt.ptr<f32>>, index) -> tensor<2x1xf32>
 // CHECK:   "tts.store"(%{{.*}}, %{{.*}}, %{{.*}}) <{static_mask_dims = array<i64: -9223372036854775808, 1>}> : (tensor<2x1x!tt.ptr<f32>>, tensor<2x1xf32>, index) -> ()
 // CHECK:   "tts.store"(%{{.*}}, %{{.*}}, %{{.*}}) <{static_mask_dims = array<i64: -9223372036854775808, 1>}> : (tensor<2x1x!tt.ptr<f32>>, tensor<2x1xf32>, index) -> ()
+
+// Original Triton Function:
+// def test_masked_ld_st(
+//     W,
+//     X,
+//     M,
+//     N,
+//     K,
+//     w_stride,
+//     x_stride,
+//     BLOCK_TILE_M: tl.constexpr,
+//     BLOCK_TILE_N: tl.constexpr,
+//     BLOCK_TILE_K: tl.constexpr,
+// ):
+//     m_offs = tl.arange(0, BLOCK_TILE_M)
+//     m_mask = m_offs < M
+//     n_offs = tl.arange(0, BLOCK_TILE_N)
+//     n_mask = n_offs < N
+//     k_offs = tl.arange(0, BLOCK_TILE_K)
+//     k_mask = k_offs < K
+//     x_offset = n_offs[:, None] * x_stride + k_offs[None, :]
+//     x_ptr = X + x_offset
+//     x_mask = n_mask[:, None] & k_mask[None, :]
+//     x_tile = tl.load(x_ptr, mask=x_mask)
+//     w_offset = m_offs[:, None] * w_stride + k_offs[:, None]
+//     w_ptr = W + w_offset
+//     w_mask = m_mask[:, None] & k_mask[None, :]
+//     w_tile = tl.load(w_ptr, mask=w_mask)
+//     tl.store(x_ptr, x_tile, mask=x_mask)
+//     tl.store(w_ptr, w_tile, mask=w_mask)
