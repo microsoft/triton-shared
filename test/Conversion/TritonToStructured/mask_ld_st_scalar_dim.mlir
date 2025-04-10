@@ -1,4 +1,4 @@
-// RUN: %triton-opt --triton-to-structured --remove-dead-values --canonicalize %s | %FileCheck %s
+// RUN: triton-shared-opt --triton-to-structured --remove-dead-values --canonicalize %s | FileCheck %s
 
 module {
   tt.func @mask_ld_st_scalar(
