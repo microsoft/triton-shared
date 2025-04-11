@@ -9,6 +9,7 @@
 #include "triton-shared/Conversion/StructuredToMemref/StructuredToMemref.h"
 #include "triton-shared/Conversion/TritonArithToLinalg/TritonArithToLinalg.h"
 #include "triton-shared/Conversion/TritonPtrToMemref/TritonPtrToMemref.h"
+#include "triton-shared/Conversion/TritonToLinalgExperimental/ReconcilePtrCasts.h"
 #include "triton-shared/Conversion/TritonToLinalgExperimental/TritonToLinalgExperimental.h"
 #include "triton-shared/Conversion/TritonToLinalgExperimental/TritonToPtr.h"
 #include "triton-shared/Conversion/TritonToStructured/TritonToStructured.h"
@@ -73,6 +74,7 @@ public:
     pm.addPass(createTritonPtrToMemrefPass());
     pm.addPass(createTritonToPtrPass());
     pm.addPass(createReconcileUnrealizedCastsPass());
+    pm.addPass(createReconcilePtrCastsPass());
 
     pm.addPass(createCSEPass());
     pm.addPass(createCanonicalizerPass());

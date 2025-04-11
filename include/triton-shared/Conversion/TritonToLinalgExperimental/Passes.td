@@ -15,6 +15,11 @@ def TritonToLinalgExperimental : Pass<"triton-to-linalg-experimental", "mlir::Mo
   let constructor = "triton::createTritonToLinalgExperimentalPass()";
 }
 
+def ReconcilePtrCasts : Pass<"reconcile-ptr-casts", "mlir::ModuleOp"> {
+  let summary = "Convert unrealized_cast op between tt.ptr or ptr.ptr to memref to to_memref or from_memref";
+  let constructor = "triton::createReconcilePtrCastsPass()";
+}
+
 def TritonToPtr : Pass<"triton-to-ptr", "mlir::ModuleOp"> {
   let summary = "Convert Triton ops on pointers to the Ptr dialect";
   let constructor = "triton::createTritonToPtrPass()";
