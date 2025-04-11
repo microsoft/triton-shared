@@ -7,6 +7,7 @@
 add_triton_library(TritonToLinalgExperimental
   TritonToLinalgExperimentalPass.cpp
   ReconcilePtrCastsPass.cpp
+  TritonToPtrPass.cpp
 
   DEPENDS
   TritonToLinalgExperimentalConversionPassIncGen
@@ -24,6 +25,7 @@ add_triton_library(TritonToLinalgExperimental
   TritonIR
   TritonTransforms
   TritonSharedAnalysis
+  TritonSharedUtils
 
   TritonArithToLinalg
   StructuredToMemref

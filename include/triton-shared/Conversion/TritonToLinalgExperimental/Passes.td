@@ -20,4 +20,9 @@ def ReconcilePtrCasts : Pass<"reconcile-ptr-casts", "mlir::ModuleOp"> {
   let constructor = "triton::createReconcilePtrCastsPass()";
 }
 
+def TritonToPtr : Pass<"triton-to-ptr", "mlir::ModuleOp"> {
+  let summary = "Convert Triton ops on pointers to the Ptr dialect";
+  let constructor = "triton::createTritonToPtrPass()";
+}
+
 #endif
