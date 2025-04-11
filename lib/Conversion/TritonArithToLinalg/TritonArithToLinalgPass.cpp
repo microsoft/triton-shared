@@ -6,7 +6,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "mlir/Dialect/ControlFlow/IR/ControlFlow.h"
-#include "mlir/Dialect/ControlFlow/IR/ControlFlowOps.h"
+#include "mlir/IR/BuiltinTypeInterfaces.h"
 #include "triton-shared/Conversion/TritonArithToLinalg/TritonArithToLinalg.h"
 #include "triton-shared/Dialect/TritonStructured/IR/TritonStructuredDialect.h"
 #include "triton-shared/Dialect/TritonTilingExt/IR/TritonTilingExtDialect.h"
@@ -123,10 +123,6 @@ public:
 
     target.addLegalOp<triton::FuncOp, triton::ReturnOp>();
 
-    target.addDynamicallyLegalOp<triton::BitcastOp>([](triton::BitcastOp op) {
-      return triton::isPtrTypeLike(op.getType());
-    });
-
     target.addDynamicallyLegalDialect<arith::ArithDialect, math::MathDialect>(
         [](Operation *op) {
           // Lower dense constant to linalg.fill
@@ -163,13 +159,25 @@ public:
       });
     }
 
+    target.addDynamicallyLegalOp<triton::BitcastOp>(
+        [this](triton::BitcastOp op) {
+          if (!tensorPtrToLinalg) {
+            return triton::isPtrTypeLike(op.getType());
+          } else {
+            if (triton::isPtrTypeLike(op.getType())) {
+              return !isa<ShapedType>(op.getType());
+            }
+            return false;
+          }
+        });
+
     // TODO: Might want to consolidate this flag with addptrToLinalg later.
     if (tensorPtrToLinalg) {
       target.addDynamicallyLegalOp<triton::LoadOp, triton::StoreOp,
-                                   triton::BitcastOp, triton::IntToPtrOp,
-                                   triton::PtrToIntOp>([](auto op) {
-        return !isa<ShapedType>(op->getOperands()[0].getType());
-      });
+                                   triton::IntToPtrOp, triton::PtrToIntOp>(
+          [](auto op) {
+            return !isa<ShapedType>(op->getOperands()[0].getType());
+          });
       populateTritonTensorPtrConversionPatterns(patterns);
     }
 
