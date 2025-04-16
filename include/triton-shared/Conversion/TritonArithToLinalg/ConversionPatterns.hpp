@@ -888,8 +888,9 @@ struct CallConverter : public OpConversionPattern<triton::CallOp> {
 
           if (argsNeed > args.size()) {
             int missing = argsNeed - args.size();
+            int missingArgsStart = argsParent - missing;
             for (int i = 0; i < missing; i++) {
-              args.push_back(parentInputs[args.size()]);
+              args.push_back(parentInputs[missingArgsStart + i]);
             }
           }
         }
