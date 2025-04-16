@@ -91,7 +91,7 @@ struct FromMemrefConverter
       // from_memref only takes ranked memref, cast the unranked memref to
       // ranked memref first.
       auto rankedMemref = rewriter.create<memref::CastOp>(
-          op.getLoc(), MemRefType::get({}, unrankedInput.getElementType()),
+          op.getLoc(), MemRefType::get({1}, unrankedInput.getElementType()),
           input);
       auto memrefToPtr = rewriter.create<tptr::FromMemrefOp>(
           op->getLoc(), ptr::PtrType::get(rewriter.getContext()), rankedMemref);
