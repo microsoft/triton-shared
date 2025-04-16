@@ -4,17 +4,16 @@
 // Licensed under the MIT license.
 //
 //===----------------------------------------------------------------------===//
-// Throughout the conversion process, we convert !tt.ptr -> {!ptr.ptr or memref<*>}.
-// This process leaves around unrealized_conversion_cast ops between these types.
-// We want to remove these unrealized casts and use the proper conversion ops
-// in the PtrDialect: to_memref or from_memref.
-// To do this, we use a pattern that simplifies the chain of conversions by
-// removing intermediate conversion cast ops. At the end, we are left with just
-// pointer to memref or vice versa. We then convert the unrealized cast to
-// to_memref or from_memref accordingly.
+// Throughout the conversion process, we convert !tt.ptr -> {!ptr.ptr or
+// memref<*>}. This process leaves around unrealized_conversion_cast ops between
+// these types. We want to remove these unrealized casts and use the proper
+// conversion ops in the PtrDialect: to_memref or from_memref. To do this, we
+// use a pattern that simplifies the chain of conversions by removing
+// intermediate conversion cast ops. At the end, we are left with just pointer
+// to memref or vice versa. We then convert the unrealized cast to to_memref or
+// from_memref accordingly.
 //===----------------------------------------------------------------------===//
 
-#include "triton-shared/Conversion/TritonToLinalgExperimental/ReconcilePtrCasts.h"
 #include "mlir/Conversion/ReconcileUnrealizedCasts/ReconcileUnrealizedCasts.h"
 #include "mlir/Dialect/Ptr/IR/PtrTypes.h"
 #include "mlir/IR/Builders.h"
@@ -23,6 +22,7 @@
 #include "mlir/IR/BuiltinTypes.h"
 #include "mlir/IR/ValueRange.h"
 #include "mlir/Transforms/GreedyPatternRewriteDriver.h"
+#include "triton-shared/Conversion/TritonToLinalgExperimental/ReconcilePtrCasts.h"
 
 #include "triton-shared/Dialect/TPtr/IR/TPtrDialect.h"
 
@@ -161,7 +161,6 @@ public:
 };
 } // namespace
 
-std::unique_ptr<OperationPass<ModuleOp>>
-triton::createReconcilePtrCastsPass() {
+std::unique_ptr<OperationPass<ModuleOp>> triton::createReconcilePtrCastsPass() {
   return std::make_unique<ReconcilePtrCastsPass>();
 }
