@@ -94,7 +94,7 @@ struct FromMemrefConverter
           op.getLoc(), MemRefType::get({}, unrankedInput.getElementType()),
           input);
       auto memrefToPtr = rewriter.create<tptr::FromMemrefOp>(
-          op->getLoc(), ptr::PtrType::get(rewriter.getContext()), rankedMemref);
+          op->getLoc(), ptr::PtrType::get(rewriter.getContext(), nullptr), rankedMemref);
 
       rewriter.replaceAllUsesWith(output, memrefToPtr);
       rewriter.eraseOp(op);
