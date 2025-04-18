@@ -22,6 +22,7 @@ add_triton_library(TritonToLinalgExperimental
   MLIRTensorDialect
   MLIRTransforms
   MLIRSupport
+  TPtrIR
   TritonIR
   TritonTransforms
   TritonSharedAnalysis
