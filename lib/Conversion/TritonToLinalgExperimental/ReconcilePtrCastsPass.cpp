@@ -4,32 +4,31 @@
 // Licensed under the MIT license.
 //
 //===----------------------------------------------------------------------===//
-// Throughout the conversion process, we convert !tt.ptr -> {!ptr.ptr or memref<*>}.
-// This process leaves around unrealized_conversion_cast ops between these types.
-// We want to remove these unrealized casts and use the proper conversion ops
-// in the PtrDialect: to_memref or from_memref.
-// To do this, we use a pattern that simplifies the chain of conversions by
-// removing intermediate conversion cast ops. At the end, we are left with just
-// pointer to memref or vice versa. We then convert the unrealized cast to
-// to_memref or from_memref accordingly.
+// Throughout the conversion process, we convert !tt.ptr -> {!ptr.ptr or
+// memref<*>}. This process leaves around unrealized_conversion_cast ops between
+// these types. We want to remove these unrealized casts and use the proper
+// conversion ops in the PtrDialect: to_memref or from_memref. To do this, we
+// use a pattern that simplifies the chain of conversions by removing
+// intermediate conversion cast ops. At the end, we are left with just pointer
+// to memref or vice versa. We then convert the unrealized cast to to_memref or
+// from_memref accordingly.
 //===----------------------------------------------------------------------===//
 
-#include "triton-shared/Conversion/TritonToLinalgExperimental/ReconcilePtrCasts.h"
 #include "mlir/Conversion/ReconcileUnrealizedCasts/ReconcileUnrealizedCasts.h"
+#include "mlir/Dialect/MemRef/IR/MemRef.h"
 #include "mlir/Dialect/Ptr/IR/PtrTypes.h"
 #include "mlir/IR/Builders.h"
 #include "mlir/IR/BuiltinDialect.h"
 #include "mlir/IR/BuiltinOps.h"
 #include "mlir/IR/BuiltinTypes.h"
 #include "mlir/IR/ValueRange.h"
+#include "mlir/Pass/PassManager.h"
 #include "mlir/Transforms/GreedyPatternRewriteDriver.h"
 
-#include "triton-shared/Dialect/TPtr/IR/TPtrDialect.h"
-
-#include "mlir/Dialect/MemRef/IR/MemRef.h"
-
-#include "mlir/Pass/PassManager.h"
 #include "triton/Dialect/Triton/IR/Types.h"
+
+#include "triton-shared/Conversion/TritonToLinalgExperimental/ReconcilePtrCasts.h"
+#include "triton-shared/Dialect/TPtr/IR/TPtrDialect.h"
 
 using namespace mlir;
 using namespace triton;
@@ -91,7 +90,7 @@ struct FromMemrefConverter
       // from_memref only takes ranked memref, cast the unranked memref to
       // ranked memref first.
       auto rankedMemref = rewriter.create<memref::CastOp>(
-          op.getLoc(), MemRefType::get({}, unrankedInput.getElementType()),
+          op.getLoc(), MemRefType::get({1}, unrankedInput.getElementType()),
           input);
       auto memrefToPtr = rewriter.create<tptr::FromMemrefOp>(
           op->getLoc(), ptr::PtrType::get(rewriter.getContext()), rankedMemref);
@@ -161,7 +160,6 @@ public:
 };
 } // namespace
 
-std::unique_ptr<OperationPass<ModuleOp>>
-triton::createReconcilePtrCastsPass() {
+std::unique_ptr<OperationPass<ModuleOp>> triton::createReconcilePtrCastsPass() {
   return std::make_unique<ReconcilePtrCastsPass>();
 }
