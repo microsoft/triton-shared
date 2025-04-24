@@ -97,7 +97,10 @@ struct EmptyTensorConverter : public OpConversionPattern<tensor::EmptyOp> {
   matchAndRewrite(tensor::EmptyOp op, OpAdaptor adaptor,
                   ConversionPatternRewriter &rewriter) const override {
     rewriter.replaceOpWithNewOp<tensor::EmptyOp>(
-        op, op.getType().getShape(), ptr::PtrType::get(rewriter.getContext()));
+        op, op.getType().getShape(),
+        ptr::PtrType::get(
+            rewriter.getContext(),
+            tptr::DefaultMemorySpaceAttr::get(rewriter.getContext())));
     return success();
   }
 };
@@ -183,8 +186,11 @@ struct AddPtrConverter : public OpConversionPattern<triton::AddPtrOp> {
     auto scaledOffset =
         rewriter.create<arith::MulIOp>(loc, op.getOffset(), pointeeSizeInBytes);
     rewriter.replaceOpWithNewOp<tptr::PtrAddOp>(
-        op, ptr::PtrType::get(rewriter.getContext()), adaptor.getPtr(),
-        scaledOffset);
+        op,
+        ptr::PtrType::get(
+            rewriter.getContext(),
+            tptr::DefaultMemorySpaceAttr::get(rewriter.getContext())),
+        adaptor.getPtr(), scaledOffset);
     return success();
   }
 };
@@ -318,7 +324,11 @@ struct IntToPtrConverter : public OpConversionPattern<triton::IntToPtrOp> {
       return failure();
     }
     rewriter.replaceOpWithNewOp<tptr::IntToPtrOp>(
-        op, ptr::PtrType::get(rewriter.getContext()), adaptor.getSrc());
+        op,
+        ptr::PtrType::get(
+            rewriter.getContext(),
+            tptr::DefaultMemorySpaceAttr::get(rewriter.getContext())),
+        adaptor.getSrc());
     return success();
   }
 };
@@ -407,12 +417,15 @@ public:
   TritonPtrTypeConverter(MLIRContext *context) {
     addConversion([](Type type) { return type; });
     addConversion([context](triton::PointerType ptrType) {
-      return ptr::PtrType::get(context);
+      return ptr::PtrType::get(context,
+                               tptr::DefaultMemorySpaceAttr::get(context));
     });
     addConversion([context](RankedTensorType tensorType) {
       if (isa<triton::PointerType>(tensorType.getElementType())) {
-        return RankedTensorType::get(tensorType.getShape(),
-                                     ptr::PtrType::get(context));
+        return RankedTensorType::get(
+            tensorType.getShape(),
+            ptr::PtrType::get(context,
+                              tptr::DefaultMemorySpaceAttr::get(context)));
       }
       return tensorType;
     });

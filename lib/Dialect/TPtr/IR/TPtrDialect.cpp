@@ -4,6 +4,8 @@
 
 #include "mlir/Dialect/Ptr/IR/PtrDialect.h"
 #include "mlir/Dialect/Ptr/IR/PtrTypes.h"
+#include "mlir/IR/DialectImplementation.h"
+#include "llvm/ADT/TypeSwitch.h"
 
 #define GET_TYPEDEF_CLASSES
 #include "triton-shared/Dialect/TPtr/IR/TPtrTypes.cpp.inc"
@@ -37,6 +39,10 @@ void mlir::tptr::TPtrDialect::registerTypes() {
 /// Dialect creation, the instance will be owned by the context. This is the
 /// point of registration of custom types and operations for the dialect.
 void mlir::tptr::TPtrDialect::initialize() {
+  addAttributes<
+#define GET_ATTRDEF_LIST
+#include "triton-shared/Dialect/TPtr/IR/TPtrAttributes.cpp.inc"
+      >();
   registerTypes();
   addOperations<
 #define GET_OP_LIST
@@ -44,11 +50,51 @@ void mlir::tptr::TPtrDialect::initialize() {
       >();
 }
 
+LogicalResult tptr::DefaultMemorySpaceAttr::isValidLoad(
+    Type type, mlir::ptr::AtomicOrdering ordering, IntegerAttr alignment,
+    llvm::function_ref<InFlightDiagnostic()> emitError) const {
+  return success();
+}
+
+LogicalResult tptr::DefaultMemorySpaceAttr::isValidStore(
+    Type type, mlir::ptr::AtomicOrdering ordering, IntegerAttr alignment,
+    llvm::function_ref<InFlightDiagnostic()> emitError) const {
+  return success();
+}
+
+LogicalResult tptr::DefaultMemorySpaceAttr::isValidAtomicOp(
+    mlir::ptr::AtomicBinOp binOp, Type type, mlir::ptr::AtomicOrdering ordering,
+    IntegerAttr alignment,
+    llvm::function_ref<InFlightDiagnostic()> emitError) const {
+  return success();
+}
+
+LogicalResult tptr::DefaultMemorySpaceAttr::isValidAtomicXchg(
+    Type type, mlir::ptr::AtomicOrdering successOrdering,
+    mlir::ptr::AtomicOrdering failureOrdering, IntegerAttr alignment,
+    llvm::function_ref<InFlightDiagnostic()> emitError) const {
+  return success();
+}
+
+LogicalResult tptr::DefaultMemorySpaceAttr::isValidAddrSpaceCast(
+    Type tgt, Type src,
+    llvm::function_ref<InFlightDiagnostic()> emitError) const {
+  return success();
+}
+
+LogicalResult tptr::DefaultMemorySpaceAttr::isValidPtrIntCast(
+    Type intLikeTy, Type ptrLikeTy,
+    llvm::function_ref<InFlightDiagnostic()> emitError) const {
+  return success();
+}
 //===----------------------------------------------------------------------===//
 // TableGen'd op method definitions
 //===----------------------------------------------------------------------===//
 
 #define GET_OP_CLASSES
 #include "triton-shared/Dialect/TPtr/IR/TPtrOps.cpp.inc"
+
+#define GET_ATTRDEF_CLASSES
+#include "triton-shared/Dialect/TPtr/IR/TPtrAttributes.cpp.inc"
 
 #include "triton-shared/Dialect/TPtr/IR/TPtrDialect.cpp.inc"

@@ -1,4 +1,6 @@
 set(LLVM_TARGET_DEFINITIONS TPtrDialect.td)
+mlir_tablegen(TPtrAttributes.h.inc  -gen-attrdef-decls -attrdefs-dialect=tptr)
+mlir_tablegen(TPtrAttributes.cpp.inc  -gen-attrdef-defs -attrdefs-dialect=tptr)
 mlir_tablegen(TPtrDialect.h.inc -gen-dialect-decls -dialect=tptr)
 mlir_tablegen(TPtrDialect.cpp.inc -gen-dialect-defs -dialect=tptr)
 mlir_tablegen(TPtrOps.h.inc -gen-op-decls)
