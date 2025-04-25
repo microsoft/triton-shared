@@ -292,7 +292,7 @@ def test_nested3():
 
     src = triton.compiler.ASTSource(
         fn=nested3,
-        signature="*fp32,*fp32,i32,i32",
+        signature={"in_ptr": "*fp32", "out_ptr": "*fp32", "stride_m": "i32", "stride_n": "i32"},
     )
     ret = triton.compile(
         src,
@@ -330,7 +330,7 @@ def test_nested2_use_loop_results():
 
     src = triton.compiler.ASTSource(
         fn=nested2_use_loop_results,
-        signature="*fp32,*fp32,i32,i32",
+        signature={"in_ptr": "*fp32", "out_ptr": "*fp32", "stride_m": "i32", "stride_n": "i32"},
     )
     ret = triton.compile(
         src,
@@ -365,7 +365,7 @@ def test_nested2_complex_body():
 
     src = triton.compiler.ASTSource(
         fn=nested2_complex_body,
-        signature="*fp32,*fp32,i32,i32",
+        signature={"a_ptr": "*fp32", "c_ptr": "*fp32", "stride_m": "i32", "stride_n": "i32"},
     )
     ret = triton.compile(
         src,
@@ -404,7 +404,7 @@ def test_nested2_use_same_level_loop_result():
 
     src = triton.compiler.ASTSource(
         fn=nested_use_same_level_loop_results,
-        signature="*fp32,*fp32,i32,i32",
+        signature={"in_ptr": "*fp32", "out_ptr": "*fp32", "stride_m": "i32", "stride_n": "i32"},
     )
     ret = triton.compile(
         src,
