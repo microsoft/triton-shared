@@ -583,7 +583,12 @@ LogicalResult PtrAnalysis::visitOperandRem(arith::RemSIOp remOp,
   if (state.hasModulo()) {
     remOp->emitRemark(
         "PtrAnalysis: do not support multiple modulo within an expression");
-    return failure();
+    if (state.getRank() == 1)
+      // Build the state from the current operation as an unstructured state,
+      // but only when there is a single dimension involved.
+      return state.rebuildAsGatherScatter(remOp.getResult(), 0);
+    else
+      return failure();
   }
 
   if (state.getRank() == 1) {
