@@ -239,16 +239,6 @@ private:
     return MemRefType::get(resultShape, elemType, layout);
   }
 
-  static OpFoldResult accumulateTargetOffset(tts::MakeTensorPtrOp op,
-                                             OpBuilder &b) {
-    Location loc = op->getLoc();
-    OpFoldResult targetOffset = b.getIndexAttr(0);
-    for (auto o : op.getMixedOffsets()) {
-      targetOffset = addOFRs(targetOffset, o, loc, b);
-    }
-    return targetOffset;
-  }
-
   std::pair<memref::ReinterpretCastOp, memref::ReinterpretCastOp>
   createSideBySideCastOps(tts::MakeTensorPtrOp op, OpAdaptor adaptor,
                           ConversionPatternRewriter &rewriter) const {

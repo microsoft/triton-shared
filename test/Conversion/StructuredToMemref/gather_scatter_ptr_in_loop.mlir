@@ -181,9 +181,9 @@
 // CHECK:               %[[VAL_164:.*]] = arith.index_cast %[[VAL_163]] : i32 to index
 // CHECK:               %[[VAL_165:.*]] = arith.addi %[[VAL_164]], %[[VAL_144]] : index
 // CHECK:               %[[VAL_166:.*]] = memref.reinterpret_cast %[[VAL_1]] to offset: {{\[}}%[[VAL_165]]], sizes: [1, 64], strides: [1, %[[VAL_143]]] : memref<*xf32> to memref<1x64xf32, strided<[1, ?], offset: ?>>
-// CHECK:               %[[VAL_167:.*]] = memref.subview %[[VAL_166]][0, 0] [1, %[[VAL_157]]] [1, %[[VAL_143]]] : memref<1x64xf32, strided<[1, ?], offset: ?>> to memref<1x?xf32, strided<[1, ?], offset: ?>>
+// CHECK:               %[[VAL_167:.*]] = memref.subview %[[VAL_166]][0, 0] [1, %[[VAL_157]]] [64, 1] : memref<1x64xf32, strided<[1, ?], offset: ?>> to memref<1x?xf32, strided<[64, ?], offset: ?>>
 // CHECK:               %[[VAL_168:.*]] = memref.subview %[[VAL_158]]{{\[}}%[[VAL_162]], 0] [1, %[[VAL_157]]] [64, 1] : memref<64x64xf32> to memref<1x?xf32, strided<[4096, 1], offset: ?>>
-// CHECK:               memref.copy %[[VAL_167]], %[[VAL_168]] : memref<1x?xf32, strided<[1, ?], offset: ?>> to memref<1x?xf32, strided<[4096, 1], offset: ?>>
+// CHECK:               memref.copy %[[VAL_167]], %[[VAL_168]] : memref<1x?xf32, strided<[64, ?], offset: ?>> to memref<1x?xf32, strided<[4096, 1], offset: ?>>
 // CHECK:             }
 // CHECK:             %[[VAL_169:.*]] = bufferization.to_tensor %[[VAL_158]] restrict writable : memref<64x64xf32> to tensor<64x64xf32>
 // CHECK:             %[[VAL_170:.*]] = tensor.expand_shape %[[VAL_114]] {{\[\[}}0, 1]] output_shape [64, 1] : tensor<64xf32> into tensor<64x1xf32>
