@@ -494,8 +494,6 @@ public:
                 store->erase();
                 return success();
               })
-              // .Case<tts::MakeGatherScatterTensorPtrOp>(
-              //     [&](auto makeIndirectTensorPtr) { return success(); })
               .Case<triton::MakeTensorPtrOp,
                     tts::MakeTensorPtrOp>([&](auto makeTensorPtr) {
                 // For block pointers, the base could come from a sequence of

@@ -886,13 +886,13 @@ private:
       sizes = mixedDims;
       // maskOffsets should be all zero, since srcPtr already has the offsets.
       SmallVector<OpFoldResult> maskOffsets(rank, OpFoldResult(lowerBound));
-
+      // Use allocStrides for subview.
       auto dstSubViewType = memref::SubViewOp::inferResultType(
-          cast<MemRefType>(srcPtr.getType()), maskOffsets, sizes, strides);
+          cast<MemRefType>(srcPtr.getType()), maskOffsets, sizes, allocStrides);
       srcPtr =
           rewriter
               .create<memref::SubViewOp>(loc, cast<MemRefType>(dstSubViewType),
-                                         srcPtr, maskOffsets, sizes, strides)
+                                         srcPtr, maskOffsets, sizes, allocStrides)
               .getResult();
     }
 
