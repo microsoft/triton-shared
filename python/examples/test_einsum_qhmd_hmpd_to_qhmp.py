@@ -92,7 +92,7 @@ def einsum_qhmd_hmpd_to_qhmp_kernel(
     tl.store(C_ptr + c_offset, c_acc, mask=full_mask)
 
 
-def fixed_einsum(A, B, BLOCK_QHM = 2, BLOCK_P = 2):
+def einsum_qhmd_hmpd_to_qhmp(A, B, BLOCK_QHM = 2, BLOCK_P = 2):
     """
     A: [Q,H,M,D], B: [H,M,P,D]
     => C: [Q,H,M,P] with sum_{d=0..D-1} A[q,h,m,d]*B[h,m,p,d].
@@ -146,5 +146,5 @@ def test(device):
     # Reference
     C_ref = torch.einsum("qhmd,hmpd->qhmp", A, B)
 
-    C_triton = fixed_einsum(A, B)
+    C_triton = einsum_qhmd_hmpd_to_qhmp(A, B)
     torch.testing.assert_close(C_triton, C_ref)

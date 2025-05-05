@@ -156,9 +156,8 @@ static Value rewriteGatherScatterPtrElement(
                           staticStrides, resultShape);
 
   std::vector<int64_t> staticSizes = op.getSizes();
-  staticSizes[gatherDim] = 1; // ShapedType::kDynamic;
-  SmallVector<Value>
-      dynSizes; //(1, gatherOffsetElt); // gatherDim need to have value
+  staticSizes[gatherDim] = 1;
+  SmallVector<Value> dynSizes; // sizes are always static
   auto sizes = mlir::getMixedValues(staticSizes, dynSizes, rewriter);
 
   auto castOp = rewriter.create<memref::ReinterpretCastOp>(

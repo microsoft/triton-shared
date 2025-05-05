@@ -74,13 +74,15 @@ bool PtrState::dimHasModulo(uint32_t dim) const {
   return intAttr.value() != 0;
 }
 
+bool isNotStructured(OpFoldResult offset) {
+  auto value = dyn_cast<Value>(offset);
+  return value && isa<ShapedType>(value.getType());
+}
+
 bool PtrState::dimIsStructured(uint32_t dim) const {
   assert(dim < getRank());
 
-  auto value = dyn_cast<Value>(offsets[dim]);
-  if (!value)
-    return true;
-  return !isa<ShapedType>(value.getType());
+  return !isNotStructured(offsets[dim]);
 }
 
 int32_t PtrState::getNonStructuredDim() const {
@@ -94,24 +96,15 @@ int32_t PtrState::getNonStructuredDim() const {
   return dims.front();
 }
 
-bool PtrState::noStructuredDim() const {
+bool PtrState::noStructuredDimExists() const {
   return getRank() > 0 && llvm::all_of(offsets, [](OpFoldResult offset) {
-    auto value = dyn_cast<Value>(offset);
-    if (!value)
-      return false;
-
-    return isa<ShapedType>(value.getType());
-  });
+           return isNotStructured(offset);
+         });
 }
 
 bool PtrState::isStructured() const {
-  return llvm::all_of(offsets, [](OpFoldResult offset) {
-    auto value = dyn_cast<Value>(offset);
-    if (!value)
-      return true;
-
-    return !isa<ShapedType>(value.getType());
-  });
+  return llvm::all_of(
+      offsets, [](OpFoldResult offset) { return !isNotStructured(offset); });
 }
 
 bool PtrState::isBlockPtr() const { return !order.empty(); }
@@ -122,7 +115,7 @@ bool isNotSingleDim(Value op) {
     return false;
   auto opShape = shapedTy.getShape();
 
-  // Make sure there is only 1 dimension with size > 1.
+  // Make sure there are more than 1 dimensions with size > 1.
   return llvm::find_singleton<int64_t>(
              opShape,
              [](int64_t size, bool) {
@@ -132,11 +125,9 @@ bool isNotSingleDim(Value op) {
 }
 
 LogicalResult PtrState::rebuildAsUnsupportedOp(Value operand) {
-  // Make sure there is only 1 dimension with size > 1.
   if (isNotSingleDim(operand))
     return failure();
 
-  // Must empty for unsupported operation.
   if (!isEmpty())
     return failure();
 
@@ -160,7 +151,6 @@ LogicalResult PtrState::rebuildAsUnsupportedOp(Value operand) {
 }
 
 LogicalResult PtrState::rebuildAsGatherScatter(Value op, int nonContinuousDim) {
-  // Make sure there is only 1 dimension with size > 1.
   if (isNotSingleDim(op))
     return failure();
   if (nonContinuousDim >= getRank())
@@ -169,10 +159,12 @@ LogicalResult PtrState::rebuildAsGatherScatter(Value op, int nonContinuousDim) {
   // Scalar has been take care early.
   // Assume here must be shape type.
   auto opShape = cast<ShapedType>(op.getType()).getShape();
+  // Make sure the op only contribute to nonContinuousDim by check
+  // nonContinuousDim is the dimension with size > 1.
   if (opShape[nonContinuousDim] <= 1)
     return failure();
 
-  // Setup state for indirect dimension.
+  // Setup state for nonContinuousDim.
   auto indexTy = IndexType::get(op.getContext());
   auto index0 = IntegerAttr::get(indexTy, APInt(64, 0));
 
@@ -222,6 +214,10 @@ LogicalResult PtrState::addState(const PtrState &lhsState,
           addOFRs(lhsState.strides[i], rhsState.strides[i], loc, builder);
       strides.push_back(newStride);
     } else {
+      // When dimenstion is not structured,we'll treat `a_offset * a_stride +
+      // b_offset * b_stride` as `c_offset * c_stride` where the c_offset equals
+      // `a_offset * a_stride + b_offset * b_stride` and c_stride equals 1.
+
       // Set stride to 1 when not continuous.
       strides.push_back(builder.getIndexAttr(1));
       // New offset is offset * stride.
@@ -400,6 +396,10 @@ LogicalResult PtrState::mulState(const PtrState &lhsState,
       OpFoldResult newOffset =
           mulOFRs(lhs->offsets[i], rhsStride, loc, builder);
       offsets.push_back(newOffset);
+      // When dimenstion is not structured,we'll treat `a_offset * a_stride` as
+      // `b_offset * b_stride` where the b_offset equals `a_offset * a_stride`
+      // and c_stride equals 1.
+
       // Set stride to 1 when not continuous.
       strides.push_back(builder.getIndexAttr(1));
     }
@@ -1222,7 +1222,7 @@ LogicalResult PtrAnalysis::rewriteForOp(scf::ForOp op) {
       continue;
     }
     // Skip when not have structured dimension.
-    if (state->noStructuredDim())
+    if (state->noStructuredDimExists())
       continue;
 
     // Save the current init arg's PtrState

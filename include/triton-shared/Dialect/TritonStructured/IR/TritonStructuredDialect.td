@@ -136,6 +136,9 @@ def TTS_MakeGatherScatterTensorPtrOp
   //       # Support cases where one dimension is structured while the other is not.
   //       # For example, `offset_m[:, None] // K` is not structured, whereas `offset_n[None, :]` is structured in next line.
   //       supported = tl.load(b_ptr + offset_m[:, None] // K + offset_n[None, :])
+  //       # `ld_offsets_1d[:, None]` is not structured, whereas `offset_n[None, :]`.
+  //       ld_offsets_1d = tl.load(a_ptr + offsets_m)
+  //       supported2 = tl.load(b_ptr + ld_offsets_1d[:, None] + offsets_n[None, :])
 
   let summary = "create an pointer that points to a tensor in memory for gather/scatter";
   let description = [{
@@ -154,8 +157,7 @@ def TTS_MakeGatherScatterTensorPtrOp
   // strides: The strides of the parent tensor, which means how much to increase the pointer
   //          by when moving by 1 element in a specific axis.
   // offsets: Offset of the block along each dimension from base.
-  // result:  If order is present, this op produces a pointer to a tensor; otherwise,
-  //          it produces a tensor of pointers.
+  // result:  A tensor of pointers.
 
   let arguments = (ins TT_Ptr:$base,
                        I32Tensor:$gather_scatter_offset,

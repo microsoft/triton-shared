@@ -59,9 +59,8 @@ struct PtrState {
 
   bool dimIsStructured(uint32_t dim) const;
   int32_t getNonStructuredDim() const;
-  // When rank is 1, and the only dimension is not continuous.
-  // There's no dimension is continuous.
-  bool noStructuredDim() const;
+  // Verify that all dimensions are not structured.
+  bool noStructuredDimExists() const;
 
   bool isStructured() const;
 
@@ -72,14 +71,33 @@ struct PtrState {
   // For unsupported op, save the op to the state.
   LogicalResult rebuildAsUnsupportedOp(Value op);
 
-  // When merge with other state which is not structured, set the nonContinuous dimension
-  // offset as op.
-  // Still need to make sure the op only contribute to nonContinuousDim.
-  // Fail if the op already mix of different dims.
+  // When merge with other state which is not structured, set the nonContinuous
+  // dimension offset as op.
+  // Fail if the operation already mixes different dimensions.
   // For case
-  //    add  %remsi(on dim0), %mul(dim1)
-  //    the add will have both dim0 and dim1
-  //    to rebuild use the op, it has to use op[nonContinuousDim] which is not supported.
+  // clang-format off
+  //    %14 = tt.expand_dims %11 {axis = 1 : i32} : tensor<64xi1> -> tensor<64x1xi1>
+  //    %dim0_value = tt.broadcast %14 : tensor<64x1xi1> -> tensor<64x64xi1>
+  //    %16 = tt.expand_dims %13 {axis = 0 : i32} : tensor<64xi1> -> tensor<1x64xi1>
+  //    %dim1_value = tt.broadcast %16 : tensor<1x64xi1> -> tensor<64x64xi1>
+  //    add  %dim0_value, %dim1_value
+  // clang-format on
+  //    the add will have size > 1 for both dim0 and dim1.
+  //    It will fail for mix of different dims.
+  //
+  // Fail if the operation does not contribute to nonContinuousDim.
+  // For case
+  // clang-format off
+  //    %14 = tt.expand_dims %11 {axis = 1 : i32} : tensor<64xi1> -> tensor<64x1xi1>
+  //    %dim0_value = tt.broadcast %14 : tensor<64x1xi1> -> tensor<64x64xi1>
+  //    %16 = tt.expand_dims %13 {axis = 1 : i32} : tensor<64xi1> -> tensor<64x1xi1>
+  //    %dim0_value2 = tt.broadcast %16 : tensor<64x1xi1> -> tensor<64x64xi1>
+  //    add  %dim0_value, %dim0_value2
+  // clang-format on
+  //    the add only have size > 1 for dim0 which doesn't mix of different
+  //    dims.
+  // But if call rebuildAsGatherScatter on the add with nonContinuousDim = 1 it
+  // will fail because it only have dim0.
   LogicalResult rebuildAsGatherScatter(Value op, int nonContinuousDim);
 
   // Process addition of two PtrStates.

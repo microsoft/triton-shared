@@ -46,6 +46,7 @@
 // CHECK:           %[[VAL_40:.*]] = arith.index_cast %[[VAL_28]] : index to i32
 // CHECK:           %[[VAL_41:.*]] = tt.splat %[[VAL_40]] : i32 -> tensor<16x1xi32>
 // CHECK:           %[[VAL_42:.*]] = arith.addi %[[VAL_41]], %[[VAL_39]] : tensor<16x1xi32>
+// Here nonContinuousOffset was collapsed to 1D
 // CHECK:           %[[VAL_43:.*]] = tensor.collapse_shape %[[VAL_42]] {{\[\[}}0, 1]] : tensor<16x1xi32> into tensor<16xi32>
 // CHECK:           %[[VAL_44:.*]] = tts.make_gather_scatter_tptr %[[VAL_0]] to sizes: [16, 16] gather_scatter_dim: 0 gather_scatter_offset: %[[VAL_43]], strides: [1, 1], offsets: [0, 0] : tensor<16xi32> <f32> to !tt.ptr<tensor<16x16xf32>>
 // CHECK:           %[[VAL_45:.*]] = arith.index_cast %[[VAL_18]] : i32 to index

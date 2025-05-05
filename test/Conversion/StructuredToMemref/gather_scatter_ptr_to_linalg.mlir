@@ -1,6 +1,6 @@
 // RUN: triton-shared-opt --triton-to-linalg-experimental %s | FileCheck %s
 
-// Make sure tts.make_indirect_tptr is generated with correct indirect_dim and indirect_offset.
+// Make sure extract_slice is generated correctly.
 
 // CHECK: #[[$ATTR_0:.+]] = affine_map<(d0) -> (d0)>
 // CHECK: #[[$ATTR_1:.+]] = affine_map<(d0, d1) -> (d0, d1)>
