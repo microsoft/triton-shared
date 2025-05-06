@@ -133,7 +133,13 @@ LogicalResult PtrState::rebuildAsUnsupportedOp(Value operand) {
 
   // Scalar has been take care early.
   // Assume here must be shape type.
-  auto opShape = cast<ShapedType>(operand.getType()).getShape();
+  auto opType = cast<ShapedType>(operand.getType());
+  // Skip support for pointer types which could be source of PtrState.
+  // This check avoids creating a PtrState with non-structured source.
+  if (isa<triton::PointerType>(opType.getElementType()))
+    return failure();
+
+  auto opShape = opType.getShape();
 
   // Setup state for unsupported operation.
   auto indexTy = IndexType::get(operand.getContext());
@@ -771,6 +777,8 @@ LogicalResult PtrAnalysis::visitOperandAddptr(triton::AddPtrOp addptrOp,
           .failed()) {
     // assert(0);
     return failure();
+  } else if (!ptrState.source) {
+    addptrOp.dump();
   }
 
   PtrState offsetState;
