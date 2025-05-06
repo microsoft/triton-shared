@@ -64,7 +64,7 @@ jobs:
         python3 -m pre_commit run --all-files --verbose
 
     - name: Build/Install Triton
-      working-directory: triton_shared/triton/python
+      working-directory: triton_shared/triton
       run: |
         python3 -m pip install --upgrade pip
         python3 -m pip install cmake==3.24 ninja pytest-xdist pybind11 setuptools
