@@ -25,7 +25,7 @@ def test_mask(device):
 
     src = triton.compiler.ASTSource(
         fn=test,
-        signature="*fp32,*fp32,i32",
+        signature={"in0": "*fp32", "out0": "*fp32"},
     )
     ret = triton.compile(
         src,

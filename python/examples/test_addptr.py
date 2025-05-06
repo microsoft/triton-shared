@@ -35,7 +35,7 @@ def test(device):
     # TODO: need to check some conditions otherwise the code below does not make any difference for the test
     src = triton.compiler.ASTSource(
         fn=addptr,
-        signature="*fp32,*fp32",
+        signature={"in0": "*fp32", "out0": "*fp32"},
     )
     ret = triton.compile(
         src,

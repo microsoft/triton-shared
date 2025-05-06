@@ -106,7 +106,7 @@ def test_integer_tensor(device):
     torch.testing.assert_close(input, output)
     src = triton.compiler.ASTSource(
         fn=test_1,
-        signature="*fp32",
+        signature={"out0": "*fp32"},
     )
     ret = triton.compile(
         src,
