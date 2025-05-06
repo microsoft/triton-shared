@@ -74,7 +74,7 @@ jobs:
         TRITON_BUILD_WITH_CLANG_LLD=true TRITON_BUILD_WITH_CCACHE=true python3 -m pip install --no-build-isolation -vvv '.[tests]'
 
     - name: Run shared middle-layer lit tests
-      working-directory: triton_shared/triton/python
+      working-directory: triton_shared/triton
       run: |
         python3 -m pip install lit
         LIT_TEST_DIR="build/$(ls build | grep -i cmake)/third_party/triton_shared/test"
@@ -89,7 +89,7 @@ jobs:
         python3 -m pip install pytest
 
     - name: Prepare CPU backend environment
-      working-directory: triton_shared/triton/python
+      working-directory: triton_shared/triton
       run: |
         CMAKE_BUILD_DIR=$(ls $(pwd)/build | grep -i cmake)
         LLVM_BINARY_DIR=$(find  ${HOME}/.triton/llvm/ -name bin | head -1)
