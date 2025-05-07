@@ -38,8 +38,16 @@ const extern std::string ptrAnalysisAttr;
 // shape field means the same field as tt.make_tensor_ptr; when it describes a
 // non-block pointer, shape field indicates how address wraps around (i.e.,
 // modulo); a constant 0 indicates no modulo for the dimension.
+// Multi-dimension PtrState, which has one unstructured dimension, is supported
+// for gather/scatter access. The unstructured dimension is marked by a tensor
+// type offset. The tensor offset for the unstructured dimension must be
+// expanded from a 1D tensor. The analysis will fail for multi-dimension
+// unstructured offsets. Later, when using the tensor offset to calculate the
+// address, it will be collapsed to 1D. To support gather/scatter access, treat
+// the unstructured offset as a whole offset instead of decoding the pointer
+// arithmetic on it. The stride is set to 1 so it still matches the offset *
+// stride formula
 struct PtrState {
-
   SmallVector<OpFoldResult> offsets;
   SmallVector<OpFoldResult> sizes;
   SmallVector<OpFoldResult> strides;

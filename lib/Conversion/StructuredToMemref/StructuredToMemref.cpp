@@ -88,17 +88,17 @@ static MemRefType getResultMemrefType(tts::MakeTensorPtrOp op, int64_t offset,
   return MemRefType::get(resultShape, elemType, layout);
 }
 
+static MemRefType getResultMemrefType(tts::MakeGatherScatterTensorPtrOp op,
+                                      int64_t offset,
+                                      ArrayRef<int64_t> staticStrides,
+                                      ArrayRef<int64_t> resultShape) {
+  auto layout = StridedLayoutAttr::get(op.getContext(), offset, staticStrides);
 
-static MemRefType getResultMemrefType(tts::MakeGatherScatterTensorPtrOp op, int64_t offset,
-  ArrayRef<int64_t> staticStrides,
-  ArrayRef<int64_t> resultShape) {
-auto layout = StridedLayoutAttr::get(op.getContext(), offset, staticStrides);
+  auto ptrType = cast<triton::PointerType>(op.getType());
+  Type elemType = ptrType.getPointeeType();
 
-auto ptrType = cast<triton::PointerType>(op.getType());
-Type elemType = ptrType.getPointeeType();
-
-Type realEltTy = cast<RankedTensorType>(elemType).getElementType();
-return MemRefType::get(resultShape, realEltTy, layout);
+  Type realEltTy = cast<RankedTensorType>(elemType).getElementType();
+  return MemRefType::get(resultShape, realEltTy, layout);
 }
 
 // If there are dimensions with size 1 and stride 0, replace 0 stride with
@@ -167,11 +167,11 @@ static Value rewriteGatherScatterPtrElement(
 }
 
 // Fill load destination with other value for mask.
-static void fillOther(Location loc, Value alloc, Value other,
-                      ArrayRef<int64_t> shape,
-                      SmallVector<OpFoldResult> &&mixedDims,
-                      ArrayRef<int64_t> staticMaskDims,
-                      ConversionPatternRewriter &rewriter) {
+static void fillWithValue(Location loc, Value alloc, Value other,
+                          ArrayRef<int64_t> shape,
+                          SmallVector<OpFoldResult> &&mixedDims,
+                          ArrayRef<int64_t> staticMaskDims,
+                          ConversionPatternRewriter &rewriter) {
   // Fill load destination with other value
   // For each dimension check if dims[i] < shape[i], or-accumulate
   // the result
@@ -758,8 +758,8 @@ private:
 
     // Fill load destination with other value
     if (Value other = op.getOther()) {
-      fillOther(loc, alloc, other, tensorType.getShape(), op.getMixedMaskDims(),
-                op.getStaticMaskDims(), rewriter);
+      fillWithValue(loc, alloc, other, tensorType.getShape(),
+                    op.getMixedMaskDims(), op.getStaticMaskDims(), rewriter);
     }
 
     auto ptrDefiningOp = ptr.getDefiningOp();
@@ -802,7 +802,7 @@ private:
     return success();
   }
 
-  LogicalResult rewriteGatherLoad(tts::MakeGatherScatterTensorPtrOp ptr,
+  LogicalResult rewriteGather(tts::MakeGatherScatterTensorPtrOp ptr,
                                   tts::LoadOp op, Value memRefPtr,
                                   ConversionPatternRewriter &rewriter) const {
     auto loc = op.getLoc();
@@ -837,8 +837,8 @@ private:
         allocType.getStridesAndOffset().first, dynSizes, rewriter);
     // Fill load destination with other value
     if (Value other = op.getOther()) {
-      fillOther(loc, alloc, other, resultType.getShape(), op.getMixedMaskDims(),
-                op.getStaticMaskDims(), rewriter);
+      fillWithValue(loc, alloc, other, resultType.getShape(),
+                    op.getMixedMaskDims(), op.getStaticMaskDims(), rewriter);
     }
 
     // Create loop to iterate every offset in gatherOffset.
@@ -909,7 +909,7 @@ public:
     auto ptr = op.getPtr();
     if (auto gatherScatterPtr =
             ptr.getDefiningOp<tts::MakeGatherScatterTensorPtrOp>()) {
-      return rewriteGatherLoad(gatherScatterPtr, op, adaptor.getPtr(), rewriter);
+      return rewriteGather(gatherScatterPtr, op, adaptor.getPtr(), rewriter);
     }
 
     if (op.hasMask()) {
@@ -938,7 +938,7 @@ private:
                                             strides);
   }
 
-  LogicalResult rewriteGatherStore(tts::MakeGatherScatterTensorPtrOp ptr,
+  LogicalResult rewriteScatter(tts::MakeGatherScatterTensorPtrOp ptr,
                                    tts::StoreOp op, Value memRefPtr,
                                    Value stVal,
                                    ConversionPatternRewriter &rewriter) const {
@@ -1033,7 +1033,7 @@ public:
 
     if (auto gatherScatterPtr =
             op.getPtr().getDefiningOp<tts::MakeGatherScatterTensorPtrOp>()) {
-      return rewriteGatherStore(gatherScatterPtr, op, adaptor.getPtr(),
+      return rewriteScatter(gatherScatterPtr, op, adaptor.getPtr(),
       adaptor.getValue(),
                                rewriter);
     }

@@ -109,15 +109,15 @@ bool PtrState::isStructured() const {
 
 bool PtrState::isBlockPtr() const { return !order.empty(); }
 
-bool isNotSingleDim(Value op) {
-  auto shapedTy = dyn_cast<ShapedType>(op.getType());
+bool isNotSingleDim(Value v) {
+  auto shapedTy = dyn_cast<ShapedType>(v.getType());
   if (!shapedTy)
     return false;
-  auto opShape = shapedTy.getShape();
+  auto valShape = shapedTy.getShape();
 
   // Make sure there are more than 1 dimensions with size > 1.
   return llvm::find_singleton<int64_t>(
-             opShape,
+             valShape,
              [](int64_t size, bool) {
                return size > 1 ? (int64_t *)size : nullptr;
              },
@@ -220,10 +220,6 @@ LogicalResult PtrState::addState(const PtrState &lhsState,
           addOFRs(lhsState.strides[i], rhsState.strides[i], loc, builder);
       strides.push_back(newStride);
     } else {
-      // When dimenstion is not structured,we'll treat `a_offset * a_stride +
-      // b_offset * b_stride` as `c_offset * c_stride` where the c_offset equals
-      // `a_offset * a_stride + b_offset * b_stride` and c_stride equals 1.
-
       // Set stride to 1 when not continuous.
       strides.push_back(builder.getIndexAttr(1));
       // New offset is offset * stride.
@@ -402,10 +398,6 @@ LogicalResult PtrState::mulState(const PtrState &lhsState,
       OpFoldResult newOffset =
           mulOFRs(lhs->offsets[i], rhsStride, loc, builder);
       offsets.push_back(newOffset);
-      // When dimenstion is not structured,we'll treat `a_offset * a_stride` as
-      // `b_offset * b_stride` where the b_offset equals `a_offset * a_stride`
-      // and c_stride equals 1.
-
       // Set stride to 1 when not continuous.
       strides.push_back(builder.getIndexAttr(1));
     }
