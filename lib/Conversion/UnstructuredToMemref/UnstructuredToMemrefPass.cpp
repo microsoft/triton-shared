@@ -100,11 +100,10 @@ struct ScalarLoadConverter : public OpConversionPattern<tts::GatherOp> {
         basePtr, getAsOpFoldResult(loadIndex) /*offset*/,
         ArrayRef<OpFoldResult>{rewriter.getIndexAttr(1)} /*sizes*/,
         ArrayRef<OpFoldResult>{rewriter.getIndexAttr(1)} /*strides*/);
-
-    auto zeroMap = AffineMap::getConstantMap(0, rewriter.getContext());
-
-    auto scalarLoadOp = rewriter.create<affine::AffineLoadOp>(
-        loc, memref, zeroMap, std::nullopt);
+    auto index =
+        rewriter.create<arith::ConstantOp>(loc, rewriter.getIndexAttr(0))
+            .getResult();
+    auto scalarLoadOp = rewriter.create<memref::LoadOp>(loc, memref, index);
 
     rewriter.replaceOp(gatherOp, scalarLoadOp.getResult());
 
@@ -147,10 +146,10 @@ struct ScalarStoreConverter : public OpConversionPattern<tts::ScatterOp> {
         ArrayRef<OpFoldResult>{rewriter.getIndexAttr(1)} /*strides*/);
 
     auto storeVal = scatterOp.getValue();
-    auto zeroMap = AffineMap::getConstantMap(0, rewriter.getContext());
-
-    rewriter.create<affine::AffineStoreOp>(loc, storeVal, memref, zeroMap,
-                                           std::nullopt);
+    auto index =
+        rewriter.create<arith::ConstantOp>(loc, rewriter.getIndexAttr(0))
+            .getResult();
+    rewriter.create<memref::StoreOp>(loc, storeVal, memref, index);
     rewriter.eraseOp(scatterOp);
 
     return success();

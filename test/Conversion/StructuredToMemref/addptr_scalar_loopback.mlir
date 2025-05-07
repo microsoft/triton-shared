@@ -16,10 +16,11 @@ module {
 
 // CHECK-LABEL:  func.func @kernel
 // CHECK-SAME:   ([[PARAM_0_:%.+]]: memref<*xbf16>, [[PARAM_1_:%.+]]: memref<*xbf16>, [[PARAM_2_:%.+]]: i32, [[PARAM_3_:%.+]]: i32, [[PARAM_4_:%.+]]: i32, [[PARAM_5_:%.+]]: i32, [[PARAM_6_:%.+]]: i32, [[PARAM_7_:%.+]]: i32, [[PARAM_8_:%.+]]: i32) {
+// CHECK-DAG:      %[[C0:.*]] = arith.constant 0 : index
 // CHECK:           [[VAR_0_:%.+]] = arith.index_cast [[PARAM_2_]] : i32 to index
 // CHECK-DAG:       [[VAR_reinterpret_cast_:%.+]] = memref.reinterpret_cast [[PARAM_0_]] to offset: {{.}}[[VAR_0_]]{{.}}, sizes: [1], strides: [1] : memref<*xbf16> to memref<1xbf16, strided<[1], offset: ?>>
 // CHECK-DAG:       [[VAR_reinterpret_cast_0_:%.+]] = memref.reinterpret_cast [[PARAM_1_]] to offset: {{.}}[[VAR_0_]]{{.}}, sizes: [1], strides: [1] : memref<*xbf16> to memref<1xbf16, strided<[1], offset: ?>>
-// CHECK-DAG:           [[LOAD_VAR_reinterpret_cast_MEM_:%.+]] = affine.load [[VAR_reinterpret_cast_]][0] : memref<1xbf16, strided<[1], offset: ?>>
-// CHECK:           affine.store [[LOAD_VAR_reinterpret_cast_MEM_]], [[VAR_reinterpret_cast_0_]][0] : memref<1xbf16, strided<[1], offset: ?>>
+// CHECK-DAG:           [[LOAD_VAR_reinterpret_cast_MEM_:%.+]] = memref.load [[VAR_reinterpret_cast_]][%[[C0]]] : memref<1xbf16, strided<[1], offset: ?>>
+// CHECK:           memref.store [[LOAD_VAR_reinterpret_cast_MEM_]], [[VAR_reinterpret_cast_0_]][%[[C0]]] : memref<1xbf16, strided<[1], offset: ?>>
 // CHECK:           return
 // CHECK:         }

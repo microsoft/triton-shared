@@ -35,6 +35,7 @@ module {
 // CHECK-DAG:   [[MAP_0_:#.+]] = affine_map<(d0) -> (d0)>
 // CHECK-LABEL:  func.func @test_1
 // CHECK-SAME:   ([[PARAM_0_:%.+]]: memref<*xf32>, [[PARAM_1_:%.+]]: memref<*xf32>, [[PARAM_2_:%.+]]: i32, [[PARAM_3_:%.+]]: i32, [[PARAM_4_:%.+]]: i32, [[PARAM_5_:%.+]]: i32, [[PARAM_6_:%.+]]: i32, [[PARAM_7_:%.+]]: i32) {
+// CHECK-DAG:      %[[C0:.*]] = arith.constant 0 : index
 // CHECK-DAG:       [[CST_1_:%.+]] = arith.constant 1 : i32
 // CHECK-DAG:       [[CST_minus_1_dot_000000_:%.+]] = arith.constant -1.000000e+00 : f32
 // CHECK-DAG:       [[VAR_0_:%.+]] = tensor.empty() : tensor<4xi32>
@@ -42,7 +43,7 @@ module {
 // CHECK-DAG:       [[VAR_1_:%.+]] = linalg.fill ins([[CST_1_]] : i32) outs([[VAR_0_]] : tensor<4xi32>) -> tensor<4xi32>
 // CHECK-DAG:       [[VAR_2_:%.+]] = arith.index_cast [[PARAM_5_]] : i32 to index
 // CHECK:           [[VAR_reinterpret_cast_:%.+]] = memref.reinterpret_cast [[PARAM_0_]] to offset: {{.}}[[VAR_2_]]{{.}}, sizes: [1], strides: [1] : memref<*xf32> to memref<1xf32, strided<[1], offset: ?>>
-// CHECK:           [[LOAD_VAR_reinterpret_cast_MEM_:%.+]] = affine.load [[VAR_reinterpret_cast_]][0] : memref<1xf32, strided<[1], offset: ?>>
+// CHECK:           [[LOAD_VAR_reinterpret_cast_MEM_:%.+]] = memref.load [[VAR_reinterpret_cast_]][%[[C0]]] : memref<1xf32, strided<[1], offset: ?>>
 // CHECK:           [[VAR_4_:%.+]] = arith.cmpf oeq, [[LOAD_VAR_reinterpret_cast_MEM_]], [[CST_minus_1_dot_000000_]] : f32
 // CHECK:           cf.cond_br [[VAR_4_]], ^bb1, ^bb2
 // CHECK:         ^bb1:  // pred: ^bb0
