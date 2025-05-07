@@ -17,6 +17,7 @@ module {
 }
 // CHECK-LABEL:   func.func @kernel(
 // CHECK-SAME:                      %[[VAL_0:.*]]: memref<*xbf16>, %[[VAL_1:.*]]: memref<*xbf16>, %[[VAL_2:.*]]: i32, %[[VAL_3:.*]]: i32, %[[VAL_4:.*]]: i32) {
+// CHECK-DAG:      %[[C0:.*]] = arith.constant 0 : index
 // CHECK:           %[[VAL_5:.*]] = arith.constant 0.000000e+00 : f32
 // CHECK:           %[[VAL_6:.*]] = memref.reinterpret_cast %[[VAL_0]] to offset: [0], sizes: [128], strides: [1] : memref<*xbf16> to memref<128xbf16, strided<[1]>>
 // CHECK:           %[[VAL_7:.*]] = memref.alloc() : memref<128xbf16>
@@ -33,6 +34,6 @@ module {
 // CHECK:           %[[VAL_16:.*]] = tensor.extract %[[VAL_11]][] : tensor<f32>
 // CHECK:           %[[VAL_17:.*]] = arith.truncf %[[VAL_16]] : f32 to bf16
 // CHECK:           %[[VAL_18:.*]] = memref.reinterpret_cast %[[VAL_1]] to offset: [0], sizes: [1], strides: [1] : memref<*xbf16> to memref<1xbf16, strided<[1]>>
-// CHECK:           affine.store %[[VAL_17]], %[[VAL_18]][0] : memref<1xbf16, strided<[1]>>
+// CHECK:           memref.store %[[VAL_17]], %[[VAL_18]][%[[C0]]] : memref<1xbf16, strided<[1]>>
 // CHECK:           return
 // CHECK:         }
