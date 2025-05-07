@@ -382,6 +382,7 @@ public:
 
                   return success();
                 })
+               .Case<tts::MakeGatherScatterTensorPtrOp>([&](Operation *op){return success();})
                 .Case<triton::LoadOp, triton::StoreOp, triton::MakeTensorPtrOp,
                       tts::MakeTensorPtrOp>([&](Operation *op) {
                   // Special case:

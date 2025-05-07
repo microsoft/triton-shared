@@ -38,8 +38,16 @@ const extern std::string ptrAnalysisAttr;
 // shape field means the same field as tt.make_tensor_ptr; when it describes a
 // non-block pointer, shape field indicates how address wraps around (i.e.,
 // modulo); a constant 0 indicates no modulo for the dimension.
+// Multi-dimension PtrState, which has one unstructured dimension, is supported
+// for gather/scatter access. The unstructured dimension is marked by a tensor
+// type offset. The tensor offset for the unstructured dimension must be
+// expanded from a 1D tensor. The analysis will fail for multi-dimension
+// unstructured offsets. Later, when using the tensor offset to calculate the
+// address, it will be collapsed to 1D. To support gather/scatter access, treat
+// the unstructured offset as a whole offset instead of decoding the pointer
+// arithmetic on it. The stride is set to 1 so it still matches the offset *
+// stride formula
 struct PtrState {
-
   SmallVector<OpFoldResult> offsets;
   SmallVector<OpFoldResult> sizes;
   SmallVector<OpFoldResult> strides;
@@ -57,9 +65,48 @@ struct PtrState {
 
   bool dimHasModulo(uint32_t dim) const;
 
+  bool dimIsStructured(uint32_t dim) const;
+  int32_t getNonStructuredDim() const;
+  // Verify that all dimensions are not structured.
+  bool noStructuredDimExists() const;
+
+  bool isStructured() const;
+
   bool isBlockPtr() const;
 
   void dump() const;
+
+  // For unsupported op, save the op to the state.
+  LogicalResult rebuildAsUnsupportedOp(Value op);
+
+  // When merge with other state which is not structured, set the nonContinuous
+  // dimension offset as op.
+  // Fail if the operation already mixes different dimensions.
+  // For case
+  // clang-format off
+  //    %14 = tt.expand_dims %11 {axis = 1 : i32} : tensor<64xi1> -> tensor<64x1xi1>
+  //    %dim0_value = tt.broadcast %14 : tensor<64x1xi1> -> tensor<64x64xi1>
+  //    %16 = tt.expand_dims %13 {axis = 0 : i32} : tensor<64xi1> -> tensor<1x64xi1>
+  //    %dim1_value = tt.broadcast %16 : tensor<1x64xi1> -> tensor<64x64xi1>
+  //    add  %dim0_value, %dim1_value
+  // clang-format on
+  //    the add will have size > 1 for both dim0 and dim1.
+  //    It will fail for mix of different dims.
+  //
+  // Fail if the operation does not contribute to nonContinuousDim.
+  // For case
+  // clang-format off
+  //    %14 = tt.expand_dims %11 {axis = 1 : i32} : tensor<64xi1> -> tensor<64x1xi1>
+  //    %dim0_value = tt.broadcast %14 : tensor<64x1xi1> -> tensor<64x64xi1>
+  //    %16 = tt.expand_dims %13 {axis = 1 : i32} : tensor<64xi1> -> tensor<64x1xi1>
+  //    %dim0_value2 = tt.broadcast %16 : tensor<64x1xi1> -> tensor<64x64xi1>
+  //    add  %dim0_value, %dim0_value2
+  // clang-format on
+  //    the add only have size > 1 for dim0 which doesn't mix of different
+  //    dims.
+  // But if call rebuildAsGatherScatter on the add with nonContinuousDim = 1 it
+  // will fail because it only have dim0.
+  LogicalResult rebuildAsGatherScatter(Value op, int nonContinuousDim);
 
   // Process addition of two PtrStates.
   LogicalResult addState(const PtrState &lhsState, const PtrState &rhsState,
@@ -71,6 +118,8 @@ struct PtrState {
 
   tts::MakeTensorPtrOp createTTSMakeTensorPtrOp(OpBuilder &builder,
                                                 Location loc);
+  tts::MakeGatherScatterTensorPtrOp
+  createTTSMakeGatherScatterTensorPtrOp(OpBuilder &builder, Location loc);
 };
 
 class PtrAnalysis {
