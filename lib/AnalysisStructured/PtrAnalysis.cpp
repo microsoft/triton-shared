@@ -1026,8 +1026,11 @@ LogicalResult PtrAnalysis::rewriteAddptrOp(triton::AddPtrOp op) {
       // continuous dimensions.
       if (state.getRank() == 1)
         return failure();
-      auto maketptrOp = state.createTTSMakeGatherScatterTensorPtrOp(builder, op.getLoc());
-      ptrMap.map(op.getResult(), maketptrOp.getResult());
+      if (enableMakeGatherScatterTensorPtr) {
+        auto maketptrOp =
+            state.createTTSMakeGatherScatterTensorPtrOp(builder, op.getLoc());
+        ptrMap.map(op.getResult(), maketptrOp.getResult());
+      }
     }
   } else {
     // record the ptr as we have visited and built up the state for this scalar

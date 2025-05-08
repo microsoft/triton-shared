@@ -316,7 +316,7 @@ public:
     }
 
     auto moduleOp = getOperation();
-    mlir::tts::PtrAnalysis ptrAnalysis;
+    mlir::tts::PtrAnalysis ptrAnalysis(enableMakeGatherScatterTensorPtr);
     ptrAnalysis.initializeMaybeStructuredArgs(moduleOp);
 
     if (failed(ptrAnalysis.rewriteOp(moduleOp, useUnsafeMask))) {

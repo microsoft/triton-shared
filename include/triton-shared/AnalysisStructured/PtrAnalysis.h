@@ -144,8 +144,11 @@ class PtrAnalysis {
       llvm::function_ref<Value(scf::ForOp op, size_t)> getReplacementVal);
 
   DenseSet<Value> maybeStructuredArgs;
+  bool enableMakeGatherScatterTensorPtr;
 
 public:
+  PtrAnalysis(bool enableMakeGatherScatterTensorPtr)
+      : enableMakeGatherScatterTensorPtr(enableMakeGatherScatterTensorPtr) {}
   void initializeMaybeStructuredArgs(Operation *op);
 
   llvm::SmallDenseMap<Value, PtrState> knownPtrs;
