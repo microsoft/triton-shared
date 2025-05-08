@@ -165,7 +165,7 @@ module {
 // CHECK-DAG:         [[RES_1_:%.+]] = memref.alloc() : memref<64x256xbf16>
 // CHECK:             memref.copy [[VAR_reinterpret_cast_0_]], [[RES_1_]] : memref<64x256xbf16, strided<[?, ?], offset: ?>> to memref<64x256xbf16>
 // CHECK:             [[VAR_53_:%.+]] = bufferization.to_tensor [[RES_1_]] restrict writable : memref<64x256xbf16>
-// CHECK:             [[VAR_54_:%.+]] = linalg.matmul ins([[VAR_52_]], [[VAR_53_]] : tensor<128x64xbf16>, tensor<64x256xbf16>) outs([[VAR_1_]] : tensor<128x256xf32>) -> tensor<128x256xf32>
+// CHECK:             [[VAR_54_:%.+]] = linalg.matmul ins([[VAR_52_]], [[VAR_53_]] : tensor<128x64xbf16>, tensor<64x256xbf16>) outs([[VAR_0_]] : tensor<128x256xf32>) -> tensor<128x256xf32>
 // CHECK:             [[VAR_55_:%.+]] = linalg.generic {indexing_maps = [#map, #map, #map], iterator_types = ["parallel", "parallel"]} ins([[VAR_arg19_]], [[VAR_54_]] : tensor<128x256xf32>, tensor<128x256xf32>) outs([[VAR_arg19_]] : tensor<128x256xf32>) {
 // CHECK:             ^bb0([[IN_0_:%.+]]: f32, [[IN_1_:%.+]]: f32, [[IN_2_:%.+]]: f32):
 // CHECK:               [[VAR_58_:%.+]] = arith.addf [[IN_0_]], [[IN_1_]] : f32

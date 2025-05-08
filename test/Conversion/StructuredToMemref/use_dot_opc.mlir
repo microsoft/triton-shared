@@ -65,7 +65,7 @@ module {
 // CHECK:           memref.copy [[VAR_reinterpret_cast_0_]], [[RES_1_]] : memref<64x256xbf16, strided<[256, 1]>> to memref<64x256xbf16>
 // CHECK-DAG:       [[VAR_3_:%.+]] = bufferization.to_tensor [[RES_1_]] restrict writable : memref<64x256xbf16>
 // CHECK-DAG:       [[VAR_reinterpret_cast_2_:%.+]] = memref.reinterpret_cast [[PARAM_2_]] to offset: [0], sizes: [128, 256], strides: [256, 1] : memref<*xbf16> to memref<128x256xbf16, strided<[256, 1]>>
-// CHECK:           [[VAR_4_:%.+]] = linalg.matmul ins([[VAR_2_]], [[VAR_3_]] : tensor<128x64xbf16>, tensor<64x256xbf16>) outs([[VAR_1_]] : tensor<128x256xbf16>) -> tensor<128x256xbf16>
+// CHECK:           [[VAR_4_:%.+]] = linalg.matmul ins([[VAR_2_]], [[VAR_3_]] : tensor<128x64xbf16>, tensor<64x256xbf16>) outs([[VAR_0_]] : tensor<128x256xbf16>) -> tensor<128x256xbf16>
 // CHECK:           bufferization.materialize_in_destination [[VAR_4_]] in writable [[VAR_reinterpret_cast_2_]] : (tensor<128x256xbf16>, memref<128x256xbf16, strided<[256, 1]>>) -> ()
 // CHECK:           bufferization.materialize_in_destination [[VAR_1_]] in writable [[VAR_reinterpret_cast_2_]] : (tensor<128x256xbf16>, memref<128x256xbf16, strided<[256, 1]>>) -> ()
 // CHECK:           return
