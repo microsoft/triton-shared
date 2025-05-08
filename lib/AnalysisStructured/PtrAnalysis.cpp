@@ -510,7 +510,7 @@ LogicalResult PtrAnalysis::visitOperandAdd(arith::AddIOp addOp, PtrState &state,
       return failure();
   } else if (lhsState.hasModulo() && !rhsState.isStructured()) {
     if (lhsState.rebuildAsGatherScatter(addOp.getLhs(), rhsState.getNonStructuredDim()).failed())
-    return failure();
+      return failure();
   }
 
   return state.addState(lhsState, rhsState, addOp, builder);
