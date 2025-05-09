@@ -1,5 +1,11 @@
 // RUN: triton-shared-opt --triton-to-structured --remove-dead-values --canonicalize %s | FileCheck %s
 
+// RUN: triton-shared-opt --triton-to-structured="enable-make-gather-scatter=false" --remove-dead-values --canonicalize %s | FileCheck %s --check-prefix=NO_GATHER
+
+// Make sure no tts.make_gather_scatter_tptr generated when enable-make-gather-scatter=false.
+// NO_GATHER-LABEL:   tt.func public @row_gather2(
+// NO_GATHER-NOT:     tts.make_gather_scatter_tptr
+
 // Make sure tts.make_indirect_tptr is generated with correct indirect_dim and indirect_offset.
 
 // CHECK-LABEL:   tt.func public @row_gather2(

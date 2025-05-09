@@ -9,7 +9,11 @@
 namespace mlir {
 namespace triton {
 
-std::unique_ptr<OperationPass<ModuleOp>> createTritonToStructuredPass();
+#define GEN_PASS_DECL_TRITONTOSTRUCTURED
+#include "triton-shared/Conversion/TritonToStructured/Passes.h.inc"
+
+std::unique_ptr<OperationPass<ModuleOp>>
+createTritonToStructuredPass(bool enableMakeGatherScatterTensorPtr = true);
 
 } // namespace triton
 } // namespace mlir

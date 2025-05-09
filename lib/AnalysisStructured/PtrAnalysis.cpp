@@ -506,10 +506,18 @@ LogicalResult PtrAnalysis::visitOperandAdd(arith::AddIOp addOp, PtrState &state,
   // Need to clear the modulo and use the operand as offset directly.
   if (!lhsState.isStructured() && rhsState.hasModulo()) {
     // TODO: support modulo in this case.
-    if (rhsState.rebuildAsGatherScatter(addOp.getRhs(), lhsState.getNonStructuredDim()).failed())
+    if (!enableMakeGatherScatterTensorPtr ||
+        rhsState
+            .rebuildAsGatherScatter(addOp.getRhs(),
+                                    lhsState.getNonStructuredDim())
+            .failed())
       return failure();
   } else if (lhsState.hasModulo() && !rhsState.isStructured()) {
-    if (lhsState.rebuildAsGatherScatter(addOp.getLhs(), rhsState.getNonStructuredDim()).failed())
+    if (!enableMakeGatherScatterTensorPtr ||
+        lhsState
+            .rebuildAsGatherScatter(addOp.getLhs(),
+                                    rhsState.getNonStructuredDim())
+            .failed())
       return failure();
   }
 
@@ -533,13 +541,15 @@ LogicalResult PtrAnalysis::visitOperandMul(arith::MulIOp mulOp, PtrState &state,
   // Need to clear the modulo and use the operand as offset directly.
   if (!lhsState.isStructured() && rhsState.hasModulo()) {
     // TODO: support modulo in this case.
-    if (rhsState
+    if (!enableMakeGatherScatterTensorPtr ||
+        rhsState
             .rebuildAsGatherScatter(mulOp.getRhs(),
                                     lhsState.getNonStructuredDim())
             .failed())
       return failure();
   } else if (lhsState.hasModulo() && !rhsState.isStructured()) {
-    if (lhsState
+    if (!enableMakeGatherScatterTensorPtr ||
+        lhsState
             .rebuildAsGatherScatter(mulOp.getLhs(),
                                     rhsState.getNonStructuredDim())
             .failed())
@@ -581,7 +591,7 @@ LogicalResult PtrAnalysis::visitOperandRem(arith::RemSIOp remOp,
   if (state.hasModulo()) {
     remOp->emitRemark(
         "PtrAnalysis: do not support multiple modulo within an expression");
-    if (state.getRank() == 1)
+    if (state.getRank() == 1 && enableMakeGatherScatterTensorPtr)
       // Build the state from the current operation as an unstructured state,
       // but only when there is a single dimension involved.
       return state.rebuildAsGatherScatter(remOp.getResult(), 0);
@@ -1003,6 +1013,8 @@ LogicalResult PtrAnalysis::visitOperand(Value operand, PtrState &state,
                     "unsupported operation\n";
     operand.dump();
 
+    if (!enableMakeGatherScatterTensorPtr)
+      return failure();
     return state.rebuildAsUnsupportedOp(operand);
   }
 }
@@ -1021,13 +1033,16 @@ LogicalResult PtrAnalysis::rewriteAddptrOp(triton::AddPtrOp op) {
     if (state.isStructured()) {
       auto maketptrOp = state.createTTSMakeTensorPtrOp(builder, op.getLoc());
       ptrMap.map(op.getResult(), maketptrOp.getResult());
-    } else {
+    } else if (enableMakeGatherScatterTensorPtr) {
       // If there is only one dimension, return failure since there are no
       // continuous dimensions.
       if (state.getRank() == 1)
         return failure();
-      auto maketptrOp = state.createTTSMakeGatherScatterTensorPtrOp(builder, op.getLoc());
+      auto maketptrOp =
+          state.createTTSMakeGatherScatterTensorPtrOp(builder, op.getLoc());
       ptrMap.map(op.getResult(), maketptrOp.getResult());
+    } else {
+      return failure();
     }
   } else {
     // record the ptr as we have visited and built up the state for this scalar
