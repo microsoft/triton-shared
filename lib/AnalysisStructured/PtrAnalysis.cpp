@@ -1021,16 +1021,16 @@ LogicalResult PtrAnalysis::rewriteAddptrOp(triton::AddPtrOp op) {
     if (state.isStructured()) {
       auto maketptrOp = state.createTTSMakeTensorPtrOp(builder, op.getLoc());
       ptrMap.map(op.getResult(), maketptrOp.getResult());
-    } else {
+    } else if (enableMakeGatherScatterTensorPtr) {
       // If there is only one dimension, return failure since there are no
       // continuous dimensions.
       if (state.getRank() == 1)
         return failure();
-      if (enableMakeGatherScatterTensorPtr) {
-        auto maketptrOp =
-            state.createTTSMakeGatherScatterTensorPtrOp(builder, op.getLoc());
-        ptrMap.map(op.getResult(), maketptrOp.getResult());
-      }
+      auto maketptrOp =
+          state.createTTSMakeGatherScatterTensorPtrOp(builder, op.getLoc());
+      ptrMap.map(op.getResult(), maketptrOp.getResult());
+    } else {
+      return failure();
     }
   } else {
     // record the ptr as we have visited and built up the state for this scalar

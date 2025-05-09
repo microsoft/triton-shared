@@ -13,6 +13,10 @@ include "mlir/Pass/PassBase.td"
 def TritonToLinalgExperimental : Pass<"triton-to-linalg-experimental", "mlir::ModuleOp"> {
   let summary = "Convert Triton to Linalg dialect";
   let constructor = "triton::createTritonToLinalgExperimentalPass()";
+  let options = [
+      Option<"enableMakeGatherScatterTensorPtr", "enable-make-gather-scatter", "bool", /*default*/"true",
+             "Enable make_gather_scatter_tptr support">
+  ];
 }
 
 def ReconcilePtrCasts : Pass<"reconcile-ptr-casts", "mlir::ModuleOp"> {

@@ -1,5 +1,12 @@
 // RUN: triton-shared-opt --triton-to-linalg-experimental %s | FileCheck %s
 
+// RUN: triton-shared-opt --triton-to-linalg-experimental="enable-make-gather-scatter=false" %s | FileCheck %s --check-prefix=NO_GATHER
+
+// Make sure no extract_slice when enable-make-gather-scatter=false..
+// NO_GATHER-LABLE: func.func @row_gather2(
+// NO_GATHER-NOT: extract_slice
+
+
 // Make sure extract_slice is generated correctly.
 
 // CHECK: #[[$ATTR_0:.+]] = affine_map<(d0) -> (d0)>

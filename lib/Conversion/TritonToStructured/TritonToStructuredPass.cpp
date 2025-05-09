@@ -46,11 +46,18 @@ using namespace triton;
 #define GEN_PASS_CLASSES
 #include "triton-shared/Conversion/TritonToStructured/Passes.h.inc"
 
+namespace mlir {
+  namespace triton {
+  #define GEN_PASS_DEF_TRITONTOSTRUCTURED
+    #include "triton-shared/Conversion/TritonToStructured/Passes.h.inc"
+  } // namespace triton
+} // namespace mlir
+
 namespace {
 
 class TritonToStructuredPass
-    : public TritonToStructuredBase<TritonToStructuredPass> {
-
+    : public triton::impl::TritonToStructuredBase<TritonToStructuredPass> {
+  using TritonToStructuredBase<TritonToStructuredPass>::TritonToStructuredBase;
   static TupleType getStructuredStateTupleType(MLIRContext *context, Type t) {
     SmallVector<Type> tupleTypes{t};
     auto [offsetTypes, strideTypes] =
@@ -335,6 +342,8 @@ public:
 } // namespace
 
 std::unique_ptr<OperationPass<ModuleOp>>
-triton::createTritonToStructuredPass() {
-  return std::make_unique<TritonToStructuredPass>();
+triton::createTritonToStructuredPass(bool enableMakeGatherScatterTensorPtr) {
+  TritonToStructuredOptions options;
+  options.enableMakeGatherScatterTensorPtr = enableMakeGatherScatterTensorPtr;
+  return std::make_unique<TritonToStructuredPass>(options);
 }
