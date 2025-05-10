@@ -349,7 +349,8 @@ class CPUUtils(object):
           None,       # module
           kernel_obj, # function
           None,       # n_regs
-          None        # n_spills
+          None,        # n_spills
+          1024*1024*1024, # n_max_threads
         )
 
 
