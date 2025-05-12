@@ -5,7 +5,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "../RegisterTritonSharedDialects.h"
+#include "RegisterTritonSharedDialects.h"
 
 #include "mlir/Tools/mlir-opt/MlirOptMain.h"
 
