@@ -26,7 +26,7 @@ You need to set the `TRITON_PLUGIN_DIRS` environment variable to the location of
 export TRITON_PLUGIN_DIRS=$(pwd)/triton_shared
 
 git clone --recurse-submodules https://github.com/microsoft/triton-shared.git triton_shared
-cd triton_shared/triton/python
+cd triton_shared/triton
 ```
 
 To build with Clang:
@@ -49,7 +49,7 @@ pip3 install ninja cmake wheel pytest pybind11 setuptools
 pip3 install -e . --no-build-isolation
 ```
 
-The resulting `triton-shared` binaries will be placed under `triton/python/build/{current_cmake_version}/third_party/triton_shared`
+The resulting `triton-shared` binaries will be placed under `triton/build/{current_cmake_version}/third_party/triton_shared`
 
 ### 1. Stand-Alone
 The middle layer can be used as a stand-alone component to convert Triton dialect to the middle layer dialects. This is intended for testing and validation purposes, but could potentially be used before sending the IR to another MLIR complier.
@@ -170,7 +170,7 @@ The prototype was tested on the following triton kernel examples:
 The Python tests are setup to run with Pytest and you will need to set the following environment variables to run them:
 ```
 export LLVM_BINARY_DIR=<path-to-your-llvm-binaries>
-export TRITON_SHARED_OPT_PATH=$TRITON_PLUGIN_DIRS/triton/python/build/<your-cmake-directory>/third_party/triton_shared/tools/triton-shared-opt/triton-shared-opt
+export TRITON_SHARED_OPT_PATH=$TRITON_PLUGIN_DIRS/triton/build/<your-cmake-directory>/third_party/triton_shared/tools/triton-shared-opt/triton-shared-opt
 
 pytest <path-to-triton-shared>/python/examples
 ```
