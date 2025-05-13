@@ -344,10 +344,10 @@ void PtrState::dump() const {
         llvm::dbgs() << " structured\n";
       else
         llvm::dbgs() << " not strucuted\n";
-        
+
     }
   }
-  
+
   llvm::dbgs() << "\n";
 }
 
@@ -966,6 +966,9 @@ LogicalResult PtrAnalysis::visitOperand(Value operand, PtrState &state,
         return visitOperandIntToPtr(intToPtrOp, state, loc, builder);
       } else if (auto makeTensorOp = dyn_cast<triton::MakeTensorPtrOp>(op)) {
         llvm_unreachable("Unexpected operand defining operation tts.make_tptr");
+      } else if (auto ifOp = dyn_cast<scf::IfOp>(op)) {
+        state.source = operand;
+        return success();
       } else {
         op->emitRemark("Unexpected defining op for triton pointer operand");
         return failure();

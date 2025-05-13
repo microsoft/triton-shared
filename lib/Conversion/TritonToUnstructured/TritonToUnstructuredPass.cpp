@@ -317,6 +317,10 @@ public:
                   return success();
                 })
                 .Case<triton::AddPtrOp>([&](triton::AddPtrOp addptr) {
+                  if (dyn_cast<scf::IfOp>(addptr->getParentOp())) {
+                    return failure();
+                  }
+
                   OpBuilder b{addptr};
                   auto loc = addptr->getLoc();
 
@@ -344,6 +348,8 @@ public:
                   auto accumulatedOff = b.create<arith::AddIOp>(
                       loc, getPtrOffsetType(addptr.getType(), resWidth),
                       prevOff, off);
+
+                  accumulatedOff->setAttr("test", b.getUnitAttr());
 
                   PtrOffset newOffsetInfo{offsetInfo.ptr, addptr.getType(),
                                           resWidth, accumulatedOff};
@@ -386,7 +392,8 @@ public:
 
                   return success();
                 })
-               .Case<tts::MakeGatherScatterTensorPtrOp>([&](Operation *op){return success();})
+                .Case<tts::MakeGatherScatterTensorPtrOp>(
+                    [&](Operation *op) { return success(); })
                 .Case<triton::LoadOp, triton::StoreOp, triton::MakeTensorPtrOp,
                       tts::MakeTensorPtrOp>([&](Operation *op) {
                   // Special case:
@@ -571,12 +578,12 @@ public:
       return;
     }
 
-    PassManager pm(&getContext(), getOperation().getOperationName());
-    pm.addPass(createCanonicalizerPass());
-    pm.addPass(createCSEPass());
-    if (failed(runPipeline(pm, getOperation()))) {
-      signalPassFailure();
-    }
+    // PassManager pm(&getContext(), getOperation().getOperationName());
+    // pm.addPass(createCanonicalizerPass());
+    // pm.addPass(createCSEPass());
+    // if (failed(runPipeline(pm, getOperation()))) {
+    //   signalPassFailure();
+    // }
   }
 };
 } // namespace
