@@ -349,8 +349,6 @@ public:
                       loc, getPtrOffsetType(addptr.getType(), resWidth),
                       prevOff, off);
 
-                  accumulatedOff->setAttr("test", b.getUnitAttr());
-
                   PtrOffset newOffsetInfo{offsetInfo.ptr, addptr.getType(),
                                           resWidth, accumulatedOff};
 
@@ -578,12 +576,12 @@ public:
       return;
     }
 
-    // PassManager pm(&getContext(), getOperation().getOperationName());
-    // pm.addPass(createCanonicalizerPass());
-    // pm.addPass(createCSEPass());
-    // if (failed(runPipeline(pm, getOperation()))) {
-    //   signalPassFailure();
-    // }
+    PassManager pm(&getContext(), getOperation().getOperationName());
+    pm.addPass(createCanonicalizerPass());
+    pm.addPass(createCSEPass());
+    if (failed(runPipeline(pm, getOperation()))) {
+      signalPassFailure();
+    }
   }
 };
 } // namespace
