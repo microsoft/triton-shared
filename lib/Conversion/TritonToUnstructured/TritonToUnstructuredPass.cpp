@@ -317,6 +317,13 @@ public:
                   return success();
                 })
                 .Case<triton::AddPtrOp>([&](triton::AddPtrOp addptr) {
+                  // Bail when we have an addptr in an scf.if as we  do not know
+                  // if the pointer returning from both branches will have the
+                  // same source
+                  if (addptr->getParentOfType<scf::IfOp>()) {
+                    return failure();
+                  }
+
                   OpBuilder b{addptr};
                   auto loc = addptr->getLoc();
 
@@ -386,7 +393,8 @@ public:
 
                   return success();
                 })
-               .Case<tts::MakeGatherScatterTensorPtrOp>([&](Operation *op){return success();})
+                .Case<tts::MakeGatherScatterTensorPtrOp>(
+                    [&](Operation *op) { return success(); })
                 .Case<triton::LoadOp, triton::StoreOp, triton::MakeTensorPtrOp,
                       tts::MakeTensorPtrOp>([&](Operation *op) {
                   // Special case:
