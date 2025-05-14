@@ -1,4 +1,4 @@
-// RUN: triton-shared-opt --triton-to-linalg-experimental %s | FileCheck %s
+// RUN: triton-shared-opt --triton-to-linalg-experimental --cse %s | FileCheck %s
 
 // RUN: triton-shared-opt --triton-to-linalg-experimental="enable-make-gather-scatter=false" %s | FileCheck %s --check-prefix=NO_GATHER
 
@@ -92,78 +92,88 @@
 // CHECK:             %[[VAL_75:.*]] = arith.muli %[[VAL_72]], %[[VAL_73]] : i32
 // CHECK:             linalg.yield %[[VAL_75]] : i32
 // CHECK:           } -> tensor<16x1xi32>
-// CHECK:           %[[VAL_76:.*]] = linalg.generic {indexing_maps = [#[[$ATTR_1]], #[[$ATTR_1]]], iterator_types = ["parallel", "parallel"]} ins(%[[VAL_57]] : tensor<16x1xi64>) outs(%[[VAL_23]] : tensor<16x1xi32>) {
-// CHECK:           ^bb0(%[[VAL_77:.*]]: i64, %[[VAL_78:.*]]: i32):
-// CHECK:             %[[VAL_79:.*]] = arith.trunci %[[VAL_77]] : i64 to i32
-// CHECK:             linalg.yield %[[VAL_79]] : i32
+// CHECK:           %[[VAL_76:.*]] = linalg.generic {indexing_maps = [#[[$ATTR_1]], #[[$ATTR_1]], #[[$ATTR_1]]], iterator_types = ["parallel", "parallel"]} ins(%[[VAL_71]], %[[VAL_70]] : tensor<16x1xi32>, tensor<16x1xi32>) outs(%[[VAL_71]] : tensor<16x1xi32>) {
+// CHECK:           ^bb0(%[[VAL_77:.*]]: i32, %[[VAL_78:.*]]: i32, %[[VAL_79:.*]]: i32):
+// CHECK:             %[[VAL_80:.*]] = arith.muli %[[VAL_77]], %[[VAL_78]] : i32
+// CHECK:             linalg.yield %[[VAL_80]] : i32
 // CHECK:           } -> tensor<16x1xi32>
-// CHECK:           %[[VAL_80:.*]] = linalg.generic {indexing_maps = [#[[$ATTR_1]], #[[$ATTR_1]], #[[$ATTR_1]]], iterator_types = ["parallel", "parallel"]} ins(%[[VAL_71]], %[[VAL_76]] : tensor<16x1xi32>, tensor<16x1xi32>) outs(%[[VAL_71]] : tensor<16x1xi32>) {
-// CHECK:           ^bb0(%[[VAL_81:.*]]: i32, %[[VAL_82:.*]]: i32, %[[VAL_83:.*]]: i32):
-// CHECK:             %[[VAL_84:.*]] = arith.addi %[[VAL_81]], %[[VAL_82]] : i32
+// CHECK:           %[[VAL_81:.*]] = linalg.generic {indexing_maps = [#[[$ATTR_1]], #[[$ATTR_1]]], iterator_types = ["parallel", "parallel"]} ins(%[[VAL_57]] : tensor<16x1xi64>) outs(%[[VAL_23]] : tensor<16x1xi32>) {
+// CHECK:           ^bb0(%[[VAL_82:.*]]: i64, %[[VAL_83:.*]]: i32):
+// CHECK:             %[[VAL_84:.*]] = arith.trunci %[[VAL_82]] : i64 to i32
 // CHECK:             linalg.yield %[[VAL_84]] : i32
 // CHECK:           } -> tensor<16x1xi32>
-// CHECK:           %[[VAL_85:.*]] = arith.index_cast %[[VAL_50]] : index to i32
-// CHECK:           %[[VAL_86:.*]] = linalg.fill ins(%[[VAL_85]] : i32) outs(%[[VAL_23]] : tensor<16x1xi32>) -> tensor<16x1xi32>
-// CHECK:           %[[VAL_87:.*]] = linalg.generic {indexing_maps = [#[[$ATTR_1]], #[[$ATTR_1]], #[[$ATTR_1]]], iterator_types = ["parallel", "parallel"]} ins(%[[VAL_86]], %[[VAL_80]] : tensor<16x1xi32>, tensor<16x1xi32>) outs(%[[VAL_86]] : tensor<16x1xi32>) {
-// CHECK:           ^bb0(%[[VAL_88:.*]]: i32, %[[VAL_89:.*]]: i32, %[[VAL_90:.*]]: i32):
-// CHECK:             %[[VAL_91:.*]] = arith.addi %[[VAL_88]], %[[VAL_89]] : i32
-// CHECK:             linalg.yield %[[VAL_91]] : i32
+// CHECK:           %[[VAL_85:.*]] = linalg.generic {indexing_maps = [#[[$ATTR_1]], #[[$ATTR_1]], #[[$ATTR_1]]], iterator_types = ["parallel", "parallel"]} ins(%[[VAL_76]], %[[VAL_81]] : tensor<16x1xi32>, tensor<16x1xi32>) outs(%[[VAL_76]] : tensor<16x1xi32>) {
+// CHECK:           ^bb0(%[[VAL_86:.*]]: i32, %[[VAL_87:.*]]: i32, %[[VAL_88:.*]]: i32):
+// CHECK:             %[[VAL_89:.*]] = arith.addi %[[VAL_86]], %[[VAL_87]] : i32
+// CHECK:             linalg.yield %[[VAL_89]] : i32
 // CHECK:           } -> tensor<16x1xi32>
-// CHECK:           %[[VAL_92:.*]] = tensor.collapse_shape %[[VAL_87]] {{\[\[}}0, 1]] : tensor<16x1xi32> into tensor<16xi32>
-// CHECK:           %[[VAL_93:.*]] = memref.alloc() : memref<16x16xf32>
-// CHECK:           scf.for %[[VAL_94:.*]] = %[[VAL_21]] to %[[VAL_22]] step %[[VAL_19]] {
-// CHECK:             %[[VAL_95:.*]] = tensor.extract %[[VAL_92]]{{\[}}%[[VAL_94]]] : tensor<16xi32>
-// CHECK:             %[[VAL_96:.*]] = arith.index_cast %[[VAL_95]] : i32 to index
-// CHECK:             %[[VAL_97:.*]] = memref.reinterpret_cast %[[VAL_0]] to offset: {{\[}}%[[VAL_96]]], sizes: [1, 16], strides: [1, 1] : memref<*xf32> to memref<1x16xf32, strided<[1, 1], offset: ?>>
-// CHECK:             %[[VAL_98:.*]] = memref.subview %[[VAL_97]][0, 0] [1, 8] [16, 1] : memref<1x16xf32, strided<[1, 1], offset: ?>> to memref<1x8xf32, strided<[16, 1], offset: ?>>
-// CHECK:             %[[VAL_99:.*]] = memref.subview %[[VAL_93]]{{\[}}%[[VAL_94]], 0] [1, 8] [16, 1] : memref<16x16xf32> to memref<1x8xf32, strided<[256, 1], offset: ?>>
-// CHECK:             memref.copy %[[VAL_98]], %[[VAL_99]] : memref<1x8xf32, strided<[16, 1], offset: ?>> to memref<1x8xf32, strided<[256, 1], offset: ?>>
+// CHECK:           %[[VAL_90:.*]] = arith.index_cast %[[VAL_50]] : index to i32
+// CHECK:           %[[VAL_91:.*]] = linalg.fill ins(%[[VAL_90]] : i32) outs(%[[VAL_23]] : tensor<16x1xi32>) -> tensor<16x1xi32>
+// CHECK:           %[[VAL_92:.*]] = linalg.generic {indexing_maps = [#[[$ATTR_1]], #[[$ATTR_1]], #[[$ATTR_1]]], iterator_types = ["parallel", "parallel"]} ins(%[[VAL_91]], %[[VAL_85]] : tensor<16x1xi32>, tensor<16x1xi32>) outs(%[[VAL_91]] : tensor<16x1xi32>) {
+// CHECK:           ^bb0(%[[VAL_93:.*]]: i32, %[[VAL_94:.*]]: i32, %[[VAL_95:.*]]: i32):
+// CHECK:             %[[VAL_96:.*]] = arith.addi %[[VAL_93]], %[[VAL_94]] : i32
+// CHECK:             linalg.yield %[[VAL_96]] : i32
+// CHECK:           } -> tensor<16x1xi32>
+// CHECK:           %[[VAL_97:.*]] = tensor.collapse_shape %[[VAL_92]] {{\[\[}}0, 1]] : tensor<16x1xi32> into tensor<16xi32>
+// CHECK:           %[[VAL_98:.*]] = memref.alloc() : memref<16x16xf32>
+// CHECK:           scf.for %[[VAL_99:.*]] = %[[VAL_21]] to %[[VAL_22]] step %[[VAL_19]] {
+// CHECK:             %[[VAL_100:.*]] = tensor.extract %[[VAL_97]]{{\[}}%[[VAL_99]]] : tensor<16xi32>
+// CHECK:             %[[VAL_101:.*]] = arith.index_cast %[[VAL_100]] : i32 to index
+// CHECK:             %[[VAL_102:.*]] = memref.reinterpret_cast %[[VAL_0]] to offset: {{\[}}%[[VAL_101]]], sizes: [1, 16], strides: [1, 1] : memref<*xf32> to memref<1x16xf32, strided<[1, 1], offset: ?>>
+// CHECK:             %[[VAL_103:.*]] = memref.subview %[[VAL_102]][0, 0] [1, 8] [16, 1] : memref<1x16xf32, strided<[1, 1], offset: ?>> to memref<1x8xf32, strided<[16, 1], offset: ?>>
+// CHECK:             %[[VAL_104:.*]] = memref.subview %[[VAL_98]]{{\[}}%[[VAL_99]], 0] [1, 8] [16, 1] : memref<16x16xf32> to memref<1x8xf32, strided<[256, 1], offset: ?>>
+// CHECK:             memref.copy %[[VAL_103]], %[[VAL_104]] : memref<1x8xf32, strided<[16, 1], offset: ?>> to memref<1x8xf32, strided<[256, 1], offset: ?>>
 // CHECK:           }
-// CHECK:           %[[VAL_100:.*]] = bufferization.to_tensor %[[VAL_93]] restrict writable : memref<16x16xf32> to tensor<16x16xf32>
-// CHECK:           %[[VAL_101:.*]] = arith.muli %[[VAL_48]], %[[VAL_10]] : i64
-// CHECK:           %[[VAL_102:.*]] = arith.extsi %[[VAL_18]] : i32 to i64
-// CHECK:           %[[VAL_103:.*]] = arith.muli %[[VAL_102]], %[[VAL_12]] : i64
-// CHECK:           %[[VAL_104:.*]] = arith.addi %[[VAL_101]], %[[VAL_103]] : i64
-// CHECK:           %[[VAL_105:.*]] = arith.index_cast %[[VAL_104]] : i64 to index
-// CHECK:           %[[VAL_106:.*]] = linalg.fill ins(%[[VAL_11]] : i64) outs(%[[VAL_51]] : tensor<16x1xi64>) -> tensor<16x1xi64>
-// CHECK:           %[[VAL_107:.*]] = linalg.generic {indexing_maps = [#[[$ATTR_1]], #[[$ATTR_1]], #[[$ATTR_1]]], iterator_types = ["parallel", "parallel"]} ins(%[[VAL_52]], %[[VAL_106]] : tensor<16x1xi64>, tensor<16x1xi64>) outs(%[[VAL_52]] : tensor<16x1xi64>) {
-// CHECK:           ^bb0(%[[VAL_108:.*]]: i64, %[[VAL_109:.*]]: i64, %[[VAL_110:.*]]: i64):
-// CHECK:             %[[VAL_111:.*]] = arith.muli %[[VAL_108]], %[[VAL_109]] : i64
-// CHECK:             linalg.yield %[[VAL_111]] : i64
+// CHECK:           %[[VAL_105:.*]] = bufferization.to_tensor %[[VAL_98]] restrict writable : memref<16x16xf32> to tensor<16x16xf32>
+// CHECK:           %[[VAL_106:.*]] = arith.muli %[[VAL_48]], %[[VAL_10]] : i64
+// CHECK:           %[[VAL_107:.*]] = arith.extsi %[[VAL_18]] : i32 to i64
+// CHECK:           %[[VAL_108:.*]] = arith.muli %[[VAL_107]], %[[VAL_12]] : i64
+// CHECK:           %[[VAL_109:.*]] = arith.addi %[[VAL_106]], %[[VAL_108]] : i64
+// CHECK:           %[[VAL_110:.*]] = arith.index_cast %[[VAL_109]] : i64 to index
+// CHECK:           %[[VAL_111:.*]] = linalg.fill ins(%[[VAL_11]] : i64) outs(%[[VAL_51]] : tensor<16x1xi64>) -> tensor<16x1xi64>
+// CHECK:           %[[VAL_112:.*]] = linalg.generic {indexing_maps = [#[[$ATTR_1]], #[[$ATTR_1]], #[[$ATTR_1]]], iterator_types = ["parallel", "parallel"]} ins(%[[VAL_52]], %[[VAL_111]] : tensor<16x1xi64>, tensor<16x1xi64>) outs(%[[VAL_52]] : tensor<16x1xi64>) {
+// CHECK:           ^bb0(%[[VAL_113:.*]]: i64, %[[VAL_114:.*]]: i64, %[[VAL_115:.*]]: i64):
+// CHECK:             %[[VAL_116:.*]] = arith.muli %[[VAL_113]], %[[VAL_114]] : i64
+// CHECK:             linalg.yield %[[VAL_116]] : i64
 // CHECK:           } -> tensor<16x1xi64>
-// CHECK:           %[[VAL_112:.*]] = arith.index_cast %[[VAL_9]] : i64 to index
-// CHECK:           %[[VAL_113:.*]] = arith.index_cast %[[VAL_112]] : index to i32
-// CHECK:           %[[VAL_114:.*]] = linalg.fill ins(%[[VAL_113]] : i32) outs(%[[VAL_23]] : tensor<16x1xi32>) -> tensor<16x1xi32>
-// CHECK:           %[[VAL_115:.*]] = linalg.generic {indexing_maps = [#[[$ATTR_1]], #[[$ATTR_1]], #[[$ATTR_1]]], iterator_types = ["parallel", "parallel"]} ins(%[[VAL_63]], %[[VAL_114]] : tensor<16x1xi32>, tensor<16x1xi32>) outs(%[[VAL_63]] : tensor<16x1xi32>) {
-// CHECK:           ^bb0(%[[VAL_116:.*]]: i32, %[[VAL_117:.*]]: i32, %[[VAL_118:.*]]: i32):
-// CHECK:             %[[VAL_119:.*]] = arith.muli %[[VAL_116]], %[[VAL_117]] : i32
-// CHECK:             linalg.yield %[[VAL_119]] : i32
+// CHECK:           %[[VAL_117:.*]] = arith.index_cast %[[VAL_9]] : i64 to index
+// CHECK:           %[[VAL_118:.*]] = arith.index_cast %[[VAL_117]] : index to i32
+// CHECK:           %[[VAL_119:.*]] = linalg.fill ins(%[[VAL_118]] : i32) outs(%[[VAL_23]] : tensor<16x1xi32>) -> tensor<16x1xi32>
+// CHECK:           %[[VAL_120:.*]] = linalg.generic {indexing_maps = [#[[$ATTR_1]], #[[$ATTR_1]], #[[$ATTR_1]]], iterator_types = ["parallel", "parallel"]} ins(%[[VAL_63]], %[[VAL_119]] : tensor<16x1xi32>, tensor<16x1xi32>) outs(%[[VAL_63]] : tensor<16x1xi32>) {
+// CHECK:           ^bb0(%[[VAL_121:.*]]: i32, %[[VAL_122:.*]]: i32, %[[VAL_123:.*]]: i32):
+// CHECK:             %[[VAL_124:.*]] = arith.muli %[[VAL_121]], %[[VAL_122]] : i32
+// CHECK:             linalg.yield %[[VAL_124]] : i32
 // CHECK:           } -> tensor<16x1xi32>
-// CHECK:           %[[VAL_120:.*]] = linalg.generic {indexing_maps = [#[[$ATTR_1]], #[[$ATTR_1]]], iterator_types = ["parallel", "parallel"]} ins(%[[VAL_107]] : tensor<16x1xi64>) outs(%[[VAL_23]] : tensor<16x1xi32>) {
-// CHECK:           ^bb0(%[[VAL_121:.*]]: i64, %[[VAL_122:.*]]: i32):
-// CHECK:             %[[VAL_123:.*]] = arith.trunci %[[VAL_121]] : i64 to i32
-// CHECK:             linalg.yield %[[VAL_123]] : i32
+// CHECK:           %[[VAL_125:.*]] = linalg.generic {indexing_maps = [#[[$ATTR_1]], #[[$ATTR_1]], #[[$ATTR_1]]], iterator_types = ["parallel", "parallel"]} ins(%[[VAL_120]], %[[VAL_119]] : tensor<16x1xi32>, tensor<16x1xi32>) outs(%[[VAL_120]] : tensor<16x1xi32>) {
+// CHECK:           ^bb0(%[[VAL_126:.*]]: i32, %[[VAL_127:.*]]: i32, %[[VAL_128:.*]]: i32):
+// CHECK:             %[[VAL_129:.*]] = arith.muli %[[VAL_126]], %[[VAL_127]] : i32
+// CHECK:             linalg.yield %[[VAL_129]] : i32
 // CHECK:           } -> tensor<16x1xi32>
-// CHECK:           %[[VAL_124:.*]] = linalg.generic {indexing_maps = [#[[$ATTR_1]], #[[$ATTR_1]], #[[$ATTR_1]]], iterator_types = ["parallel", "parallel"]} ins(%[[VAL_115]], %[[VAL_120]] : tensor<16x1xi32>, tensor<16x1xi32>) outs(%[[VAL_115]] : tensor<16x1xi32>) {
-// CHECK:           ^bb0(%[[VAL_125:.*]]: i32, %[[VAL_126:.*]]: i32, %[[VAL_127:.*]]: i32):
-// CHECK:             %[[VAL_128:.*]] = arith.addi %[[VAL_125]], %[[VAL_126]] : i32
-// CHECK:             linalg.yield %[[VAL_128]] : i32
+// CHECK:           %[[VAL_130:.*]] = linalg.generic {indexing_maps = [#[[$ATTR_1]], #[[$ATTR_1]]], iterator_types = ["parallel", "parallel"]} ins(%[[VAL_112]] : tensor<16x1xi64>) outs(%[[VAL_23]] : tensor<16x1xi32>) {
+// CHECK:           ^bb0(%[[VAL_131:.*]]: i64, %[[VAL_132:.*]]: i32):
+// CHECK:             %[[VAL_133:.*]] = arith.trunci %[[VAL_131]] : i64 to i32
+// CHECK:             linalg.yield %[[VAL_133]] : i32
 // CHECK:           } -> tensor<16x1xi32>
-// CHECK:           %[[VAL_129:.*]] = arith.index_cast %[[VAL_105]] : index to i32
-// CHECK:           %[[VAL_130:.*]] = linalg.fill ins(%[[VAL_129]] : i32) outs(%[[VAL_23]] : tensor<16x1xi32>) -> tensor<16x1xi32>
-// CHECK:           %[[VAL_131:.*]] = linalg.generic {indexing_maps = [#[[$ATTR_1]], #[[$ATTR_1]], #[[$ATTR_1]]], iterator_types = ["parallel", "parallel"]} ins(%[[VAL_130]], %[[VAL_124]] : tensor<16x1xi32>, tensor<16x1xi32>) outs(%[[VAL_130]] : tensor<16x1xi32>) {
-// CHECK:           ^bb0(%[[VAL_132:.*]]: i32, %[[VAL_133:.*]]: i32, %[[VAL_134:.*]]: i32):
-// CHECK:             %[[VAL_135:.*]] = arith.addi %[[VAL_132]], %[[VAL_133]] : i32
-// CHECK:             linalg.yield %[[VAL_135]] : i32
+// CHECK:           %[[VAL_134:.*]] = linalg.generic {indexing_maps = [#[[$ATTR_1]], #[[$ATTR_1]], #[[$ATTR_1]]], iterator_types = ["parallel", "parallel"]} ins(%[[VAL_125]], %[[VAL_130]] : tensor<16x1xi32>, tensor<16x1xi32>) outs(%[[VAL_125]] : tensor<16x1xi32>) {
+// CHECK:           ^bb0(%[[VAL_135:.*]]: i32, %[[VAL_136:.*]]: i32, %[[VAL_137:.*]]: i32):
+// CHECK:             %[[VAL_138:.*]] = arith.addi %[[VAL_135]], %[[VAL_136]] : i32
+// CHECK:             linalg.yield %[[VAL_138]] : i32
 // CHECK:           } -> tensor<16x1xi32>
-// CHECK:           %[[VAL_136:.*]] = tensor.collapse_shape %[[VAL_131]] {{\[\[}}0, 1]] : tensor<16x1xi32> into tensor<16xi32>
-// CHECK:           scf.for %[[VAL_137:.*]] = %[[VAL_21]] to %[[VAL_22]] step %[[VAL_19]] {
-// CHECK:             %[[VAL_138:.*]] = tensor.extract %[[VAL_136]]{{\[}}%[[VAL_137]]] : tensor<16xi32>
-// CHECK:             %[[VAL_139:.*]] = arith.index_cast %[[VAL_138]] : i32 to index
-// CHECK:             %[[VAL_140:.*]] = tensor.extract_slice %[[VAL_100]]{{\[}}%[[VAL_137]], 0] [1, 8] [1, 1] : tensor<16x16xf32> to tensor<1x8xf32>
-// CHECK:             %[[VAL_141:.*]] = memref.reinterpret_cast %[[VAL_1]] to offset: {{\[}}%[[VAL_139]]], sizes: [1, 16], strides: [1, 1] : memref<*xf32> to memref<1x16xf32, strided<[1, 1], offset: ?>>
-// CHECK:             %[[VAL_142:.*]] = memref.subview %[[VAL_141]][0, 0] [1, 8] [1, 1] : memref<1x16xf32, strided<[1, 1], offset: ?>> to memref<1x8xf32, strided<[1, 1], offset: ?>>
-// CHECK:             bufferization.materialize_in_destination %[[VAL_140]] in writable %[[VAL_142]] : (tensor<1x8xf32>, memref<1x8xf32, strided<[1, 1], offset: ?>>) -> ()
+// CHECK:           %[[VAL_139:.*]] = arith.index_cast %[[VAL_110]] : index to i32
+// CHECK:           %[[VAL_140:.*]] = linalg.fill ins(%[[VAL_139]] : i32) outs(%[[VAL_23]] : tensor<16x1xi32>) -> tensor<16x1xi32>
+// CHECK:           %[[VAL_141:.*]] = linalg.generic {indexing_maps = [#[[$ATTR_1]], #[[$ATTR_1]], #[[$ATTR_1]]], iterator_types = ["parallel", "parallel"]} ins(%[[VAL_140]], %[[VAL_134]] : tensor<16x1xi32>, tensor<16x1xi32>) outs(%[[VAL_140]] : tensor<16x1xi32>) {
+// CHECK:           ^bb0(%[[VAL_142:.*]]: i32, %[[VAL_143:.*]]: i32, %[[VAL_144:.*]]: i32):
+// CHECK:             %[[VAL_145:.*]] = arith.addi %[[VAL_142]], %[[VAL_143]] : i32
+// CHECK:             linalg.yield %[[VAL_145]] : i32
+// CHECK:           } -> tensor<16x1xi32>
+// CHECK:           %[[VAL_146:.*]] = tensor.collapse_shape %[[VAL_141]] {{\[\[}}0, 1]] : tensor<16x1xi32> into tensor<16xi32>
+// CHECK:           scf.for %[[VAL_147:.*]] = %[[VAL_21]] to %[[VAL_22]] step %[[VAL_19]] {
+// CHECK:             %[[VAL_148:.*]] = tensor.extract %[[VAL_146]]{{\[}}%[[VAL_147]]] : tensor<16xi32>
+// CHECK:             %[[VAL_149:.*]] = arith.index_cast %[[VAL_148]] : i32 to index
+// CHECK:             %[[VAL_150:.*]] = tensor.extract_slice %[[VAL_105]]{{\[}}%[[VAL_147]], 0] [1, 8] [1, 1] : tensor<16x16xf32> to tensor<1x8xf32>
+// CHECK:             %[[VAL_151:.*]] = memref.reinterpret_cast %[[VAL_1]] to offset: {{\[}}%[[VAL_149]]], sizes: [1, 16], strides: [1, 1] : memref<*xf32> to memref<1x16xf32, strided<[1, 1], offset: ?>>
+// CHECK:             %[[VAL_152:.*]] = memref.subview %[[VAL_151]][0, 0] [1, 8] [1, 1] : memref<1x16xf32, strided<[1, 1], offset: ?>> to memref<1x8xf32, strided<[1, 1], offset: ?>>
+// CHECK:             bufferization.materialize_in_destination %[[VAL_150]] in writable %[[VAL_152]] : (tensor<1x8xf32>, memref<1x8xf32, strided<[1, 1], offset: ?>>) -> ()
 // CHECK:           }
 // CHECK:           return
 // CHECK:         }
