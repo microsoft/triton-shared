@@ -317,10 +317,10 @@ public:
                   return success();
                 })
                 .Case<triton::AddPtrOp>([&](triton::AddPtrOp addptr) {
-                  // Bail when we have an addptr directly under an scf.if as we
-                  // do not know if the pointer returning from both branches
-                  // will have the same source
-                  if (dyn_cast<scf::IfOp>(addptr->getParentOp())) {
+                  // Bail when we have an addptr in an scf.if as we  do not know
+                  // if the pointer returning from both branches will have the
+                  // same source
+                  if (addptr->getParentOfType<scf::IfOp>()) {
                     return failure();
                   }
 
