@@ -20,47 +20,31 @@
 // CHECK:           tt.return
 
 module {
-  tt.func public @index_select_row_kernel(%arg0: !tt.ptr<f32> {tt.divisibility = 16 : i32} loc("/workspace/triton_shared/triton_shared/python/examples/test_index_select.py":10:0), %arg1: !tt.ptr<f32> {tt.divisibility = 16 : i32} loc("/workspace/triton_shared/triton_shared/python/examples/test_index_select.py":10:0), %arg2: !tt.ptr<i64> {tt.divisibility = 16 : i32} loc("/workspace/triton_shared/triton_shared/python/examples/test_index_select.py":10:0), %arg3: i32 {tt.divisibility = 16 : i32} loc("/workspace/triton_shared/triton_shared/python/examples/test_index_select.py":10:0)) attributes {noinline = false} {
-    %0 = tt.make_range {end = 4 : i32, start = 0 : i32} : tensor<4xi32> loc(#loc1)
-    %1 = tt.splat %arg2 : !tt.ptr<i64> -> tensor<4x!tt.ptr<i64>> loc(#loc2)
-    %2 = tt.addptr %1, %0 : tensor<4x!tt.ptr<i64>>, tensor<4xi32> loc(#loc2)
-    %3 = tt.load %2 : tensor<4x!tt.ptr<i64>> loc(#loc3)
-    %4 = tt.make_range {end = 16 : i32, start = 0 : i32} : tensor<16xi32> loc(#loc4)
-    %5 = tt.expand_dims %3 {axis = 1 : i32} : tensor<4xi64> -> tensor<4x1xi64> loc(#loc5)
-    %6 = arith.extsi %arg3 : i32 to i64 loc(#loc6)
-    %7 = tt.splat %6 : i64 -> tensor<4x1xi64> loc(#loc6)
-    %8 = arith.muli %5, %7 : tensor<4x1xi64> loc(#loc6)
-    %9 = tt.splat %arg0 : !tt.ptr<f32> -> tensor<4x1x!tt.ptr<f32>> loc(#loc7)
-    %10 = tt.addptr %9, %8 : tensor<4x1x!tt.ptr<f32>>, tensor<4x1xi64> loc(#loc7)
-    %11 = tt.expand_dims %4 {axis = 0 : i32} : tensor<16xi32> -> tensor<1x16xi32> loc(#loc8)
-    %12 = tt.broadcast %10 : tensor<4x1x!tt.ptr<f32>> -> tensor<4x16x!tt.ptr<f32>> loc(#loc9)
-    %13 = tt.broadcast %11 : tensor<1x16xi32> -> tensor<4x16xi32> loc(#loc9)
-    %14 = tt.addptr %12, %13 : tensor<4x16x!tt.ptr<f32>>, tensor<4x16xi32> loc(#loc9)
-    %15 = tt.load %14 : tensor<4x16x!tt.ptr<f32>> loc(#loc10)
-    %16 = tt.expand_dims %0 {axis = 1 : i32} : tensor<4xi32> -> tensor<4x1xi32> loc(#loc11)
-    %17 = tt.splat %arg3 : i32 -> tensor<4x1xi32> loc(#loc12)
-    %18 = arith.muli %16, %17 : tensor<4x1xi32> loc(#loc12)
-    %19 = tt.splat %arg1 : !tt.ptr<f32> -> tensor<4x1x!tt.ptr<f32>> loc(#loc13)
-    %20 = tt.addptr %19, %18 : tensor<4x1x!tt.ptr<f32>>, tensor<4x1xi32> loc(#loc13)
-    %21 = tt.broadcast %20 : tensor<4x1x!tt.ptr<f32>> -> tensor<4x16x!tt.ptr<f32>> loc(#loc14)
-    %22 = tt.addptr %21, %13 : tensor<4x16x!tt.ptr<f32>>, tensor<4x16xi32> loc(#loc14)
-    tt.store %22, %15 : tensor<4x16x!tt.ptr<f32>> loc(#loc15)
-    tt.return loc(#loc16)
-  } loc(#loc)
-} loc(#loc)
-#loc1 = loc("/workspace/triton_shared/triton_shared/python/examples/test_index_select.py":11:31)
-#loc2 = loc("/workspace/triton_shared/triton_shared/python/examples/test_index_select.py":12:36)
-#loc3 = loc("/workspace/triton_shared/triton_shared/python/examples/test_index_select.py":12:26)
-#loc4 = loc("/workspace/triton_shared/triton_shared/python/examples/test_index_select.py":14:31)
-#loc5 = loc("/workspace/triton_shared/triton_shared/python/examples/test_index_select.py":15:47)
-#loc6 = loc("/workspace/triton_shared/triton_shared/python/examples/test_index_select.py":15:58)
-#loc7 = loc("/workspace/triton_shared/triton_shared/python/examples/test_index_select.py":15:35)
-#loc8 = loc("/workspace/triton_shared/triton_shared/python/examples/test_index_select.py":15:81)
-#loc9 = loc("/workspace/triton_shared/triton_shared/python/examples/test_index_select.py":15:69)
-#loc10 = loc("/workspace/triton_shared/triton_shared/python/examples/test_index_select.py":16:19)
-#loc11 = loc("/workspace/triton_shared/triton_shared/python/examples/test_index_select.py":18:38)
-#loc12 = loc("/workspace/triton_shared/triton_shared/python/examples/test_index_select.py":18:49)
-#loc13 = loc("/workspace/triton_shared/triton_shared/python/examples/test_index_select.py":18:26)
-#loc14 = loc("/workspace/triton_shared/triton_shared/python/examples/test_index_select.py":18:60)
-#loc15 = loc("/workspace/triton_shared/triton_shared/python/examples/test_index_select.py":18:93)
-#loc16 = loc("/workspace/triton_shared/triton_shared/python/examples/test_index_select.py":18:4)
+  tt.func public @index_select_row_kernel(%arg0: !tt.ptr<f32> {tt.divisibility = 16 : i32} , %arg1: !tt.ptr<f32> {tt.divisibility = 16 : i32} , %arg2: !tt.ptr<i64> {tt.divisibility = 16 : i32} , %arg3: i32 {tt.divisibility = 16 : i32} ) attributes {noinline = false} {
+    %0 = tt.make_range {end = 4 : i32, start = 0 : i32} : tensor<4xi32>
+    %1 = tt.splat %arg2 : !tt.ptr<i64> -> tensor<4x!tt.ptr<i64>>
+    %2 = tt.addptr %1, %0 : tensor<4x!tt.ptr<i64>>, tensor<4xi32>
+    %3 = tt.load %2 : tensor<4x!tt.ptr<i64>>
+    %4 = tt.make_range {end = 16 : i32, start = 0 : i32} : tensor<16xi32>
+    %5 = tt.expand_dims %3 {axis = 1 : i32} : tensor<4xi64> -> tensor<4x1xi64>
+    %6 = arith.extsi %arg3 : i32 to i64
+    %7 = tt.splat %6 : i64 -> tensor<4x1xi64>
+    %8 = arith.muli %5, %7 : tensor<4x1xi64>
+    %9 = tt.splat %arg0 : !tt.ptr<f32> -> tensor<4x1x!tt.ptr<f32>>
+    %10 = tt.addptr %9, %8 : tensor<4x1x!tt.ptr<f32>>, tensor<4x1xi64>
+    %11 = tt.expand_dims %4 {axis = 0 : i32} : tensor<16xi32> -> tensor<1x16xi32>
+    %12 = tt.broadcast %10 : tensor<4x1x!tt.ptr<f32>> -> tensor<4x16x!tt.ptr<f32>>
+    %13 = tt.broadcast %11 : tensor<1x16xi32> -> tensor<4x16xi32>
+    %14 = tt.addptr %12, %13 : tensor<4x16x!tt.ptr<f32>>, tensor<4x16xi32>
+    %15 = tt.load %14 : tensor<4x16x!tt.ptr<f32>>
+    %16 = tt.expand_dims %0 {axis = 1 : i32} : tensor<4xi32> -> tensor<4x1xi32>
+    %17 = tt.splat %arg3 : i32 -> tensor<4x1xi32>
+    %18 = arith.muli %16, %17 : tensor<4x1xi32>
+    %19 = tt.splat %arg1 : !tt.ptr<f32> -> tensor<4x1x!tt.ptr<f32>>
+    %20 = tt.addptr %19, %18 : tensor<4x1x!tt.ptr<f32>>, tensor<4x1xi32>
+    %21 = tt.broadcast %20 : tensor<4x1x!tt.ptr<f32>> -> tensor<4x16x!tt.ptr<f32>>
+    %22 = tt.addptr %21, %13 : tensor<4x16x!tt.ptr<f32>>, tensor<4x16xi32>
+    tt.store %22, %15 : tensor<4x16x!tt.ptr<f32>>
+    tt.return
+  }
+}

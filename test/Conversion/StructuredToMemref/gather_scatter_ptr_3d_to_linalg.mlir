@@ -38,14 +38,14 @@
 // CHECK:             %[[VAL_29:.*]] = tensor.extract %[[VAL_21]]{{\[}}%[[VAL_28]]] : tensor<32xi32>
 // CHECK:             %[[VAL_30:.*]] = arith.index_cast %[[VAL_29]] : i32 to index
 // CHECK:             %[[VAL_31:.*]] = memref.reinterpret_cast %[[VAL_0]] to offset: {{\[}}%[[VAL_30]]], sizes: [32, 1, 32], strides: {{\[}}%[[VAL_18]], 1, %[[VAL_26]]] : memref<*xf32> to memref<32x1x32xf32, strided<[?, 1, ?], offset: ?>>
-// CHECK:             %[[VAL_32:.*]] = memref.subview %[[VAL_27]]{{\[}}%[[VAL_14]], %[[VAL_28]], %[[VAL_14]]] [32, 1, 32] [1024, 32, 1] : memref<32x32x32xf32> to memref<32x1x32xf32, strided<[1048576, 1024, 1], offset: ?>>
-// CHECK:             memref.copy %[[VAL_31]], %[[VAL_32]] : memref<32x1x32xf32, strided<[?, 1, ?], offset: ?>> to memref<32x1x32xf32, strided<[1048576, 1024, 1], offset: ?>>
+// CHECK:             %[[VAL_32:.*]] = memref.subview %[[VAL_27]][0, %[[VAL_28]], 0] [32, 1, 32] [1, 1, 1] : memref<32x32x32xf32> to memref<32x1x32xf32, strided<[1024, 32, 1], offset: ?>>
+// CHECK:             memref.copy %[[VAL_31]], %[[VAL_32]] : memref<32x1x32xf32, strided<[?, 1, ?], offset: ?>> to memref<32x1x32xf32, strided<[1024, 32, 1], offset: ?>>
 // CHECK:           }
 // CHECK:           %[[VAL_33:.*]] = bufferization.to_tensor %[[VAL_27]] restrict writable : memref<32x32x32xf32> to tensor<32x32x32xf32>
 // CHECK:           scf.for %[[VAL_34:.*]] = %[[VAL_14]] to %[[VAL_13]] step %[[VAL_12]] {
 // CHECK:             %[[VAL_35:.*]] = tensor.extract %[[VAL_21]]{{\[}}%[[VAL_34]]] : tensor<32xi32>
 // CHECK:             %[[VAL_36:.*]] = arith.index_cast %[[VAL_35]] : i32 to index
-// CHECK:             %[[VAL_37:.*]] = tensor.extract_slice %[[VAL_33]][0, %[[VAL_34]], 0] [32, 1, 32] {{\[}}%[[VAL_18]], 1, %[[VAL_26]]] : tensor<32x32x32xf32> to tensor<32x1x32xf32>
+// CHECK:             %[[VAL_37:.*]] = tensor.extract_slice %[[VAL_33]][0, %[[VAL_34]], 0] [32, 1, 32] [1, 1, 1] : tensor<32x32x32xf32> to tensor<32x1x32xf32>
 // CHECK:             %[[VAL_38:.*]] = memref.reinterpret_cast %[[VAL_2]] to offset: {{\[}}%[[VAL_36]]], sizes: [32, 1, 32], strides: {{\[}}%[[VAL_18]], 1, %[[VAL_26]]] : memref<*xf32> to memref<32x1x32xf32, strided<[?, 1, ?], offset: ?>>
 // CHECK:             bufferization.materialize_in_destination %[[VAL_37]] in writable %[[VAL_38]] : (tensor<32x1x32xf32>, memref<32x1x32xf32, strided<[?, 1, ?], offset: ?>>) -> ()
 // CHECK:           }

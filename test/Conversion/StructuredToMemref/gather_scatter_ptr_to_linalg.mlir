@@ -120,9 +120,9 @@
 // CHECK:             %[[VAL_100:.*]] = tensor.extract %[[VAL_97]]{{\[}}%[[VAL_99]]] : tensor<16xi32>
 // CHECK:             %[[VAL_101:.*]] = arith.index_cast %[[VAL_100]] : i32 to index
 // CHECK:             %[[VAL_102:.*]] = memref.reinterpret_cast %[[VAL_0]] to offset: {{\[}}%[[VAL_101]]], sizes: [1, 16], strides: [1, 1] : memref<*xf32> to memref<1x16xf32, strided<[1, 1], offset: ?>>
-// CHECK:             %[[VAL_103:.*]] = memref.subview %[[VAL_102]][0, 0] [1, 8] [16, 1] : memref<1x16xf32, strided<[1, 1], offset: ?>> to memref<1x8xf32, strided<[16, 1], offset: ?>>
-// CHECK:             %[[VAL_104:.*]] = memref.subview %[[VAL_98]]{{\[}}%[[VAL_99]], 0] [1, 8] [16, 1] : memref<16x16xf32> to memref<1x8xf32, strided<[256, 1], offset: ?>>
-// CHECK:             memref.copy %[[VAL_103]], %[[VAL_104]] : memref<1x8xf32, strided<[16, 1], offset: ?>> to memref<1x8xf32, strided<[256, 1], offset: ?>>
+// CHECK:             %[[VAL_103:.*]] = memref.subview %[[VAL_102]][0, 0] [1, 8] [1, 1] : memref<1x16xf32, strided<[1, 1], offset: ?>> to memref<1x8xf32, strided<[1, 1], offset: ?>>
+// CHECK:             %[[VAL_104:.*]] = memref.subview %[[VAL_98]]{{\[}}%[[VAL_99]], 0] [1, 8] [1, 1] : memref<16x16xf32> to memref<1x8xf32, strided<[16, 1], offset: ?>>
+// CHECK:             memref.copy %[[VAL_103]], %[[VAL_104]] : memref<1x8xf32, strided<[1, 1], offset: ?>> to memref<1x8xf32, strided<[16, 1], offset: ?>>
 // CHECK:           }
 // CHECK:           %[[VAL_105:.*]] = bufferization.to_tensor %[[VAL_98]] restrict writable : memref<16x16xf32> to tensor<16x16xf32>
 // CHECK:           %[[VAL_106:.*]] = arith.muli %[[VAL_48]], %[[VAL_10]] : i64
@@ -173,7 +173,8 @@
 // CHECK:             %[[VAL_150:.*]] = tensor.extract_slice %[[VAL_105]]{{\[}}%[[VAL_147]], 0] [1, 8] [1, 1] : tensor<16x16xf32> to tensor<1x8xf32>
 // CHECK:             %[[VAL_151:.*]] = memref.reinterpret_cast %[[VAL_1]] to offset: {{\[}}%[[VAL_149]]], sizes: [1, 16], strides: [1, 1] : memref<*xf32> to memref<1x16xf32, strided<[1, 1], offset: ?>>
 // CHECK:             %[[VAL_152:.*]] = memref.subview %[[VAL_151]][0, 0] [1, 8] [1, 1] : memref<1x16xf32, strided<[1, 1], offset: ?>> to memref<1x8xf32, strided<[1, 1], offset: ?>>
-// CHECK:             bufferization.materialize_in_destination %[[VAL_150]] in writable %[[VAL_152]] : (tensor<1x8xf32>, memref<1x8xf32, strided<[1, 1], offset: ?>>) -> ()
+// CHECK:             %[[VAL_153:.*]] = memref.cast %[[VAL_152]] : memref<1x8xf32, strided<[1, 1], offset: ?>> to memref<1x8xf32, strided<[?, ?], offset: ?>>
+// CHECK:             bufferization.materialize_in_destination %[[VAL_150]] in writable %[[VAL_153]] : (tensor<1x8xf32>, memref<1x8xf32, strided<[?, ?], offset: ?>>) -> ()
 // CHECK:           }
 // CHECK:           return
 // CHECK:         }
