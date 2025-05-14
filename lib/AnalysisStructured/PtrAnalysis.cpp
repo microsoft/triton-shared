@@ -1305,6 +1305,11 @@ PtrAnalysis::rewriteGetStructuredStateOp(tts::GetStructuredStateOp op) {
   }
 
   tts::PtrState state = knownPtrs[tritonValue];
+  if (!state.isStructured()) {
+    op.emitRemark(
+        "Rewrite GetStructuredStateOp failed. PtrState is not structured.");
+    return failure();
+  }
   Value remappedValue =
       ptrMap.contains(tritonValue) ? ptrMap.lookup(tritonValue) : tritonValue;
 
