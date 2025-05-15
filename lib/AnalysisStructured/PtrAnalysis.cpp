@@ -398,7 +398,7 @@ LogicalResult PtrState::mulState(const PtrState &lhsState,
       OpFoldResult newOffset =
           mulOFRs(lhs->offsets[i], rhsStride, loc, builder);
       offsets.push_back(newOffset);
-      // Mul the scalart to stride.
+      // Mul the scalar to stride.
       OpFoldResult newStride =
           mulOFRs(lhs->strides[i], rhs->scalar, loc, builder);
       strides.push_back(newStride);

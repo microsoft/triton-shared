@@ -865,8 +865,7 @@ private:
                                                   gatherOffsetElt.getResult(),
                                                   gatherDim, rewriter);
     unsigned rank = ptr.getSizes().size();
-    // Set strides to 1 for subview multiplies the existing strides with the
-    // stride of the subview.
+    // The subview should not apply an additional stride to the source.
     SmallVector<OpFoldResult> oneStrides(rank, OpFoldResult(step));
     // subview from srcPtr for mask.
     // With offsets[gatherDim] set to 0 since the offset already in
@@ -993,8 +992,7 @@ private:
       mixedDims[gatherDim] = sizes[gatherDim];
       sizes = mixedDims;
     }
-    // Set strides to 1 for subview/extract_slice multiplies the existing strides with the
-    // stride of the subview.
+    // The subview should not apply an additional stride to the source.
     SmallVector<OpFoldResult> oneStrides(rank, OpFoldResult(step));
     auto slice = rewriter.create<tensor::ExtractSliceOp>(
         loc, stVal, stValOffsets, sizes, oneStrides);
