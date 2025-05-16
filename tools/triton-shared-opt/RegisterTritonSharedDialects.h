@@ -7,6 +7,7 @@
 #include "mlir/Dialect/Ptr/IR/PtrDialect.h"
 #include "mlir/Dialect/Tensor/IR/Tensor.h"
 #include "triton-shared/Conversion/StructuredToMemref/Passes.h"
+#include "triton-shared/Transforms/Passes.h"
 #include "triton/Dialect/Triton/IR/Dialect.h"
 
 #include "triton/Dialect/Triton/Transforms/Passes.h"
@@ -52,6 +53,7 @@ inline void registerTritonSharedDialects(mlir::DialectRegistry &registry) {
   mlir::triton::registerTritonToUnstructuredPasses();
   mlir::triton::registerTritonArithToLinalgPasses();
   mlir::triton::registerStructuredToMemrefPasses();
+  mlir::registerLoopCanonicalizerPass();
 
   // TODO: register Triton & TritonGPU passes
   registry.insert<
