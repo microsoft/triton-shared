@@ -25,13 +25,12 @@
 // CHECK:             %[[VAL_20:.*]] = tensor.extract %[[VAL_17]]{{\[}}%[[VAL_19]]] : tensor<8xi32>
 // CHECK:             %[[VAL_21:.*]] = arith.index_cast %[[VAL_20]] : i32 to index
 // CHECK:             %[[VAL_22:.*]] = memref.reinterpret_cast %[[VAL_10]] to offset: {{\[}}%[[VAL_21]]], sizes: [1, 8], strides: [1, 1] : memref<*xf32> to memref<1x8xf32, strided<[1, 1], offset: ?>>
-// CHECK:             %[[VAL_23:.*]] = memref.subview %[[VAL_18]]{{\[}}%[[VAL_19]], 0] [1, 8] [8, 1] : memref<8x8xf32> to memref<1x8xf32, strided<[64, 1], offset: ?>>
-// CHECK:             memref.copy %[[VAL_22]], %[[VAL_23]] : memref<1x8xf32, strided<[1, 1], offset: ?>> to memref<1x8xf32, strided<[64, 1], offset: ?>>
+// CHECK:             %[[VAL_23:.*]] = memref.subview %[[VAL_18]]{{\[}}%[[VAL_19]], 0] [1, 8] [1, 1] : memref<8x8xf32> to memref<1x8xf32, strided<[8, 1], offset: ?>>
+// CHECK:             memref.copy %[[VAL_22]], %[[VAL_23]] : memref<1x8xf32, strided<[1, 1], offset: ?>> to memref<1x8xf32, strided<[8, 1], offset: ?>>
 // CHECK:           }
 // CHECK:           %[[VAL_24:.*]] = bufferization.to_tensor %[[VAL_18]] restrict writable : memref<8x8xf32> to tensor<8x8xf32>
 // CHECK:           %[[VAL_25:.*]] = memref.reinterpret_cast %[[VAL_9]] to offset: [0], sizes: [8, 8], strides: [8, 1] : memref<*xf32> to memref<8x8xf32, strided<[8, 1]>>
 // CHECK:           bufferization.materialize_in_destination %[[VAL_24]] in writable %[[VAL_25]] : (tensor<8x8xf32>, memref<8x8xf32, strided<[8, 1]>>) -> ()
-
 
 
 module {

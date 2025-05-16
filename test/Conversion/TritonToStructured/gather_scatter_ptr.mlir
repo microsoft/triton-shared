@@ -1,4 +1,4 @@
-// RUN: triton-shared-opt --triton-to-structured --remove-dead-values --canonicalize %s | FileCheck %s
+// RUN: triton-shared-opt --triton-to-structured --remove-dead-values --cse --canonicalize %s | FileCheck %s
 
 // RUN: triton-shared-opt --triton-to-structured="enable-make-gather-scatter=false" --remove-dead-values --canonicalize %s | FileCheck %s --check-prefix=NO_GATHER
 
@@ -47,45 +47,40 @@
 // CHECK:           %[[VAL_35:.*]] = arith.index_cast %[[VAL_34]] : index to i32
 // CHECK:           %[[VAL_36:.*]] = tt.splat %[[VAL_35]] : i32 -> tensor<16x1xi32>
 // CHECK:           %[[VAL_37:.*]] = arith.muli %[[VAL_33]], %[[VAL_36]] : tensor<16x1xi32>
-// CHECK:           %[[VAL_38:.*]] = arith.trunci %[[VAL_31]] : tensor<16x1xi64> to tensor<16x1xi32>
-// CHECK:           %[[VAL_39:.*]] = arith.addi %[[VAL_37]], %[[VAL_38]] : tensor<16x1xi32>
-// CHECK:           %[[VAL_40:.*]] = arith.index_cast %[[VAL_28]] : index to i32
-// CHECK:           %[[VAL_41:.*]] = tt.splat %[[VAL_40]] : i32 -> tensor<16x1xi32>
-// CHECK:           %[[VAL_42:.*]] = arith.addi %[[VAL_41]], %[[VAL_39]] : tensor<16x1xi32>
+// CHECK:           %[[VAL_38:.*]] = arith.muli %[[VAL_37]], %[[VAL_36]] : tensor<16x1xi32>
+// CHECK:           %[[VAL_39:.*]] = arith.trunci %[[VAL_31]] : tensor<16x1xi64> to tensor<16x1xi32>
+// CHECK:           %[[VAL_40:.*]] = arith.addi %[[VAL_38]], %[[VAL_39]] : tensor<16x1xi32>
+// CHECK:           %[[VAL_41:.*]] = arith.index_cast %[[VAL_28]] : index to i32
+// CHECK:           %[[VAL_42:.*]] = tt.splat %[[VAL_41]] : i32 -> tensor<16x1xi32>
+// CHECK:           %[[VAL_43:.*]] = arith.addi %[[VAL_42]], %[[VAL_40]] : tensor<16x1xi32>
 // Here nonContinuousOffset was collapsed to 1D
-// CHECK:           %[[VAL_43:.*]] = tensor.collapse_shape %[[VAL_42]] {{\[\[}}0, 1]] : tensor<16x1xi32> into tensor<16xi32>
-// CHECK:           %[[VAL_44:.*]] = tts.make_gather_scatter_tptr %[[VAL_0]] to sizes: [16, 16] gather_scatter_dim: 0 gather_scatter_offset: %[[VAL_43]], strides: [1, 1], offsets: [0, 0] : tensor<16xi32> <f32> to !tt.ptr<tensor<16x16xf32>>
-// CHECK:           %[[VAL_45:.*]] = arith.index_cast %[[VAL_18]] : i32 to index
-// CHECK:           %[[VAL_46:.*]] = arith.minsi %[[VAL_45]], %[[VAL_13]] : index
-// CHECK:           %[[VAL_47:.*]] = arith.maxsi %[[VAL_46]], %[[VAL_14]] : index
-// CHECK:           %[[VAL_48:.*]] = arith.minsi %[[VAL_47]], %[[VAL_13]] : index
-// CHECK:           %[[VAL_49:.*]] = "tts.load"(%[[VAL_44]], %[[VAL_48]]) <{operandSegmentSizes = array<i32: 1, 1, 0>, static_mask_dims = array<i64: -9223372036854775808, 8>}> : (!tt.ptr<tensor<16x16xf32>>, index) -> tensor<16x16xf32>
-// CHECK:           %[[VAL_50:.*]] = arith.muli %[[VAL_26]], %[[VAL_10]] : i64
-// CHECK:           %[[VAL_51:.*]] = arith.extsi %[[VAL_17]] : i32 to i64
-// CHECK:           %[[VAL_52:.*]] = arith.muli %[[VAL_51]], %[[VAL_12]] : i64
-// CHECK:           %[[VAL_53:.*]] = arith.addi %[[VAL_50]], %[[VAL_52]] : i64
-// CHECK:           %[[VAL_54:.*]] = arith.index_cast %[[VAL_53]] : i64 to index
-// CHECK:           %[[VAL_55:.*]] = tt.splat %[[VAL_11]] : i64 -> tensor<16x1xi64>
-// CHECK:           %[[VAL_56:.*]] = arith.muli %[[VAL_29]], %[[VAL_55]] : tensor<16x1xi64>
-// CHECK:           %[[VAL_57:.*]] = tt.splat %[[VAL_4]] : i32 -> tensor<16x1xi32>
-// CHECK:           %[[VAL_58:.*]] = arith.addi %[[VAL_25]], %[[VAL_57]] : tensor<16x1xi32>
-// CHECK:           %[[VAL_59:.*]] = arith.index_cast %[[VAL_9]] : i64 to index
-// CHECK:           %[[VAL_60:.*]] = arith.index_cast %[[VAL_59]] : index to i32
-// CHECK:           %[[VAL_61:.*]] = tt.splat %[[VAL_60]] : i32 -> tensor<16x1xi32>
-// CHECK:           %[[VAL_62:.*]] = arith.muli %[[VAL_58]], %[[VAL_61]] : tensor<16x1xi32>
-// CHECK:           %[[VAL_63:.*]] = arith.trunci %[[VAL_56]] : tensor<16x1xi64> to tensor<16x1xi32>
+// CHECK:           %[[VAL_44:.*]] = tensor.collapse_shape %[[VAL_43]] {{\[\[}}0, 1]] : tensor<16x1xi32> into tensor<16xi32>
+// CHECK:           %[[VAL_45:.*]] = tts.make_gather_scatter_tptr %[[VAL_0]] to sizes: [16, 16] gather_scatter_dim: 0 gather_scatter_offset: %[[VAL_44]], strides: [1, 1], offsets: [0, 0] : tensor<16xi32> <f32> to !tt.ptr<tensor<16x16xf32>>
+// CHECK:           %[[VAL_46:.*]] = arith.index_cast %[[VAL_18]] : i32 to index
+// CHECK:           %[[VAL_47:.*]] = arith.minsi %[[VAL_46]], %[[VAL_13]] : index
+// CHECK:           %[[VAL_48:.*]] = arith.maxsi %[[VAL_47]], %[[VAL_14]] : index
+// CHECK:           %[[VAL_49:.*]] = arith.minsi %[[VAL_48]], %[[VAL_13]] : index
+// CHECK:           %[[VAL_50:.*]] = "tts.load"(%[[VAL_45]], %[[VAL_49]]) <{operandSegmentSizes = array<i32: 1, 1, 0>, static_mask_dims = array<i64: -9223372036854775808, 8>}> : (!tt.ptr<tensor<16x16xf32>>, index) -> tensor<16x16xf32>
+// CHECK:           %[[VAL_51:.*]] = arith.muli %[[VAL_26]], %[[VAL_10]] : i64
+// CHECK:           %[[VAL_52:.*]] = arith.extsi %[[VAL_17]] : i32 to i64
+// CHECK:           %[[VAL_53:.*]] = arith.muli %[[VAL_52]], %[[VAL_12]] : i64
+// CHECK:           %[[VAL_54:.*]] = arith.addi %[[VAL_51]], %[[VAL_53]] : i64
+// CHECK:           %[[VAL_55:.*]] = arith.index_cast %[[VAL_54]] : i64 to index
+// CHECK:           %[[VAL_56:.*]] = tt.splat %[[VAL_11]] : i64 -> tensor<16x1xi64>
+// CHECK:           %[[VAL_57:.*]] = arith.muli %[[VAL_29]], %[[VAL_56]] : tensor<16x1xi64>
+// CHECK:           %[[VAL_58:.*]] = arith.index_cast %[[VAL_9]] : i64 to index
+// CHECK:           %[[VAL_59:.*]] = arith.index_cast %[[VAL_58]] : index to i32
+// CHECK:           %[[VAL_60:.*]] = tt.splat %[[VAL_59]] : i32 -> tensor<16x1xi32>
+// CHECK:           %[[VAL_61:.*]] = arith.muli %[[VAL_33]], %[[VAL_60]] : tensor<16x1xi32>
+// CHECK:           %[[VAL_62:.*]] = arith.muli %[[VAL_61]], %[[VAL_60]] : tensor<16x1xi32>
+// CHECK:           %[[VAL_63:.*]] = arith.trunci %[[VAL_57]] : tensor<16x1xi64> to tensor<16x1xi32>
 // CHECK:           %[[VAL_64:.*]] = arith.addi %[[VAL_62]], %[[VAL_63]] : tensor<16x1xi32>
-// CHECK:           %[[VAL_65:.*]] = arith.index_cast %[[VAL_54]] : index to i32
+// CHECK:           %[[VAL_65:.*]] = arith.index_cast %[[VAL_55]] : index to i32
 // CHECK:           %[[VAL_66:.*]] = tt.splat %[[VAL_65]] : i32 -> tensor<16x1xi32>
 // CHECK:           %[[VAL_67:.*]] = arith.addi %[[VAL_66]], %[[VAL_64]] : tensor<16x1xi32>
 // CHECK:           %[[VAL_68:.*]] = tensor.collapse_shape %[[VAL_67]] {{\[\[}}0, 1]] : tensor<16x1xi32> into tensor<16xi32>
 // CHECK:           %[[VAL_69:.*]] = tts.make_gather_scatter_tptr %[[VAL_1]] to sizes: [16, 16] gather_scatter_dim: 0 gather_scatter_offset: %[[VAL_68]], strides: [1, 1], offsets: [0, 0] : tensor<16xi32> <f32> to !tt.ptr<tensor<16x16xf32>>
-// CHECK:           %[[VAL_70:.*]] = arith.index_cast %[[VAL_18]] : i32 to index
-// CHECK:           %[[VAL_71:.*]] = arith.minsi %[[VAL_70]], %[[VAL_13]] : index
-// CHECK:           %[[VAL_72:.*]] = arith.maxsi %[[VAL_71]], %[[VAL_14]] : index
-// CHECK:           %[[VAL_73:.*]] = arith.minsi %[[VAL_72]], %[[VAL_13]] : index
-// CHECK:           "tts.store"(%[[VAL_69]], %[[VAL_49]], %[[VAL_73]]) <{static_mask_dims = array<i64: -9223372036854775808, 8>}> : (!tt.ptr<tensor<16x16xf32>>, tensor<16x16xf32>, index) -> ()
-
+// CHECK:           "tts.store"(%[[VAL_69]], %[[VAL_50]], %[[VAL_49]]) <{static_mask_dims = array<i64: -9223372036854775808, 8>}> : (!tt.ptr<tensor<16x16xf32>>, tensor<16x16xf32>, index) -> ()
 module {
   tt.func public @row_gather2(%arg0: !tt.ptr<f32>, %arg1: !tt.ptr<f32>, %arg2: i32, %arg3: i32, %arg4: i32, %arg5: i32, %arg6: i64, %arg7: i64, %arg8: i64, %arg9: i64, %arg10: i64, %arg11: i64, %arg12: i64) attributes {noinline = false} {
     %cst = arith.constant dense<8> : tensor<1x16xi32>

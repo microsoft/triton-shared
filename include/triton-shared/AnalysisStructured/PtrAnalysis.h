@@ -45,8 +45,10 @@ const extern std::string ptrAnalysisAttr;
 // unstructured offsets. Later, when using the tensor offset to calculate the
 // address, it will be collapsed to 1D. To support gather/scatter access, treat
 // the unstructured offset as a whole offset instead of decoding the pointer
-// arithmetic on it. The stride is set to 1 so it still matches the offset *
-// stride formula
+// arithmetic on it except scalar mul.
+// The stride is set to 1 when there's no scalar mul so it still matches the offset *
+// stride formula. When there're scalar muls, the stride is set to the multiplication
+// of all the scalar strides.
 struct PtrState {
   SmallVector<OpFoldResult> offsets;
   SmallVector<OpFoldResult> sizes;
