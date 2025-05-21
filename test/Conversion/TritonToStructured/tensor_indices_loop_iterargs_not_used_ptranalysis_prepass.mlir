@@ -28,16 +28,15 @@ module {
 // CHECK-DAG:       [[VAR_cst_:%.+]] = arith.constant dense<4> : tensor<4xi32>
 // CHECK-DAG:       [[VAR_0_:%.+]] = tt.make_range {end = 4 : i32, start = 0 : i32} : tensor<4xi32>
 // CHECK-DAG:       [[VAR_1_:%.+]] = tt.splat [[arg0_]] : !tt.ptr<f32> -> tensor<4x!tt.ptr<f32>>
-// CHECK:           [[structured_:%.+]], [[offsets_:%.+]], [[VAR_strides_:%.+]] = "tts.get_structured_state"([[VAR_0_]]) <{resultSegmentSizes = array<i32: 1, 1, 1>}> : (tensor<4xi32>) -> (tensor<4xi32>, index, index)
-// CHECK:           [[structured_0_:%.+]], [[offsets_1_:%.+]], [[VAR_strides_2_:%.+]] = "tts.get_structured_state"([[VAR_0_]]) <{resultSegmentSizes = array<i32: 1, 1, 1>}> : (tensor<4xi32>) -> (tensor<4xi32>, index, index)
-// CHECK-DAG:       [[VAR_2_:%.+]]:6 = scf.for [[VAR_arg1_:%.+]] = [[CST_0_]] to [[CST_2_]] step [[CST_1_]] iter_args([[VAR_arg2_:%.+]] = [[structured_]], [[VAR_arg3_:%.+]] = [[offsets_]], [[VAR_arg4_:%.+]] = [[VAR_strides_]], [[VAR_arg5_:%.+]] = [[structured_0_]], [[VAR_arg6_:%.+]] = [[offsets_1_]], [[VAR_arg7_:%.+]] = [[VAR_strides_2_]]) -> (tensor<4xi32>, index, index, tensor<4xi32>, index, index)  : i32 {
+// CHECK-DAG:       [[structured_:%.+]], [[offsets_:%.+]], [[VAR_strides_:%.+]] = "tts.get_structured_state"([[VAR_0_]]) <{resultSegmentSizes = array<i32: 1, 1, 1>}> : (tensor<4xi32>) -> (tensor<4xi32>, index, index)
+// CHECK-DAG:       [[VAR_2_:%.+]]:6 = scf.for [[VAR_arg1_:%.+]] = [[CST_0_]] to [[CST_2_]] step [[CST_1_]] iter_args([[VAR_arg2_:%.+]] = [[structured_]], [[VAR_arg3_:%.+]] = [[offsets_]], [[VAR_arg4_:%.+]] = [[VAR_strides_]], [[VAR_arg5_:%.+]] = [[structured_]], [[VAR_arg6_:%.+]] = [[offsets_]], [[VAR_arg7_:%.+]] = [[VAR_strides_]]) -> (tensor<4xi32>, index, index, tensor<4xi32>, index, index)  : i32 {
 // CHECK-DAG:         [[VAR_3_:%.+]] = tt.addptr [[VAR_1_]], [[VAR_arg2_]] : tensor<4x!tt.ptr<f32>>, tensor<4xi32>
 // CHECK-DAG:         [[VAR_4_:%.+]] = arith.sitofp [[VAR_arg5_]] : tensor<4xi32> to tensor<4xf32>
 // CHECK:             tt.store [[VAR_3_]], [[VAR_4_]] : tensor<4x!tt.ptr<f32>>
 // CHECK-DAG:         [[VAR_5_:%.+]] = arith.addi [[VAR_arg2_]], [[VAR_cst_]] : tensor<4xi32>
 // CHECK-DAG:         [[VAR_6_:%.+]] = arith.addi [[VAR_arg5_]], [[VAR_cst_]] : tensor<4xi32>
-// CHECK:             [[structured_3_:%.+]], [[offsets_4_:%.+]], [[VAR_strides_5_:%.+]] = "tts.get_structured_state"([[VAR_5_]]) <{resultSegmentSizes = array<i32: 1, 1, 1>}> : (tensor<4xi32>) -> (tensor<4xi32>, index, index)
-// CHECK:             [[structured_6_:%.+]], [[offsets_7_:%.+]], [[VAR_strides_8_:%.+]] = "tts.get_structured_state"([[VAR_6_]]) <{resultSegmentSizes = array<i32: 1, 1, 1>}> : (tensor<4xi32>) -> (tensor<4xi32>, index, index)
+// CHECK-DAG:         [[structured_3_:%.+]], [[offsets_4_:%.+]], [[VAR_strides_5_:%.+]] = "tts.get_structured_state"([[VAR_5_]]) <{resultSegmentSizes = array<i32: 1, 1, 1>}> : (tensor<4xi32>) -> (tensor<4xi32>, index, index)
+// CHECK-DAG:         [[structured_6_:%.+]], [[offsets_7_:%.+]], [[VAR_strides_8_:%.+]] = "tts.get_structured_state"([[VAR_6_]]) <{resultSegmentSizes = array<i32: 1, 1, 1>}> : (tensor<4xi32>) -> (tensor<4xi32>, index, index)
 // CHECK:             scf.yield [[structured_3_]], [[offsets_4_]], [[VAR_strides_5_]], [[structured_6_]], [[offsets_7_]], [[VAR_strides_8_]] : tensor<4xi32>, index, index, tensor<4xi32>, index, index
 // CHECK:           }
 // CHECK:           tt.return
