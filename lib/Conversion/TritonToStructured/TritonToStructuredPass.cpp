@@ -26,7 +26,6 @@
 #include "mlir/Dialect/Bufferization/IR/Bufferization.h"
 #include "mlir/Pass/PassManager.h"
 #include "mlir/Transforms/GreedyPatternRewriteDriver.h"
-#include "mlir/Transforms/OneToNTypeConversion.h"
 #include "mlir/Transforms/Passes.h"
 #include "triton/Dialect/Triton/IR/Types.h"
 
@@ -140,14 +139,11 @@ public:
     // still need to use the original pointer type. For instance, we convert the
     // result of tt.addptr from tt.ptr type to a tuple, but the original ptr
     // result is still being used by another tt.load or tt.store.
-    auto materialize = [](OpBuilder &builder, Type resultType,
+    converter.addSourceMaterialization([](OpBuilder &builder, Type resultType,
                           ValueRange inputs, Location loc) {
       return builder.create<UnrealizedConversionCastOp>(loc, resultType, inputs)
           .getResult(0);
-    };
-
-    converter.addArgumentMaterialization(materialize);
-    converter.addSourceMaterialization(materialize);
+    });
 
     // Compute the target materialization, given a value with the pointer type,
     // convert that value to a tuple type.
@@ -159,9 +155,10 @@ public:
               ->getResults();
         });
 
-    scf::populateSCFStructuralOneToNTypeConversions(converter, patterns);
+    ConversionTarget target(getContext());
+    scf::populateSCFStructuralTypeConversionsAndLegality(converter, patterns, target);
 
-    if (failed(applyPartialOneToNConversion(getOperation(), converter,
+    if (failed(applyPartialConversion(getOperation(), target,
                                             std::move(patterns)))) {
       return failure();
     }
@@ -180,6 +177,7 @@ public:
 
     auto context = &getContext();
     TypeConverter converter;
+    ConversionTarget target(getContext());
     converter.addConversion([](Type type) { return type; });
 
     // We are doing a 1->N type conversion here, where a pointer tuple type
@@ -202,11 +200,20 @@ public:
     // intended because the ops that currently take "pointer tuple type" are
     // `unrealized_conversion_cast` ops which will get removed below during
     // reconcile-unrealized-conversion-casts.
-    auto materialize = [](OpBuilder &builder, Type resultType,
+    converter.addSourceMaterialization([](OpBuilder &builder, Type resultType,
                           ValueRange inputs,
-                          Location loc) { return inputs[0]; };
-    converter.addArgumentMaterialization(materialize);
-    converter.addSourceMaterialization(materialize);
+                          Location loc) {
+          llvm::dbgs() << "target:\n";
+          resultType.dump();
+          llvm::dbgs() << "src:\n";
+          for (auto v : inputs) {
+            v.dump();
+          }
+          llvm::dbgs() << "~~\n";
+          return builder
+              .create<UnrealizedConversionCastOp>(loc, resultType, inputs[0])
+              ->getResult(0);
+    });
 
     // For each value of "pointer tuple type" that gets decomposed into a
     // sequence of {pointer, offset_0, offset_1,..., stride_0, stride_1,...},
@@ -219,13 +226,13 @@ public:
                                           Location loc) {
       auto placeholder = builder.create<tts::GetStructuredStateOp>(
           loc, inputs.front().getDefiningOp()->getOperand(0));
-      assert(llvm::equal(placeholder.getResultTypes(), resultTypes));
+      assert(llvm::equal(placeholder.getResultTypes(), resultTypes) && "wtf");
       return placeholder.getResults();
     });
 
     RewritePatternSet patterns(&getContext());
-    scf::populateSCFStructuralOneToNTypeConversions(converter, patterns);
-    if (failed(applyPartialOneToNConversion(getOperation(), converter,
+    scf::populateSCFStructuralTypeConversionsAndLegality(converter, patterns, target);
+    if (failed(applyPartialConversion(getOperation(), target,
                                             std::move(patterns)))) {
       return failure();
     }

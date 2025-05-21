@@ -66,7 +66,6 @@ public:
           .getResult(0);
     };
     addSourceMaterialization(createUnrealizedCast);
-    addArgumentMaterialization(createUnrealizedCast);
   }
 };
 

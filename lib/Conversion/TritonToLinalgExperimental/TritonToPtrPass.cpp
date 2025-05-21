@@ -436,7 +436,6 @@ public:
     };
     addTargetMaterialization(createCast);
     addSourceMaterialization(createCast);
-    addArgumentMaterialization(createCast);
   }
 };
 

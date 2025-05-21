@@ -50,42 +50,42 @@ void mlir::tptr::TPtrDialect::initialize() {
       >();
 }
 
-LogicalResult tptr::DefaultMemorySpaceAttr::isValidLoad(
+bool tptr::DefaultMemorySpaceAttr::isValidLoad(
     Type type, mlir::ptr::AtomicOrdering ordering, IntegerAttr alignment,
     llvm::function_ref<InFlightDiagnostic()> emitError) const {
-  return success();
+  return true;
 }
 
-LogicalResult tptr::DefaultMemorySpaceAttr::isValidStore(
+bool tptr::DefaultMemorySpaceAttr::isValidStore(
     Type type, mlir::ptr::AtomicOrdering ordering, IntegerAttr alignment,
     llvm::function_ref<InFlightDiagnostic()> emitError) const {
-  return success();
+  return true;
 }
 
-LogicalResult tptr::DefaultMemorySpaceAttr::isValidAtomicOp(
+bool tptr::DefaultMemorySpaceAttr::isValidAtomicOp(
     mlir::ptr::AtomicBinOp binOp, Type type, mlir::ptr::AtomicOrdering ordering,
     IntegerAttr alignment,
     llvm::function_ref<InFlightDiagnostic()> emitError) const {
-  return success();
+  return true;
 }
 
-LogicalResult tptr::DefaultMemorySpaceAttr::isValidAtomicXchg(
+bool tptr::DefaultMemorySpaceAttr::isValidAtomicXchg(
     Type type, mlir::ptr::AtomicOrdering successOrdering,
     mlir::ptr::AtomicOrdering failureOrdering, IntegerAttr alignment,
     llvm::function_ref<InFlightDiagnostic()> emitError) const {
-  return success();
+  return true;
 }
 
-LogicalResult tptr::DefaultMemorySpaceAttr::isValidAddrSpaceCast(
+bool tptr::DefaultMemorySpaceAttr::isValidAddrSpaceCast(
     Type tgt, Type src,
     llvm::function_ref<InFlightDiagnostic()> emitError) const {
-  return success();
+  return true;
 }
 
-LogicalResult tptr::DefaultMemorySpaceAttr::isValidPtrIntCast(
+bool tptr::DefaultMemorySpaceAttr::isValidPtrIntCast(
     Type intLikeTy, Type ptrLikeTy,
     llvm::function_ref<InFlightDiagnostic()> emitError) const {
-  return success();
+  return true;
 }
 //===----------------------------------------------------------------------===//
 // TableGen'd op method definitions
