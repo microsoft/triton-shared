@@ -192,11 +192,11 @@ public:
     // offset_0, offset_1,..., stride_0, stride_1,...} type back to the "pointer
     // tuple type".
     //
-    // Because we actually want to get rid of the tuple type, return `inputs[0]`
-    // which corresponds to a "triton pointer type". This approach will work as
-    // intended because the ops that currently take "pointer tuple type" are
-    // `unrealized_conversion_cast` ops which will get removed below during
-    // reconcile-unrealized-conversion-casts.
+    // Because we actually want to get rid of the tuple type, return a cast of
+    // `inputs[0]` which corresponds to a "triton pointer type". This approach
+    // will work as intended because the ops that currently take "pointer tuple
+    // type" are `unrealized_conversion_cast` ops which will get removed below
+    // during reconcile-unrealized-conversion-casts.
     converter.addSourceMaterialization([](OpBuilder &builder, Type resultType,
                                           ValueRange inputs, Location loc) {
       return builder
