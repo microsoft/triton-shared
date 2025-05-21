@@ -226,7 +226,7 @@ public:
                                           Location loc) {
       auto placeholder = builder.create<tts::GetStructuredStateOp>(
           loc, inputs.front().getDefiningOp()->getOperand(0));
-      assert(llvm::equal(placeholder.getResultTypes(), resultTypes) && "wtf");
+      assert(llvm::equal(placeholder.getResultTypes(), resultTypes));
       return placeholder.getResults();
     });
 
