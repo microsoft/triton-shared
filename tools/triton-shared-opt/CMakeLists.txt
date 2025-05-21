@@ -12,8 +12,6 @@ target_link_libraries(triton-shared-opt PRIVATE
   ${dialect_libs}
   ${conversion_libs}
   ${triton_libs}
-  # tests
-  # TritonTestAnalysis
   # MLIR core
   MLIROptLib
   MLIRPass

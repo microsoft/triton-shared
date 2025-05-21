@@ -23,17 +23,12 @@
 #include "triton/Dialect/Triton/IR/Dialect.h"
 
 #include "mlir/Dialect/Affine/IR/AffineOps.h"
-#include "mlir/Dialect/Bufferization/IR/Bufferization.h"
 #include "mlir/Pass/PassManager.h"
-#include "mlir/Transforms/GreedyPatternRewriteDriver.h"
 #include "mlir/Transforms/Passes.h"
 #include "triton/Dialect/Triton/IR/Types.h"
 
 #include "llvm/ADT/STLExtras.h"
-#include "llvm/ADT/SmallVector.h"
-#include "llvm/Support/Casting.h"
 #include "llvm/Support/Debug.h"
-#include "llvm/Support/LogicalResult.h"
 #include <cassert>
 #include <optional>
 
@@ -46,10 +41,10 @@ using namespace triton;
 #include "triton-shared/Conversion/TritonToStructured/Passes.h.inc"
 
 namespace mlir {
-  namespace triton {
-  #define GEN_PASS_DEF_TRITONTOSTRUCTURED
-    #include "triton-shared/Conversion/TritonToStructured/Passes.h.inc"
-  } // namespace triton
+namespace triton {
+#define GEN_PASS_DEF_TRITONTOSTRUCTURED
+#include "triton-shared/Conversion/TritonToStructured/Passes.h.inc"
+} // namespace triton
 } // namespace mlir
 
 namespace {
@@ -140,26 +135,28 @@ public:
     // result of tt.addptr from tt.ptr type to a tuple, but the original ptr
     // result is still being used by another tt.load or tt.store.
     converter.addSourceMaterialization([](OpBuilder &builder, Type resultType,
-                          ValueRange inputs, Location loc) {
+                                          ValueRange inputs, Location loc) {
       return builder.create<UnrealizedConversionCastOp>(loc, resultType, inputs)
           .getResult(0);
     });
 
     // Compute the target materialization, given a value with the pointer type,
     // convert that value to a tuple type.
-    converter.addTargetMaterialization(
-        [](OpBuilder &builder, TypeRange resultTypes, ValueRange inputs,
-           Location loc) -> SmallVector<Value> {
-          return builder
-              .create<UnrealizedConversionCastOp>(loc, resultTypes, inputs.front())
-              ->getResults();
-        });
+    converter.addTargetMaterialization([](OpBuilder &builder,
+                                          TypeRange resultTypes,
+                                          ValueRange inputs,
+                                          Location loc) -> SmallVector<Value> {
+      return builder
+          .create<UnrealizedConversionCastOp>(loc, resultTypes, inputs.front())
+          ->getResults();
+    });
 
     ConversionTarget target(getContext());
-    scf::populateSCFStructuralTypeConversionsAndLegality(converter, patterns, target);
+    scf::populateSCFStructuralTypeConversionsAndLegality(converter, patterns,
+                                                         target);
 
     if (failed(applyPartialConversion(getOperation(), target,
-                                            std::move(patterns)))) {
+                                      std::move(patterns)))) {
       return failure();
     }
 
@@ -201,18 +198,10 @@ public:
     // `unrealized_conversion_cast` ops which will get removed below during
     // reconcile-unrealized-conversion-casts.
     converter.addSourceMaterialization([](OpBuilder &builder, Type resultType,
-                          ValueRange inputs,
-                          Location loc) {
-          llvm::dbgs() << "target:\n";
-          resultType.dump();
-          llvm::dbgs() << "src:\n";
-          for (auto v : inputs) {
-            v.dump();
-          }
-          llvm::dbgs() << "~~\n";
-          return builder
-              .create<UnrealizedConversionCastOp>(loc, resultType, inputs[0])
-              ->getResult(0);
+                                          ValueRange inputs, Location loc) {
+      return builder
+          .create<UnrealizedConversionCastOp>(loc, resultType, inputs[0])
+          ->getResult(0);
     });
 
     // For each value of "pointer tuple type" that gets decomposed into a
@@ -222,8 +211,8 @@ public:
     // At the end of pointer analysis, we will use the PtrState to create the
     // correct offsets, strides, and remove these ops.
     converter.addTargetMaterialization([](OpBuilder &builder,
-                                          TypeRange resultTypes, ValueRange inputs,
-                                          Location loc) {
+                                          TypeRange resultTypes,
+                                          ValueRange inputs, Location loc) {
       auto placeholder = builder.create<tts::GetStructuredStateOp>(
           loc, inputs.front().getDefiningOp()->getOperand(0));
       assert(llvm::equal(placeholder.getResultTypes(), resultTypes));
@@ -231,9 +220,10 @@ public:
     });
 
     RewritePatternSet patterns(&getContext());
-    scf::populateSCFStructuralTypeConversionsAndLegality(converter, patterns, target);
+    scf::populateSCFStructuralTypeConversionsAndLegality(converter, patterns,
+                                                         target);
     if (failed(applyPartialConversion(getOperation(), target,
-                                            std::move(patterns)))) {
+                                      std::move(patterns)))) {
       return failure();
     }
 

@@ -226,15 +226,15 @@ LogicalResult PtrState::addState(const PtrState &lhsState,
       // New offset is offset * stride.
       auto newLhsOffset = lhsState.offsets[i];
       if (!hasConstZero(lhsState.strides[i])) {
-        auto stride = expandOFRIndex(lhsState.strides[i], lhsState.offsets[i], loc, builder);
-        newLhsOffset =
-            mulOFRs(lhsState.offsets[i], stride, loc, builder);
+        auto stride = expandOFRIndex(lhsState.strides[i], lhsState.offsets[i],
+                                     loc, builder);
+        newLhsOffset = mulOFRs(lhsState.offsets[i], stride, loc, builder);
       }
       auto newRhsOffset = rhsState.offsets[i];
       if (!hasConstZero(rhsState.strides[i])) {
-        auto stride = expandOFRIndex(rhsState.strides[i], rhsState.offsets[i], loc, builder);
-        newRhsOffset =
-            mulOFRs(rhsState.offsets[i], stride, loc, builder);
+        auto stride = expandOFRIndex(rhsState.strides[i], rhsState.offsets[i],
+                                     loc, builder);
+        newRhsOffset = mulOFRs(rhsState.offsets[i], stride, loc, builder);
       }
       // Make sure newLhsOffset and newRhsOffset get same type.
       if (!lhsState.dimIsStructured(i)) {
@@ -339,13 +339,12 @@ void PtrState::dump() const {
   if (isStructured()) {
     llvm::dbgs() << "structured\n";
   } else {
-    for (int i=0;i<getRank();i++) {
+    for (int i = 0; i < getRank(); i++) {
       llvm::dbgs() << "dim " << i;
       if (dimIsStructured(i))
         llvm::dbgs() << " structured\n";
       else
         llvm::dbgs() << " not strucuted\n";
-
     }
   }
 
@@ -382,8 +381,8 @@ LogicalResult PtrState::mulState(const PtrState &lhsState,
   }
 
   if (lhsState.scalar && rhsState.scalar) {
-    scalar = builder.create<arith::MulIOp>(
-        loc, lhsState.scalar, rhsState.scalar);
+    scalar =
+        builder.create<arith::MulIOp>(loc, lhsState.scalar, rhsState.scalar);
   }
 
   for (uint64_t i = 0; i < lhs->sizes.size(); i++) {
@@ -395,7 +394,8 @@ LogicalResult PtrState::mulState(const PtrState &lhsState,
           mulOFRs(lhs->strides[i], rhs->scalar, loc, builder);
       strides.push_back(newStride);
     } else {
-      auto rhsStride = expandOFRIndex(rhs->scalar, lhs->offsets[i], loc, builder);
+      auto rhsStride =
+          expandOFRIndex(rhs->scalar, lhs->offsets[i], loc, builder);
       OpFoldResult newOffset =
           mulOFRs(lhs->offsets[i], rhsStride, loc, builder);
       offsets.push_back(newOffset);
@@ -404,8 +404,7 @@ LogicalResult PtrState::mulState(const PtrState &lhsState,
           mulOFRs(lhs->strides[i], rhs->scalar, loc, builder);
       strides.push_back(newStride);
     }
-    OpFoldResult newShape =
-        mulOFRs(lhs->shape[i], rhs->scalar, loc, builder);
+    OpFoldResult newShape = mulOFRs(lhs->shape[i], rhs->scalar, loc, builder);
     shape.push_back(newShape);
     sizes.push_back(lhs->sizes[i]);
   }
@@ -490,13 +489,11 @@ LogicalResult PtrAnalysis::visitOperandAdd(arith::AddIOp addOp, PtrState &state,
                                            OpBuilder &builder) {
   PtrState lhsState;
   if (visitOperand(addOp.getLhs(), lhsState, loc, builder).failed()) {
-    llvm::dbgs() << "visit add lhs failed\n";
     return failure();
   }
 
   PtrState rhsState;
   if (visitOperand(addOp.getRhs(), rhsState, loc, builder).failed()) {
-    llvm::dbgs() << "visit add rhs failed\n";
     return failure();
   }
 
@@ -941,7 +938,6 @@ LogicalResult PtrAnalysis::visitOperand(Value operand, PtrState &state,
                                         OpBuilder &builder) {
 
   if (knownPtrs.find(operand) != knownPtrs.end()) {
-    llvm::dbgs() << "known pptr\n";
     state = knownPtrs.lookup(operand);
     return success();
   }
@@ -987,7 +983,6 @@ LogicalResult PtrAnalysis::visitOperand(Value operand, PtrState &state,
   }
 
   if (auto op = operand.getDefiningOp<arith::AddIOp>()) {
-    llvm::dbgs() << "visit add\n";
     return visitOperandAdd(op, state, loc, builder);
   } else if (auto op = operand.getDefiningOp<arith::MulIOp>()) {
     return visitOperandMul(op, state, loc, builder);
@@ -1011,7 +1006,6 @@ LogicalResult PtrAnalysis::visitOperand(Value operand, PtrState &state,
     return visitOperandForOp(op, operand, state, loc, builder);
   } else if (!operand.getDefiningOp()) {
     if (!knownPtrs.contains(operand)) {
-      llvm::dbgs() << "isnt known\n";
       return failure();
     }
 
@@ -1129,8 +1123,6 @@ static bool isPointerType(Type t) {
 
 FailureOr<PtrState> PtrAnalysis::getLoopInitArgPtrState(scf::ForOp forOp,
                                                         size_t index) {
-  llvm::dbgs() << "get state at index " << index << "\n";
-
   auto ptr = forOp.getInitArgs()[index];
 
   // If the pointer into the scf.for was defined by tts.get_structured_state,
@@ -1182,7 +1174,6 @@ FailureOr<PtrState> PtrAnalysis::getLoopInitArgPtrState(scf::ForOp forOp,
     assert(!ptr.getDefiningOp() && "Expect the ptr to be an iterarg");
     return knownPtrs[ptr];
   }
-
 
   return failure();
 }
@@ -1237,8 +1228,6 @@ FailureOr<PtrState> PtrAnalysis::getLoopResultPtrState(scf::ForOp forOp,
 LogicalResult PtrAnalysis::rewriteForOp(scf::ForOp op) {
   for (auto [i, arg] : llvm::enumerate(op.getRegionIterArgs())) {
     if (!maybeStructuredArgs.contains(arg)) {
-      llvm::dbgs() << "skipping rewrite iter arg:\n";
-      arg.dump();
       continue;
     }
 
@@ -1473,7 +1462,9 @@ void PtrAnalysis::initializeMaybeStructuredArgs(Operation *op) {
       // op, its corresponding iter-arg and loop result will also be considered
       // "maybeStructured".
       if (auto forOp = dyn_cast<scf::ForOp>(user)) {
-        for (auto [argIndex, arg] : llvm::zip(llvm::index_range(0, forOp.getInitArgs().size()), forOp.getInitArgs())) {
+        for (auto [argIndex, arg] :
+             llvm::zip(llvm::index_range(0, forOp.getInitArgs().size()),
+                       forOp.getInitArgs())) {
           if (arg != v) {
             continue;
           }
@@ -1616,10 +1607,6 @@ LogicalResult PtrAnalysis::rewriteOp(Operation *rootOp, bool useUnsafeMask) {
               // Without visiting these ops manually, the ops to update the
               // offsets and strides would not be generated.
               auto tritonValue = getStateOp->getOperand(0);
-              llvm::dbgs() << "get state op:\n";
-              getStateOp->dump();
-              llvm::dbgs() << "populating state for:\n";
-              tritonValue.dump();
               if (!knownPtrs.contains(tritonValue)) {
                 PtrState state;
                 OpBuilder b(getStateOp);
