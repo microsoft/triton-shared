@@ -23,6 +23,7 @@
 #include "triton/Dialect/Triton/IR/Types.h"
 
 #include "llvm/ADT/ArrayRef.h"
+#include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/TypeSwitch.h"
 #include "llvm/Support/Casting.h"
@@ -225,15 +226,15 @@ LogicalResult PtrState::addState(const PtrState &lhsState,
       // New offset is offset * stride.
       auto newLhsOffset = lhsState.offsets[i];
       if (!hasConstZero(lhsState.strides[i])) {
-        auto stride = expandOFRIndex(lhsState.strides[i], lhsState.offsets[i], loc, builder);
-        newLhsOffset =
-            mulOFRs(lhsState.offsets[i], stride, loc, builder);
+        auto stride = expandOFRIndex(lhsState.strides[i], lhsState.offsets[i],
+                                     loc, builder);
+        newLhsOffset = mulOFRs(lhsState.offsets[i], stride, loc, builder);
       }
       auto newRhsOffset = rhsState.offsets[i];
       if (!hasConstZero(rhsState.strides[i])) {
-        auto stride = expandOFRIndex(rhsState.strides[i], rhsState.offsets[i], loc, builder);
-        newRhsOffset =
-            mulOFRs(rhsState.offsets[i], stride, loc, builder);
+        auto stride = expandOFRIndex(rhsState.strides[i], rhsState.offsets[i],
+                                     loc, builder);
+        newRhsOffset = mulOFRs(rhsState.offsets[i], stride, loc, builder);
       }
       // Make sure newLhsOffset and newRhsOffset get same type.
       if (!lhsState.dimIsStructured(i)) {
@@ -338,13 +339,12 @@ void PtrState::dump() const {
   if (isStructured()) {
     llvm::dbgs() << "structured\n";
   } else {
-    for (int i=0;i<getRank();i++) {
+    for (int i = 0; i < getRank(); i++) {
       llvm::dbgs() << "dim " << i;
       if (dimIsStructured(i))
         llvm::dbgs() << " structured\n";
       else
         llvm::dbgs() << " not strucuted\n";
-
     }
   }
 
@@ -381,8 +381,8 @@ LogicalResult PtrState::mulState(const PtrState &lhsState,
   }
 
   if (lhsState.scalar && rhsState.scalar) {
-    scalar = builder.create<arith::MulIOp>(
-        loc, lhsState.scalar, rhsState.scalar);
+    scalar =
+        builder.create<arith::MulIOp>(loc, lhsState.scalar, rhsState.scalar);
   }
 
   for (uint64_t i = 0; i < lhs->sizes.size(); i++) {
@@ -394,7 +394,8 @@ LogicalResult PtrState::mulState(const PtrState &lhsState,
           mulOFRs(lhs->strides[i], rhs->scalar, loc, builder);
       strides.push_back(newStride);
     } else {
-      auto rhsStride = expandOFRIndex(rhs->scalar, lhs->offsets[i], loc, builder);
+      auto rhsStride =
+          expandOFRIndex(rhs->scalar, lhs->offsets[i], loc, builder);
       OpFoldResult newOffset =
           mulOFRs(lhs->offsets[i], rhsStride, loc, builder);
       offsets.push_back(newOffset);
@@ -403,8 +404,7 @@ LogicalResult PtrState::mulState(const PtrState &lhsState,
           mulOFRs(lhs->strides[i], rhs->scalar, loc, builder);
       strides.push_back(newStride);
     }
-    OpFoldResult newShape =
-        mulOFRs(lhs->shape[i], rhs->scalar, loc, builder);
+    OpFoldResult newShape = mulOFRs(lhs->shape[i], rhs->scalar, loc, builder);
     shape.push_back(newShape);
     sizes.push_back(lhs->sizes[i]);
   }
@@ -493,8 +493,9 @@ LogicalResult PtrAnalysis::visitOperandAdd(arith::AddIOp addOp, PtrState &state,
   }
 
   PtrState rhsState;
-  if (visitOperand(addOp.getRhs(), rhsState, loc, builder).failed())
+  if (visitOperand(addOp.getRhs(), rhsState, loc, builder).failed()) {
     return failure();
+  }
 
   // Checking for higher dimension is done in addState below
   if ((lhsState.getRank() == 1 && lhsState.hasModulo()) ||
@@ -1241,7 +1242,7 @@ LogicalResult PtrAnalysis::rewriteForOp(scf::ForOp op) {
           std::to_string(i));
       continue;
     }
-    // Skip when not have structured dimension.
+    // Skip when no structured dimension exists
     if (state->noStructuredDimExists())
       continue;
 
@@ -1461,25 +1462,23 @@ void PtrAnalysis::initializeMaybeStructuredArgs(Operation *op) {
       // op, its corresponding iter-arg and loop result will also be considered
       // "maybeStructured".
       if (auto forOp = dyn_cast<scf::ForOp>(user)) {
-        auto it = llvm::find(forOp.getInitArgs(), v);
-
-        if (it == forOp.getInitArgs().end()) {
-          continue;
-        }
-
-        auto argIndex = std::distance(forOp.getInitArgs().begin(), it);
-        auto iterArg = forOp.getRegionIterArg(argIndex);
-        auto tiedLoopRes = forOp.getTiedLoopResult(iterArg);
-
-        SmallVector<Value> neighbors{iterArg, tiedLoopRes};
-        for (auto neighbor : neighbors) {
-          maybeStructuredArgs.insert(neighbor);
-          if (!visited.contains(neighbor)) {
-            visited.insert(neighbor);
-            q.push(neighbor);
+        for (auto [argIndex, arg] :
+             llvm::zip(llvm::index_range(0, forOp.getInitArgs().size()),
+                       forOp.getInitArgs())) {
+          if (arg != v) {
+            continue;
+          }
+          auto iterArg = forOp.getRegionIterArg(argIndex);
+          auto tiedLoopRes = forOp.getTiedLoopResult(iterArg);
+          SmallVector<Value> neighbors{iterArg, tiedLoopRes};
+          for (auto neighbor : neighbors) {
+            maybeStructuredArgs.insert(neighbor);
+            if (!visited.contains(neighbor)) {
+              visited.insert(neighbor);
+              q.push(neighbor);
+            }
           }
         }
-
       } else {
         for (auto res : user->getResults()) {
           if (res.getType() != v.getType()) {
