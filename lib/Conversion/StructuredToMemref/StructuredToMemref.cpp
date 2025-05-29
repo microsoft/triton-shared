@@ -843,6 +843,18 @@ private:
 
     // Create loop to iterate every offset in gatherOffset.
     auto lowerBound = rewriter.create<arith::ConstantIndexOp>(loc, 0);
+    if (op.hasMask()) {
+      SmallVector<OpFoldResult> mixedDims = op.getMixedMaskDims();
+      OpFoldResult gatherMaskDim = mixedDims[gatherDim];
+      // If gatherMaskDim is a immediate, we can just update the offsetSize
+      // to the value of gatherMaskDim.
+      // Otherwise, we will need to compare the induction variable with
+      // gatherMaskDim to guard the load.
+      if (auto gatherMaskDimIndex = getIntAttr(gatherMaskDim)) {
+        // If the gather mask dimension is a constant, we can use it directly.
+        offsetSize = gatherMaskDimIndex.value();
+      }
+    }
     auto upperBound = rewriter.create<arith::ConstantIndexOp>(loc, offsetSize);
     auto step = rewriter.create<arith::ConstantIndexOp>(loc, 1);
     auto loop = rewriter.create<scf::ForOp>(loc, lowerBound, upperBound, step);
@@ -857,6 +869,23 @@ private:
 
     // Load the offsetElt first.
     Value inductionVar = loop.getInductionVar();
+
+    // When there's mask for gather dimension, we need to guard the load with
+    // gather mask.
+    if (op.hasMask()) {
+      SmallVector<OpFoldResult> mixedDims = op.getMixedMaskDims();
+      OpFoldResult gatherMaskDim = mixedDims[gatherDim];
+      if (auto gatherMaskDimVal = dyn_cast<Value>(gatherMaskDim)) {
+        auto cmp = rewriter.create<arith::CmpIOp>(
+            loc, arith::CmpIPredicate::slt, inductionVar, gatherMaskDimVal);
+        auto ifOp = rewriter.create<scf::IfOp>(
+            loc, cmp,
+            [&](OpBuilder &b, Location loc) { b.create<scf::YieldOp>(loc); },
+            [&](OpBuilder &b, Location loc) { b.create<scf::YieldOp>(loc); });
+        // Set insertion point to the then body of the ifOp.
+        rewriter.setInsertionPointToStart(ifOp.thenBlock());
+      }
+    }
     auto gatherOffsetElt = rewriter.create<tensor::ExtractOp>(
         loc, gatherOffset, ValueRange{inductionVar});
 
@@ -968,6 +997,18 @@ private:
 
     // Create loop to iterate every offset in gatherOffset.
     auto lowerBound = rewriter.create<arith::ConstantIndexOp>(loc, 0);
+    if (op.hasMask()) {
+      SmallVector<OpFoldResult> mixedDims = op.getMixedMaskDims();
+      OpFoldResult gatherMaskDim = mixedDims[gatherDim];
+      // If gatherMaskDim is a immediate, we can just update the offsetSize
+      // to the value of gatherMaskDim.
+      // Otherwise, we will need to compare the induction variable with
+      // gatherMaskDim to guard the load.
+      if (auto gatherMaskDimIndex = getIntAttr(gatherMaskDim)) {
+        // If the gather mask dimension is a constant, we can use it directly.
+        offsetSize = gatherMaskDimIndex.value();
+      }
+    }
     auto upperBound = rewriter.create<arith::ConstantIndexOp>(loc, offsetSize);
     auto step = rewriter.create<arith::ConstantIndexOp>(loc, 1);
     auto loop = rewriter.create<scf::ForOp>(loc, lowerBound, upperBound, step);
@@ -977,6 +1018,25 @@ private:
 
     // Load the offsetElt first.
     Value inductionVar = loop.getInductionVar();
+
+    // When there's mask for gather dimension, we need to guard the load with
+    // gather mask.
+    if (op.hasMask()) {
+      SmallVector<OpFoldResult> mixedDims = op.getMixedMaskDims();
+      OpFoldResult gatherMaskDim = mixedDims[gatherDim];
+      if (auto gatherMaskDimVal = dyn_cast<Value>(gatherMaskDim)) {
+
+        auto cmp = rewriter.create<arith::CmpIOp>(
+            loc, arith::CmpIPredicate::slt, inductionVar, gatherMaskDimVal);
+        auto ifOp = rewriter.create<scf::IfOp>(
+            loc, cmp,
+            [&](OpBuilder &b, Location loc) { b.create<scf::YieldOp>(loc); },
+            [&](OpBuilder &b, Location loc) { b.create<scf::YieldOp>(loc); });
+        // Set insertion point to the then body of the ifOp.
+        rewriter.setInsertionPointToStart(ifOp.thenBlock());
+      }
+    }
+
     auto gatherOffsetElt = rewriter.create<tensor::ExtractOp>(
         loc, gatherOffset, ValueRange{inductionVar});
 
