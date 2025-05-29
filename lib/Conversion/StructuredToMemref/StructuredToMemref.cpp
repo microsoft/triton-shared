@@ -852,7 +852,8 @@ private:
       // gatherMaskDim to guard the load.
       if (auto gatherMaskDimIndex = getIntAttr(gatherMaskDim)) {
         // If the gather mask dimension is a constant, we can use it directly.
-        offsetSize = gatherMaskDimIndex.value();
+        unsigned gatherMaskDimValue = gatherMaskDimIndex.value();
+        offsetSize = std::min(offsetSize, gatherMaskDimValue);
       }
     }
     auto upperBound = rewriter.create<arith::ConstantIndexOp>(loc, offsetSize);
@@ -1006,7 +1007,8 @@ private:
       // gatherMaskDim to guard the load.
       if (auto gatherMaskDimIndex = getIntAttr(gatherMaskDim)) {
         // If the gather mask dimension is a constant, we can use it directly.
-        offsetSize = gatherMaskDimIndex.value();
+        unsigned gatherMaskDimValue = gatherMaskDimIndex.value();
+        offsetSize = std::min(offsetSize, gatherMaskDimValue);
       }
     }
     auto upperBound = rewriter.create<arith::ConstantIndexOp>(loc, offsetSize);
