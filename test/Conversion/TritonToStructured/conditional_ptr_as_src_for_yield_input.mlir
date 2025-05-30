@@ -68,21 +68,19 @@ module attributes {} {
 // CHECK:             %[[VAL_27:.*]] = tt.splat %[[VAL_0]] : !tt.ptr<i64> -> tensor<512x!tt.ptr<i64>>
 // CHECK:             %[[VAL_28:.*]] = tt.addptr %[[VAL_27]], %[[VAL_26]] : tensor<512x!tt.ptr<i64>>, tensor<512xi64>
 // CHECK:             %[[VAL_29:.*]] = tt.addptr %[[VAL_28]], %[[VAL_11]] : tensor<512x!tt.ptr<i64>>, tensor<512xi32>
-// CHECK:             %[[VAL_30:.*]], %[[VAL_31:.*]], %[[VAL_32:.*]] = "tts.get_structured_state"(%[[VAL_29]]) <{resultSegmentSizes = array<i32: 1, 1, 1>}> : (tensor<512x!tt.ptr<i64>>) -> (tensor<512x!tt.ptr<i64>>, index, index)
-// CHECK:             scf.yield %[[VAL_30]] : tensor<512x!tt.ptr<i64>>
+// CHECK:             scf.yield %[[VAL_29]] : tensor<512x!tt.ptr<i64>>
 // CHECK:           } else {
-// CHECK:             %[[VAL_33:.*]] = arith.muli %[[VAL_10]], %[[VAL_5]] : i32
-// CHECK:             %[[VAL_34:.*]] = tt.addptr %[[VAL_0]], %[[VAL_33]] : !tt.ptr<i64>, i32
-// CHECK:             %[[VAL_35:.*]] = tt.splat %[[VAL_34]] : !tt.ptr<i64> -> tensor<512x!tt.ptr<i64>>
-// CHECK:             %[[VAL_36:.*]] = tt.addptr %[[VAL_35]], %[[VAL_21]] : tensor<512x!tt.ptr<i64>>, tensor<512xi64>
-// CHECK:             %[[VAL_37:.*]], %[[VAL_38:.*]], %[[VAL_39:.*]] = "tts.get_structured_state"(%[[VAL_36]]) <{resultSegmentSizes = array<i32: 1, 1, 1>}> : (tensor<512x!tt.ptr<i64>>) -> (tensor<512x!tt.ptr<i64>>, index, index)
-// CHECK:             scf.yield %[[VAL_37]] : tensor<512x!tt.ptr<i64>>
+// CHECK:             %[[VAL_30:.*]] = arith.muli %[[VAL_10]], %[[VAL_5]] : i32
+// CHECK:             %[[VAL_31:.*]] = tt.addptr %[[VAL_0]], %[[VAL_30]] : !tt.ptr<i64>, i32
+// CHECK:             %[[VAL_32:.*]] = tt.splat %[[VAL_31]] : !tt.ptr<i64> -> tensor<512x!tt.ptr<i64>>
+// CHECK:             %[[VAL_33:.*]] = tt.addptr %[[VAL_32]], %[[VAL_21]] : tensor<512x!tt.ptr<i64>>, tensor<512xi64>
+// CHECK:             scf.yield %[[VAL_33]] : tensor<512x!tt.ptr<i64>>
 // CHECK:           }
-// CHECK:           %[[VAL_40:.*]] = tt.load %[[VAL_23]], %[[VAL_17]] : tensor<512x!tt.ptr<i64>>
-// CHECK:           %[[VAL_41:.*]] = tts.make_tptr %[[VAL_2]] to sizes: [512], strides: [1], offsets: {{\[}}%[[VAL_13]]], shape: [0], order: [] : <i64> to tensor<512x!tt.ptr<i64>>
-// CHECK:           %[[VAL_42:.*]] = arith.index_cast %[[VAL_3]] : i32 to index
-// CHECK:           %[[VAL_43:.*]] = arith.minsi %[[VAL_42]], %[[VAL_8]] : index
-// CHECK:           %[[VAL_44:.*]] = arith.maxsi %[[VAL_43]], %[[VAL_7]] : index
-// CHECK:           "tts.store"(%[[VAL_41]], %[[VAL_40]], %[[VAL_44]]) <{static_mask_dims = array<i64: -9223372036854775808>}> : (tensor<512x!tt.ptr<i64>>, tensor<512xi64>, index) -> ()
+// CHECK:           %[[VAL_34:.*]] = tt.load %[[VAL_23]], %[[VAL_17]] : tensor<512x!tt.ptr<i64>>
+// CHECK:           %[[VAL_35:.*]] = tts.make_tptr %[[VAL_2]] to sizes: [512], strides: [1], offsets: {{\[}}%[[VAL_13]]], shape: [0], order: [] : <i64> to tensor<512x!tt.ptr<i64>>
+// CHECK:           %[[VAL_36:.*]] = arith.index_cast %[[VAL_3]] : i32 to index
+// CHECK:           %[[VAL_37:.*]] = arith.minsi %[[VAL_36]], %[[VAL_8]] : index
+// CHECK:           %[[VAL_38:.*]] = arith.maxsi %[[VAL_37]], %[[VAL_7]] : index
+// CHECK:           "tts.store"(%[[VAL_35]], %[[VAL_34]], %[[VAL_38]]) <{static_mask_dims = array<i64: -9223372036854775808>}> : (tensor<512x!tt.ptr<i64>>, tensor<512xi64>, index) -> ()
 // CHECK:           tt.return
 // CHECK:         }

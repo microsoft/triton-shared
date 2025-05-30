@@ -109,43 +109,39 @@ module attributes {} {
 // CHECK:               %[[VAL_66:.*]] = tptr.ptradd %[[VAL_62]] %[[VAL_65]] : <#{{.*}}>, i32 to <#{{.*}}>
 // CHECK:               linalg.yield %[[VAL_66]] : !ptr.ptr<#{{.*}}>
 // CHECK:             } -> tensor<512x!ptr.ptr<#{{.*}}>>
-// CHECK:             %[[VAL_67:.*]] = builtin.unrealized_conversion_cast %[[VAL_61]] : tensor<512x!ptr.ptr<#{{.*}}>> to tensor<512x!tt.ptr<i64>>
-// CHECK:             %[[VAL_68:.*]], %[[VAL_69:.*]], %[[VAL_70:.*]] = "tts.get_structured_state"(%[[VAL_67]]) <{resultSegmentSizes = array<i32: 1, 1, 1>}> : (tensor<512x!tt.ptr<i64>>) -> (tensor<512x!tt.ptr<i64>>, index, index)
-// CHECK:             %[[VAL_71:.*]] = builtin.unrealized_conversion_cast %[[VAL_68]] : tensor<512x!tt.ptr<i64>> to memref<512xi64, strided<[?], offset: ?>>
-// CHECK:             scf.yield %[[VAL_71]] : memref<512xi64, strided<[?], offset: ?>>
+// CHECK:             %[[VAL_67:.*]] = builtin.unrealized_conversion_cast %[[VAL_61]] : tensor<512x!ptr.ptr<#{{.*}}>> to memref<512xi64, strided<[?], offset: ?>>
+// CHECK:             scf.yield %[[VAL_67]] : memref<512xi64, strided<[?], offset: ?>>
 // CHECK:           } else {
-// CHECK:             %[[VAL_72:.*]] = arith.muli %[[VAL_10]], %[[VAL_5]] : i32
-// CHECK:             %[[VAL_73:.*]] = arith.muli %[[VAL_72]], %[[VAL_14]] : i32
-// CHECK:             %[[VAL_74:.*]] = tptr.ptradd %[[VAL_20]] %[[VAL_73]] : <#{{.*}}>, i32 to <#{{.*}}>
-// CHECK:             %[[VAL_75:.*]] = tensor.empty() : tensor<512x!ptr.ptr<#{{.*}}>>
-// CHECK:             %[[VAL_76:.*]] = linalg.fill ins(%[[VAL_74]] : !ptr.ptr<#{{.*}}>) outs(%[[VAL_75]] : tensor<512x!ptr.ptr<#{{.*}}>>) -> tensor<512x!ptr.ptr<#{{.*}}>>
-// CHECK:             %[[VAL_77:.*]] = linalg.generic {indexing_maps = [#[[$ATTR_0]], #[[$ATTR_0]], #[[$ATTR_0]]], iterator_types = ["parallel"]} ins(%[[VAL_76]], %[[VAL_42]] : tensor<512x!ptr.ptr<#{{.*}}>>, tensor<512xi64>) outs(%[[VAL_76]] : tensor<512x!ptr.ptr<#{{.*}}>>) {
-// CHECK:             ^bb0(%[[VAL_78:.*]]: !ptr.ptr<#{{.*}}>, %[[VAL_79:.*]]: i64, %[[VAL_80:.*]]: !ptr.ptr<#{{.*}}>):
-// CHECK:               %[[VAL_81:.*]] = arith.muli %[[VAL_79]], %[[VAL_15]] : i64
-// CHECK:               %[[VAL_82:.*]] = tptr.ptradd %[[VAL_78]] %[[VAL_81]] : <#{{.*}}>, i64 to <#{{.*}}>
-// CHECK:               linalg.yield %[[VAL_82]] : !ptr.ptr<#{{.*}}>
+// CHECK:             %[[VAL_68:.*]] = arith.muli %[[VAL_10]], %[[VAL_5]] : i32
+// CHECK:             %[[VAL_69:.*]] = arith.muli %[[VAL_68]], %[[VAL_14]] : i32
+// CHECK:             %[[VAL_70:.*]] = tptr.ptradd %[[VAL_20]] %[[VAL_69]] : <#{{.*}}>, i32 to <#{{.*}}>
+// CHECK:             %[[VAL_71:.*]] = tensor.empty() : tensor<512x!ptr.ptr<#{{.*}}>>
+// CHECK:             %[[VAL_72:.*]] = linalg.fill ins(%[[VAL_70]] : !ptr.ptr<#{{.*}}>) outs(%[[VAL_71]] : tensor<512x!ptr.ptr<#{{.*}}>>) -> tensor<512x!ptr.ptr<#{{.*}}>>
+// CHECK:             %[[VAL_73:.*]] = linalg.generic {indexing_maps = [#[[$ATTR_0]], #[[$ATTR_0]], #[[$ATTR_0]]], iterator_types = ["parallel"]} ins(%[[VAL_72]], %[[VAL_42]] : tensor<512x!ptr.ptr<#{{.*}}>>, tensor<512xi64>) outs(%[[VAL_72]] : tensor<512x!ptr.ptr<#{{.*}}>>) {
+// CHECK:             ^bb0(%[[VAL_74:.*]]: !ptr.ptr<#{{.*}}>, %[[VAL_75:.*]]: i64, %[[VAL_76:.*]]: !ptr.ptr<#{{.*}}>):
+// CHECK:               %[[VAL_77:.*]] = arith.muli %[[VAL_75]], %[[VAL_15]] : i64
+// CHECK:               %[[VAL_78:.*]] = tptr.ptradd %[[VAL_74]] %[[VAL_77]] : <#{{.*}}>, i64 to <#{{.*}}>
+// CHECK:               linalg.yield %[[VAL_78]] : !ptr.ptr<#{{.*}}>
 // CHECK:             } -> tensor<512x!ptr.ptr<#{{.*}}>>
-// CHECK:             %[[VAL_83:.*]] = builtin.unrealized_conversion_cast %[[VAL_77]] : tensor<512x!ptr.ptr<#{{.*}}>> to tensor<512x!tt.ptr<i64>>
-// CHECK:             %[[VAL_84:.*]], %[[VAL_85:.*]], %[[VAL_86:.*]] = "tts.get_structured_state"(%[[VAL_83]]) <{resultSegmentSizes = array<i32: 1, 1, 1>}> : (tensor<512x!tt.ptr<i64>>) -> (tensor<512x!tt.ptr<i64>>, index, index)
-// CHECK:             %[[VAL_87:.*]] = builtin.unrealized_conversion_cast %[[VAL_84]] : tensor<512x!tt.ptr<i64>> to memref<512xi64, strided<[?], offset: ?>>
-// CHECK:             scf.yield %[[VAL_87]] : memref<512xi64, strided<[?], offset: ?>>
+// CHECK:             %[[VAL_79:.*]] = builtin.unrealized_conversion_cast %[[VAL_73]] : tensor<512x!ptr.ptr<#{{.*}}>> to memref<512xi64, strided<[?], offset: ?>>
+// CHECK:             scf.yield %[[VAL_79]] : memref<512xi64, strided<[?], offset: ?>>
 // CHECK:           }
-// CHECK:           %[[VAL_88:.*]] = builtin.unrealized_conversion_cast %[[VAL_44]] : memref<512xi64, strided<[?], offset: ?>> to tensor<512x!ptr.ptr<#{{.*}}>>
-// CHECK:           %[[VAL_89:.*]] = tensor.empty() : tensor<512xi64>
-// CHECK:           %[[VAL_90:.*]] = linalg.generic {indexing_maps = [#[[$ATTR_0]], #[[$ATTR_0]], #[[$ATTR_0]]], iterator_types = ["parallel"]} ins(%[[VAL_88]], %[[VAL_31]] : tensor<512x!ptr.ptr<#{{.*}}>>, tensor<512xi1>) outs(%[[VAL_89]] : tensor<512xi64>) {
-// CHECK:           ^bb0(%[[VAL_91:.*]]: !ptr.ptr<#{{.*}}>, %[[VAL_92:.*]]: i1, %[[VAL_93:.*]]: i64):
-// CHECK:             %[[VAL_94:.*]] = tptr.to_memref %[[VAL_91]] : <#{{.*}}> to memref<1xi64>
-// CHECK:             %[[VAL_95:.*]] = scf.if %[[VAL_92]] -> (i64) {
-// CHECK:               %[[VAL_96:.*]] = memref.load %[[VAL_94]]{{\[}}%[[VAL_17]]] : memref<1xi64>
-// CHECK:               scf.yield %[[VAL_96]] : i64
+// CHECK:           %[[VAL_80:.*]] = builtin.unrealized_conversion_cast %[[VAL_44]] : memref<512xi64, strided<[?], offset: ?>> to tensor<512x!ptr.ptr<#{{.*}}>>
+// CHECK:           %[[VAL_81:.*]] = tensor.empty() : tensor<512xi64>
+// CHECK:           %[[VAL_82:.*]] = linalg.generic {indexing_maps = [#[[$ATTR_0]], #[[$ATTR_0]], #[[$ATTR_0]]], iterator_types = ["parallel"]} ins(%[[VAL_80]], %[[VAL_31]] : tensor<512x!ptr.ptr<#{{.*}}>>, tensor<512xi1>) outs(%[[VAL_81]] : tensor<512xi64>) {
+// CHECK:           ^bb0(%[[VAL_83:.*]]: !ptr.ptr<#{{.*}}>, %[[VAL_84:.*]]: i1, %[[VAL_85:.*]]: i64):
+// CHECK:             %[[VAL_86:.*]] = tptr.to_memref %[[VAL_83]] : <#{{.*}}> to memref<1xi64>
+// CHECK:             %[[VAL_87:.*]] = scf.if %[[VAL_84]] -> (i64) {
+// CHECK:               %[[VAL_88:.*]] = memref.load %[[VAL_86]]{{\[}}%[[VAL_17]]] : memref<1xi64>
+// CHECK:               scf.yield %[[VAL_88]] : i64
 // CHECK:             } else {
 // CHECK:               scf.yield %[[VAL_13]] : i64
 // CHECK:             }
-// CHECK:             linalg.yield %[[VAL_95]] : i64
+// CHECK:             linalg.yield %[[VAL_87]] : i64
 // CHECK:           } -> tensor<512xi64>
-// CHECK:           %[[VAL_97:.*]] = memref.reinterpret_cast %[[VAL_2]] to offset: {{\[}}%[[VAL_27]]], sizes: [512], strides: [1] : memref<*xi64> to memref<512xi64, strided<[1], offset: ?>>
-// CHECK:           %[[VAL_98:.*]] = tensor.extract_slice %[[VAL_90]][0] {{\[}}%[[VAL_38]]] [1] : tensor<512xi64> to tensor<?xi64>
-// CHECK:           %[[VAL_99:.*]] = memref.subview %[[VAL_97]][0] {{\[}}%[[VAL_38]]] [1] : memref<512xi64, strided<[1], offset: ?>> to memref<?xi64, strided<[1], offset: ?>>
-// CHECK:           bufferization.materialize_in_destination %[[VAL_98]] in writable %[[VAL_99]] : (tensor<?xi64>, memref<?xi64, strided<[1], offset: ?>>) -> ()
+// CHECK:           %[[VAL_89:.*]] = memref.reinterpret_cast %[[VAL_2]] to offset: {{\[}}%[[VAL_27]]], sizes: [512], strides: [1] : memref<*xi64> to memref<512xi64, strided<[1], offset: ?>>
+// CHECK:           %[[VAL_90:.*]] = tensor.extract_slice %[[VAL_82]][0] {{\[}}%[[VAL_38]]] [1] : tensor<512xi64> to tensor<?xi64>
+// CHECK:           %[[VAL_91:.*]] = memref.subview %[[VAL_89]][0] {{\[}}%[[VAL_38]]] [1] : memref<512xi64, strided<[1], offset: ?>> to memref<?xi64, strided<[1], offset: ?>>
+// CHECK:           bufferization.materialize_in_destination %[[VAL_90]] in writable %[[VAL_91]] : (tensor<?xi64>, memref<?xi64, strided<[1], offset: ?>>) -> ()
 // CHECK:           return
 // CHECK:         }
