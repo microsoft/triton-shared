@@ -291,7 +291,15 @@ LogicalResult PtrState::addState(const PtrState &lhsState,
     std::swap(lhs, rhs);
   }
 
+  auto indexTy = IndexType::get(op->getContext());
+  auto index0 = IntegerAttr::get(indexTy, APInt(64, 0));
   for (uint64_t i = 0; i < lhs->getRank(); i++) {
+    if (!lhs->dimIsStructured(i) || !rhs->dimIsStructured(i)) {
+      // Shape is always 0 for non-structured dimension.
+      shape.push_back(index0);
+      continue;
+    }
+
     if (!lhs->dimHasModulo(i)) {
       shape.push_back(lhs->shape[i]);
     } else if (hasConstZero(rhs->offsets[i])) {
@@ -385,6 +393,8 @@ LogicalResult PtrState::mulState(const PtrState &lhsState,
         builder.create<arith::MulIOp>(loc, lhsState.scalar, rhsState.scalar);
   }
 
+  auto indexTy = IndexType::get(op->getContext());
+  auto index0 = IntegerAttr::get(indexTy, APInt(64, 0));
   for (uint64_t i = 0; i < lhs->sizes.size(); i++) {
     if (lhsState.dimIsStructured(i)) {
       OpFoldResult newOffset =
@@ -393,6 +403,8 @@ LogicalResult PtrState::mulState(const PtrState &lhsState,
       OpFoldResult newStride =
           mulOFRs(lhs->strides[i], rhs->scalar, loc, builder);
       strides.push_back(newStride);
+      OpFoldResult newShape = mulOFRs(lhs->shape[i], rhs->scalar, loc, builder);
+      shape.push_back(newShape);
     } else {
       auto rhsStride =
           expandOFRIndex(rhs->scalar, lhs->offsets[i], loc, builder);
@@ -403,9 +415,9 @@ LogicalResult PtrState::mulState(const PtrState &lhsState,
       OpFoldResult newStride =
           mulOFRs(lhs->strides[i], rhs->scalar, loc, builder);
       strides.push_back(newStride);
+      // Shape is always 0 for non-structured dimension.
+      shape.push_back(index0);
     }
-    OpFoldResult newShape = mulOFRs(lhs->shape[i], rhs->scalar, loc, builder);
-    shape.push_back(newShape);
     sizes.push_back(lhs->sizes[i]);
   }
 
