@@ -90,8 +90,9 @@ public:
       // We only care about tensor of index / int (in addition to pointer type)
       // because only values of int and index type can potentially be part of a
       // pointer arithmetic sequence.
-      if (!isa<triton::PointerType>(tensorType.getElementType()) &&
-          !tensorType.getElementType().isIntOrIndex()) {
+      auto elementType = tensorType.getElementType();
+      if (isa<triton::PointerType>(elementType) ||
+          (elementType.isIntOrIndex() && !elementType.isInteger(1))) {
         // There's a subtle difference between returning failure() and
         // std::nullopt. From the documentation:
         //
@@ -113,11 +114,11 @@ public:
         //
         // https://github.com/llvm/llvm-project/blob/cb5dc1faa8b3702e0d03426ee5dfc5e1b903ec47/mlir/lib/Transforms/Utils/DialectConversion.cpp#L2958
         // https://github.com/llvm/llvm-project/blob/cb5dc1faa8b3702e0d03426ee5dfc5e1b903ec47/mlir/lib/Transforms/Utils/DialectConversion.cpp#L3033
-        return std::nullopt;
+        types =
+            SmallVector<Type>{getStructuredStateTupleType(context, tensorType)};
+        return success();
       }
-      types =
-          SmallVector<Type>{getStructuredStateTupleType(context, tensorType)};
-      return success();
+      return std::nullopt;
     });
 
     // Case 2: Block pointers (!tt.ptr<tensor<type>> or !tt.ptr<type>)
