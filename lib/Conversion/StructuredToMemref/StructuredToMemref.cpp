@@ -412,7 +412,7 @@ private:
     Value strideRow = ofrToIndexValue(op.getMixedStrides()[0], loc, rewriter);
     Value strideCol = ofrToIndexValue(op.getMixedStrides()[1], loc, rewriter);
 
-    Value modRow = op.getShape()[0];
+    Value modRow = ofrToIndexValue(op.getMixedShape()[0], loc, rewriter);
 
     // First chunk
     Value wrappedAroundOff =
@@ -441,23 +441,31 @@ private:
 
   LogicalResult rewriteSplitPtr(tts::MakeTensorPtrOp op, OpAdaptor adaptor,
                                 ConversionPatternRewriter &rewriter) const {
-
     auto parentShape = op.getStaticShape();
-
+    assert(parentShape.size() == 2 &&
+           "Only support split pointer for 2D tensors only");
     SmallVector<Value> casts;
     StringRef wrapType;
 
-    if (parentShape[0] == ShapedType::kDynamic) {
+    // For split pointers, a split dimension is either a dynamic or a non-zero
+    // value. The other dimension must be zero.
+    auto isSplitDimension = [](int64_t dim) {
+      return dim == ShapedType::kDynamic || dim != 0;
+    };
+
+    if (isSplitDimension(parentShape[0])) {
       // Stacked case
       assert(parentShape[1] == 0);
       auto [cast1, cast2] = createStackedCastOps(op, adaptor, rewriter);
       casts = {cast1.getResult(), cast2.getResult()};
       wrapType = WRAP_STACKED;
-    } else {
+    } else if (isSplitDimension(parentShape[1])) {
       assert(parentShape[0] == 0);
       auto [cast1, cast2] = createSideBySideCastOps(op, adaptor, rewriter);
       casts = {cast1.getResult(), cast2.getResult()};
       wrapType = WRAP_SIDE_BY_SIDE;
+    } else {
+      assert(false && "Unexpected split pointer shape");
     }
 
     auto combinedCast = rewriter.create<UnrealizedConversionCastOp>(
