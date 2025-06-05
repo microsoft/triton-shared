@@ -15,7 +15,6 @@
 #include "triton/Dialect/Triton/IR/Dialect.h"
 
 #include "llvm/Support/Debug.h"
-
 #define DEBUG_TYPE "triton-ptr-analysis"
 
 namespace mlir {
