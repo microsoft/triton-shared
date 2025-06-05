@@ -1,11 +1,11 @@
 // RUN: triton-shared-opt --triton-to-linalg-experimental --split-input-file %s | FileCheck %s
 
-// Make sure scf.if was created for mask.
+// Make sure arith.minsi was created for mask.
 // CHECK-LABLE: tt.func public @index_select_row_index_mask_kernel
 // CHECK: %[[LOOP_COUNT:.*]] = arith.constant 32 : index
-// CHECK:    scf.for %[[IV:.*]] = %{{.*}} to %[[LOOP_COUNT]] step %{{.*}} {
-// CHECK:      %[[COND:.*]] = arith.cmpi slt, %[[IV]], %{{.*}} : index
-// CHECK:      scf.if %[[COND]] {
+// CHECK: %{{.*}} = arith.maxsi %{{.*}}, %{{.*}} : index
+// CHECK: %[[MIN:.*]] = arith.minsi %{{.*}}, %[[LOOP_COUNT]] : index
+// CHECK:    scf.for %[[IV:.*]] = %{{.*}} to %[[MIN]] step %{{.*}} {
 
   tt.func public @index_select_row_index_mask_kernel(%arg0: !tt.ptr<f32>, %arg1: !tt.ptr<f32>, %arg2: !tt.ptr<i32>, %arg3: i32, %arg4: i32, %arg5: i32, %arg6: i32, %arg7: i32, %arg8: i32) attributes {noinline = false} {
     %cst = arith.constant dense<0.000000e+00> : tensor<32x32xf32>

@@ -2,9 +2,10 @@
 
 // Make sure scf.if was created for mask.
 // CHECK-LABLE: tt.func public @scatter_row_index_mask_kernel
-// CHECK:    scf.for %[[IV:.*]] = %{{.*}} to %{{.*}} step %{{.*}} {
-// CHECK:      %[[COND:.*]] = arith.cmpi slt, %[[IV]], %{{.*}} : index
-// CHECK:      scf.if %[[COND]] {
+// CHECK: %[[LOOP_COUNT:.*]] = arith.constant 32 : index
+// CHECK: %{{.*}} = arith.maxsi %{{.*}}, %{{.*}} : index
+// CHECK: %[[MIN:.*]] = arith.minsi %{{.*}}, %[[LOOP_COUNT]] : index
+// CHECK:    scf.for %[[IV:.*]] = %{{.*}} to %[[MIN]] step %{{.*}} {
 
   tt.func public @scatter_row_index_mask_kernel(%arg0: !tt.ptr<f32>, %arg1: !tt.ptr<f32>, %arg2: !tt.ptr<i32>, %arg3: i32, %arg4: i32, %arg5: i32, %arg6: i32, %arg7: i32, %arg8: i32) attributes {noinline = false} {
     %0 = tt.make_range {end = 32 : i32, start = 0 : i32} : tensor<32xi32>
