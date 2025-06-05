@@ -38,7 +38,6 @@ module attributes {maia.triton_kernel} {
     %115 = tt.expand_dims %99 {axis = 0 : i32} : tensor<128xi32> -> tensor<1x128xi32>
     %117 = tt.broadcast %115 : tensor<1x128xi32> -> tensor<512x128xi32>
 
-    // %0, %105, %102, %117
     %131 = arith.muli %0, %arg19 : i32
     %132 = arith.muli %94, %arg21 : i32
     %133 = arith.addi %131, %132 : i32
