@@ -197,3 +197,57 @@ module {
 
 // CHECK-COUNT-6: tts.get_structured_state
 // CHECK-NOT: tts.get_structured_state
+
+module {
+  tt.func public @nested1_with_i1_tensor_iter_arg(%arg0: !tt.ptr<f32> {tt.divisibility = 16 : i32}, %arg1: !tt.ptr<i8> {tt.divisibility = 16 : i32}, %arg2: i32, %arg3: i32 {tt.divisibility = 16 : i32}) attributes {noinline = false} {
+    %cst = arith.constant dense<0.000000e+00> : tensor<8x1024xf32>
+    %c1024_i32 = arith.constant 1024 : i32
+    %c0_i32 = arith.constant 0 : i32
+    %cst_0 = arith.constant dense<1.000000e+00> : tensor<8x1024xf32>
+    %cst_1 = arith.constant dense<true> : tensor<8x1024xi1>
+    %c8_i32 = arith.constant 8 : i32
+    %0 = tt.get_program_id x : i32
+    %1 = arith.muli %0, %c8_i32 : i32
+    %2 = tt.make_range {end = 8 : i32, start = 0 : i32} : tensor<8xi32>
+    %3 = tt.expand_dims %2 {axis = 1 : i32} : tensor<8xi32> -> tensor<8x1xi32>
+    %4 = tt.splat %1 : i32 -> tensor<8x1xi32>
+    %5 = arith.addi %4, %3 : tensor<8x1xi32>
+    %6 = tt.splat %arg3 : i32 -> tensor<8x1xi32>
+    %7 = arith.muli %5, %6 : tensor<8x1xi32>
+    %8 = tt.splat %arg0 : !tt.ptr<f32> -> tensor<8x1x!tt.ptr<f32>>
+    %9 = tt.addptr %8, %7 : tensor<8x1x!tt.ptr<f32>>, tensor<8x1xi32>
+    %10 = tt.splat %arg1 : !tt.ptr<i8> -> tensor<8x1x!tt.ptr<i8>>
+    %11 = tt.addptr %10, %5 : tensor<8x1x!tt.ptr<i8>>, tensor<8x1xi32>
+    %12 = tt.splat %arg2 : i32 -> tensor<8x1xi32>
+    %13 = arith.cmpi slt, %5, %12 : tensor<8x1xi32>
+    %14 = tt.make_range {end = 1024 : i32, start = 0 : i32} : tensor<1024xi32>
+    %15 = tt.expand_dims %14 {axis = 0 : i32} : tensor<1024xi32> -> tensor<1x1024xi32>
+    %16 = tt.splat %arg3 : i32 -> tensor<1x1024xi32>
+    %17 = tt.broadcast %13 : tensor<8x1xi1> -> tensor<8x1024xi1>
+    %18 = tt.broadcast %9 : tensor<8x1x!tt.ptr<f32>> -> tensor<8x1024x!tt.ptr<f32>>
+    %19 = scf.for %arg4 = %c0_i32 to %arg3 step %c1024_i32 iter_args(%arg5 = %cst_1) -> (tensor<8x1024xi1>)  : i32 {
+      %23 = tt.splat %arg4 : i32 -> tensor<1x1024xi32>
+      %24 = arith.addi %23, %15 : tensor<1x1024xi32>
+      %25 = arith.cmpi slt, %24, %16 : tensor<1x1024xi32>
+      %26 = tt.broadcast %25 : tensor<1x1024xi1> -> tensor<8x1024xi1>
+      %27 = arith.andi %17, %26 : tensor<8x1024xi1>
+      %28 = tt.broadcast %24 : tensor<1x1024xi32> -> tensor<8x1024xi32>
+      %29 = tt.addptr %18, %28 : tensor<8x1024x!tt.ptr<f32>>, tensor<8x1024xi32>
+      %30 = tt.load %29, %27, %cst_0 : tensor<8x1024x!tt.ptr<f32>>
+      %31 = arith.cmpf une, %30, %cst : tensor<8x1024xf32>
+      %32 = arith.andi %arg5, %31 : tensor<8x1024xi1>
+      scf.yield %32 : tensor<8x1024xi1>
+    }
+    %20 = "tt.reduce"(%19) <{axis = 1 : i32}> ({
+    ^bb0(%arg4: i1, %arg5: i1):
+      %23 = arith.andi %arg4, %arg5 : i1
+      tt.reduce.return %23 : i1
+    }) : (tensor<8x1024xi1>) -> tensor<8xi1>
+    %21 = tt.expand_dims %20 {axis = 1 : i32} : tensor<8xi1> -> tensor<8x1xi1>
+    %22 = arith.extui %21 : tensor<8x1xi1> to tensor<8x1xi8>
+    tt.store %11, %22, %13 : tensor<8x1x!tt.ptr<i8>>
+    tt.return
+  }
+}
+
+// CHECK-NOT: tts.get_structured_state
