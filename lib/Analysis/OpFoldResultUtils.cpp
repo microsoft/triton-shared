@@ -14,6 +14,10 @@
 #include "mlir/Transforms/DialectConversion.h"
 #include "triton/Dialect/Triton/IR/Dialect.h"
 
+#include "llvm/Support/Debug.h"
+
+#define DEBUG_TYPE "triton-ptr-analysis"
+
 namespace mlir {
 
 std::optional<int64_t> getIntAttr(const OpFoldResult ofr) {
@@ -115,11 +119,28 @@ OpFoldResult expandOFRIndex(OpFoldResult ofr, OpFoldResult targetForTy,
       v = indexTypeCast(v, targetEltTy, loc, b);
     return b.create<triton::SplatOp>(loc, targetTy, v).getResult();
   } else if (targetShapedTy && shapedTy) {
-    // TODO: support ShapedType to ShapedType.
     Type targetEltTy = targetShapedTy.getElementType();
     Type eltTy = shapedTy.getElementType();
-    if (targetShapedTy.getShape() != shapedTy.getShape())
-      llvm_unreachable("ShapedType to ShapedType must have same shape");
+    if (targetShapedTy.getShape() != shapedTy.getShape()) {
+      assert(targetEltTy == eltTy &&
+             "Only cast between same element type shaped types");
+      LLVM_DEBUG({
+        llvm::dbgs() << "Reshaping ";
+        shapedTy.dump();
+        llvm::dbgs() << " to ";
+        targetShapedTy.dump();
+      });
+      SmallVector<Value> shapeValues;
+      for (auto dim : targetShapedTy.getShape()) {
+        shapeValues.push_back(b.create<arith::ConstantOp>(
+            loc, b.getIndexAttr(dim)));
+      }
+      RankedTensorType targetShapeTensorTy = RankedTensorType::get(
+          targetShapedTy.getShape().size(), b.getIndexType());
+      auto shapeTensor = b.create<tensor::FromElementsOp>(
+          loc, targetShapeTensorTy, shapeValues);
+      return b.create<tensor::ReshapeOp>(loc, targetTy, v, shapeTensor).getResult();
+    }
     if (isa<IndexType>(targetEltTy) || isa<IndexType>(eltTy)) {
       assert((isa<IntegerType>(targetEltTy) || isa<IntegerType>(eltTy)) &&
              "Only cast between index type and integer type");
@@ -351,4 +372,50 @@ OpFoldResult compareOFRs(const OpFoldResult lhs, const OpFoldResult rhs,
   auto selectOp = b.create<arith::SelectOp>(loc, cmpOp, trueValue, falseValue);
   return selectOp.getResult();
 }
+
+OpFoldResult remOFRs(const OpFoldResult lhs, const OpFoldResult rhs,
+                     const Location loc, OpBuilder &b) {
+  auto lhsIntAttr = getIntAttr(lhs);
+  auto rhsIntAttr = getIntAttr(rhs);
+  // both lhs and rhs are constants, return result directly
+  if (lhsIntAttr && rhsIntAttr) {
+    if (rhsIntAttr.value() == 0) {
+      llvm_unreachable("Division by zero");
+    }
+    return b.getIndexAttr(lhsIntAttr.value() % rhsIntAttr.value());
+  }
+  // otherwise, need to create instructions to calculate new attribute value
+  auto lhsValue = dyn_cast<Value>(lhs);
+  if (lhsIntAttr) {
+    auto lhsOp =
+        b.create<arith::ConstantOp>(loc, b.getIndexAttr(lhsIntAttr.value()));
+    lhsValue = lhsOp.getResult();
+  }
+  auto rhsValue = dyn_cast<Value>(rhs);
+  if (rhsIntAttr) {
+    auto rhsOp =
+        b.create<arith::ConstantOp>(loc, b.getIndexAttr(rhsIntAttr.value()));
+    rhsValue = rhsOp.getResult();
+  }
+  if (rhsValue.getType().isIndex()) {
+    // arith.remi is not supported for index type, so we need to cast it to
+    // integer type first.
+    rhsValue = b.create<arith::IndexCastOp>(loc, b.getI64Type(), rhsValue);
+  }
+  if (lhsValue.getType().isIndex()) {
+    // arith.remi is not supported for index type, so we need to cast it to
+    // integer type first.
+    lhsValue = b.create<arith::IndexCastOp>(loc, b.getI64Type(), lhsValue);
+  }
+  auto remOp = b.create<arith::RemSIOp>(loc, lhsValue, rhsValue);
+  if (remOp.getResult().getType().isIndex()) {
+    // arith.remi is not supported for index type, so we need to cast it back to
+    // index type.
+    return b.create<arith::IndexCastOp>(loc, b.getIndexType(),
+                                        remOp.getResult())
+        .getResult();
+  }
+  return remOp.getResult();
+}
+
 } // namespace mlir
