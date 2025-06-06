@@ -150,6 +150,81 @@ def test_index_select_row_mask(device):
 
 
 @triton.jit
+def index_select_row_index_mask_kernel(
+    input_ptr,
+    output_ptr,
+    indices,
+    stride_i,
+    stride_m,
+    stride_n,
+    o_stride_m,
+    o_stride_n,
+    index_limit,
+    BLOCK_I: tl.constexpr,
+    BLOCK_N: tl.constexpr,
+):
+    row_offsets = tl.arange(0, BLOCK_I)
+    row_indices = tl.load(indices + row_offsets * stride_i)
+
+    col_offsets = tl.arange(0, BLOCK_N)
+    input_pointers_0 = (
+        input_ptr + row_indices[:, None] * stride_m + col_offsets[None, :] * stride_n
+    )
+    data = tl.load(
+        input_pointers_0, mask=row_offsets[:, None] < index_limit, other=0
+    )
+
+    tl.store(
+        output_ptr
+        + row_offsets[:, None] * o_stride_m
+        + col_offsets[None, :] * o_stride_n,
+        data,
+    )
+
+
+def index_select_row_index_mask(input_tensor, indices, dim, index_limit):
+    M, N = input_tensor.shape
+    R = indices.shape[0]
+    output_tensor = torch.empty(
+        R, N, dtype=input_tensor.dtype, device=input_tensor.device
+    )
+    stride_i = indices.stride(0)
+    stride_m = input_tensor.stride(0)
+    stride_n = input_tensor.stride(1)
+    o_stride_m = output_tensor.stride(0)
+    o_stride_n = output_tensor.stride(1)
+
+    index_select_row_index_mask_kernel[1,](
+        input_tensor,
+        output_tensor,
+        indices,
+        stride_i,
+        stride_m,
+        stride_n,
+        o_stride_m,
+        o_stride_n,
+        index_limit,
+        BLOCK_I=R,
+        BLOCK_N=N,
+    )
+    return output_tensor
+
+
+def test_index_select_row_index_mask(device):
+    M, N = 8, 16
+    input_tensor = torch.randn(M, N, device=device)
+    indices = torch.tensor([1, 3, 5, 7], dtype=torch.int32, device=device)
+    dim = 0  # Dimension to index along
+    if device == "cpu":
+        triton.runtime.driver.set_active(CPUDriver())
+    index_limit = indices.shape[0] // 2
+    output_triton = index_select_row_index_mask(input_tensor, indices, dim, index_limit)
+    output_ref = torch.index_select(input_tensor, dim, indices)
+    output_ref[index_limit:,  :] = 0
+    torch.testing.assert_close(output_triton, output_ref)
+
+
+@triton.jit
 def index_select_col_kernel(
     input_ptr,
     output_ptr,
@@ -958,6 +1033,84 @@ def test_scatter_row_mask(device):
     output_ref[:, N // 2 :] = -1
     torch.testing.assert_close(output_triton, output_ref)
 
+
+@triton.jit
+def scatter_row_index_mask_kernel(
+    input_ptr,
+    output_ptr,
+    indices,
+    stride_i,
+    stride_m,
+    stride_n,
+    o_stride_m,
+    o_stride_n,
+    index_limit,
+    BLOCK_I: tl.constexpr,
+    BLOCK_N: tl.constexpr,
+):
+    row_offsets = tl.arange(0, BLOCK_I)
+    row_indices = tl.load(indices + row_offsets * stride_i)
+
+    col_offsets = tl.arange(0, BLOCK_N)
+    input_pointers_0 = (
+        input_ptr + row_offsets[:, None] * stride_m + col_offsets[None, :] * stride_n
+    )
+    data = tl.load(input_pointers_0)
+
+    tl.store(
+        output_ptr
+        + row_indices[:, None] * o_stride_m
+        + col_offsets[None, :] * o_stride_n,
+        data,
+        mask=row_offsets[:, None] < index_limit,
+    )
+
+
+def scatter_row_index_mask(dst, dim, indices, input_tensor, index_limit):
+    M, N = input_tensor.shape
+    R = indices.shape[0]
+    output_tensor = dst.clone()
+    stride_i = indices.stride(0)
+    stride_m = input_tensor.stride(0)
+    stride_n = input_tensor.stride(1)
+    o_stride_m = output_tensor.stride(0)
+    o_stride_n = output_tensor.stride(1)
+
+    scatter_row_index_mask_kernel[1,](
+        input_tensor,
+        output_tensor,
+        indices,
+        stride_i,
+        stride_m,
+        stride_n,
+        o_stride_m,
+        o_stride_n,
+        index_limit=index_limit,
+        BLOCK_I=R,
+        BLOCK_N=N,
+    )
+    return output_tensor
+
+
+def test_scatter_row_index_mask(device):
+    M, N = 8, 8
+    input_tensor = torch.randn(M, N, device=device)
+    indices = torch.tensor([1, 3, 5, 7], dtype=torch.int64, device=device)
+    # Initialize dst with -1
+    dst = torch.full((8, 16), -1, dtype=input_tensor.dtype, device=device)
+
+    dim = 0  # Dimension to index along
+    if device == "cpu":
+        triton.runtime.driver.set_active(CPUDriver())
+    index_limit = indices.shape[0] // 2
+    output_triton = scatter_row_index_mask(dst, dim, indices, input_tensor, index_limit)
+
+    # copy all columns of input_tensor.
+    indices = indices[:index_limit]
+    row_indices = indices.reshape(2, 1).repeat(1, N)
+
+    output_ref = torch.scatter(dst, dim, row_indices, input_tensor)
+    torch.testing.assert_close(output_triton, output_ref)
 
 @triton.jit
 def scatter_col_kernel(

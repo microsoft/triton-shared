@@ -843,7 +843,29 @@ private:
 
     // Create loop to iterate every offset in gatherOffset.
     auto lowerBound = rewriter.create<arith::ConstantIndexOp>(loc, 0);
-    auto upperBound = rewriter.create<arith::ConstantIndexOp>(loc, offsetSize);
+    Value upperBound = rewriter.create<arith::ConstantIndexOp>(loc, offsetSize).getResult();
+    if (op.hasMask()) {
+      SmallVector<OpFoldResult> mixedDims = op.getMixedMaskDims();
+      OpFoldResult gatherMaskDim = mixedDims[gatherDim];
+      // If gatherMaskDim is a immediate, we can just update the offsetSize
+      // to the value of gatherMaskDim.
+      // Otherwise, we will need to compare the induction variable with
+      // gatherMaskDim to guard the load.
+      if (auto gatherMaskDimIndex = getIntAttr(gatherMaskDim)) {
+        // If the gather mask dimension is a constant, we can use it directly.
+        unsigned gatherMaskDimValue = gatherMaskDimIndex.value();
+        offsetSize = std::min(offsetSize, gatherMaskDimValue);
+        upperBound = rewriter.create<arith::ConstantIndexOp>(loc, offsetSize).getResult();
+      } else {
+        // Use arith::MinSIOp to get the minimum value of gatherMaskDim
+        // and offsetSize.
+        auto gatherMaskDimVal = cast<Value>(gatherMaskDim);
+        auto offsetSizeVal =
+            rewriter.create<arith::ConstantIndexOp>(loc, offsetSize);
+        upperBound = rewriter.create<arith::MinSIOp>(loc, gatherMaskDimVal,
+                                                     offsetSizeVal).getResult();
+      }
+    }
     auto step = rewriter.create<arith::ConstantIndexOp>(loc, 1);
     auto loop = rewriter.create<scf::ForOp>(loc, lowerBound, upperBound, step);
 
@@ -968,7 +990,29 @@ private:
 
     // Create loop to iterate every offset in gatherOffset.
     auto lowerBound = rewriter.create<arith::ConstantIndexOp>(loc, 0);
-    auto upperBound = rewriter.create<arith::ConstantIndexOp>(loc, offsetSize);
+    Value upperBound = rewriter.create<arith::ConstantIndexOp>(loc, offsetSize).getResult();
+    if (op.hasMask()) {
+      SmallVector<OpFoldResult> mixedDims = op.getMixedMaskDims();
+      OpFoldResult gatherMaskDim = mixedDims[gatherDim];
+      // If gatherMaskDim is a immediate, we can just update the offsetSize
+      // to the value of gatherMaskDim.
+      // Otherwise, we will need to compare the induction variable with
+      // gatherMaskDim to guard the load.
+      if (auto gatherMaskDimIndex = getIntAttr(gatherMaskDim)) {
+        // If the gather mask dimension is a constant, we can use it directly.
+        unsigned gatherMaskDimValue = gatherMaskDimIndex.value();
+        offsetSize = std::min(offsetSize, gatherMaskDimValue);
+        upperBound = rewriter.create<arith::ConstantIndexOp>(loc, offsetSize).getResult();
+      } else {
+        // Use arith::MinSIOp to get the minimum value of gatherMaskDim
+        // and offsetSize.
+        auto gatherMaskDimVal = cast<Value>(gatherMaskDim);
+        auto offsetSizeVal =
+            rewriter.create<arith::ConstantIndexOp>(loc, offsetSize);
+        upperBound = rewriter.create<arith::MinSIOp>(loc, gatherMaskDimVal,
+                                                     offsetSizeVal).getResult();
+      }
+    }
     auto step = rewriter.create<arith::ConstantIndexOp>(loc, 1);
     auto loop = rewriter.create<scf::ForOp>(loc, lowerBound, upperBound, step);
 
@@ -977,6 +1021,7 @@ private:
 
     // Load the offsetElt first.
     Value inductionVar = loop.getInductionVar();
+
     auto gatherOffsetElt = rewriter.create<tensor::ExtractOp>(
         loc, gatherOffset, ValueRange{inductionVar});
 
