@@ -118,8 +118,11 @@ def _llir_to_bin(llir: str, metadata):
         src_path = os.path.join(tmpdir, "kernel.ll")
         dst_path = os.path.join(tmpdir, "kernel.o")
         Path(src_path).write_text(llir)
-        llc_path = _get_llvm_bin_path("llc")
-        subprocess.check_call([llc_path, src_path, "-filetype=obj", "-o", dst_path])
+
+        clang_path = "/workspace/llvm-install/bin/clang++"
+
+        subprocess.check_call([clang_path, "-g", "-fsanitize=address", "-c", src_path, "-o", dst_path])
+        
         return Path(dst_path).read_bytes()
 
 
