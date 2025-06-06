@@ -225,13 +225,33 @@ LogicalResult PtrState::addState(const PtrState &lhsState,
       strides.push_back(builder.getIndexAttr(1));
       // New offset is offset * stride.
       auto newLhsOffset = lhsState.offsets[i];
-      if (!hasConstZero(lhsState.strides[i])) {
+      if (lhsState.hasModulo()) {
+        auto mod = expandOFRIndex(lhsState.shape[i], lhsState.offsets[i], loc,
+                                  builder);
+        // Apply modulo to the offset.
+        newLhsOffset = remOFRs(lhsState.offsets[i], mod, loc, builder);
+      }
+      // When the dimension is structured, mul the offset by the stride to match
+      // the stride 1 for non-structured dimensions.
+      // If the dimension is not structured, the offset is already
+      // multiplied by the stride.
+      if (lhsState.dimIsStructured(i) && !hasConstZero(lhsState.strides[i])) {
         auto stride = expandOFRIndex(lhsState.strides[i], lhsState.offsets[i],
                                      loc, builder);
         newLhsOffset = mulOFRs(lhsState.offsets[i], stride, loc, builder);
       }
       auto newRhsOffset = rhsState.offsets[i];
-      if (!hasConstZero(rhsState.strides[i])) {
+      if (rhsState.hasModulo()) {
+        auto mod = expandOFRIndex(rhsState.shape[i], rhsState.offsets[i], loc,
+                                  builder);
+        // Apply modulo to the offset.
+        newRhsOffset = remOFRs(rhsState.offsets[i], mod, loc, builder);
+      }
+      // When the dimension is structured, mul the offset by the stride to match
+      // the stride 1 for non-structured dimensions.
+      // If the dimension is not structured, the offset is already
+      // multiplied by the stride.
+      if (rhsState.dimIsStructured(i) && !hasConstZero(rhsState.strides[i])) {
         auto stride = expandOFRIndex(rhsState.strides[i], rhsState.offsets[i],
                                      loc, builder);
         newRhsOffset = mulOFRs(rhsState.offsets[i], stride, loc, builder);
@@ -291,7 +311,15 @@ LogicalResult PtrState::addState(const PtrState &lhsState,
     std::swap(lhs, rhs);
   }
 
+  auto indexTy = IndexType::get(op->getContext());
+  auto index0 = IntegerAttr::get(indexTy, APInt(64, 0));
   for (uint64_t i = 0; i < lhs->getRank(); i++) {
+    if (!lhs->dimIsStructured(i) || !rhs->dimIsStructured(i)) {
+      // Shape is always 0 for non-structured dimension.
+      shape.push_back(index0);
+      continue;
+    }
+
     if (!lhs->dimHasModulo(i)) {
       shape.push_back(lhs->shape[i]);
     } else if (hasConstZero(rhs->offsets[i])) {
@@ -385,17 +413,23 @@ LogicalResult PtrState::mulState(const PtrState &lhsState,
         builder.create<arith::MulIOp>(loc, lhsState.scalar, rhsState.scalar);
   }
 
+  auto indexTy = IndexType::get(op->getContext());
+  auto index0 = IntegerAttr::get(indexTy, APInt(64, 0));
   for (uint64_t i = 0; i < lhs->sizes.size(); i++) {
-    if (lhsState.dimIsStructured(i)) {
+    if (lhs->dimIsStructured(i)) {
       OpFoldResult newOffset =
           mulOFRs(lhs->offsets[i], rhs->scalar, loc, builder);
       offsets.push_back(newOffset);
       OpFoldResult newStride =
           mulOFRs(lhs->strides[i], rhs->scalar, loc, builder);
       strides.push_back(newStride);
+      OpFoldResult newShape = mulOFRs(lhs->shape[i], rhs->scalar, loc, builder);
+      shape.push_back(newShape);
     } else {
       auto rhsStride =
           expandOFRIndex(rhs->scalar, lhs->offsets[i], loc, builder);
+      assert(!lhs->hasModulo() &&
+             "should not have non-structured dimension with modulo");
       OpFoldResult newOffset =
           mulOFRs(lhs->offsets[i], rhsStride, loc, builder);
       offsets.push_back(newOffset);
@@ -403,9 +437,9 @@ LogicalResult PtrState::mulState(const PtrState &lhsState,
       OpFoldResult newStride =
           mulOFRs(lhs->strides[i], rhs->scalar, loc, builder);
       strides.push_back(newStride);
+      // Shape is always 0 for non-structured dimension.
+      shape.push_back(index0);
     }
-    OpFoldResult newShape = mulOFRs(lhs->shape[i], rhs->scalar, loc, builder);
-    shape.push_back(newShape);
     sizes.push_back(lhs->sizes[i]);
   }
 
