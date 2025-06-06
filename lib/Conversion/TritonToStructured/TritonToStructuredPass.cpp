@@ -90,34 +90,35 @@ public:
       // We only care about tensor of index / int (in addition to pointer type)
       // because only values of int and index type can potentially be part of a
       // pointer arithmetic sequence.
-      if (!isa<triton::PointerType>(tensorType.getElementType()) &&
-          !tensorType.getElementType().isIntOrIndex()) {
-        // There's a subtle difference between returning failure() and
-        // std::nullopt. From the documentation:
-        //
-        // If std::nullopt is returned, the converter is allowed to try another
-        // conversion function to perform the conversion.
-        //
-        // Say we have type tensor<4x256xbf16> which is a RankedTensorType. Even
-        // though this RankedTensorType matches the converter that handles the
-        // tuple conversion, we want to keep this type as is because the inner
-        // type isn't a pointer.
-        //
-        // By returning failure(), the TypeConverters will stop trying the
-        // remaining converters. In our case, the last type converter which
-        // simply returns the same type is skipped. And because the conversion
-        // for this type has failed, the whole conversion process is also
-        // skipped.
-        //
-        // Relevant links to the implementation:
-        //
-        // https://github.com/llvm/llvm-project/blob/cb5dc1faa8b3702e0d03426ee5dfc5e1b903ec47/mlir/lib/Transforms/Utils/DialectConversion.cpp#L2958
-        // https://github.com/llvm/llvm-project/blob/cb5dc1faa8b3702e0d03426ee5dfc5e1b903ec47/mlir/lib/Transforms/Utils/DialectConversion.cpp#L3033
-        return std::nullopt;
+      auto elementType = tensorType.getElementType();
+      if (isa<triton::PointerType>(elementType) ||
+          (elementType.isIntOrIndex() && !elementType.isInteger(1))) {
+        types =
+            SmallVector<Type>{getStructuredStateTupleType(context, tensorType)};
+        return success();
       }
-      types =
-          SmallVector<Type>{getStructuredStateTupleType(context, tensorType)};
-      return success();
+      // There's a subtle difference between returning failure() and
+      // std::nullopt. From the documentation:
+      //
+      // If std::nullopt is returned, the converter is allowed to try another
+      // conversion function to perform the conversion.
+      //
+      // Say we have type tensor<4x256xbf16> which is a RankedTensorType. Even
+      // though this RankedTensorType matches the converter that handles the
+      // tuple conversion, we want to keep this type as is because the inner
+      // type isn't a pointer.
+      //
+      // By returning failure(), the TypeConverters will stop trying the
+      // remaining converters. In our case, the last type converter which
+      // simply returns the same type is skipped. And because the conversion
+      // for this type has failed, the whole conversion process is also
+      // skipped.
+      //
+      // Relevant links to the implementation:
+      //
+      // https://github.com/llvm/llvm-project/blob/cb5dc1faa8b3702e0d03426ee5dfc5e1b903ec47/mlir/lib/Transforms/Utils/DialectConversion.cpp#L2958
+      // https://github.com/llvm/llvm-project/blob/cb5dc1faa8b3702e0d03426ee5dfc5e1b903ec47/mlir/lib/Transforms/Utils/DialectConversion.cpp#L3033
+      return std::nullopt;
     });
 
     // Case 2: Block pointers (!tt.ptr<tensor<type>> or !tt.ptr<type>)
