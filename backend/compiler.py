@@ -203,7 +203,7 @@ class CPUBackend(BaseBackend):
         pm.run(mod)
         return mod
 
-    def add_stages(self, stages, options):
+    def add_stages(self, stages, options, language):
         stages["ttir"] = lambda src, metadata: self.make_ttir(src, metadata, options)
         stages["ttsharedir"] = lambda src, metadata: _optimize_ttsharedir(_ttir_to_ttsharedir(src))
         stages["llir"] = lambda src, metadata: _optimize_llir(_ttsharedir_to_llir(src))
