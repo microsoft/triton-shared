@@ -32,6 +32,7 @@
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SmallVector.h"
+#include "llvm/Support/ErrorHandling.h"
 
 #include <algorithm>
 #include <cassert>
@@ -465,7 +466,7 @@ private:
       casts = {cast1.getResult(), cast2.getResult()};
       wrapType = WRAP_SIDE_BY_SIDE;
     } else {
-      assert(false && "Unexpected split pointer shape");
+      llvm_unreachable("Unexpected split pointer shape");
     }
 
     auto combinedCast = rewriter.create<UnrealizedConversionCastOp>(
