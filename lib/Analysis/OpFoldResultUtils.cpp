@@ -123,6 +123,10 @@ OpFoldResult expandOFRIndex(OpFoldResult ofr, OpFoldResult targetForTy,
     if (targetShapedTy.getShape() != shapedTy.getShape()) {
       assert(targetEltTy == eltTy &&
              "Only cast between same element type shaped types");
+      // This path is for case like:
+      // input_ptr + (row_indices[:, None] + row_offsets[:,None] % mod_offset) *
+      //   stride_m + col_offsets[None, :] * stride_n
+      // The modulo will be in shape of [ROW_SIZE, 1] while row_indices is in shape of [ROW_SIZE,].
       LLVM_DEBUG({
         llvm::dbgs() << "Reshaping ";
         shapedTy.dump();
@@ -138,7 +142,7 @@ OpFoldResult expandOFRIndex(OpFoldResult ofr, OpFoldResult targetForTy,
           targetShapedTy.getShape().size(), b.getIndexType());
       auto shapeTensor = b.create<tensor::FromElementsOp>(
           loc, targetShapeTensorTy, shapeValues);
-      return b.create<tensor::ReshapeOp>(loc, targetTy, v, shapeTensor).getResult();
+      return b.create<triton::ReshapeOp>(loc, targetTy, v, shapeTensor).getResult();
     }
     if (isa<IndexType>(targetEltTy) || isa<IndexType>(eltTy)) {
       assert((isa<IntegerType>(targetEltTy) || isa<IntegerType>(eltTy)) &&
@@ -387,13 +391,13 @@ OpFoldResult remOFRs(const OpFoldResult lhs, const OpFoldResult rhs,
   auto lhsValue = dyn_cast<Value>(lhs);
   if (lhsIntAttr) {
     auto lhsOp =
-        b.create<arith::ConstantOp>(loc, b.getIndexAttr(lhsIntAttr.value()));
+        b.create<arith::ConstantOp>(loc, b.getI64IntegerAttr(lhsIntAttr.value()));
     lhsValue = lhsOp.getResult();
   }
   auto rhsValue = dyn_cast<Value>(rhs);
   if (rhsIntAttr) {
     auto rhsOp =
-        b.create<arith::ConstantOp>(loc, b.getIndexAttr(rhsIntAttr.value()));
+        b.create<arith::ConstantOp>(loc, b.getI64IntegerAttr(rhsIntAttr.value()));
     rhsValue = rhsOp.getResult();
   }
   if (rhsValue.getType().isIndex()) {

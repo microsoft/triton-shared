@@ -225,12 +225,30 @@ LogicalResult PtrState::addState(const PtrState &lhsState,
       strides.push_back(builder.getIndexAttr(1));
       // New offset is offset * stride.
       auto newLhsOffset = lhsState.offsets[i];
+      auto newRhsOffset = rhsState.offsets[i];
+      // The result is unstructured which has no modulo.
+      // Make sure the modulo is applied to the offset before it is cleaned up.
+      // This is for cases like:
+      // input_ptr + (row_indices[:, None] + row_offsets[:,None] % mod_offset) *
+      //   stride_m + col_offsets[None, :] * stride_n
+      // row_indices is not structured, but row_offsets is structured.
+      // When visiting the add for (row_indices[:, None] + row_offsets[:,None] % mod_offset),
+      // we need to make sure the % mod_offset is applied to row_offset.
       if (lhsState.hasModulo()) {
+        // Make sure the modulo is expanded to the same type as offset.
         auto mod = expandOFRIndex(lhsState.shape[i], lhsState.offsets[i], loc,
                                   builder);
         // Apply modulo to the offset.
         newLhsOffset = remOFRs(lhsState.offsets[i], mod, loc, builder);
       }
+      if (rhsState.hasModulo()) {
+        // Make sure the modulo is expanded to the same type as offset.
+        auto mod = expandOFRIndex(rhsState.shape[i], rhsState.offsets[i], loc,
+                                  builder);
+        // Apply modulo to the offset.
+        newRhsOffset = remOFRs(rhsState.offsets[i], mod, loc, builder);
+      }
+
       // When the dimension is structured, mul the offset by the stride to match
       // the stride 1 for non-structured dimensions.
       // If the dimension is not structured, the offset is already
@@ -240,13 +258,7 @@ LogicalResult PtrState::addState(const PtrState &lhsState,
                                      loc, builder);
         newLhsOffset = mulOFRs(lhsState.offsets[i], stride, loc, builder);
       }
-      auto newRhsOffset = rhsState.offsets[i];
-      if (rhsState.hasModulo()) {
-        auto mod = expandOFRIndex(rhsState.shape[i], rhsState.offsets[i], loc,
-                                  builder);
-        // Apply modulo to the offset.
-        newRhsOffset = remOFRs(rhsState.offsets[i], mod, loc, builder);
-      }
+
       // When the dimension is structured, mul the offset by the stride to match
       // the stride 1 for non-structured dimensions.
       // If the dimension is not structured, the offset is already
