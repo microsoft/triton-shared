@@ -271,15 +271,15 @@ def compile_module(launcher_src, kernel_placeholder_name):
                   so_path = os.path.join(tmpdir, "kernel.so")
                   Path(obj_path).write_bytes(kernel_obj)
                   Path(launcher_src_path).write_text(src)
+
                   # Compile it together.
                   clang_path = "/workspace/llvm-install/bin/clang++"
 
-                  # Compile it together.
                   subprocess.check_call([
-                    clang_path, "-g", "-fsanitize=address", "-lclang_rt.asan",
+                    clang_path, "-g", "-fsanitize=address",
                     "-std=c++17", launcher_src_path, obj_path,
                     f"-I{py_include_dir}", f"-I{include_dir}", f"-L{py_lib_dir}",
-                    "-shared", f"-l{py_lib}", "-fPIC", "-o", so_path,
+                    "-shared", f"-l{py_lib}", "-fPIC", "-o", so_path
                   ])
 
               with open(so_path, "rb") as f:
