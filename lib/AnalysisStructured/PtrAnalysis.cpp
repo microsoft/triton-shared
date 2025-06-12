@@ -253,16 +253,14 @@ LogicalResult PtrState::addState(const PtrState &lhsState,
       // the stride 1 for non-structured dimensions.
       // If the dimension is not structured, the offset is already
       // multiplied by the stride.
+      // If stride is 0 which will happen after
+      // visitOperandExpandDims/visitOperandSplat, we cannot mul which will get
+      // zero and lost the offset.
       if (lhsState.dimIsStructured(i) && !hasConstZero(lhsState.strides[i])) {
         auto stride = expandOFRIndex(lhsState.strides[i], lhsState.offsets[i],
                                      loc, builder);
         newLhsOffset = mulOFRs(lhsState.offsets[i], stride, loc, builder);
       }
-
-      // When the dimension is structured, mul the offset by the stride to match
-      // the stride 1 for non-structured dimensions.
-      // If the dimension is not structured, the offset is already
-      // multiplied by the stride.
       if (rhsState.dimIsStructured(i) && !hasConstZero(rhsState.strides[i])) {
         auto stride = expandOFRIndex(rhsState.strides[i], rhsState.offsets[i],
                                      loc, builder);
@@ -640,6 +638,9 @@ LogicalResult PtrAnalysis::visitOperandRem(arith::RemSIOp remOp,
   if (state.hasModulo()) {
     remOp->emitRemark(
         "PtrAnalysis: do not support multiple modulo within an expression");
+    // Multiple modulo ops on an expression is not supported.
+    // But when the state has only one dimension, we can make it as
+    // gather/scatter tensor ptr.
     if (state.getRank() == 1 && enableMakeGatherScatterTensorPtr)
       // Build the state from the current operation as an unstructured state,
       // but only when there is a single dimension involved.
