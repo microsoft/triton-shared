@@ -376,49 +376,4 @@ OpFoldResult compareOFRs(const OpFoldResult lhs, const OpFoldResult rhs,
   return selectOp.getResult();
 }
 
-OpFoldResult remOFRs(const OpFoldResult lhs, const OpFoldResult rhs,
-                     const Location loc, OpBuilder &b) {
-  auto lhsIntAttr = getIntAttr(lhs);
-  auto rhsIntAttr = getIntAttr(rhs);
-  // both lhs and rhs are constants, return result directly
-  if (lhsIntAttr && rhsIntAttr) {
-    if (rhsIntAttr.value() == 0) {
-      llvm_unreachable("Division by zero");
-    }
-    return b.getIndexAttr(lhsIntAttr.value() % rhsIntAttr.value());
-  }
-  // otherwise, need to create instructions to calculate new attribute value
-  auto lhsValue = dyn_cast<Value>(lhs);
-  if (lhsIntAttr) {
-    auto lhsOp =
-        b.create<arith::ConstantOp>(loc, b.getI64IntegerAttr(lhsIntAttr.value()));
-    lhsValue = lhsOp.getResult();
-  }
-  auto rhsValue = dyn_cast<Value>(rhs);
-  if (rhsIntAttr) {
-    auto rhsOp =
-        b.create<arith::ConstantOp>(loc, b.getI64IntegerAttr(rhsIntAttr.value()));
-    rhsValue = rhsOp.getResult();
-  }
-  if (rhsValue.getType().isIndex()) {
-    // arith.remi is not supported for index type, so we need to cast it to
-    // integer type first.
-    rhsValue = b.create<arith::IndexCastOp>(loc, b.getI64Type(), rhsValue);
-  }
-  if (lhsValue.getType().isIndex()) {
-    // arith.remi is not supported for index type, so we need to cast it to
-    // integer type first.
-    lhsValue = b.create<arith::IndexCastOp>(loc, b.getI64Type(), lhsValue);
-  }
-  auto remOp = b.create<arith::RemSIOp>(loc, lhsValue, rhsValue);
-  if (remOp.getResult().getType().isIndex()) {
-    // arith.remi is not supported for index type, so we need to cast it back to
-    // index type.
-    return b.create<arith::IndexCastOp>(loc, b.getIndexType(),
-                                        remOp.getResult())
-        .getResult();
-  }
-  return remOp.getResult();
-}
-
 } // namespace mlir

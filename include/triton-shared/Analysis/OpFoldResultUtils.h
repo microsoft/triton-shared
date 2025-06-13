@@ -57,11 +57,6 @@ OpFoldResult subOFRs(const OpFoldResult lhs, const OpFoldResult rhs,
 OpFoldResult mulOFRs(const OpFoldResult lhs, const OpFoldResult rhs,
                          const Location loc, OpBuilder &b);
 
-// Process remainder of two OFRs. Insert the arith.remsi
-// instruction and use its result Value.
-OpFoldResult remOFRs(const OpFoldResult lhs, const OpFoldResult rhs,
-                     const Location loc, OpBuilder &b);
-
 OpFoldResult minOFRs(const OpFoldResult lhs, const OpFoldResult rhs,
                      const Location loc, OpBuilder &b);
 
