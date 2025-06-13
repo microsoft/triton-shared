@@ -157,6 +157,22 @@ class PtrAnalysis {
   // unstructured pointers. This is used to support gather/scatter access.
   // The default mode is false. Only set to true when caclulating
   // unstructured pointers for gather/scatter access.
+  // The reason to have different mode is to support case like:
+  //
+  // ptr + (row_offsets[:,None] % mod_offset + some_number) +
+  //    row_indices[:None]
+  //
+  // (row_offsets[:,None] % mod_offset + some_number) is structured and
+  // has modulo.
+  // row_indices[:, None] is unstructured.
+  // When visiting the add operation, we need to apply the modulo to
+  //   (row_offsets[:,None] % mod_offset + some_number).
+  // But we don't have the information about how to apply the modulo.
+  // To simplify the analysis, we do the work in two steps:
+  // 1. Analyze to identify the unstructured pointers.
+  // 2. Analyze to calculate the strides and offsets for unstructured pointers.
+  // In step 2, we know that the pointer is unstructured, so we can just
+  // use the value of arith::RemSIOp as offset directly.
   bool isAnalysisingUnstructured = false;
 
 public:
