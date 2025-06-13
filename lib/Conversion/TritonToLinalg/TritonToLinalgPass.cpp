@@ -21,14 +21,6 @@
 
 #include "llvm/Support/Debug.h"
 
-#include "mlir/Dialect/LLVMIR/LLVMDialect.h"
-#include "llvm/BinaryFormat/Dwarf.h"
-#include "llvm/Support/Path.h"
-// #include "mlir/Dialect/Func/IR/FuncOps.h"
-
-// for debug
-#include "llvm/Support/raw_ostream.h"
-
 #define DEBUG_TYPE "triton-to-linalg"
 
 using namespace mlir;
@@ -95,238 +87,139 @@ class TritonToLinalgPass : public TritonToLinalgBase<TritonToLinalgPass> {
 
 public:
   void getDependentDialects(DialectRegistry &registry) const override {
-    // registry
-    //     .insert<func::FuncDialect, arith::ArithDialect, math::MathDialect,
-    //             linalg::LinalgDialect, affine::AffineDialect, scf::SCFDialect,
-    //             tensor::TensorDialect, bufferization::BufferizationDialect,
-    //             memref::MemRefDialect, ttx::TritonTilingExtDialect, mlir::LLVM::LLVMDialect>();
-    registry.insert<mlir::LLVM::LLVMDialect>();
+    registry
+        .insert<func::FuncDialect, arith::ArithDialect, math::MathDialect,
+                linalg::LinalgDialect, affine::AffineDialect, scf::SCFDialect,
+                tensor::TensorDialect, bufferization::BufferizationDialect,
+                memref::MemRefDialect, ttx::TritonTilingExtDialect>();
   }
 
   void runOnOperation() override {
-    // llvm::outs() << "Running on: " << getOperation().getName() << "\n";
+    auto moduleOp = getOperation();
 
-    mlir::ModuleOp moduleOp = getOperation();
-    mlir::MLIRContext *context = &getContext();
-    mlir::Builder builder(context);
-    mlir::SymbolTable symbolTable(moduleOp);
-
-    // iterate through all functions
-    moduleOp.walk([&](triton::FuncOp funcOp) {
-      mlir::StringRef fileName;
-      mlir::StringRef filePath;
-      unsigned line;
-      unsigned col;
-      bool isOptimized = funcOp->hasAttr("llvm.optimized");
-      mlir::LLVM::DIEmissionKind emissionKind = mlir::LLVM::DIEmissionKind::LineTablesOnly;
-
-      // get loc for function and pull line and file information
-      mlir::Location loc = funcOp.getLoc();
-      if (auto funcLoc = mlir::dyn_cast<mlir::FileLineColLoc>(loc)) {
-        fileName = llvm::sys::path::filename(funcLoc.getFilename().getValue());
-        filePath = llvm::sys::path::parent_path(funcLoc.getFilename().getValue());
-        line = funcLoc.getLine();
-        col = funcLoc.getColumn();
+    {
+      RewritePatternSet patterns(&getContext());
+      populateTritonToLinalgCanonicalizationPatterns(patterns);
+      if (failed(applyPatternsGreedily(moduleOp, std::move(patterns)))) {
+        signalPassFailure();
       }
+    }
 
-      // initialize useful attributes
-      mlir::LLVM::DIFileAttr fileAttr = mlir::LLVM::DIFileAttr::get(context, fileName, filePath);
-      mlir::StringAttr producer = mlir::StringAttr::get(context, "MLIR");
-      mlir::LLVM::DICompileUnitAttr cuAttr = mlir::LLVM::DICompileUnitAttr::get(
-        mlir::DistinctAttr::create(mlir::UnitAttr::get(context)),
-        llvm::dwarf::getLanguage("DW_LANG_Python"), fileAttr, producer,
-        isOptimized, emissionKind);
-
-      // get subroutine types
-      llvm::SmallVector<mlir::LLVM::DITypeAttr> types;
-      // types.push_back(mlir::LLVM::DINullTypeAttr::get(context));
-      
-      // // return type
-      // if (funcOp.getNumResults() == 0) {
-      //   types.push_back(mlir::LLVM::DINullTypeAttr::get(context));
-      // } else {
-      //   // returns something
-      //   for (auto resTy : funcOp.getResultTypes()) {
-      //     auto tyAttr = typeGen.convertType(resTy, fileAttr, cuAttr, nullptr);
-      //     types.push_back(tyAttr);
-      //   }
-      // }
-
-      // // argument types
-      // for (auto argTy : funcOp.getArgumentTypes()) {
-      //   auto tyAttr = typeGen.convertType(fir::unwrapRefType(argTy), fileAttr, cuAttr, nullptr);
-      //   types.push_back(tyAttr);
-      // }
-
-      // create subroutine type attribute from return and argument types
-      unsigned callingConvention = llvm::dwarf::DW_CC_normal;
-      mlir::LLVM::DISubroutineTypeAttr type = mlir::LLVM::DISubroutineTypeAttr::get(context, callingConvention, types);
-      
-      // set flags
-      mlir::LLVM::DISubprogramFlags subprogramFlags = mlir::LLVM::DISubprogramFlags{};
-      if (!funcOp.isDeclaration()) {
-        subprogramFlags = mlir::LLVM::DISubprogramFlags::Definition;
+    moduleOp.walk([this](triton::FuncOp op) {
+      if (failed(runUseAnalysis(op))) {
+        signalPassFailure();
       }
-      if (isOptimized) {
-        subprogramFlags = subprogramFlags | mlir::LLVM::DISubprogramFlags::Optimized;
-      }
-      if (funcOp.getSymNameAttr() == "main") {
-        subprogramFlags = subprogramFlags | mlir::LLVM::DISubprogramFlags::MainSubprogram;
-      }
-      
-      // retained nodes
-      llvm::ArrayRef<mlir::LLVM::DINodeAttr> importedModules;
-
-      // annotations
-      llvm::ArrayRef<mlir::LLVM::DINodeAttr> annotations;
-
-      // initialize DI attribute for function
-      mlir::LLVM::DISubprogramAttr spAttr = mlir::LLVM::DISubprogramAttr::get(
-        context,
-        mlir::DistinctAttr::create(mlir::UnitAttr::get(context)),
-        cuAttr,
-        fileAttr, // scope
-        funcOp.getSymNameAttr(),
-        funcOp.getSymNameAttr(), // linkage name
-        fileAttr,
-        line,
-        col, // scope line
-        subprogramFlags,
-        type,
-        importedModules,
-        annotations
-      );
-      
-      // annotate function
-      funcOp->setLoc(builder.getFusedLoc({loc}, spAttr));
     });
 
+    RewritePatternSet patterns(&getContext());
+    ConversionTarget target(getContext());
+    TritonTypeConverter tritonTypeConverter;
 
-    // auto moduleOp = getOperation();
+    target.addLegalDialect<
+        func::FuncDialect, arith::ArithDialect, math::MathDialect,
+        linalg::LinalgDialect, affine::AffineDialect, scf::SCFDialect,
+        cf::ControlFlowDialect, tensor::TensorDialect,
+        bufferization::BufferizationDialect, memref::MemRefDialect,
+        ttx::TritonTilingExtDialect>();
 
-    // {
-    //   RewritePatternSet patterns(&getContext());
-    //   populateTritonToLinalgCanonicalizationPatterns(patterns);
-    //   if (failed(applyPatternsGreedily(moduleOp, std::move(patterns)))) {
-    //     signalPassFailure();
-    //   }
-    // }
+    target.addLegalOp<ModuleOp>();
 
-    // moduleOp.walk([this](triton::FuncOp op) {
-    //   if (failed(runUseAnalysis(op))) {
-    //     signalPassFailure();
-    //   }
-    // });
+    // Update function signature to use memrefs
+    target.addDynamicallyLegalOp<triton::FuncOp>([&](triton::FuncOp op) {
+      return tritonTypeConverter.isSignatureLegal(op.getFunctionType());
+    });
 
-    // RewritePatternSet patterns(&getContext());
-    // ConversionTarget target(getContext());
-    // TritonTypeConverter tritonTypeConverter;
+    // Lower dense constant to linalg.fill
+    target.addDynamicallyLegalOp<arith::ConstantOp>([](arith::ConstantOp op) {
+      if (!isa<RankedTensorType>(op.getResult().getType())) {
+        return true;
+      }
 
-    // target.addLegalDialect<
-    //     func::FuncDialect, arith::ArithDialect, math::MathDialect,
-    //     linalg::LinalgDialect, affine::AffineDialect, scf::SCFDialect,
-    //     cf::ControlFlowDialect, tensor::TensorDialect,
-    //     bufferization::BufferizationDialect, memref::MemRefDialect,
-    //     ttx::TritonTilingExtDialect>();
+      if (auto denseAttr = dyn_cast<DenseElementsAttr>(op.getValue())) {
+        if (denseAttr.isSplat() &&
+            isa<FloatType, IntegerType>(denseAttr.getElementType())) {
+          return false;
+        }
+      }
+      return true;
+    });
 
-    // target.addLegalOp<ModuleOp>();
+    target.addDynamicallyLegalOp<scf::ForOp, scf::YieldOp>([](Operation *op) {
+      return llvm::all_of(op->getOperandTypes(), [](Type t) {
+        if (isa<triton::PointerType>(t)) {
+          return false;
+        }
+        if (auto shapedType = dyn_cast<ShapedType>(t)) {
+          return shapedType.getElementType().isIntOrFloat();
+        }
+        assert(t.isIntOrIndexOrFloat());
+        return true;
+      });
+    });
 
-    // // Update function signature to use memrefs
-    // target.addDynamicallyLegalOp<triton::FuncOp>([&](triton::FuncOp op) {
-    //   return tritonTypeConverter.isSignatureLegal(op.getFunctionType());
-    // });
+    target.addDynamicallyLegalDialect<arith::ArithDialect, math::MathDialect>(
+        [](Operation *op) {
+          if (op->hasAttr("MetaUse")) {
+            return false;
+          }
 
-    // // Lower dense constant to linalg.fill
-    // target.addDynamicallyLegalOp<arith::ConstantOp>([](arith::ConstantOp op) {
-    //   if (!isa<RankedTensorType>(op.getResult().getType())) {
-    //     return true;
-    //   }
+          if (isa<arith::ConstantOp>(op)) {
+            return true;
+          }
 
-    //   if (auto denseAttr = dyn_cast<DenseElementsAttr>(op.getValue())) {
-    //     if (denseAttr.isSplat() &&
-    //         isa<FloatType, IntegerType>(denseAttr.getElementType())) {
-    //       return false;
-    //     }
-    //   }
-    //   return true;
-    // });
+          bool operateOnTensors =
+              llvm::all_of(op->getOperandTypes(), [](Type type) {
+                return isa<RankedTensorType>(type);
+              });
 
-    // target.addDynamicallyLegalOp<scf::ForOp, scf::YieldOp>([](Operation *op) {
-    //   return llvm::all_of(op->getOperandTypes(), [](Type t) {
-    //     if (isa<triton::PointerType>(t)) {
-    //       return false;
-    //     }
-    //     if (auto shapedType = dyn_cast<ShapedType>(t)) {
-    //       return shapedType.getElementType().isIntOrFloat();
-    //     }
-    //     assert(t.isIntOrIndexOrFloat());
-    //     return true;
-    //   });
-    // });
+          return !operateOnTensors;
+        });
 
-    // target.addDynamicallyLegalDialect<arith::ArithDialect, math::MathDialect>(
-    //     [](Operation *op) {
-    //       if (op->hasAttr("MetaUse")) {
-    //         return false;
-    //       }
+    triton::populateTritonToLinalgConversionPatterns(
+        tritonTypeConverter, patterns, LAUNCH_GRID_RANK);
 
-    //       if (isa<arith::ConstantOp>(op)) {
-    //         return true;
-    //       }
+    for (auto func : getOperation().getOps<triton::FuncOp>())
+      addProgramInfo(func);
 
-    //       bool operateOnTensors =
-    //           llvm::all_of(op->getOperandTypes(), [](Type type) {
-    //             return isa<RankedTensorType>(type);
-    //           });
+    if (failed(applyPartialConversion(moduleOp, target, std::move(patterns))))
+      signalPassFailure();
 
-    //       return !operateOnTensors;
-    //     });
+    // Convert tt.func and tt.return into func's counterparts
+    moduleOp.walk([&](triton::FuncOp func) {
+      OpBuilder builder(func);
 
-    // triton::populateTritonToLinalgConversionPatterns(
-    //     tritonTypeConverter, patterns, LAUNCH_GRID_RANK);
+      auto name = func.getName();
+      auto type = func.getFunctionType();
 
-    // for (auto func : getOperation().getOps<triton::FuncOp>())
-    //   addProgramInfo(func);
+      SmallVector<DictionaryAttr> argAttrs, resAttrs;
+      func.getAllArgAttrs(argAttrs);
+      func.getAllResultAttrs(resAttrs);
 
-    // if (failed(applyPartialConversion(moduleOp, target, std::move(patterns))))
-    //   signalPassFailure();
+      auto funcFunc = builder.create<func::FuncOp>(func.getLoc(), name, type);
+      funcFunc.setAllArgAttrs(argAttrs);
+      funcFunc.setAllResultAttrs(resAttrs);
 
-    // // Convert tt.func and tt.return into func's counterparts
-    // moduleOp.walk([&](triton::FuncOp func) {
-    //   OpBuilder builder(func);
+      auto &funcFuncBody = funcFunc.getBody();
+      auto &funcBody = func.getBody();
 
-    //   auto name = func.getName();
-    //   auto type = func.getFunctionType();
+      IRMapping map;
+      funcBody.cloneInto(&funcFuncBody, map);
 
-    //   SmallVector<DictionaryAttr> argAttrs, resAttrs;
-    //   func.getAllArgAttrs(argAttrs);
-    //   func.getAllResultAttrs(resAttrs);
+      for (Block &block : funcFuncBody.getBlocks()) {
+        auto term = block.getTerminator();
+        builder.setInsertionPoint(term);
+        builder.create<func::ReturnOp>(func.getLoc(), term->getOperands());
+        term->erase();
+      }
+      func.erase();
+    });
 
-    //   auto funcFunc = builder.create<func::FuncOp>(func.getLoc(), name, type);
-    //   funcFunc.setAllArgAttrs(argAttrs);
-    //   funcFunc.setAllResultAttrs(resAttrs);
-
-    //   auto &funcFuncBody = funcFunc.getBody();
-    //   auto &funcBody = func.getBody();
-
-    //   IRMapping map;
-    //   funcBody.cloneInto(&funcFuncBody, map);
-
-    //   for (Block &block : funcFuncBody.getBlocks()) {
-    //     auto term = block.getTerminator();
-    //     builder.setInsertionPoint(term);
-    //     builder.create<func::ReturnOp>(func.getLoc(), term->getOperands());
-    //     term->erase();
-    //   }
-    //   func.erase();
-    // });
-
-    // // Erase dead code and fold constants created during lowering
-    // PassManager pm(&getContext(), moduleOp.getOperationName());
-    // pm.addPass(createCanonicalizerPass());
-    // if (failed(runPipeline(pm, getOperation()))) {
-    //   signalPassFailure();
-    // }
+    // Erase dead code and fold constants created during lowering
+    PassManager pm(&getContext(), moduleOp.getOperationName());
+    pm.addPass(createCanonicalizerPass());
+    if (failed(runPipeline(pm, getOperation()))) {
+      signalPassFailure();
+    }
   }
 };
 } // namespace
