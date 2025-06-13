@@ -112,11 +112,15 @@ struct PtrState {
 
   // Process addition of two PtrStates.
   LogicalResult addState(const PtrState &lhsState, const PtrState &rhsState,
-                         Operation *op, OpBuilder &builder);
+                         bool isAnalysisingUnstructured, Operation *op,
+                         OpBuilder &builder);
 
   // Process multiplication of two PtrStates
   LogicalResult mulState(const PtrState &lhsState, const PtrState &rhsState,
-                         Operation *op, OpBuilder &builder);
+                         bool isAnalysisingUnstructured, Operation *op,
+                         OpBuilder &builder);
+
+  LogicalResult mergeUnstructuredState(const PtrState &other, Operation *op);
 
   tts::MakeTensorPtrOp createTTSMakeTensorPtrOp(OpBuilder &builder,
                                                 Location loc);
@@ -147,6 +151,13 @@ class PtrAnalysis {
 
   DenseSet<Value> maybeStructuredArgs;
   const bool enableMakeGatherScatterTensorPtr;
+  // If false, PtrAnalysis will analysis structured ptr while only identify
+  // unstructured ptr.
+  // If true, PtrAnalysis will caclulate strides and offsets for
+  // unstructured pointers. This is used to support gather/scatter access.
+  // The default mode is false. Only set to true when caclulating
+  // unstructured pointers for gather/scatter access.
+  bool isAnalysisingUnstructured = false;
 
 public:
   PtrAnalysis(bool enableMakeGatherScatterTensorPtr)
