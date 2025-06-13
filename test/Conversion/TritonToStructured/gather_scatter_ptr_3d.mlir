@@ -1,6 +1,6 @@
-// RUN: triton-shared-opt --triton-to-structured --remove-dead-values --canonicalize %s | FileCheck %s
+// RUN: triton-shared-opt --triton-to-structured --remove-dead-values --canonicalize --cse %s | FileCheck %s
 
-// Make sure tts.make_indirect_tptr is generated with correct indirect_dim and indirect_offset.
+// Make sure tts.make_gather_scatter_tptr is generated with correct gather_dim and offset.
 
 // CHECK-LABEL:   tt.func public @row_gather3(
 // CHECK-SAME:                                %[[VAL_0:[0-9]+|[a-zA-Z$._-][a-zA-Z0-9$._-]*]]: !tt.ptr<f32>,
@@ -12,17 +12,13 @@
 // CHECK:           %[[VAL_6:.*]] = tts.make_tptr %[[VAL_1]] to sizes: [32], strides: [1], offsets: [0], shape: [0], order: [] : <i32> to tensor<32x!tt.ptr<i32>>
 // CHECK:           %[[VAL_7:.*]] = "tts.load"(%[[VAL_6]]) <{operandSegmentSizes = array<i32: 1, 0, 0>, static_mask_dims = array<i64>}> : (tensor<32x!tt.ptr<i32>>) -> tensor<32xi32>
 // CHECK:           %[[VAL_8:.*]] = arith.index_cast %[[VAL_3]] : i32 to index
-// CHECK:           %[[VAL_9:.*]] = tt.splat %[[VAL_4]] : i32 -> tensor<32xi32>
-// CHECK:           %[[VAL_10:.*]] = arith.muli %[[VAL_7]], %[[VAL_9]] : tensor<32xi32>
-// CHECK:           %[[VAL_11:.*]] = arith.index_cast %[[VAL_5]] : i32 to index
-// CHECK:           %[[VAL_12:.*]] = tts.make_gather_scatter_tptr %[[VAL_0]] to sizes: [32, 32, 32] gather_scatter_dim: 1 gather_scatter_offset: %[[VAL_10]], strides: {{\[}}%[[VAL_8]], 1, %[[VAL_11]]], offsets: [0, 0, 0] : tensor<32xi32> <f32> to !tt.ptr<tensor<32x32x32xf32>>
+// CHECK:           %[[VAL_9:.*]] = arith.index_cast %[[VAL_5]] : i32 to index
+// CHECK:           %[[VAL_10:.*]] = tt.splat %[[VAL_4]] : i32 -> tensor<32xi32>
+// CHECK:           %[[VAL_11:.*]] = arith.muli %[[VAL_7]], %[[VAL_10]] : tensor<32xi32>
+// CHECK:           %[[VAL_12:.*]] = tts.make_gather_scatter_tptr %[[VAL_0]] to sizes: [32, 32, 32] gather_scatter_dim: 1 gather_scatter_offset: %[[VAL_11]], strides: {{\[}}%[[VAL_8]], 1, %[[VAL_9]]], offsets: [0, 0, 0] : tensor<32xi32> <f32> to !tt.ptr<tensor<32x32x32xf32>>
 // CHECK:           %[[VAL_13:.*]] = "tts.load"(%[[VAL_12]]) <{operandSegmentSizes = array<i32: 1, 0, 0>, static_mask_dims = array<i64>}> : (!tt.ptr<tensor<32x32x32xf32>>) -> tensor<32x32x32xf32>
-// CHECK:           %[[VAL_14:.*]] = arith.index_cast %[[VAL_3]] : i32 to index
-// CHECK:           %[[VAL_15:.*]] = tt.splat %[[VAL_4]] : i32 -> tensor<32xi32>
-// CHECK:           %[[VAL_16:.*]] = arith.muli %[[VAL_7]], %[[VAL_15]] : tensor<32xi32>
-// CHECK:           %[[VAL_17:.*]] = arith.index_cast %[[VAL_5]] : i32 to index
-// CHECK:           %[[VAL_18:.*]] = tts.make_gather_scatter_tptr %[[VAL_2]] to sizes: [32, 32, 32] gather_scatter_dim: 1 gather_scatter_offset: %[[VAL_16]], strides: {{\[}}%[[VAL_14]], 1, %[[VAL_17]]], offsets: [0, 0, 0] : tensor<32xi32> <f32> to !tt.ptr<tensor<32x32x32xf32>>
-// CHECK:           "tts.store"(%[[VAL_18]], %[[VAL_13]]) <{static_mask_dims = array<i64>}> : (!tt.ptr<tensor<32x32x32xf32>>, tensor<32x32x32xf32>) -> ()
+// CHECK:           %[[VAL_14:.*]] = tts.make_gather_scatter_tptr %[[VAL_2]] to sizes: [32, 32, 32] gather_scatter_dim: 1 gather_scatter_offset: %[[VAL_11]], strides: {{\[}}%[[VAL_8]], 1, %[[VAL_9]]], offsets: [0, 0, 0] : tensor<32xi32> <f32> to !tt.ptr<tensor<32x32x32xf32>>
+// CHECK:           "tts.store"(%[[VAL_14]], %[[VAL_13]]) <{static_mask_dims = array<i64>}> : (!tt.ptr<tensor<32x32x32xf32>>, tensor<32x32x32xf32>) -> ()
 // CHECK:           tt.return
 
 module attributes {} {
