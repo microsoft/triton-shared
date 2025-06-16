@@ -36,7 +36,8 @@ namespace {
 /// Generic conversion for any DestinationStyleOpInterface on tensors.
 static LogicalResult bufferizeTritonTilingExtDestinationStyleOpInterface(
     RewriterBase &rewriter, DestinationStyleOpInterface op,
-    const BufferizationOptions &options) {
+    const BufferizationOptions &options,
+    BufferizationState &state) {
   // Take a guard before anything else.
   OpBuilder::InsertionGuard g(rewriter);
   rewriter.setInsertionPoint(op);
@@ -58,7 +59,7 @@ static LogicalResult bufferizeTritonTilingExtDestinationStyleOpInterface(
       newInputBuffers.push_back(opOperand->get());
       continue;
     }
-    FailureOr<Value> buffer = getBuffer(rewriter, opOperand->get(), options);
+    FailureOr<Value> buffer = getBuffer(rewriter, opOperand->get(), options, state);
     if (failed(buffer))
       return failure();
     newInputBuffers.push_back(*buffer);
@@ -69,7 +70,7 @@ static LogicalResult bufferizeTritonTilingExtDestinationStyleOpInterface(
   for (OpResult opResult : op->getOpResults()) {
     OpOperand *opOperand = op.getDpsInitOperand(opResult.getResultNumber());
     FailureOr<Value> resultBuffer =
-        getBuffer(rewriter, opOperand->get(), options);
+        getBuffer(rewriter, opOperand->get(), options, state);
     if (failed(resultBuffer))
       return failure();
     newOutputBuffers.push_back(*resultBuffer);
@@ -109,9 +110,10 @@ struct TritonTilingExtOpInterface
   }
 
   LogicalResult bufferize(Operation *op, RewriterBase &rewriter,
-                          const BufferizationOptions &options) const {
+                          const BufferizationOptions &options,
+                          BufferizationState &state) const {
     return bufferizeTritonTilingExtDestinationStyleOpInterface(
-        rewriter, cast<DestinationStyleOpInterface>(op), options);
+        rewriter, cast<DestinationStyleOpInterface>(op), options, state);
   }
 };
 
