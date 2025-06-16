@@ -121,8 +121,9 @@ def _llir_to_bin(llir: str, metadata):
         Path(src_path).write_text(llir)
         
         # pass to add sanitizer attributes
-        opt_path = "/workspace/llvm-install/bin/opt"
-        sanitizer_attributes_path = "/workspace/sanitizer-passes/sanitizer-attributes/build/libSanitizerAttributes.so"
+        opt_path = "/workspace/triton_shared/triton/llvm-project/install/bin/opt"
+        # sanitizer_attributes_path = "/workspace/sanitizer-passes/sanitizer-attributes/build/libSanitizerAttributes.so"
+        sanitizer_attributes_path = "/workspace/triton_shared/triton/build/lib.linux-x86_64-cpython-312/triton/_C/libSanitizerAttributes.so"
 
         subprocess.check_call([opt_path, "-load-pass-plugin", sanitizer_attributes_path, 
             "-passes=sanitizer-attributes", "-sanitizer-type=asan", "-S", src_path, 
@@ -131,7 +132,7 @@ def _llir_to_bin(llir: str, metadata):
         dst_path = os.path.join(tmpdir, "kernel.o")
 
         # compile to object file
-        clang_path = "/workspace/llvm-install/bin/clang++"
+        clang_path = "/workspace/triton_shared/triton/llvm-project/install/bin/clang++"
 
         subprocess.check_call([clang_path, "-g", "-fsanitize=address", "-c", modified_src_path, "-o", dst_path])
 

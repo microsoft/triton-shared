@@ -273,7 +273,7 @@ def compile_module(launcher_src, kernel_placeholder_name):
                   Path(launcher_src_path).write_text(src)
 
                   # Compile it together.
-                  clang_path = "/workspace/llvm-install/bin/clang++"
+                  clang_path = "/workspace/triton_shared/triton/llvm-project/install/bin/clang++"
 
                   subprocess.check_call([
                     clang_path, "-g", "-fsanitize=address",
