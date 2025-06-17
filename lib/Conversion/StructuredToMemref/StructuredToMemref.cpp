@@ -137,6 +137,18 @@ static OpFoldResult accumulateTargetOffset(Location loc,
   return targetOffset;
 }
 
+static OpFoldResult accumulateTargetOffset(Location loc,
+                                           ArrayRef<OpFoldResult> offsets,
+                                           ArrayRef<OpFoldResult> strides,
+                                           OpBuilder &b) {
+  OpFoldResult targetOffset = b.getIndexAttr(0);
+  for (auto [o, s] : llvm::zip(offsets, strides)) {
+    OpFoldResult offset = mulOFRs(o, s, loc, b);
+    targetOffset = addOFRs(targetOffset, offset, loc, b);
+  }
+  return targetOffset;
+}
+
 static Value rewriteGatherScatterPtrElement(
     ArrayRef<int64_t> resultShape, tts::MakeGatherScatterTensorPtrOp op,
     Value basePtr, Value gatherOffsetElt, int gatherDim,
@@ -149,7 +161,8 @@ static Value rewriteGatherScatterPtrElement(
 
   auto offsets = op.getMixedOffsets();
   offsets[gatherDim] = gatherOffsetElt;
-  auto targetOffset = accumulateTargetOffset(op.getLoc(), offsets, rewriter);
+  auto targetOffset =
+      accumulateTargetOffset(op.getLoc(), offsets, mixedStrides, rewriter);
 
   auto staticTargetOffset = getIntAttr(targetOffset);
   auto resultType =

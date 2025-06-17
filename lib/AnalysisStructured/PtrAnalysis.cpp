@@ -145,13 +145,16 @@ LogicalResult PtrState::rebuildAsUnsupportedOp(Value operand) {
   // Setup state for unsupported operation.
   auto indexTy = IndexType::get(operand.getContext());
   auto index0 = IntegerAttr::get(indexTy, APInt(64, 0));
+  auto index1 = IntegerAttr::get(indexTy, APInt(64, 1));
   for (auto size : opShape) {
-    if (size == 1)
+    if (size == 1) {
       offsets.push_back(index0);
-    else
+      strides.push_back(index0);
+    } else {
       offsets.push_back(operand);
+      strides.push_back(index1);
+    }
     sizes.push_back(IntegerAttr::get(indexTy, APInt(64, size)));
-    strides.push_back(index0);
     shape.push_back(index0);
   }
   return success();
@@ -174,9 +177,10 @@ LogicalResult PtrState::rebuildAsGatherScatter(Value op, int nonContinuousDim) {
   // Setup state for nonContinuousDim.
   auto indexTy = IndexType::get(op.getContext());
   auto index0 = IntegerAttr::get(indexTy, APInt(64, 0));
+  auto index1 = IntegerAttr::get(indexTy, APInt(64, 1));
 
   offsets[nonContinuousDim] = op;
-  strides[nonContinuousDim] = index0;
+  strides[nonContinuousDim] = index1;
   shape[nonContinuousDim] = index0;
   return success();
 }
@@ -222,43 +226,105 @@ LogicalResult PtrState::addState(const PtrState &lhsState,
           addOFRs(lhsState.strides[i], rhsState.strides[i], loc, builder);
       strides.push_back(newStride);
     } else {
-      // Set stride to 1 when not continuous.
-      strides.push_back(builder.getIndexAttr(1));
-      // New offset is offset * stride.
-      auto newLhsOffset = lhsState.offsets[i];
-      auto newRhsOffset = rhsState.offsets[i];
       if (isAnalysisingUnstructured) {
         assert(!lhsState.hasModulo() && !rhsState.hasModulo() &&
                "should not have dimension with modulo when analysing "
                "unstructured");
-        // When the dimension is structured, mul the offset by the stride to
-        // match the stride 1 for non-structured dimensions.
-        // If the dimension is not structured, the offset is already multiplied
-        // by the stride.
-        // If stride is 0 which will happen after
-        // visitOperandExpandDims/visitOperandSplat, we cannot mul which will
-        // get zero and lost the offset.
-        if (lhsState.dimIsStructured(i) && !hasConstZero(lhsState.strides[i])) {
-          auto stride = expandOFRIndex(lhsState.strides[i], lhsState.offsets[i],
-                                       loc, builder);
-          newLhsOffset = mulOFRs(lhsState.offsets[i], stride, loc, builder);
-        }
-        if (rhsState.dimIsStructured(i) && !hasConstZero(rhsState.strides[i])) {
-          auto stride = expandOFRIndex(rhsState.strides[i], rhsState.offsets[i],
-                                       loc, builder);
-          newRhsOffset = mulOFRs(rhsState.offsets[i], stride, loc, builder);
-        }
-        // Make sure newLhsOffset and newRhsOffset get same type.
-        if (!lhsState.dimIsStructured(i)) {
-          newRhsOffset =
-              expandOFRIndex(newRhsOffset, newLhsOffset, loc, builder);
+        if (hasConstZero(lhsState.strides[i]) &&
+            hasConstZero(lhsState.offsets[i])) {
+          // If lhs is not for dim i, we can just use rhs's stride and offset.
+          offsets.push_back(rhsState.offsets[i]);
+          strides.push_back(rhsState.strides[i]);
+        } else if (hasConstZero(rhsState.strides[i]) &&
+                   hasConstZero(rhsState.offsets[i])) {
+          // If rhs is not for dim i, we can just use lhs's stride and offset.
+          offsets.push_back(lhsState.offsets[i]);
+          strides.push_back(lhsState.strides[i]);
         } else {
-          newLhsOffset =
-              expandOFRIndex(newLhsOffset, newRhsOffset, loc, builder);
+          OpFoldResult lhsOffset = lhsState.offsets[i];
+          OpFoldResult rhsOffset = rhsState.offsets[i];
+          OpFoldResult lhsStride = lhsState.strides[i];
+          OpFoldResult rhsStride = rhsState.strides[i];
+          // If stride is 0 which will happen after
+          // visitOperandExpandDims/visitOperandSplat, we set the stride to 1 to
+          // mul it with offset.
+          if (hasConstZero(lhsStride)) {
+            assert(lhsState.dimIsStructured(i) &&
+                   !rhsState.dimIsStructured(i) &&
+                   "If lhs stride is zero, it must be structured and rhs "
+                   "stride is unstructured");
+            lhsStride = builder.getIndexAttr(1);
+          }
+          if (hasConstZero(rhsStride)) {
+            assert(rhsState.dimIsStructured(i) &&
+                   !lhsState.dimIsStructured(i) &&
+                   "If rhs stride is zero, it must be structured and lhs "
+                   "stride is unstructured");
+            rhsStride = builder.getIndexAttr(1);
+          }
+
+          // If both offset and stride not equal, we merge 2 PtrStates by change
+          // offset * stride into (offset * stride) * 1 where new offset is
+          // offset * stride and new stride is set to 1.
+          // Then we'll have strides equal as 1, and merge them as PtrState with
+          // same strides.
+          if (lhsOffset != rhsOffset && lhsStride != rhsStride) {
+            // Expand offset since unstructured offset has tensor type.
+            OpFoldResult stride =
+                expandOFRIndex(lhsStride, lhsOffset, loc, builder);
+            // new offset = offset * stride
+            lhsOffset = mulOFRs(lhsOffset, stride, loc, builder);
+            // Expand offset since unstructured offset has tensor type.
+            stride = expandOFRIndex(rhsStride, rhsOffset, loc, builder);
+            // new offset = offset * stride
+            rhsOffset = mulOFRs(rhsOffset, stride, loc, builder);
+            // Set both strides to 1.
+            lhsStride = builder.getIndexAttr(1);
+            rhsStride = builder.getIndexAttr(1);
+          }
+
+          if (lhsStride == rhsStride) {
+            // For case like lhs_offset * stride + rhs_offset * stride, it is same as
+            // (lhs_offset + rhs_offset) * stride.
+            // We can just
+            // add the offsets and reuse the stride like this:
+            //   offsets[i] = lhsOffset + rhsOffset
+            //   strides[i] = lhsStride
+            // Expand structured offset since unstructured offset has tensor type.
+            if (!lhsState.dimIsStructured(i)) {
+              rhsOffset = expandOFRIndex(rhsOffset, lhsOffset, loc, builder);
+            } else {
+              lhsOffset = expandOFRIndex(lhsOffset, rhsOffset, loc, builder);
+            }
+            // Add offsets.
+            offsets.push_back(addOFRs(lhsOffset, rhsOffset, loc, builder));
+            // Reuse stride.
+            strides.push_back(lhsStride);
+          } else {
+            // Assert that offsets are equal if strides are not equal.
+            // This is because we are already forcing the strides to be
+            // equal to 1 earlier for case both offsets and strides not equal.
+            assert(lhsOffset == rhsOffset &&
+                   "If strides are not equal, offsets must be equal");
+            // For case like offset * lhs_stride + offset * rhs_stride, it is same as
+            // offset * (lhs_stride + rhs_stride).
+            // We can just
+            // add the strides and reuse the offset like this:
+            //   offsets[i] = lhsOffset
+            //   strides[i] = lhsStride + rhsStride
+
+            // Reuse offsets.
+            offsets.push_back(lhsOffset);
+            // Add strides.
+            strides.push_back(addOFRs(lhsStride, rhsStride, loc, builder));
+          }
         }
-        auto newOffset = addOFRs(newLhsOffset, newRhsOffset, loc, builder);
-        offsets.push_back(newOffset);
       } else {
+        // Set stride to 1 when not continuous.
+        strides.push_back(builder.getIndexAttr(1));
+        // New offset is offset * stride.
+        auto newLhsOffset = lhsState.offsets[i];
+        auto newRhsOffset = rhsState.offsets[i];
         // Just propagate the unstructured offset to the result to track the
         // unstructured dimension. The real address calculation will be done
         // later in the PtrAnalysis::visitOperandAddptr.
@@ -432,13 +498,12 @@ LogicalResult PtrState::mulState(const PtrState &lhsState,
       assert(!lhs->dimHasModulo(i) &&
              "should not have non-structured dimension with modulo");
       if (isAnalysisingUnstructured) {
-        auto rhsStride =
-            expandOFRIndex(rhs->scalar, lhs->offsets[i], loc, builder);
         assert(!lhs->hasModulo() &&
                "should not have non-structured dimension with modulo");
-        OpFoldResult newOffset =
-            mulOFRs(lhs->offsets[i], rhsStride, loc, builder);
-        offsets.push_back(newOffset);
+        // Keep offsets as is for unstructured dimension.
+        // The address calculation will be done later in structured to
+        // memref pass.
+        offsets.push_back(lhs->offsets[i]);
         // Mul the scalar to stride.
         OpFoldResult newStride =
             mulOFRs(lhs->strides[i], rhs->scalar, loc, builder);
