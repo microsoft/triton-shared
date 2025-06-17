@@ -14,6 +14,9 @@
 #include "mlir/Transforms/DialectConversion.h"
 #include "triton/Dialect/Triton/IR/Dialect.h"
 
+#include "llvm/Support/Debug.h"
+#define DEBUG_TYPE "triton-ptr-analysis"
+
 namespace mlir {
 
 std::optional<int64_t> getIntAttr(const OpFoldResult ofr) {
@@ -115,11 +118,32 @@ OpFoldResult expandOFRIndex(OpFoldResult ofr, OpFoldResult targetForTy,
       v = indexTypeCast(v, targetEltTy, loc, b);
     return b.create<triton::SplatOp>(loc, targetTy, v).getResult();
   } else if (targetShapedTy && shapedTy) {
-    // TODO: support ShapedType to ShapedType.
     Type targetEltTy = targetShapedTy.getElementType();
     Type eltTy = shapedTy.getElementType();
-    if (targetShapedTy.getShape() != shapedTy.getShape())
-      llvm_unreachable("ShapedType to ShapedType must have same shape");
+    if (targetShapedTy.getShape() != shapedTy.getShape()) {
+      assert(targetEltTy == eltTy &&
+             "Only cast between same element type shaped types");
+      // This path is for case like:
+      // input_ptr + (row_indices[:, None] + row_offsets[:,None] % mod_offset) *
+      //   stride_m + col_offsets[None, :] * stride_n
+      // The modulo will be in shape of [ROW_SIZE, 1] while row_indices is in shape of [ROW_SIZE,].
+      LLVM_DEBUG({
+        llvm::dbgs() << "Reshaping ";
+        shapedTy.dump();
+        llvm::dbgs() << " to ";
+        targetShapedTy.dump();
+      });
+      SmallVector<Value> shapeValues;
+      for (auto dim : targetShapedTy.getShape()) {
+        shapeValues.push_back(b.create<arith::ConstantOp>(
+            loc, b.getIndexAttr(dim)));
+      }
+      RankedTensorType targetShapeTensorTy = RankedTensorType::get(
+          targetShapedTy.getShape().size(), b.getIndexType());
+      auto shapeTensor = b.create<tensor::FromElementsOp>(
+          loc, targetShapeTensorTy, shapeValues);
+      return b.create<triton::ReshapeOp>(loc, targetTy, v, shapeTensor).getResult();
+    }
     if (isa<IndexType>(targetEltTy) || isa<IndexType>(eltTy)) {
       assert((isa<IntegerType>(targetEltTy) || isa<IntegerType>(eltTy)) &&
              "Only cast between index type and integer type");
@@ -351,4 +375,5 @@ OpFoldResult compareOFRs(const OpFoldResult lhs, const OpFoldResult rhs,
   auto selectOp = b.create<arith::SelectOp>(loc, cmpOp, trueValue, falseValue);
   return selectOp.getResult();
 }
+
 } // namespace mlir
