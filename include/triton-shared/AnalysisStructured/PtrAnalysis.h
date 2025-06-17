@@ -168,11 +168,23 @@ class PtrAnalysis {
   // When visiting the add operation, we need to apply the modulo to
   //   (row_offsets[:,None] % mod_offset + some_number).
   // But we don't have the information about how to apply the modulo.
-  // To simplify the analysis, we do the work in two steps:
+  //
+  // To simplify the analysis, we do the work in two modes:
   // 1. Analyze to identify the unstructured pointers.
   // 2. Analyze to calculate the strides and offsets for unstructured pointers.
-  // In step 2, we know that the pointer is unstructured, so we can just
-  // use the value of arith::RemSIOp as offset directly.
+  // In mode 1, isAnalysisingUnstructured is set to false, so we only
+  //    identify the unstructured pointers and do not calculate the strides and
+  //    offsets.
+  // When visit the operand again to calculate the offsets and strides for the
+  // unstructured state, we'll set isAnalysisingUnstructured to true.
+  // This means that we switched to mode 2 now and are analyzing the
+  // unstructured pointers and calculating the strides and offsets for them. In
+  // mode 2, we know that the pointer is unstructured, so we can just use the
+  // value of arith::RemSIOp as offset directly. Once the analysis is done,
+  // we'll switch back to mode 1.
+  //
+  // Note that this is might be a temporary solution, and we may need to
+  // revisit this in the future to support more complex cases.
   bool isAnalysisingUnstructured = false;
 
 public:

@@ -600,7 +600,11 @@ LogicalResult PtrAnalysis::visitOperandAdd(arith::AddIOp addOp, PtrState &state,
             .failed())
       return failure();
   }
-
+  if (isAnalysisingUnstructured) {
+    assert(enableMakeGatherScatterTensorPtr &&
+           "isAnalysisingUnstructured should not be true when "
+           "enableMakeGatherScatterTensorPtr is false");
+  }
   return state.addState(lhsState, rhsState, isAnalysisingUnstructured, addOp,
                         builder);
 }
@@ -637,6 +641,11 @@ LogicalResult PtrAnalysis::visitOperandMul(arith::MulIOp mulOp, PtrState &state,
       return failure();
   }
 
+  if (isAnalysisingUnstructured) {
+    assert(enableMakeGatherScatterTensorPtr &&
+           "isAnalysisingUnstructured should not be true when "
+           "enableMakeGatherScatterTensorPtr is false");
+  }
   return state.mulState(lhsState, rhsState, isAnalysisingUnstructured, mulOp,
                         builder);
 }
@@ -646,6 +655,9 @@ LogicalResult PtrAnalysis::visitOperandRem(arith::RemSIOp remOp,
                                            OpBuilder &builder) {
   assert(state.isEmpty());
   if (isAnalysisingUnstructured) {
+    assert(enableMakeGatherScatterTensorPtr &&
+           "PtrAnalysis: isAnalysisingUnstructured should only be true "
+           "when enableMakeGatherScatterTensorPtr is true");
     // If we are analyzing unstructured state, just build state from current op.
     return state.rebuildAsUnsupportedOp(remOp.getResult());
   }
@@ -884,6 +896,11 @@ LogicalResult PtrAnalysis::visitOperandAddptr(triton::AddPtrOp addptrOp,
   assert(ptrState.getRank() == offsetState.getRank() &&
          "ptr and offset field should have the same rank");
 
+  if (isAnalysisingUnstructured) {
+    assert(enableMakeGatherScatterTensorPtr &&
+           "isAnalysisingUnstructured should not be true when "
+           "enableMakeGatherScatterTensorPtr is false");
+  }
   return state.addState(ptrState, offsetState, isAnalysisingUnstructured,
                         addptrOp, builder);
 }
@@ -1023,6 +1040,11 @@ LogicalResult PtrAnalysis::visitOperandBitcast(triton::BitcastOp op,
 LogicalResult PtrAnalysis::visitOperand(Value operand, PtrState &state,
                                         const Location loc,
                                         OpBuilder &builder) {
+  if (isAnalysisingUnstructured) {
+    assert(enableMakeGatherScatterTensorPtr &&
+           "isAnalysisingUnstructured should not be true when "
+           "enableMakeGatherScatterTensorPtr is false");
+  }
   // Not using knownPtrs when isAnalysisingUnstructured is true.
   // This is because we are analyzing unstructured state, the data in knownPtrs
   // is not valid for unstructured state.
@@ -1137,7 +1159,11 @@ LogicalResult PtrAnalysis::rewriteAddptrOp(triton::AddPtrOp op) {
       PtrState unstructuredState;
       // Switch to unstructured state analysis to create offsets and strides
       // for the non-structured dimension.
+      // NOTE: this is the only place where we switch to unstructured state
+      // analysis.
       isAnalysisingUnstructured = true;
+      // Visit the operand again to calculate the offsets and strides for the
+      // unstructured state.
       LogicalResult result =
           visitOperandAddptr(op, unstructuredState, op.getLoc(), builder);
       // Switch back to structured state analysis.
