@@ -67,7 +67,7 @@ public:
     pm.addPass(createReconcileUnrealizedCastsPass());
     pm.addPass(createReconcilePtrCastsPass());
 
-    // Now that remove-dead-values fully work with linalg ops, clean up the IR
+    // Now that remove-dead-values fully works with linalg ops, clean up the IR
     // again, particularly unused loop iter-args that were created
     // during triton-to-structured.
     pm.addPass(createRemoveDeadValuesPass());
