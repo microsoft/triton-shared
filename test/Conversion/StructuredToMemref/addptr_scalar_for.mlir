@@ -1,4 +1,4 @@
-// RUN: triton-shared-opt --split-input-file --triton-to-linalg-experimental %s | FileCheck %s
+// RUN: triton-shared-opt --triton-to-linalg-experimental %s | FileCheck %s
 module {
   tt.func @kernel (%arg0: !tt.ptr<f32> {tt.divisibility = 16 : i32}, %arg1: !tt.ptr<f32> {tt.divisibility = 16 : i32}, %arg2: i32, %arg3: i32, %arg4: i32) {
     %0 = tt.get_program_id x : i32
@@ -47,7 +47,7 @@ module {
 // CHECK-DAG:       [[VAR_1_:%.+]] = linalg.fill ins([[CST_0_dot_000000_]] : f32) outs([[VAR_0_]] : tensor<1024xf32>) -> tensor<1024xf32>
 // CHECK-DAG:       [[VAR_2_:%.+]] = arith.muli [[PARAM_8_]], [[PARAM_2_]] : i32
 // CHECK:           [[VAR_3_:%.+]] = arith.index_cast [[VAR_2_]] : i32 to index
-// CHECK-DAG:       [[VAR_4_:%.+]]:3 = scf.for [[VAR_arg11_:%.+]] = [[CST_0_]] to [[CST_12_]] step [[CST_3_]] iter_args([[VAR_arg12_:%.+]] = [[VAR_2_]], [[VAR_arg13_:%.+]] = [[VAR_3_]], [[VAR_arg14_:%.+]] = [[VAR_1_]]) -> (i32, index, tensor<1024xf32>) {
+// CHECK-DAG:       [[VAR_4_:%.+]]:2 = scf.for [[VAR_arg11_:%.+]] = [[CST_0_]] to [[CST_12_]] step [[CST_3_]] iter_args([[VAR_arg13_:%.+]] = [[VAR_3_]], [[VAR_arg14_:%.+]] = [[VAR_1_]]) -> (index, tensor<1024xf32>) {
 // CHECK-DAG:         [[VAR_reinterpret_cast_0_:%.+]] = memref.reinterpret_cast [[PARAM_1_]] to offset: {{.}}[[VAR_arg13_]]{{.}}, sizes: [1024], strides: [1] : memref<*xf32> to memref<1024xf32, strided<[1], offset: ?>>
 // CHECK-DAG:         [[RES_:%.+]] = memref.alloc() : memref<1024xf32>
 // CHECK:             memref.copy [[VAR_reinterpret_cast_0_]], [[RES_]] : memref<1024xf32, strided<[1], offset: ?>> to memref<1024xf32>
@@ -62,14 +62,12 @@ module {
 // CHECK:               [[VAR_13_1_:%.+]] = arith.addf [[IN_2_]], [[IN_3_]] : f32
 // CHECK:               linalg.yield [[VAR_13_1_]] : f32
 // CHECK:             } -> tensor<1024xf32>
-// CHECK-DAG:         [[VAR_10_:%.+]] = arith.index_cast [[VAR_arg11_]] : index to i32
 // CHECK-DAG:         [[VAR_11_:%.+]] = arith.addi [[VAR_arg13_]], [[VAR_arg11_]] : index
-// CHECK:             [[VAR_12_:%.+]] = arith.addi [[VAR_arg12_]], [[VAR_10_]] : i32
-// CHECK:             scf.yield [[VAR_12_]], [[VAR_11_]], [[VAR_9_]] : i32, index, tensor<1024xf32>
+// CHECK:             scf.yield [[VAR_11_]], [[VAR_9_]] : index, tensor<1024xf32>
 // CHECK:           }
 // CHECK:           [[VAR_5_:%.+]] = arith.muli [[PARAM_8_]], [[PARAM_3_]] : i32
 // CHECK:           [[VAR_6_:%.+]] = arith.index_cast [[VAR_5_]] : i32 to index
 // CHECK:           [[VAR_reinterpret_cast_:%.+]] = memref.reinterpret_cast [[PARAM_0_]] to offset: {{.}}[[VAR_6_]]{{.}}, sizes: [1024], strides: [1] : memref<*xf32> to memref<1024xf32, strided<[1], offset: ?>>
-// CHECK:           bufferization.materialize_in_destination [[VAR_4_]]#2 in writable [[VAR_reinterpret_cast_]] : (tensor<1024xf32>, memref<1024xf32, strided<[1], offset: ?>>) -> ()
+// CHECK:           bufferization.materialize_in_destination [[VAR_4_]]#1 in writable [[VAR_reinterpret_cast_]] : (tensor<1024xf32>, memref<1024xf32, strided<[1], offset: ?>>) -> ()
 // CHECK:           return
 // CHECK:         }
