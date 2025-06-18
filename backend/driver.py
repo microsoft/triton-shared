@@ -7,6 +7,7 @@ import importlib.util
 import sys
 
 from pathlib import Path
+from functools import lru_cache
 
 from triton.runtime.cache import get_cache_manager
 from triton.backends.driver import DriverBase
@@ -28,6 +29,14 @@ def _get_sanitizer_type():
         raise Exception(f"{sanitizer_type} is invalid.")
     
     return sanitizer_type
+
+@lru_cache(maxsize=1)
+def _openmp_available():
+    result = subprocess.run(["ldconfig", "-p"], stdout=subprocess.PIPE, text=True)
+    if result.returncode != 0:
+        return False
+    if "libomp.so" in result.stdout or "libgomp.so" in result.stdout:
+        return True
 
 # -------------------- Launcher ----------------------------
 def _ty_to_cpp(ty):
@@ -106,6 +115,7 @@ extern "C" {{
 static void _launch(int gridX, int gridY, int gridZ, {arg_decls}) {{
   if (gridX*gridY*gridZ > 0) {{
     // Cast "function" to the real function type.
+    {"#pragma omp parallel for collapse(3)" if _get_sanitizer_type() == "tsan" else ""}
     for(int x = 0; x < gridX; x++) {{
       for(int y = 0; y < gridY; y++) {{
         for(int z = 0; z < gridZ; z++) {{
@@ -303,6 +313,10 @@ def compile_module(launcher_src, kernel_placeholder_name):
                   if sanitizer_type == "asan":
                       subprocess_args.extend(["-g", "-fsanitize=address"])
                   elif sanitizer_type == "tsan":
+                      # ensure that openmp is available
+                      if not _openmp_available():
+                          raise Exception("TSAN enabled but OpenMP not available.")
+                      
                       subprocess_args.extend(["-g", "-fsanitize=thread", "-fopenmp"])
                   
                   subprocess.check_call(subprocess_args)
