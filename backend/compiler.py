@@ -33,6 +33,16 @@ def _dump_ir_if_needed(files):
     for f in files:
         shutil.copy(f, os.path.join(path, os.path.basename(f)))
 
+def _get_sanitizer_type():
+    # returns "" if not set
+    # throws error if set to something other than "asan" or "tsan"
+    sanitizer_type = os.getenv("SANITIZER_TYPE", "")
+
+    if sanitizer_type != "" and sanitizer_type != "asan" and sanitizer_type != "tsan":
+        # throw error
+        raise Exception(f"{sanitizer_type} is invalid.")
+    
+    return sanitizer_type
 
 def _ttir_to_ttsharedir(mod):
     # Get Triton-MLIR as string
@@ -43,8 +53,14 @@ def _ttir_to_ttsharedir(mod):
         Path(src_path).write_text(ttir_code)
         _dump_ir_if_needed([src_path])
         triton_shared_opt_path = _get_triton_shared_opt_path()
-        subprocess.check_call([triton_shared_opt_path, src_path, "--add-llvm-debug-info", "--triton-to-linalg-experimental", 
-            "--mlir-print-debuginfo", "-o", dst_path])
+
+        subprocess_args = [triton_shared_opt_path, src_path, "--triton-to-linalg-experimental", "--mlir-print-debuginfo", "-o", dst_path]
+
+        if _get_sanitizer_type() != "":
+            # has to run before the other passes
+            subprocess_args.insert(2, "--add-llvm-debug-info")
+
+        subprocess.check_call(subprocess_args)
         return Path(dst_path).read_text()
 
 
@@ -117,26 +133,38 @@ def _llir_to_bin(llir: str, metadata):
     metadata["name"] = matches[0]
     with tempfile.TemporaryDirectory() as tmpdir:
         src_path = os.path.join(tmpdir, "kernel.ll")
-        modified_src_path = os.path.join(tmpdir, "kernel-modified.ll")
-        Path(src_path).write_text(llir)
-        
-        # pass to add sanitizer attributes
-        opt_path = "/workspace/triton_shared/triton/llvm-project/install/bin/opt"
-        # sanitizer_attributes_path = "/workspace/sanitizer-passes/sanitizer-attributes/build/libSanitizerAttributes.so"
-        sanitizer_attributes_path = "/workspace/triton_shared/triton/build/lib.linux-x86_64-cpython-312/triton/_C/libSanitizerAttributes.so"
-
-        subprocess.check_call([opt_path, "-load-pass-plugin", sanitizer_attributes_path, 
-            "-passes=sanitizer-attributes", "-sanitizer-type=asan", "-S", src_path, 
-            "-o", modified_src_path])
-
         dst_path = os.path.join(tmpdir, "kernel.o")
+        Path(src_path).write_text(llir)
+
+        sanitizer_type = _get_sanitizer_type()
+
+        if sanitizer_type != "":
+            # using a sanitizer
+            # invoke pass to append sanitizer attributes
+            instrumented_src_path = os.path.join(tmpdir, "kernel-instrumented.ll")
+        
+            opt_path = _get_llvm_bin_path("opt")
+            sanitizer_attributes_path = "/workspace/triton_shared/triton/build/lib.linux-x86_64-cpython-312/triton/_C/libSanitizerAttributes.so"
+
+            subprocess.check_call([opt_path, "-load-pass-plugin", sanitizer_attributes_path, 
+                "-passes=sanitizer-attributes", f"-sanitizer-type={sanitizer_type}", "-S", src_path, 
+                "-o", instrumented_src_path])
+            
+            src_path = instrumented_src_path
 
         # compile to object file
-        clang_path = "/workspace/triton_shared/triton/llvm-project/install/bin/clang++"
+        clang_path = _get_llvm_bin_path("clang++")
 
-        subprocess.check_call([clang_path, "-g", "-fsanitize=address", "-c", modified_src_path, "-o", dst_path])
+        subprocess_args = [clang_path, "-c", src_path, "-o", dst_path]
 
-        _dump_ir_if_needed([src_path, modified_src_path, dst_path])
+        if sanitizer_type == "asan":
+            subprocess_args.extend(["-g", "-fsanitize=address"])
+        elif sanitizer_type == "tsan":
+            subprocess_args.extend(["-g", "-fsanitize=thread"])
+            
+        subprocess.check_call(subprocess_args)
+
+        _dump_ir_if_needed([src_path, dst_path])
         
         return Path(dst_path).read_bytes()
 

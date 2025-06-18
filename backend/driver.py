@@ -12,6 +12,23 @@ from triton.runtime.cache import get_cache_manager
 from triton.backends.driver import DriverBase
 from triton.backends.compiler import GPUTarget
 
+def _get_llvm_bin_path(bin_name: str) -> str:
+    path = os.getenv("LLVM_BINARY_DIR", "")
+    if path == "":
+        raise Exception("LLVM_BINARY_DIR is not set.")
+    return os.path.join(path, bin_name)
+
+def _get_sanitizer_type():
+    # returns "" if not set
+    # throws error if set to something other than "asan" or "tsan"
+    sanitizer_type = os.getenv("SANITIZER_TYPE", "")
+
+    if sanitizer_type != "" and sanitizer_type != "asan" and sanitizer_type != "tsan":
+        # throw error
+        raise Exception(f"{sanitizer_type} is invalid.")
+    
+    return sanitizer_type
+
 # -------------------- Launcher ----------------------------
 def _ty_to_cpp(ty):
     if ty[0] == '*':
@@ -273,14 +290,22 @@ def compile_module(launcher_src, kernel_placeholder_name):
                   Path(launcher_src_path).write_text(src)
 
                   # Compile it together.
-                  clang_path = "/workspace/triton_shared/triton/llvm-project/install/bin/clang++"
+                  clang_path = _get_llvm_bin_path("clang++")
 
-                  subprocess.check_call([
-                    clang_path, "-g", "-fsanitize=address",
-                    "-std=c++17", launcher_src_path, obj_path,
-                    f"-I{py_include_dir}", f"-I{include_dir}", f"-L{py_lib_dir}",
-                    "-shared", f"-l{py_lib}", "-fPIC", "-o", so_path
-                  ])
+                  subprocess_args = [
+                      clang_path, "-std=c++17", launcher_src_path, obj_path,
+                      f"-I{py_include_dir}", f"-I{include_dir}", f"-L{py_lib_dir}",
+                      "-shared", f"-l{py_lib}", "-fPIC", "-o", so_path
+                  ]
+
+                  sanitizer_type = _get_sanitizer_type()
+
+                  if sanitizer_type == "asan":
+                      subprocess_args.extend(["-g", "-fsanitize=address"])
+                  elif sanitizer_type == "tsan":
+                      subprocess_args.extend(["-g", "-fsanitize=thread", "-fopenmp"])
+                  
+                  subprocess.check_call(subprocess_args)
 
               with open(so_path, "rb") as f:
                 cache_path = cache.put(f.read(), filename, binary=True)
