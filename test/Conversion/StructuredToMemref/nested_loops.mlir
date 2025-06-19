@@ -182,6 +182,4 @@ module {
 // CHECK-NOT: tt.addptr
 // CHECK-NOT: tt.load
 // CHECK-NOT: tt.store
-
-// CHECK-COUNT-20: memref.reinterpret_cast %arg{{[0-9]+}}
-// CHECK-NOT: memref.reinterpret_cast %arg{{[0-9]+}}
+// CHECK-NOT: unrealized_conversion_cast

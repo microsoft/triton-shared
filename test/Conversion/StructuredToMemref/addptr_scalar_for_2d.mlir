@@ -1,4 +1,4 @@
-// RUN: triton-shared-opt --split-input-file --triton-to-linalg-experimental %s | FileCheck %s
+// RUN: triton-shared-opt --triton-to-linalg-experimental %s | FileCheck %s
 module {
   tt.func @kernel (%arg0: !tt.ptr<f32> {tt.divisibility = 16 : i32}, %arg1: !tt.ptr<f32> {tt.divisibility = 16 : i32}, %arg2: i32, %arg3: i32, %arg4: i32) {
     %0 = tt.get_program_id x : i32
@@ -67,7 +67,7 @@ module {
 // CHECK-DAG:       [[VAR_1_:%.+]] = linalg.fill ins([[CST_0_dot_000000_]] : f32) outs([[VAR_0_]] : tensor<128x128xf32>) -> tensor<128x128xf32>
 // CHECK-DAG:       [[VAR_2_:%.+]] = arith.muli [[PARAM_8_]], [[PARAM_2_]] : i32
 // CHECK:           [[VAR_3_:%.+]] = arith.index_cast [[VAR_2_]] : i32 to index
-// CHECK-DAG:       [[VAR_4_:%.+]]:3 = scf.for [[VAR_arg11_:%.+]] = [[CST_0_]] to [[CST_12_]] step [[CST_3_]] iter_args([[VAR_arg12_:%.+]] = [[VAR_1_]], [[VAR_arg13_:%.+]] = [[VAR_2_]], [[VAR_arg14_:%.+]] = [[VAR_3_]]) -> (tensor<128x128xf32>, i32, index) {
+// CHECK-DAG:       [[VAR_4_:%.+]]:2 = scf.for [[VAR_arg11_:%.+]] = [[CST_0_]] to [[CST_12_]] step [[CST_3_]] iter_args([[VAR_arg12_:%.+]] = [[VAR_1_]], [[VAR_arg14_:%.+]] = [[VAR_3_]]) -> (tensor<128x128xf32>, index) {
 // CHECK-DAG:         [[VAR_8_:%.+]] = arith.addi [[VAR_arg14_]], [[CST_128_]] : index
 // CHECK-NOT: separator of consecutive DAGs
 // CHECK-DAG:         [[VAR_reinterpret_cast_0_:%.+]] = memref.reinterpret_cast [[PARAM_1_]] to offset: {{.}}[[VAR_8_]]{{.}}, sizes: [128, 128], strides: [1, 1] : memref<*xf32> to memref<128x128xf32, strided<[1, 1], offset: ?>>
@@ -84,10 +84,8 @@ module {
 // CHECK:               [[VAR_15_1_:%.+]] = arith.addf [[IN_2_]], [[IN_3_]] : f32
 // CHECK:               linalg.yield [[VAR_15_1_]] : f32
 // CHECK:             } -> tensor<128x128xf32>
-// CHECK-DAG:         [[VAR_12_:%.+]] = arith.index_cast [[VAR_arg11_]] : index to i32
 // CHECK-DAG:         [[VAR_13_:%.+]] = arith.addi [[VAR_arg14_]], [[VAR_arg11_]] : index
-// CHECK:             [[VAR_14_:%.+]] = arith.addi [[VAR_arg13_]], [[VAR_12_]] : i32
-// CHECK:             scf.yield [[VAR_11_]], [[VAR_14_]], [[VAR_13_]] : tensor<128x128xf32>, i32, index
+// CHECK:             scf.yield [[VAR_11_]], [[VAR_13_]] : tensor<128x128xf32>, index
 // CHECK:           }
 // CHECK:           [[VAR_5_:%.+]] = arith.muli [[PARAM_8_]], [[PARAM_3_]] : i32
 // CHECK:           [[VAR_6_:%.+]] = arith.index_cast [[VAR_5_]] : i32 to index
