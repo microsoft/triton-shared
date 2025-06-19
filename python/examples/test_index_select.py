@@ -219,7 +219,7 @@ def index_select_row_with_double_mod2(input_tensor, indices, dim, mod_offset, mo
     o_stride_m = output_tensor.stride(0)
     o_stride_n = output_tensor.stride(1)
 
-    a = index_select_row_with_double_mod_kernel2[1,](
+    index_select_row_with_double_mod_kernel2[1,](
         input_tensor,
         output_tensor,
         indices,
@@ -230,21 +230,6 @@ def index_select_row_with_double_mod2(input_tensor, indices, dim, mod_offset, mo
         o_stride_n,
         mod_offset,
         mod_offset_2,
-        BLOCK_I=R,
-        BLOCK_N=N,
-    )
-    return output_tensor
-
-    index_select_row_with_mod_kernel[1,](
-        input_tensor,
-        output_tensor,
-        indices,
-        stride_i,
-        stride_m,
-        stride_n,
-        o_stride_m,
-        o_stride_n,
-        mod_offset,
         BLOCK_I=R,
         BLOCK_N=N,
     )
