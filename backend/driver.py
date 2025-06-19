@@ -38,6 +38,24 @@ def _openmp_available():
     if "libomp.so" in result.stdout or "libgomp.so" in result.stdout:
         return True
 
+def _sanitizer_available(sanitizer_type):
+    if "LD_PRELOAD" not in os.environ:
+        return False
+    if f"libclang_rt.{sanitizer_type}.so" not in os.environ["LD_PRELOAD"]:
+        return False
+    
+    return True
+
+def _init_vars_for_sanitizers(sanitizer_type):
+    if sanitizer_type == "":
+        return
+
+    if sanitizer_type == "asan":
+        os.environ["ASAN_OPTIONS"] = "detect_leaks=0"
+    if sanitizer_type == "tsan":
+        os.environ["TSAN_OPTIONS"] = "ignore_noninstrumented_modules=0"
+        os.environ["ARCHER_OPTIONS"] = "verbose=1"
+
 # -------------------- Launcher ----------------------------
 def _ty_to_cpp(ty):
     if ty[0] == '*':
@@ -280,7 +298,12 @@ def compile_module(launcher_src, kernel_placeholder_name):
 
         if cache_path is None:
           with tempfile.TemporaryDirectory() as tmpdir:
+              sanitizer_type = _get_sanitizer_type()
+
               if platform.system() == "Windows":
+                  if sanitizer_type != "":
+                      raise Exception("Sanitizers are not supported on Windows with triton-shared.")
+
                   obj_path = os.path.join(tmpdir, "kernel.obj")
                   launcher_src_path = os.path.join(tmpdir, "main.cxx")
                   so_path = os.path.join(tmpdir, "kernel.pyd")
@@ -308,7 +331,8 @@ def compile_module(launcher_src, kernel_placeholder_name):
                       "-shared", f"-l{py_lib}", "-fPIC", "-o", so_path
                   ]
 
-                  sanitizer_type = _get_sanitizer_type()
+                  if sanitizer_type != "" and not _sanitizer_available(sanitizer_type):
+                      raise Exception(f"Use LD_PRELOAD=\"path/to/libclang_rt.{sanitizer_type}.so\" SANITIZER_TYPE={sanitizer_type} python ...")
 
                   if sanitizer_type == "asan":
                       subprocess_args.extend(["-g", "-fsanitize=address"])
@@ -317,9 +341,13 @@ def compile_module(launcher_src, kernel_placeholder_name):
                       if not _openmp_available():
                           raise Exception("TSAN enabled but OpenMP not available.")
                       
-                      subprocess_args.extend(["-g", "-fsanitize=thread", "-fopenmp"])
+                      libomp_path = str(next(Path(Path(_get_llvm_bin_path("")).parent).rglob("libomp.so"), None).parent)
+
+                      subprocess_args.extend(["-g", "-fsanitize=thread", "-fopenmp", f"-Wl,-rpath,{libomp_path}"])
                   
                   subprocess.check_call(subprocess_args)
+
+                  _init_vars_for_sanitizers(sanitizer_type)
 
               with open(so_path, "rb") as f:
                 cache_path = cache.put(f.read(), filename, binary=True)

@@ -10,6 +10,7 @@ import re
 import shutil
 import subprocess
 import functools
+import triton
 from pathlib import Path
 
 def _get_triton_shared_opt_path() -> str:
@@ -57,6 +58,8 @@ def _ttir_to_ttsharedir(mod):
         subprocess_args = [triton_shared_opt_path, src_path, "--triton-to-linalg-experimental", "--mlir-print-debuginfo", "-o", dst_path]
 
         if _get_sanitizer_type() != "":
+            print("Building with sanitizer support...")
+
             # has to run before the other passes
             subprocess_args.insert(2, "--add-llvm-debug-info")
 
@@ -144,9 +147,10 @@ def _llir_to_bin(llir: str, metadata):
             instrumented_src_path = os.path.join(tmpdir, "kernel-instrumented.ll")
         
             opt_path = _get_llvm_bin_path("opt")
-            sanitizer_attributes_path = "/workspace/triton_shared/triton/build/lib.linux-x86_64-cpython-312/triton/_C/libSanitizerAttributes.so"
+            top_level_triton_path = os.path.dirname(triton.__file__)
+            sanitizer_attributes_pass_path = str(next(Path(top_level_triton_path).rglob("libSanitizerAttributes.so"), None))
 
-            subprocess.check_call([opt_path, "-load-pass-plugin", sanitizer_attributes_path, 
+            subprocess.check_call([opt_path, "-load-pass-plugin", sanitizer_attributes_pass_path, 
                 "-passes=sanitizer-attributes", f"-sanitizer-type={sanitizer_type}", "-S", src_path, 
                 "-o", instrumented_src_path])
             
@@ -163,8 +167,6 @@ def _llir_to_bin(llir: str, metadata):
             subprocess_args.extend(["-g", "-fsanitize=thread"])
             
         subprocess.check_call(subprocess_args)
-
-        _dump_ir_if_needed([src_path, dst_path])
         
         return Path(dst_path).read_bytes()
 
