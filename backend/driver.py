@@ -46,15 +46,15 @@ def _sanitizer_available(sanitizer_type):
     
     return True
 
-def _init_vars_for_sanitizers(sanitizer_type):
-    if sanitizer_type == "":
-        return
+# def _init_vars_for_sanitizers(sanitizer_type):
+#     if sanitizer_type == "":
+#         return
 
-    if sanitizer_type == "asan":
-        os.environ["ASAN_OPTIONS"] = "detect_leaks=0"
-    if sanitizer_type == "tsan":
-        os.environ["TSAN_OPTIONS"] = "ignore_noninstrumented_modules=0"
-        os.environ["ARCHER_OPTIONS"] = "verbose=1"
+#     if sanitizer_type == "asan":
+#         os.environ["ASAN_OPTIONS"] = "detect_leaks=0"
+#     if sanitizer_type == "tsan":
+#         os.environ["TSAN_OPTIONS"] = "ignore_noninstrumented_modules=0"
+#         os.environ["ARCHER_OPTIONS"] = "verbose=1"
 
 # -------------------- Launcher ----------------------------
 def _ty_to_cpp(ty):
@@ -347,7 +347,7 @@ def compile_module(launcher_src, kernel_placeholder_name):
                   
                   subprocess.check_call(subprocess_args)
 
-                  _init_vars_for_sanitizers(sanitizer_type)
+                  # _init_vars_for_sanitizers(sanitizer_type)
 
               with open(so_path, "rb") as f:
                 cache_path = cache.put(f.read(), filename, binary=True)
