@@ -19,13 +19,12 @@
 // CHECK:           %[[VAL_13:.*]] = arith.addi %[[VAL_12]], %[[VAL_6]] : tensor<4x1xi32>
 // CHECK:           %[[VAL_14:.*]] = tt.reshape %[[VAL_13]] allow_reorder : tensor<4x1xi32> -> tensor<4xi32>
 // CHECK:           %[[VAL_15:.*]] = arith.addi %[[VAL_9]], %[[VAL_14]] : tensor<4xi32>
-// CHECK:           %[[VAL_16:.*]] = tt.splat %[[VAL_3]] : i32 -> tensor<4xi32>
-// CHECK:           %[[VAL_17:.*]] = arith.muli %[[VAL_15]], %[[VAL_16]] : tensor<4xi32>
-// CHECK:           %[[VAL_18:.*]] = tts.make_gather_scatter_tptr %[[VAL_0]] to sizes: [4, 16] gather_scatter_dim: 0 gather_scatter_offset: %[[VAL_17]], strides: [1, 1], offsets: [0, 0] : tensor<4xi32> <f32> to !tt.ptr<tensor<4x16xf32>>
-// CHECK:           %[[VAL_19:.*]] = "tts.load"(%[[VAL_18]]) <{operandSegmentSizes = array<i32: 1, 0, 0>, static_mask_dims = array<i64>}> : (!tt.ptr<tensor<4x16xf32>>) -> tensor<4x16xf32>
-// CHECK:           %[[VAL_20:.*]] = arith.index_cast %[[VAL_4]] : i32 to index
-// CHECK:           %[[VAL_21:.*]] = tts.make_tptr %[[VAL_1]] to sizes: [4, 16], strides: {{\[}}%[[VAL_20]], 1], offsets: [0, 0], shape: [0, 0], order: [] : <f32> to tensor<4x16x!tt.ptr<f32>>
-// CHECK:           "tts.store"(%[[VAL_21]], %[[VAL_19]]) <{static_mask_dims = array<i64>}> : (tensor<4x16x!tt.ptr<f32>>, tensor<4x16xf32>) -> ()
+// CHECK:           %[[VAL_16:.*]] = arith.index_cast %[[VAL_3]] : i32 to index
+// CHECK:           %[[VAL_17:.*]] = tts.make_gather_scatter_tptr %[[VAL_0]] to sizes: [4, 16] gather_scatter_dim: 0 gather_scatter_offset: %[[VAL_15]], strides: {{\[}}%[[VAL_16]], 1], offsets: [0, 0] : tensor<4xi32> <f32> to !tt.ptr<tensor<4x16xf32>>
+// CHECK:           %[[VAL_18:.*]] = "tts.load"(%[[VAL_17]]) <{operandSegmentSizes = array<i32: 1, 0, 0>, static_mask_dims = array<i64>}> : (!tt.ptr<tensor<4x16xf32>>) -> tensor<4x16xf32>
+// CHECK:           %[[VAL_19:.*]] = arith.index_cast %[[VAL_4]] : i32 to index
+// CHECK:           %[[VAL_20:.*]] = tts.make_tptr %[[VAL_1]] to sizes: [4, 16], strides: {{\[}}%[[VAL_19]], 1], offsets: [0, 0], shape: [0, 0], order: [] : <f32> to tensor<4x16x!tt.ptr<f32>>
+// CHECK:           "tts.store"(%[[VAL_20]], %[[VAL_18]]) <{static_mask_dims = array<i64>}> : (tensor<4x16x!tt.ptr<f32>>, tensor<4x16xf32>) -> ()
 // CHECK:           tt.return
 
 module {

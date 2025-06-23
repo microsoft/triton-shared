@@ -137,6 +137,27 @@ static OpFoldResult accumulateTargetOffset(Location loc,
   return targetOffset;
 }
 
+static OpFoldResult accumulateTargetOffset(Location loc,
+                                           ArrayRef<OpFoldResult> offsets,
+                                           ArrayRef<OpFoldResult> strides,
+                                           int gatherDim,
+                                           OpBuilder &b) {
+  OpFoldResult targetOffset = b.getIndexAttr(0);
+  for (int i=0;i<offsets.size();i++) {
+
+    OpFoldResult offset = offsets[i];
+    // If this is the gather dimension, multiply the offset by the stride.
+    // Non-gather dimensions are already multiplied by the stride
+    // in the offsets in PtrAnalysis.
+    if (i == gatherDim) {
+      OpFoldResult stride = strides[i];
+      offset = mulOFRs(offset, stride, loc, b);
+    }
+    targetOffset = addOFRs(targetOffset, offset, loc, b);
+  }
+  return targetOffset;
+}
+
 static Value rewriteGatherScatterPtrElement(
     ArrayRef<int64_t> resultShape, tts::MakeGatherScatterTensorPtrOp op,
     Value basePtr, Value gatherOffsetElt, int gatherDim,
@@ -149,7 +170,8 @@ static Value rewriteGatherScatterPtrElement(
 
   auto offsets = op.getMixedOffsets();
   offsets[gatherDim] = gatherOffsetElt;
-  auto targetOffset = accumulateTargetOffset(op.getLoc(), offsets, rewriter);
+  auto targetOffset =
+      accumulateTargetOffset(op.getLoc(), offsets, mixedStrides, gatherDim, rewriter);
 
   auto staticTargetOffset = getIntAttr(targetOffset);
   auto resultType =
