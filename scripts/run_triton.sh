@@ -6,7 +6,7 @@ env_args=""
 
 # echo "$*"
 
-if [ "${sanitizer_type}" == "asan" ]; then
+if [ "${sanitizer_type}" = "asan" ]; then
     env_args="LD_PRELOAD=\"$(dirname "${LLVM_BINARY_DIR}")/lib/clang/21/lib/x86_64-unknown-linux-gnu/libclang_rt.asan.so\" \
         TRITON_ALWAYS_COMPILE=1 \
         SANITIZER_TYPE=\"asan\" \
@@ -14,7 +14,7 @@ if [ "${sanitizer_type}" == "asan" ]; then
     
     # shift command line arguments to the left by 1 to account for "asan/tsan"
     shift 1
-elif [ "${sanitizer_type}" == "tsan" ]; then
+elif [ "${sanitizer_type}" = "tsan" ]; then
     # make new suppression.txt file if it doesn't exist already
     if [ ! -f "suppression.txt" ]; then
         echo "called_from_lib:libomp.so" > "./suppression.txt"
@@ -24,6 +24,7 @@ elif [ "${sanitizer_type}" == "tsan" ]; then
         TRITON_ALWAYS_COMPILE=1 \
         SANITIZER_TYPE=\"tsan\" \
         TSAN_OPTIONS=\"ignore_noninstrumented_modules=0 suppressions=suppression.txt\" \
+        OMP_NUM_THREADS=16 \
         OMP_TOOL_LIBRARIES=\"$(dirname "${LLVM_BINARY_DIR}")/lib/x86_64-unknown-linux-gnu/libarcher.so\" \
         ARCHER_OPTIONS=\"verbose=1\""
     
