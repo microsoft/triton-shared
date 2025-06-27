@@ -1192,7 +1192,7 @@ private:
   }
 
   bool isReductionOpSupported(Operation *redOp) const {
-    return isa<arith::AddFOp, arith::AddIOp, arith::MaximumFOp,
+    return isa<arith::AddFOp, arith::AddIOp, arith::MaximumFOp, arith::MulFOp, arith::OrIOp
                arith::MaxNumFOp, arith::MinimumFOp, arith::MinNumFOp,
                arith::MinSIOp, arith::MinUIOp, arith::MaxSIOp, arith::MaxUIOp>(
         redOp);
@@ -1234,6 +1234,12 @@ private:
             .Case([&](arith::MaxUIOp) {
               return rewriter.getIntegerAttr(constantType, 0);
             })
+            .Case([&](arith::MulFOp) {
+              return rewriter.getFloatAttr(constantType, 1.f);
+            })
+            .Case([&](arith::OrIOp) {
+              return rewriter.getIntegerAttr(constantType, 0);
+            })
             .Default([](Operation *op) {
               op->dump();
               llvm_unreachable("Reduction op not yet supported");
@@ -1256,16 +1262,16 @@ private:
                       Operation *redOp, OpBuilder &b,
                       const bool convertLhsToF32Precision) const {
     return llvm::TypeSwitch<Operation *, Value>(redOp)
-        .Case([&](arith::AddFOp) {
+        .Case<arith::AddFOp, arith::MulFOp>([&](auto redOp) {
           if (convertLhsToF32Precision) {
             lhs = b.create<arith::ExtFOp>(loc, Float32Type::get(b.getContext()),
                                           lhs);
           }
-          return b.create<arith::AddFOp>(loc, lhs, rhs);
+          return b.create<decltype(redOp)>(loc, lhs, rhs);
         })
         .Case<arith::AddIOp, arith::MaximumFOp, arith::MaxNumFOp,
               arith::MinimumFOp, arith::MinNumFOp, arith::MinSIOp,
-              arith::MinUIOp, arith::MaxSIOp, arith::MaxUIOp>([&](auto redOp) {
+              arith::MinUIOp, arith::MaxSIOp, arith::MaxUIOp, arith::OrIOp>([&](auto redOp) {
           return b.create<decltype(redOp)>(loc, lhs, rhs);
         })
         .Default([](Operation *op) {
@@ -1293,7 +1299,7 @@ private:
         !isReductionOpSupported(reductionOps.front())) {
       return rewriter.notifyMatchFailure(
           op, "Only support lowering reduction with body "
-              "containing 1 max(i/f) or addf.");
+              "containing 1 max(i/f), addf, ori, or mulf.");
     }
 
     auto rop = reductionOps.front();
