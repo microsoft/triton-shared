@@ -49,7 +49,7 @@ BUILD_DIR="${CURR}/llvm-build"
 INSTALL_DIR="${CURR}/llvm-install"
 SOURCE_DIR="${CURR}/llvm-project"
 LLVM_SOURCE="${SOURCE_DIR}/llvm"
-PROJECTS="clang;compiler-rt;mlir;openmp"
+PROJECTS="clang;compiler-rt;mlir"
 
 if [ -d "${BUILD_DIR}" ]; then
   rm -rf "${BUILD_DIR}"

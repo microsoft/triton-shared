@@ -21,10 +21,10 @@ def _get_llvm_bin_path(bin_name: str) -> str:
 
 def _get_sanitizer_type():
     # returns "" if not set
-    # throws error if set to something other than "asan" or "tsan"
+    # throws error if set to something other than "asan"
     sanitizer_type = os.getenv("SANITIZER_TYPE", "")
 
-    if sanitizer_type != "" and sanitizer_type != "asan" and sanitizer_type != "tsan":
+    if sanitizer_type != "" and sanitizer_type != "asan":
         # throw error
         raise Exception(f"{sanitizer_type} is invalid.")
     
@@ -45,16 +45,6 @@ def _sanitizer_available(sanitizer_type):
         return False
     
     return True
-
-# def _init_vars_for_sanitizers(sanitizer_type):
-#     if sanitizer_type == "":
-#         return
-
-#     if sanitizer_type == "asan":
-#         os.environ["ASAN_OPTIONS"] = "detect_leaks=0"
-#     if sanitizer_type == "tsan":
-#         os.environ["TSAN_OPTIONS"] = "ignore_noninstrumented_modules=0"
-#         os.environ["ARCHER_OPTIONS"] = "verbose=1"
 
 # -------------------- Launcher ----------------------------
 def _ty_to_cpp(ty):
@@ -133,7 +123,6 @@ extern "C" {{
 static void _launch(int gridX, int gridY, int gridZ, {arg_decls}) {{
   if (gridX*gridY*gridZ > 0) {{
     // Cast "function" to the real function type.
-    {"#pragma omp parallel for collapse(3)" if _get_sanitizer_type() == "tsan" else ""}
     for(int x = 0; x < gridX; x++) {{
       for(int y = 0; y < gridY; y++) {{
         for(int z = 0; z < gridZ; z++) {{
@@ -336,18 +325,8 @@ def compile_module(launcher_src, kernel_placeholder_name):
 
                   if sanitizer_type == "asan":
                       subprocess_args.extend(["-g", "-fsanitize=address", "-mllvm", "-asan-stack=0"])
-                  elif sanitizer_type == "tsan":
-                      # ensure that openmp is available
-                      if not _openmp_available():
-                          raise Exception("TSAN enabled but OpenMP not available.")
-                      
-                      libomp_path = str(next(Path(Path(_get_llvm_bin_path("")).parent).rglob("libomp.so"), None).parent)
-
-                      subprocess_args.extend(["-g", "-fsanitize=thread", "-fopenmp", f"-Wl,-rpath,{libomp_path}"])
                   
                   subprocess.check_call(subprocess_args)
-
-                  # _init_vars_for_sanitizers(sanitizer_type)
 
               with open(so_path, "rb") as f:
                 cache_path = cache.put(f.read(), filename, binary=True)
