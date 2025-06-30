@@ -36,10 +36,10 @@ def _dump_ir_if_needed(files):
 
 def _get_sanitizer_type():
     # returns "" if not set
-    # throws error if set to something other than "asan" or "tsan"
+    # throws error if set to something other than "tsan"
     sanitizer_type = os.getenv("SANITIZER_TYPE", "")
 
-    if sanitizer_type != "" and sanitizer_type != "asan" and sanitizer_type != "tsan":
+    if sanitizer_type != "" and sanitizer_type != "tsan":
         # throw error
         raise Exception(f"{sanitizer_type} is invalid.")
     
@@ -161,9 +161,7 @@ def _llir_to_bin(llir: str, metadata):
 
         subprocess_args = [clang_path, "-c", src_path, "-o", dst_path]
 
-        if sanitizer_type == "asan":
-            subprocess_args.extend(["-g", "-fsanitize=address", "-mllvm", "-asan-stack=0"])
-        elif sanitizer_type == "tsan":
+        if sanitizer_type == "tsan":
             subprocess_args.extend(["-g", "-fsanitize=thread"])
             
         subprocess.check_call(subprocess_args)
