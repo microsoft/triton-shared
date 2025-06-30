@@ -162,7 +162,7 @@ def _llir_to_bin(llir: str, metadata):
         subprocess_args = [clang_path, "-c", src_path, "-o", dst_path]
 
         if sanitizer_type == "asan":
-            subprocess_args.extend(["-g", "-fsanitize=address"])
+            subprocess_args.extend(["-g", "-fsanitize=address", "-mllvm", "-asan-stack=0"])
         elif sanitizer_type == "tsan":
             subprocess_args.extend(["-g", "-fsanitize=thread"])
             

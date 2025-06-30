@@ -335,7 +335,7 @@ def compile_module(launcher_src, kernel_placeholder_name):
                       raise Exception(f"Use LD_PRELOAD=\"path/to/libclang_rt.{sanitizer_type}.so\" SANITIZER_TYPE={sanitizer_type} python ...")
 
                   if sanitizer_type == "asan":
-                      subprocess_args.extend(["-g", "-fsanitize=address"])
+                      subprocess_args.extend(["-g", "-fsanitize=address", "-mllvm", "-asan-stack=0"])
                   elif sanitizer_type == "tsan":
                       # ensure that openmp is available
                       if not _openmp_available():
