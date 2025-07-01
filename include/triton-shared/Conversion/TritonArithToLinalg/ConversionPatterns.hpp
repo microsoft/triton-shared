@@ -1192,9 +1192,10 @@ private:
   }
 
   bool isReductionOpSupported(Operation *redOp) const {
-    return isa<arith::AddFOp, arith::AddIOp, arith::MaximumFOp, arith::MulFOp,
-               arith::MaxNumFOp, arith::MinimumFOp, arith::MinNumFOp,
-               arith::MinSIOp, arith::MinUIOp, arith::MaxSIOp, arith::MaxUIOp, arith::OrIOp>(
+    return isa<arith::AddFOp, arith::AddIOp, arith::AndIOp, arith::MaximumFOp,
+               arith::MulFOp, arith::MulIOp, arith::MaxNumFOp, arith::MinimumFOp,
+               arith::MinNumFOp, arith::MinSIOp, arith::MinUIOp, arith::MaxSIOp,
+               arith::MaxUIOp, arith::OrIOp, arith::XOrIOp>(
         redOp);
   }
 
@@ -1231,11 +1232,14 @@ private:
               return rewriter.getIntegerAttr(constantType,
                                              llvm::minIntN(bitWidth));
             })
-            .Case([&](arith::MaxUIOp) {
+            .Case<arith::MaxUIOp, arith::XOrIOp>([&](auto) {
               return rewriter.getIntegerAttr(constantType, 0);
             })
             .Case([&](arith::MulFOp) {
               return rewriter.getFloatAttr(constantType, 1.f);
+            })
+            .Case<arith::MulIOp, arith::AndIOp>([&](auto) {
+              return rewriter.getIntegerAttr(constantType, 1);
             })
             .Case([&](arith::OrIOp) {
               return rewriter.getIntegerAttr(constantType, 0);
@@ -1269,9 +1273,10 @@ private:
           }
           return b.create<decltype(redOp)>(loc, lhs, rhs);
         })
-        .Case<arith::AddIOp, arith::MaximumFOp, arith::MaxNumFOp,
-              arith::MinimumFOp, arith::MinNumFOp, arith::MinSIOp,
-              arith::MinUIOp, arith::MaxSIOp, arith::MaxUIOp, arith::OrIOp>([&](auto redOp) {
+        .Case<arith::AddIOp, arith::AndIOp, arith::XOrIOp, arith::MaximumFOp,
+              arith::MaxNumFOp, arith::MulIOp, arith::MinimumFOp,
+              arith::MinNumFOp, arith::MinSIOp, arith::MinUIOp, arith::MaxSIOp,
+              arith::MaxUIOp, arith::OrIOp>([&](auto redOp) {
           return b.create<decltype(redOp)>(loc, lhs, rhs);
         })
         .Default([](Operation *op) {
