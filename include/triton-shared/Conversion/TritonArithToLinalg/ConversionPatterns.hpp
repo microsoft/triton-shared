@@ -1192,9 +1192,10 @@ private:
   }
 
   bool isReductionOpSupported(Operation *redOp) const {
-    return isa<arith::AddFOp, arith::AddIOp, arith::MaximumFOp,
-               arith::MaxNumFOp, arith::MinimumFOp, arith::MinNumFOp,
-               arith::MinSIOp, arith::MinUIOp, arith::MaxSIOp, arith::MaxUIOp>(
+    return isa<arith::AddFOp, arith::AddIOp, arith::AndIOp, arith::MaximumFOp,
+               arith::MulFOp, arith::MulIOp, arith::MaxNumFOp, arith::MinimumFOp,
+               arith::MinNumFOp, arith::MinSIOp, arith::MinUIOp, arith::MaxSIOp,
+               arith::MaxUIOp, arith::OrIOp, arith::XOrIOp>(
         redOp);
   }
 
@@ -1231,7 +1232,16 @@ private:
               return rewriter.getIntegerAttr(constantType,
                                              llvm::minIntN(bitWidth));
             })
-            .Case([&](arith::MaxUIOp) {
+            .Case<arith::MaxUIOp, arith::XOrIOp>([&](auto) {
+              return rewriter.getIntegerAttr(constantType, 0);
+            })
+            .Case([&](arith::MulFOp) {
+              return rewriter.getFloatAttr(constantType, 1.f);
+            })
+            .Case<arith::MulIOp, arith::AndIOp>([&](auto) {
+              return rewriter.getIntegerAttr(constantType, 1);
+            })
+            .Case([&](arith::OrIOp) {
               return rewriter.getIntegerAttr(constantType, 0);
             })
             .Default([](Operation *op) {
@@ -1256,16 +1266,17 @@ private:
                       Operation *redOp, OpBuilder &b,
                       const bool convertLhsToF32Precision) const {
     return llvm::TypeSwitch<Operation *, Value>(redOp)
-        .Case([&](arith::AddFOp) {
+        .Case<arith::AddFOp, arith::MulFOp>([&](auto redOp) {
           if (convertLhsToF32Precision) {
             lhs = b.create<arith::ExtFOp>(loc, Float32Type::get(b.getContext()),
                                           lhs);
           }
-          return b.create<arith::AddFOp>(loc, lhs, rhs);
+          return b.create<decltype(redOp)>(loc, lhs, rhs);
         })
-        .Case<arith::AddIOp, arith::MaximumFOp, arith::MaxNumFOp,
-              arith::MinimumFOp, arith::MinNumFOp, arith::MinSIOp,
-              arith::MinUIOp, arith::MaxSIOp, arith::MaxUIOp>([&](auto redOp) {
+        .Case<arith::AddIOp, arith::AndIOp, arith::XOrIOp, arith::MaximumFOp,
+              arith::MaxNumFOp, arith::MulIOp, arith::MinimumFOp,
+              arith::MinNumFOp, arith::MinSIOp, arith::MinUIOp, arith::MaxSIOp,
+              arith::MaxUIOp, arith::OrIOp>([&](auto redOp) {
           return b.create<decltype(redOp)>(loc, lhs, rhs);
         })
         .Default([](Operation *op) {
@@ -1293,7 +1304,7 @@ private:
         !isReductionOpSupported(reductionOps.front())) {
       return rewriter.notifyMatchFailure(
           op, "Only support lowering reduction with body "
-              "containing 1 max(i/f) or addf.");
+              "containing 1 max(i/f), addf, ori, or mulf.");
     }
 
     auto rop = reductionOps.front();
