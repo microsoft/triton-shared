@@ -7,10 +7,44 @@ import importlib.util
 import sys
 
 from pathlib import Path
+from functools import lru_cache
 
 from triton.runtime.cache import get_cache_manager
 from triton.backends.driver import DriverBase
 from triton.backends.compiler import GPUTarget
+
+def _get_llvm_bin_path(bin_name: str) -> str:
+    path = os.getenv("LLVM_BINARY_DIR", "")
+    if path == "":
+        raise Exception("LLVM_BINARY_DIR is not set.")
+    return os.path.join(path, bin_name)
+
+def _get_sanitizer_type():
+    # returns "" if not set
+    # throws error if set to something other than "tsan"
+    sanitizer_type = os.getenv("SANITIZER_TYPE", "")
+
+    if sanitizer_type != "" and sanitizer_type != "tsan":
+        # throw error
+        raise Exception(f"{sanitizer_type} is invalid.")
+    
+    return sanitizer_type
+
+@lru_cache(maxsize=1)
+def _openmp_available():
+    result = subprocess.run(["ldconfig", "-p"], stdout=subprocess.PIPE, text=True)
+    if result.returncode != 0:
+        return False
+    if "libomp.so" in result.stdout or "libgomp.so" in result.stdout:
+        return True
+
+def _sanitizer_available(sanitizer_type):
+    if "LD_PRELOAD" not in os.environ:
+        return False
+    if f"libclang_rt.{sanitizer_type}.so" not in os.environ["LD_PRELOAD"]:
+        return False
+    
+    return True
 
 # -------------------- Launcher ----------------------------
 def _ty_to_cpp(ty):
@@ -89,6 +123,7 @@ extern "C" {{
 static void _launch(int gridX, int gridY, int gridZ, {arg_decls}) {{
   if (gridX*gridY*gridZ > 0) {{
     // Cast "function" to the real function type.
+    {"#pragma omp parallel for collapse(3)" if _get_sanitizer_type() == "tsan" else ""}
     for(int x = 0; x < gridX; x++) {{
       for(int y = 0; y < gridY; y++) {{
         for(int z = 0; z < gridZ; z++) {{
@@ -253,7 +288,12 @@ def compile_module(launcher_src, kernel_placeholder_name):
 
         if cache_path is None:
           with tempfile.TemporaryDirectory() as tmpdir:
+              sanitizer_type = _get_sanitizer_type()
+
               if platform.system() == "Windows":
+                  if sanitizer_type != "":
+                      raise Exception("Sanitizers are not supported on Windows with triton-shared.")
+
                   obj_path = os.path.join(tmpdir, "kernel.obj")
                   launcher_src_path = os.path.join(tmpdir, "main.cxx")
                   so_path = os.path.join(tmpdir, "kernel.pyd")
@@ -271,12 +311,31 @@ def compile_module(launcher_src, kernel_placeholder_name):
                   so_path = os.path.join(tmpdir, "kernel.so")
                   Path(obj_path).write_bytes(kernel_obj)
                   Path(launcher_src_path).write_text(src)
+
                   # Compile it together.
-                  subprocess.check_call([
-                    "g++", "-std=c++17", launcher_src_path, obj_path,
-                    f"-I{py_include_dir}", f"-I{include_dir}", f"-L{py_lib_dir}",
-                    "-shared", f"-l{py_lib}", "-fPIC", "-o", so_path
-                  ])
+                  clang_path = _get_llvm_bin_path("clang++")
+
+                  subprocess_args = [
+                      clang_path, "-std=c++17", launcher_src_path, obj_path,
+                      f"-I{py_include_dir}", f"-I{include_dir}", f"-L{py_lib_dir}",
+                      "-shared", f"-l{py_lib}", "-fPIC", "-o", so_path
+                  ]
+
+                  if sanitizer_type != "" and not _sanitizer_available(sanitizer_type):
+                      raise Exception(f"Use LD_PRELOAD=\"path/to/libclang_rt.{sanitizer_type}.so\" SANITIZER_TYPE={sanitizer_type} python ...")
+
+                  if sanitizer_type == "tsan":
+                      # ensure that openmp is available
+                      if not _openmp_available():
+                          raise Exception("TSAN enabled but OpenMP not available.")
+                      
+                      libomp_path = str(next(Path(Path(_get_llvm_bin_path("")).parent).rglob("libomp.so"), None).parent)
+
+                      subprocess_args.extend(["-g", "-fsanitize=thread", "-fopenmp", f"-Wl,-rpath,{libomp_path}"])
+                  
+                  subprocess.check_call(subprocess_args)
+
+                  # _init_vars_for_sanitizers(sanitizer_type)
 
               with open(so_path, "rb") as f:
                 cache_path = cache.put(f.read(), filename, binary=True)
