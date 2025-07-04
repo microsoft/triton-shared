@@ -11,6 +11,8 @@
 #include "llvm/BinaryFormat/Dwarf.h"
 #include "llvm/Support/Path.h"
 
+// #include "llvm/Support/raw_ostream.h"
+
 #define DEBUG_TYPE "add-llvm-debug-info"
 
 using namespace mlir;
@@ -36,6 +38,8 @@ public:
 
     // iterate through all functions
     moduleOp.walk([&](triton::FuncOp funcOp) {
+      // llvm::outs() << "Found triton funcop: " << funcOp.getName() << "\n";
+
       mlir::StringRef fileName;
       mlir::StringRef filePath;
       unsigned line;

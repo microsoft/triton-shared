@@ -7,7 +7,6 @@ import importlib.util
 import sys
 
 from pathlib import Path
-from functools import lru_cache
 
 from triton.runtime.cache import get_cache_manager
 from triton.backends.driver import DriverBase
@@ -22,21 +21,13 @@ def _get_llvm_bin_path(bin_name: str) -> str:
 def _get_sanitizer_type():
     # returns "" if not set
     # throws error if set to something other than "asan"
-    sanitizer_type = os.getenv("SANITIZER_TYPE", "")
+    sanitizer_type = os.getenv("TRITON_SHARED_SANITIZER_TYPE", "")
 
     if sanitizer_type != "" and sanitizer_type != "asan":
         # throw error
-        raise Exception(f"{sanitizer_type} is invalid.")
+        raise Exception(f"TRITON_SHARED_SANITIZER_TYPE {sanitizer_type} is invalid.")
     
     return sanitizer_type
-
-@lru_cache(maxsize=1)
-def _openmp_available():
-    result = subprocess.run(["ldconfig", "-p"], stdout=subprocess.PIPE, text=True)
-    if result.returncode != 0:
-        return False
-    if "libomp.so" in result.stdout or "libgomp.so" in result.stdout:
-        return True
 
 def _sanitizer_available(sanitizer_type):
     if "LD_PRELOAD" not in os.environ:
@@ -312,21 +303,28 @@ def compile_module(launcher_src, kernel_placeholder_name):
                   Path(launcher_src_path).write_text(src)
 
                   # Compile it together.
-                  clang_path = _get_llvm_bin_path("clang++")
+                  if sanitizer_type != "":
+                      clang_path = _get_llvm_bin_path("clang++")
 
-                  subprocess_args = [
-                      clang_path, "-std=c++17", launcher_src_path, obj_path,
-                      f"-I{py_include_dir}", f"-I{include_dir}", f"-L{py_lib_dir}",
-                      "-shared", f"-l{py_lib}", "-fPIC", "-o", so_path
-                  ]
+                      subprocess_args = [
+                          clang_path, "-std=c++17", launcher_src_path, obj_path,
+                          f"-I{py_include_dir}", f"-I{include_dir}", f"-L{py_lib_dir}",
+                          "-shared", f"-l{py_lib}", "-fPIC", "-o", so_path
+                      ]
 
-                  if sanitizer_type != "" and not _sanitizer_available(sanitizer_type):
-                      raise Exception(f"Use LD_PRELOAD=\"path/to/libclang_rt.{sanitizer_type}.so\" SANITIZER_TYPE={sanitizer_type} python ...")
+                      if not _sanitizer_available(sanitizer_type):
+                          raise Exception(f"Use LD_PRELOAD=\"path/to/libclang_rt.{sanitizer_type}.so\" TRITON_SHARED_SANITIZER_TYPE={sanitizer_type} python ...")
 
-                  if sanitizer_type == "asan":
-                      subprocess_args.extend(["-g", "-fsanitize=address", "-mllvm", "-asan-stack=0"])
-                  
-                  subprocess.check_call(subprocess_args)
+                      if sanitizer_type == "asan":
+                          subprocess_args.extend(["-g", "-fsanitize=address", "-mllvm", "-asan-stack=0"])
+                      
+                      subprocess.check_call(subprocess_args)
+                  else:
+                      subprocess.check_call([
+                        "g++", "-std=c++17", launcher_src_path, obj_path,
+                        f"-I{py_include_dir}", f"-I{include_dir}", f"-L{py_lib_dir}",
+                        "-shared", f"-l{py_lib}", "-fPIC", "-o", so_path
+                      ])
 
               with open(so_path, "rb") as f:
                 cache_path = cache.put(f.read(), filename, binary=True)

@@ -37,11 +37,11 @@ def _dump_ir_if_needed(files):
 def _get_sanitizer_type():
     # returns "" if not set
     # throws error if set to something other than "asan"
-    sanitizer_type = os.getenv("SANITIZER_TYPE", "")
+    sanitizer_type = os.getenv("TRITON_SHARED_SANITIZER_TYPE", "")
 
     if sanitizer_type != "" and sanitizer_type != "asan":
         # throw error
-        raise Exception(f"{sanitizer_type} is invalid.")
+        raise Exception(f"TRITON_SHARED_SANITIZER_TYPE {sanitizer_type} is invalid.")
     
     return sanitizer_type
 
@@ -60,7 +60,7 @@ def _ttir_to_ttsharedir(mod):
         if _get_sanitizer_type() != "":
             print("Building with sanitizer support...")
 
-            # has to run before the other passes
+            # has to run before the other passes as operates on the tt dialect
             subprocess_args.insert(2, "--add-llvm-debug-info")
 
         subprocess.check_call(subprocess_args)
@@ -156,15 +156,18 @@ def _llir_to_bin(llir: str, metadata):
             
             src_path = instrumented_src_path
 
-        # compile to object file
-        clang_path = _get_llvm_bin_path("clang++")
+            # compile to object file
+            clang_path = _get_llvm_bin_path("clang++")
 
-        subprocess_args = [clang_path, "-c", src_path, "-o", dst_path]
+            subprocess_args = [clang_path, "-c", src_path, "-o", dst_path]
 
-        if sanitizer_type == "asan":
-            subprocess_args.extend(["-g", "-fsanitize=address", "-mllvm", "-asan-stack=0"])
-            
-        subprocess.check_call(subprocess_args)
+            if sanitizer_type == "asan":
+                subprocess_args.extend(["-g", "-fsanitize=address", "-mllvm", "-asan-stack=0"])
+                
+            subprocess.check_call(subprocess_args)
+        else:
+            llc_path = _get_llvm_bin_path("llc")
+            subprocess.check_call([llc_path, src_path, "-filetype=obj", "-o", dst_path])
         
         return Path(dst_path).read_bytes()
 
