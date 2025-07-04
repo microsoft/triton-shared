@@ -1,13 +1,15 @@
 # executes a triton program with sanitizers enabled/disabled
-# USAGE: run_triton.sh <sanitizer type> python triton_program.py
-# <sanitizer type> can be "asan" or omitted
 # assume that source setup_runtime_for_sanitizers was run before this
 # use LLVM_BINARY_DIR to obtain the locations of the .so files used for LD_PRELOAD
+
+if [ "$#" -eq 0 ]; then
+    echo "Usage: $0 <sanitizer type> python program.py. <sanitizer type> can be "asan" or omitted."
+    exit 1
+fi
 
 sanitizer_type=$1
 env_args=""
 
-# echo "$*"
 llvm_install_dir="$(dirname "${LLVM_BINARY_DIR}")"
 
 if [ "${sanitizer_type}" = "asan" ]; then

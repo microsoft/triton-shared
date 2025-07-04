@@ -32,4 +32,3 @@ export PATH="${LLVM_INSTALL_PATH}/bin:${VENV_PATH}/bin:${PATH}"
 export LLVM_BINARY_DIR="${LLVM_INSTALL_PATH}/bin"
 
 export TRITON_SHARED_OPT_PATH="$(find "$TRITON_SHARED_PATH" -type f -name "triton-shared-opt" | head -n 1)"
-# export TRITON_SHARED_OPT_PATH="${TRITON_SHARED_DIR}/triton/build/cmake.linux-x86_64-cpython-3.12/third_party/triton_shared/tools/triton-shared-opt/triton-shared-opt"
