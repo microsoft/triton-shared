@@ -396,3 +396,7 @@ class CPUDriver(DriverBase):
 
     def assemble_tensormap_to_arg(self, tensormaps_info, args):
         return args
+    
+    def map_python_to_cpp_type(self, ty: str) -> str:
+        return _ty_to_cpp(ty)
+  
