@@ -957,16 +957,19 @@ struct ClampConverter : public OpConversionPattern<triton::ClampFOp> {
                   ConversionPatternRewriter &rewriter) const override {
     bool propagateNan = op.getPropagateNan() == triton::PropagateNan::ALL;
 
-    assert(!propagateNan &&
-           "PropagateNan is not supported");
-
     Location loc = op.getLoc();
     Value x = adaptor.getOperands()[0];
     Value min = adaptor.getOperands()[1];
     Value max = adaptor.getOperands()[2];
 
-    Value maxMin = rewriter.create<arith::MaximumFOp>(loc, x, min);
-    Value clamp = rewriter.create<arith::MinimumFOp>(loc, maxMin, max);
+    Value clamp;
+    if (propagateNan) {
+      Value maxMin = rewriter.create<arith::MaximumFOp>(loc, x, min);
+      clamp = rewriter.create<arith::MinimumFOp>(loc, maxMin, max);
+    } else {
+      Value maxMin = rewriter.create<arith::MaxNumFOp>(loc, x, min);
+      clamp = rewriter.create<arith::MinNumFOp>(loc, maxMin, max);
+    }
     rewriter.replaceOp(op, clamp);
 
     return success();
