@@ -13,6 +13,7 @@
 #include "triton-shared/Analysis/PtrAnalysis.h"
 #include "triton-shared/Dialect/TritonTilingExt/IR/TritonTilingExtDialect.h"
 #include "triton-shared/Utils/Utils.h"
+#include "triton-shared/Conversion/TritonArithToLinalg/ConversionTools.h"
 
 #include "triton/Dialect/Triton/IR/Dialect.h"
 
@@ -107,10 +108,6 @@ static Value getScalarValue(Value operand, Location loc,
     }
   }
   return nullptr;
-}
-
-static SmallVector<utils::IteratorType> getNParallelLoopsAttrs(unsigned n) {
-  return SmallVector<utils::IteratorType>(n, utils::IteratorType::parallel);
 }
 
 // if order is empty, transpose the last two dimensions
@@ -655,49 +652,6 @@ struct SplatConverter : public OpConversionPattern<triton::SplatOp> {
 struct BroadcastConverter : public OpConversionPattern<triton::BroadcastOp> {
 private:
   using OpConversionPattern<triton::BroadcastOp>::OpConversionPattern;
-
-  SmallVector<int64_t> getBroadcastDims(RankedTensorType src,
-                                        RankedTensorType dst) const {
-    SmallVector<int64_t> broadcastDims;
-    auto srcShape = src.getShape();
-    auto dstShape = dst.getShape();
-
-    for (size_t i = 0; i < srcShape.size(); i++) {
-      if (dstShape[i] != srcShape[i]) {
-        assert(srcShape[i] == 1);
-        broadcastDims.push_back(i);
-      }
-    }
-    assert(!broadcastDims.empty() && "cannot identify broadcast dimension");
-    return broadcastDims;
-  }
-
-  // Broadcasts input tensor based on TosaToLinalg's broadcastToShape
-  AffineMap getBroadcastAffineMap(MLIRContext *context,
-                                  ArrayRef<int64_t> inputShape,
-                                  ArrayRef<int64_t> broadcastToShape) const {
-
-    assert(broadcastToShape.size() >= inputShape.size());
-
-    // Create affine map and shapes for tensor initialization.
-    SmallVector<AffineExpr> outExpr;
-
-    size_t diff = broadcastToShape.size() - inputShape.size();
-    for (size_t i = 0; i < broadcastToShape.size(); i++) {
-      if (i < diff) {
-        continue;
-      }
-      size_t j = i - diff;
-      if (inputShape[j] == 1) {
-        // Broadcast singleton dimension
-        outExpr.push_back(mlir::getAffineConstantExpr(0, context));
-        continue;
-      }
-      // Non-broadcast case
-      outExpr.push_back(mlir::getAffineDimExpr(i, context));
-    }
-    return AffineMap::get(broadcastToShape.size(), 0, outExpr, context);
-  }
 
 public:
   LogicalResult

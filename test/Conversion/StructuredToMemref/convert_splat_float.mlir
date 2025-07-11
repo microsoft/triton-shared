@@ -23,11 +23,15 @@ module {
 // CHECK-DAG:       [[VAR_empty_offsets_1d_:%.+]] = tensor.empty() : tensor<1024xi32>
 // CHECK-DAG:       [[VAR_zero_offsets_1d_:%.+]] = linalg.fill ins([[CST_0_]] : i32) outs([[VAR_empty_offsets_1d_]] : tensor<1024xi32>) -> tensor<1024xi32>
 // CHECK-DAG:       [[VAR_empty_offsets_2d_:%.+]] = tensor.empty() : tensor<128x256xi32>
-// CHECK-DAG:       [[VAR_zero_offsets_2d_:%.+]] = linalg.fill ins([[CST_0_]] : i32) outs([[VAR_empty_offsets_2d_]] : tensor<128x256xi32>) -> tensor<128x256xi32>
+// CHECK-DAG:       [[VAL_2:%.+]] = tensor.collapse_shape [[VAR_empty_offsets_2d_]] {{\[\[}}0, 1]] : tensor<128x256xi32> into tensor<32768xi32>
+// CHECK-DAG:       [[VAL_3:%.+]] = linalg.fill ins([[CST_0_]] : i32) outs([[VAL_2]] : tensor<32768xi32>) -> tensor<32768xi32>
+// CHECK-DAG:       [[VAR_zero_offsets_2d_:%.+]] = tensor.expand_shape [[VAL_3]] {{\[\[}}0, 1]] output_shape [128, 256] : tensor<32768xi32> into tensor<128x256xi32>
 // CHECK-DAG:       [[VAR_0_:%.+]] = tensor.empty() : tensor<1024xf32>
 // CHECK-DAG:       [[VAR_1_:%.+]] = linalg.fill ins([[PARAM_0_]] : f32) outs([[VAR_0_]] : tensor<1024xf32>) -> tensor<1024xf32>
 // CHECK-DAG:       [[VAR_2_:%.+]] = tensor.empty() : tensor<128x256xbf16>
-// CHECK-DAG:       [[VAR_3_:%.+]] = linalg.fill ins([[PARAM_1_]] : bf16) outs([[VAR_2_]] : tensor<128x256xbf16>) -> tensor<128x256xbf16>
+// CHECK-DAG:       [[VAL_10:%.+]] = tensor.collapse_shape [[VAR_2_]] {{\[\[}}0, 1]] : tensor<128x256xbf16> into tensor<32768xbf16>
+// CHECK-DAG:       [[VAL_11:%.+]] = linalg.fill ins([[PARAM_1_]] : bf16) outs([[VAL_10]] : tensor<32768xbf16>) -> tensor<32768xbf16>
+// CHECK-DAG:       [[VAR_3_:%.+]] = tensor.expand_shape [[VAL_11]] {{\[\[}}0, 1]] output_shape [128, 256] : tensor<32768xbf16> into tensor<128x256xbf16>
 // CHECK:           [[VAR_cast_2_:%.+]] = memref.cast [[PARAM_2_]] : memref<*xf32> to memref<?xf32>
 // CHECK:           linalg.generic {indexing_maps = [[[MAP_0_]], [[MAP_0_]]], iterator_types = ["parallel"]} ins([[VAR_zero_offsets_1d_]], [[VAR_1_]] : tensor<1024xi32>, tensor<1024xf32>) {
 // CHECK:           ^bb0([[IN_0_:%.+]]: i32, [[IN_1_:%.+]]: f32):

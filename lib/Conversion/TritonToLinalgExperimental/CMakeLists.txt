@@ -8,6 +8,7 @@ add_triton_library(TritonToLinalgExperimental
   TritonToLinalgExperimentalPass.cpp
   ReconcilePtrCastsPass.cpp
   TritonToPtrPass.cpp
+  CollapseShape.cpp
 
   DEPENDS
   TritonToLinalgExperimentalConversionPassIncGen

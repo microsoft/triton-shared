@@ -64,7 +64,9 @@ module {
 // CHECK-DAG:       [[CST_0_:%.+]] = arith.constant 0 : index
 // CHECK-DAG:       [[VAR_0_:%.+]] = tensor.empty() : tensor<128x128xf32>
 // CHECK-NOT: separator of consecutive DAGs
-// CHECK-DAG:       [[VAR_1_:%.+]] = linalg.fill ins([[CST_0_dot_000000_]] : f32) outs([[VAR_0_]] : tensor<128x128xf32>) -> tensor<128x128xf32>
+// CHECK-DAG:       [[VAL_6:%.+]] = tensor.collapse_shape [[VAR_0_]] {{\[\[}}0, 1]] : tensor<128x128xf32> into tensor<16384xf32>
+// CHECK-DAG:       [[VAL_7:%.+]] = linalg.fill ins([[CST_0_dot_000000_]] : f32) outs([[VAL_6]] : tensor<16384xf32>) -> tensor<16384xf32>
+// CHECK-DAG:       [[VAR_1_:%.+]] = tensor.expand_shape [[VAL_7]] {{\[\[}}0, 1]] output_shape [128, 128] : tensor<16384xf32> into tensor<128x128xf32>
 // CHECK-DAG:       [[VAR_2_:%.+]] = arith.muli [[PARAM_8_]], [[PARAM_2_]] : i32
 // CHECK:           [[VAR_3_:%.+]] = arith.index_cast [[VAR_2_]] : i32 to index
 // CHECK-DAG:       [[VAR_4_:%.+]]:2 = scf.for [[VAR_arg11_:%.+]] = [[CST_0_]] to [[CST_12_]] step [[CST_3_]] iter_args([[VAR_arg12_:%.+]] = [[VAR_1_]], [[VAR_arg14_:%.+]] = [[VAR_3_]]) -> (tensor<128x128xf32>, index) {
