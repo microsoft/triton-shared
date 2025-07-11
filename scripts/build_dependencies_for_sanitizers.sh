@@ -35,6 +35,4 @@ git clone --recurse-submodules https://github.com/microsoft/triton-shared.git "$
 
 python3 -m pip install --upgrade pip
 python3 -m pip install cmake==3.24 ninja pytest-xdist pybind11 setuptools torch==2.7 # need torch 2.7 for triton 3.3.0
-# sudo apt-get update -y
 sudo apt-get install -y ccache clang lld
-# pip3 install ninja cmake wheel pytest pybind11 setuptools

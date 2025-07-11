@@ -11,8 +11,6 @@
 #include "llvm/BinaryFormat/Dwarf.h"
 #include "llvm/Support/Path.h"
 
-// #include "llvm/Support/raw_ostream.h"
-
 #define DEBUG_TYPE "add-llvm-debug-info"
 
 using namespace mlir;
@@ -25,74 +23,85 @@ namespace {
 
 class AddLLVMDebugInfoPass : public AddLLVMDebugInfoBase<AddLLVMDebugInfoPass> {
 
+  static LLVM::DISubprogramFlags setSubprogramFlags(FuncOp funcOp) {
+    LLVM::DISubprogramFlags subprogramFlags = LLVM::DISubprogramFlags{};
+
+    if (!funcOp.isDeclaration()) {
+      subprogramFlags = LLVM::DISubprogramFlags::Definition;
+    }
+    if (funcOp->hasAttr("llvm.optimized")) {
+      subprogramFlags = subprogramFlags | LLVM::DISubprogramFlags::Optimized;
+    }
+    if (funcOp.getSymNameAttr() == "main") {
+      subprogramFlags = subprogramFlags | LLVM::DISubprogramFlags::MainSubprogram;
+    }
+
+    return subprogramFlags;
+  }
+
 public:
   void getDependentDialects(DialectRegistry &registry) const override {
-    registry.insert<mlir::LLVM::LLVMDialect>();
+    registry.insert<LLVM::LLVMDialect>();
   }
 
   void runOnOperation() override {
-    mlir::ModuleOp moduleOp = getOperation();
-    mlir::MLIRContext *context = &getContext();
-    mlir::Builder builder(context);
-    mlir::SymbolTable symbolTable(moduleOp);
+    ModuleOp moduleOp = getOperation();
+    MLIRContext *context = &getContext();
+    Builder builder(context);
+    SymbolTable symbolTable(moduleOp);
 
     // iterate through all functions
-    moduleOp.walk([&](triton::FuncOp funcOp) {
-      // llvm::outs() << "Found triton funcop: " << funcOp.getName() << "\n";
-
-      mlir::StringRef fileName;
-      mlir::StringRef filePath;
+    moduleOp.walk([&](FuncOp funcOp) {
+      StringRef fileName;
+      StringRef filePath;
       unsigned line;
       unsigned col;
       bool isOptimized = funcOp->hasAttr("llvm.optimized");
-      mlir::LLVM::DIEmissionKind emissionKind = mlir::LLVM::DIEmissionKind::LineTablesOnly;
+      LLVM::DIEmissionKind emissionKind = LLVM::DIEmissionKind::LineTablesOnly;
 
       // get loc for function and pull line and file information
-      mlir::Location loc = funcOp.getLoc();
-      if (auto funcLoc = mlir::dyn_cast<mlir::FileLineColLoc>(loc)) {
+      Location loc = funcOp.getLoc();
+      if (auto funcLoc = dyn_cast<FileLineColLoc>(loc)) {
         fileName = llvm::sys::path::filename(funcLoc.getFilename().getValue());
         filePath = llvm::sys::path::parent_path(funcLoc.getFilename().getValue());
         line = funcLoc.getLine();
         col = funcLoc.getColumn();
+      } else {
+        // the triton frontend should always provide a FileLineColLoc for the kernel
+        // if this loc is a different type, error out
+        moduleOp->emitError("invalid #loc attributes for pass ")
+            << this->getName().str();
+        return signalPassFailure();
       }
 
       // initialize useful attributes
-      mlir::LLVM::DIFileAttr fileAttr = mlir::LLVM::DIFileAttr::get(context, fileName, filePath);
-      mlir::StringAttr producer = mlir::StringAttr::get(context, "MLIR");
-      mlir::LLVM::DICompileUnitAttr cuAttr = mlir::LLVM::DICompileUnitAttr::get(
-        mlir::DistinctAttr::create(mlir::UnitAttr::get(context)),
+      LLVM::DIFileAttr fileAttr = LLVM::DIFileAttr::get(context, fileName, filePath);
+      StringAttr producer = StringAttr::get(context, "MLIR");
+      LLVM::DICompileUnitAttr cuAttr = LLVM::DICompileUnitAttr::get(
+        DistinctAttr::create(UnitAttr::get(context)),
         llvm::dwarf::getLanguage("DW_LANG_Python"), fileAttr, producer,
         isOptimized, emissionKind);
 
       // get subroutine types
-      llvm::SmallVector<mlir::LLVM::DITypeAttr> types;
+      llvm::SmallVector<LLVM::DITypeAttr> types;
 
       // create subroutine type attribute from return and argument types
       unsigned callingConvention = llvm::dwarf::DW_CC_normal;
-      mlir::LLVM::DISubroutineTypeAttr type = mlir::LLVM::DISubroutineTypeAttr::get(context, callingConvention, types);
+      LLVM::DISubroutineTypeAttr type = LLVM::DISubroutineTypeAttr::get(context, callingConvention, types);
       
       // set flags
-      mlir::LLVM::DISubprogramFlags subprogramFlags = mlir::LLVM::DISubprogramFlags{};
-      if (!funcOp.isDeclaration()) {
-        subprogramFlags = mlir::LLVM::DISubprogramFlags::Definition;
-      }
-      if (isOptimized) {
-        subprogramFlags = subprogramFlags | mlir::LLVM::DISubprogramFlags::Optimized;
-      }
-      if (funcOp.getSymNameAttr() == "main") {
-        subprogramFlags = subprogramFlags | mlir::LLVM::DISubprogramFlags::MainSubprogram;
-      }
+      LLVM::DISubprogramFlags subprogramFlags = setSubprogramFlags(funcOp); 
       
       // retained nodes
-      llvm::ArrayRef<mlir::LLVM::DINodeAttr> importedModules;
+      llvm::ArrayRef<LLVM::DINodeAttr> importedModules;
 
       // annotations
-      llvm::ArrayRef<mlir::LLVM::DINodeAttr> annotations;
+      llvm::ArrayRef<LLVM::DINodeAttr> annotations;
 
       // initialize DI attribute for function
-      mlir::LLVM::DISubprogramAttr spAttr = mlir::LLVM::DISubprogramAttr::get(
+      LLVM::DISubprogramAttr spAttr = LLVM::DISubprogramAttr::get(
         context,
-        mlir::DistinctAttr::create(mlir::UnitAttr::get(context)),
+        DistinctAttr::create(UnitAttr::get(context)),
         cuAttr,
         fileAttr, // scope
         funcOp.getSymNameAttr(),
