@@ -114,17 +114,25 @@ static SmallVector<utils::IteratorType> getNParallelLoopsAttrs(unsigned n) {
 }
 
 static Value getTransposedValue(Value source, const Location loc,
-                                ConversionPatternRewriter &rewriter) {
-
+                                ConversionPatternRewriter &rewriter,
+                                llvm::ArrayRef<int32_t> order = {}) {
   auto sourceType = cast<RankedTensorType>(source.getType());
   auto sourceRank = sourceType.getRank();
 
   SmallVector<int64_t> perm(sourceRank);
-  std::iota(std::begin(perm), std::end(perm), 0);
-  std::swap(perm[sourceRank - 1], perm[sourceRank - 2]);
-
   SmallVector<int64_t> transposedShape(sourceType.getShape());
-  std::swap(transposedShape[sourceRank - 1], transposedShape[sourceRank - 2]);
+  if (order.empty()) {
+    std::iota(std::begin(perm), std::end(perm), 0);
+    std::swap(perm[sourceRank - 1], perm[sourceRank - 2]);
+    std::swap(transposedShape[sourceRank - 1], transposedShape[sourceRank - 2]);
+  } else {
+    // Use the provided order
+    assert(order.size() == sourceRank && "Order size must match source rank");
+    for (unsigned i = 0; i < sourceRank; ++i) {
+      perm[i] = order[i];
+      transposedShape[i] = sourceType.getShape()[order[i]];
+    }
+  }
 
   Value transposeInit = rewriter.create<tensor::EmptyOp>(
       loc, transposedShape, sourceType.getElementType());
@@ -769,11 +777,8 @@ struct TransposeConverter : public OpConversionPattern<triton::TransOp> {
   LogicalResult
   matchAndRewrite(triton::TransOp op, OpAdaptor adaptor,
                   ConversionPatternRewriter &rewriter) const override {
-    auto src = adaptor.getSrc();
-    auto srcRank = cast<ShapedType>(src.getType()).getRank();
-    assert(srcRank == 2 && "only expect transposing 2D data");
-
-    auto res = getTransposedValue(src, op.getLoc(), rewriter);
+    auto res = getTransposedValue(adaptor.getSrc(), op.getLoc(), rewriter,
+                                  op.getOrder());
     rewriter.replaceOp(op, res);
     return success();
   }
