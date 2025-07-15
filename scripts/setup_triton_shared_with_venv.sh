@@ -30,9 +30,12 @@ python3 -m venv ${VENV_PATH}/venv
 source ${VENV_PATH}/venv/bin/activate
 
 # clone triton-shared
-export TRITON_PLUGIN_DIRS="${TRITON_SHARED_PATH}/triton_shared"
 git clone --recurse-submodules https://github.com/microsoft/triton-shared.git "${TRITON_SHARED_PATH}/triton_shared"
 
 python3 -m pip install --upgrade pip
 python3 -m pip install cmake==3.24 ninja pytest-xdist pybind11 setuptools torch==2.7 # need torch 2.7 for triton 3.3.0
 sudo apt-get install -y ccache clang lld
+
+# echo to user to start virtual environment
+echo "Please start the virtual environment: source ${VENV_PATH}/venv/bin/activate"
+echo "This export is recommended for subsequent triton-shared builds: export TRITON_PLUGIN_DIRS="${TRITON_SHARED_PATH}/triton_shared"

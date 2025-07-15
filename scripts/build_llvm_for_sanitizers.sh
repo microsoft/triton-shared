@@ -38,7 +38,14 @@ LLVM_BUILD_DIR="${LLVM_PATH}/llvm-build"
 LLVM_INSTALL_DIR="${LLVM_PATH}/llvm-install"
 LLVM_SOURCE_DIR="${LLVM_PATH}/llvm-project"
 LLVM_SOURCE="${LLVM_SOURCE_DIR}/llvm"
+
+# compiler-rt and clang are the sanitizer-specific LLVM projects
 LLVM_PROJECTS="clang;compiler-rt;mlir"
+
+# these are the targets supported by the Triton language
+# Triton's build script for LLVM uses these exact targets
+# see https://github.com/triton-lang/triton/blob/main/scripts/build-llvm-project.sh
+LLVM_TARGETS="Native;NVPTX;AMDGPU"
 
 mkdir -p "${LLVM_BUILD_DIR}"
 mkdir -p "${LLVM_INSTALL_DIR}"
@@ -59,7 +66,7 @@ cmake -GNinja -DCMAKE_BUILD_TYPE=Release \
   -DCMAKE_CXX_COMPILER=clang++           \
   -DCMAKE_INSTALL_PREFIX=$LLVM_INSTALL_DIR    \
   -DLLVM_ENABLE_PROJECTS=$LLVM_PROJECTS       \
-  -DLLVM_TARGETS_TO_BUILD="Native;NVPTX;AMDGPU" \
+  -DLLVM_TARGETS_TO_BUILD=$LLVM_TARGETS \
   $LLVM_SOURCE
 
 echo "Installing LLVM to: $LLVM_INSTALL_DIR"

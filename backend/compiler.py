@@ -150,16 +150,17 @@ def _llir_to_bin(llir: str, metadata):
             top_level_triton_path = os.path.dirname(triton.__file__)
             sanitizer_attributes_pass_path = str(next(Path(top_level_triton_path).rglob("libSanitizerAttributes.so"), None))
 
+            if not sanitizer_attributes_pass_path:
+                raise Exception(f"libSanitizerAttributes.so does not exist.")
+
             subprocess.check_call([opt_path, "-load-pass-plugin", sanitizer_attributes_pass_path, 
                 "-passes=sanitizer-attributes", f"-sanitizer-type={sanitizer_type}", "-S", src_path, 
                 "-o", instrumented_src_path])
-            
-            src_path = instrumented_src_path
 
             # compile to object file
             clang_path = _get_llvm_bin_path("clang++")
 
-            subprocess_args = [clang_path, "-c", src_path, "-o", dst_path]
+            subprocess_args = [clang_path, "-c", instrumented_src_path, "-o", dst_path]
 
             if sanitizer_type == "asan":
                 subprocess_args.extend(["-g", "-fsanitize=address", "-mllvm", "-asan-stack=0"])

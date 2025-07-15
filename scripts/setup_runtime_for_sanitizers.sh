@@ -1,4 +1,4 @@
-# users need to call source on this file before running triton programs using run_triton
+# users need to call source on this file before running triton programs using run_triton_with_sanitizers
 # this is a one time setup of required environment variables
 
 if [ "$#" -ne 3 ]; then
@@ -26,9 +26,25 @@ if [ ! -e "$TRITON_SHARED_PATH" ]; then
   exit 1
 fi
 
+# check this first in case of error
+triton_shared_opt_path="$(find "$TRITON_SHARED_PATH" -type f -name "triton-shared-opt")"
+
+if [ -z "$triton_shared_opt_path" ]; then
+  echo "Error: unable to find triton-shared-opt in $TRITON_SHARED_PATH"
+  exit 1
+fi
+
+count=$(echo "$triton_shared_opt_path" | wc -l)
+
+if [ "$count" -gt 1 ]; then
+  echo "Error: multiple triton-shared-opt found in $TRITON_SHARED_PATH"
+  echo "$triton_shared_opt_path"
+  exit 1
+fi
+
 source ${VENV_PATH}/bin/activate
 
 export PATH="${LLVM_INSTALL_PATH}/bin:${VENV_PATH}/bin:${PATH}"
 export LLVM_BINARY_DIR="${LLVM_INSTALL_PATH}/bin"
 
-export TRITON_SHARED_OPT_PATH="$(find "$TRITON_SHARED_PATH" -type f -name "triton-shared-opt" | head -n 1)"
+export TRITON_SHARED_OPT_PATH="$triton_shared_opt_path"
