@@ -19,7 +19,7 @@ config.name = 'TRITON-SHARED'
 config.test_format = lit.formats.ShTest(not llvm_config.use_lit_shell)
 
 # suffixes: A list of file extensions to treat as test files.
-config.suffixes = ['.mlir']
+config.suffixes = ['.mlir', '.ll']
 
 # test_source_root: The root path where tests are located.
 config.test_source_root = os.path.dirname(__file__)
@@ -28,7 +28,9 @@ config.test_source_root = os.path.dirname(__file__)
 config.test_exec_root = os.path.join(config.triton_obj_root, 'test')
 
 config.substitutions.append(('%PATH%', config.environment['PATH']))
+config.substitutions.append(("%shlibdir", config.llvm_shlib_dir))
 config.substitutions.append(('%shlibext', config.llvm_shlib_ext))
+config.substitutions.append(('%toolsdir', config.llvm_tools_dir))
 
 llvm_config.with_system_environment(
     ['HOME', 'INCLUDE', 'LIB', 'TMP', 'TEMP'])
