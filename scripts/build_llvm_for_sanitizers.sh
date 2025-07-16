@@ -39,8 +39,8 @@ LLVM_INSTALL_DIR="${LLVM_PATH}/llvm-install"
 LLVM_SOURCE_DIR="${LLVM_PATH}/llvm-project"
 LLVM_SOURCE="${LLVM_SOURCE_DIR}/llvm"
 
-# compiler-rt and clang are the sanitizer-specific LLVM projects
-LLVM_PROJECTS="clang;compiler-rt;mlir"
+# compiler-rt, clang, and openmp are the sanitizer-specific LLVM projects
+LLVM_PROJECTS="clang;compiler-rt;openmp;mlir"
 
 # these are the targets supported by the Triton language
 # Triton's build script for LLVM uses these exact targets
