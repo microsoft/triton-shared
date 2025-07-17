@@ -361,10 +361,9 @@ public:
     if (!isa<ShapedType>(op.getResult().getType())) {
       auto sMemRef = PtrAnalysis::getScalarMemRef(op.getPtr(), adaptor.getPtr(),
                                                   loc, rewriter);
-      auto index =
-          rewriter.create<arith::ConstantOp>(loc, rewriter.getIndexAttr(0))
-              .getResult();
-      auto loadOp = rewriter.create<memref::LoadOp>(loc, sMemRef, index);
+      auto zeroMap = AffineMap::getConstantMap(0, rewriter.getContext());
+      auto loadOp = rewriter.create<affine::AffineLoadOp>(
+          op.getLoc(), sMemRef, zeroMap, std::nullopt);
       rewriter.replaceOp(op, loadOp.getResult());
       return success();
     }
@@ -525,7 +524,9 @@ struct StoreConverter : public OpConversionPattern<triton::StoreOp> {
       auto index =
           rewriter.create<arith::ConstantOp>(loc, rewriter.getIndexAttr(0))
               .getResult();
-      rewriter.create<memref::StoreOp>(loc, val, sMemRef, index);
+      auto zeroMap = AffineMap::getConstantMap(0, rewriter.getContext());
+      rewriter.create<affine::AffineStoreOp>(loc, val, sMemRef, zeroMap,
+                                             std::nullopt);
       rewriter.eraseOp(op);
       return success();
     }
