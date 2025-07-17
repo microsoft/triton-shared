@@ -29,12 +29,19 @@ if [ ! -e "$TRITON_SHARED_PATH" ]; then
   exit 1
 fi
 
+# check whether ~/.triton is empty
+# llvm being used from before may be cached and may be different from the custom llvm
+# will cause linking errors during the triton-shared build
+if [ -e "~/.triton" ]; then
+  echo "Error: Please remove ~/.triton and run this script again."
+  exit 1
+fi
+
 cd "$TRITON_SHARED_PATH"
 
 # prepare for triton_shared build
 export PATH="${LLVM_INSTALL_PATH}/bin:${PATH}"
 which clang
-rm -rf ~/.triton
 
 # build triton-shared with the custom LLVM
 cd "${TRITON_SHARED_PATH}/triton"
