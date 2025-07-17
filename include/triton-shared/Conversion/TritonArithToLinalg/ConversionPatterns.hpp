@@ -521,9 +521,6 @@ struct StoreConverter : public OpConversionPattern<triton::StoreOp> {
     if (!isa<ShapedType>(val.getType())) {
       auto sMemRef =
           PtrAnalysis::getScalarMemRef(op.getPtr(), ptr, loc, rewriter);
-      auto index =
-          rewriter.create<arith::ConstantOp>(loc, rewriter.getIndexAttr(0))
-              .getResult();
       auto zeroMap = AffineMap::getConstantMap(0, rewriter.getContext());
       rewriter.create<affine::AffineStoreOp>(loc, val, sMemRef, zeroMap,
                                              std::nullopt);
