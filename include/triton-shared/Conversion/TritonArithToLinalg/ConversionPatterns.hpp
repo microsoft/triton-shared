@@ -817,6 +817,12 @@ struct MakeRangeConverter : public OpConversionPattern<triton::MakeRangeOp> {
           Value index = nestedBuilder.create<linalg::IndexOp>(loc, 0);
           Value res = nestedBuilder.create<arith::IndexCastOp>(
               loc, type.getElementType(), index);
+          if (op.getStart()) {
+            auto start = rewriter.create<mlir::arith::ConstantIntOp>(
+                op.getLoc(), op.getStart(),
+                type.getElementType().getIntOrFloatBitWidth());
+            res = nestedBuilder.create<arith::AddIOp>(loc, res, start);
+          }
           nestedBuilder.create<linalg::YieldOp>(loc, res);
         });
 
