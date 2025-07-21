@@ -39,7 +39,8 @@ LLVM_INSTALL_DIR="${LLVM_PATH}/llvm-install"
 LLVM_SOURCE_DIR="${LLVM_PATH}/llvm-project"
 LLVM_SOURCE="${LLVM_SOURCE_DIR}/llvm"
 
-# compiler-rt, clang, and openmp are the sanitizer-specific LLVM projects
+# compiler-rt and clang are the sanitizer-specific LLVM projects
+# openmp is used for parallelizing the triton grid for ThreadSanitizer (TSan)
 LLVM_PROJECTS="clang;compiler-rt;openmp;mlir"
 
 # these are the targets supported by the Triton language

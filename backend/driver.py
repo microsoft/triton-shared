@@ -114,6 +114,8 @@ extern "C" {{
 static void _launch(int gridX, int gridY, int gridZ, {arg_decls}) {{
   if (gridX*gridY*gridZ > 0) {{
     // Cast "function" to the real function type.
+    // apply parallelization to the triton grid when using ThreadSanitizer (TSan) 
+    // to help detect potential data races across program instances during kernel execution
     {"#pragma omp parallel for collapse(3)" if _get_sanitizer_type() == "tsan" else ""}
     for(int x = 0; x < gridX; x++) {{
       for(int y = 0; y < gridY; y++) {{
