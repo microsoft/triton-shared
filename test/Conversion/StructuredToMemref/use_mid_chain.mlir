@@ -41,12 +41,14 @@ module {
 // CHECK-DAG:   [[MAP_2_:#.+]] = affine_map<(d0, d1) -> (d0, d1)>
 // CHECK-LABEL:  func.func @kernel
 // CHECK-SAME:   ([[PARAM_0_:%.+]]: memref<*xbf16>, [[PARAM_1_:%.+]]: memref<*xbf16>, [[PARAM_2_:%.+]]: memref<*xi32>, [[PARAM_3_:%.+]]: i32, [[PARAM_4_:%.+]]: i32, [[PARAM_5_:%.+]]: i32, [[PARAM_6_:%.+]]: i32, [[PARAM_7_:%.+]]: i32, [[PARAM_8_:%.+]]: i32) {
+// CHECK-DAG:       [[VAL_25:%.+]] = arith.constant 512 : i32
 // CHECK-DAG:       [[VAR_0_:%.+]] = tensor.empty() : tensor<256xi32>
 // CHECK:           [[VAR_1_:%.+]] = linalg.generic {indexing_maps = [#map], iterator_types = ["parallel"]} outs([[VAR_0_]] : tensor<256xi32>) {
 // CHECK:           ^bb0([[IN_0_:%.+]]: i32):
 // CHECK:             [[VAR_5_:%.+]] = linalg.index 0 : index
 // CHECK:             [[VAR_6_:%.+]] = arith.index_cast [[VAR_5_]] : index to i32
-// CHECK:             linalg.yield [[VAR_6_]] : i32
+// CHECK:             [[VAL_24:%.+]] = arith.addi [[VAR_6_]], [[VAL_25]] : i32
+// CHECK:             linalg.yield [[VAL_24]] : i32
 // CHECK:           } -> tensor<256xi32>
 // CHECK-DAG:       [[VAR_expanded_:%.+]] = tensor.expand_shape [[VAR_1_]] {{.}}[0, 1]{{.}} output_shape [256, 1] : tensor<256xi32> into tensor<256x1xi32>
 // CHECK-DAG:       [[VAR_2_:%.+]] = tensor.empty() : tensor<256x128xi32>

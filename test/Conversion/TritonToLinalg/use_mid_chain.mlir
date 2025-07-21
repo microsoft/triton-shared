@@ -38,12 +38,14 @@ module {
 // CHECK-LABEL:   func.func @kernel(
 // CHECK-SAME:                      %[[VAL_0:.*]]: memref<*xbf16>, %[[VAL_1:.*]]: memref<*xbf16>, %[[VAL_2:.*]]: memref<*xi32>, %[[VAL_3:.*]]: i32, %[[VAL_4:.*]]: i32, %[[VAL_5:.*]]: i32) {
 // CHECK-DAG:           %[[VAL_7:.*]] = arith.constant 6 : index
+// CHECK-DAG:           %[[VAL_25:.*]] = arith.constant 512 : i32
 // CHECK:           %[[VAL_8:.*]] = tensor.empty() : tensor<256xi32>
 // CHECK:           %[[VAL_9:.*]] = linalg.generic {indexing_maps = [#map], iterator_types = ["parallel"]} outs(%[[VAL_8]] : tensor<256xi32>) {
 // CHECK:           ^bb0(%[[VAL_10:.*]]: i32):
 // CHECK:             %[[VAL_11:.*]] = linalg.index 0 : index
 // CHECK:             %[[VAL_12:.*]] = arith.index_cast %[[VAL_11]] : index to i32
-// CHECK:             linalg.yield %[[VAL_12]] : i32
+// CHECK:             %[[VAL_24:.*]] = arith.addi %[[VAL_12]], %[[VAL_25]] : i32
+// CHECK:             linalg.yield %[[VAL_24]] : i32
 // CHECK:           } -> tensor<256xi32>
 // CHECK:           %[[VAL_13:.*]] = tensor.expand_shape %[[VAL_14:.*]] {{\[\[}}0, 1]] output_shape [256, 1] : tensor<256xi32> into tensor<256x1xi32>
 // CHECK:           %[[VAL_15:.*]] = tensor.empty() : tensor<256x128xi32>

@@ -37,6 +37,8 @@ module {
 // CHECK-SAME:                      %[[VAL_0:.*]]: memref<*xbf16>, %[[VAL_1:.*]]: memref<*xbf16>, %[[VAL_2:.*]]: i32, %[[VAL_3:.*]]: i32, %[[VAL_4:.*]]: i32) {
 // CHECK-DAG:           %[[VAL_6:.*]] = arith.constant 6 : index
 // CHECK-DAG:           %[[VAL_7:.*]] = arith.constant 6 : i32
+// CHECK-DAG:           %[[CST_512_:.*]] = arith.constant 512 : i32
+// CHECK-DAG:           %[[CST_1024_:.*]] = arith.constant 1024 : i32
 // CHECK:           %[[VAL_30:.*]] = tensor.empty() : tensor<256x128xi32>
 // CHECK:           %[[VAL_31:.*]] = linalg.fill ins(%[[VAL_7]] : i32) outs(%[[VAL_30]] : tensor<256x128xi32>) -> tensor<256x128xi32>
 // CHECK:           %[[VAL_8:.*]] = tensor.empty() : tensor<256xi32>
@@ -44,7 +46,8 @@ module {
 // CHECK:           ^bb0(%[[VAL_10:.*]]: i32):
 // CHECK:             %[[VAL_11:.*]] = linalg.index 0 : index
 // CHECK:             %[[VAL_12:.*]] = arith.index_cast %[[VAL_11]] : index to i32
-// CHECK:             linalg.yield %[[VAL_12]] : i32
+// CHECK:             %[[VAL_55:.*]] = arith.addi %[[VAL_12]], %[[CST_512_]] : i32
+// CHECK:             linalg.yield %[[VAL_55]] : i32
 // CHECK:           } -> tensor<256xi32>
 // CHECK:           %[[VAL_13:.*]] = tensor.expand_shape %[[VAL_14:.*]] {{\[\[}}0, 1]] output_shape [256, 1] : tensor<256xi32> into tensor<256x1xi32>
 // CHECK:           %[[VAL_15:.*]] = tensor.empty() : tensor<256x128xi32>
@@ -57,7 +60,8 @@ module {
 // CHECK:           ^bb0(%[[VAL_21:.*]]: i32):
 // CHECK:             %[[VAL_22:.*]] = linalg.index 0 : index
 // CHECK:             %[[VAL_23:.*]] = arith.index_cast %[[VAL_22]] : index to i32
-// CHECK:             linalg.yield %[[VAL_23]] : i32
+// CHECK:             %[[VAL_56:.*]] = arith.addi %[[VAL_23]], %[[CST_1024_]] : i32
+// CHECK:             linalg.yield %[[VAL_56]] : i32
 // CHECK:           } -> tensor<128xi32>
 // CHECK:           %[[VAL_24:.*]] = tensor.expand_shape %[[VAL_25:.*]] {{\[\[}}0, 1]] output_shape [1, 128] : tensor<128xi32> into tensor<1x128xi32>
 // CHECK:           %[[VAL_26:.*]] = tensor.empty() : tensor<256x128xi32>
