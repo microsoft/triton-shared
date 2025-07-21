@@ -73,6 +73,7 @@ tests_supported = {
     "test_addptr",
     "test_transpose",
     "test_trans_4d",
+    "test_arange",
 }
 
 
