@@ -1383,6 +1383,24 @@ private:
     return success();
   }
 
+  LogicalResult
+  convertToTensorExtract(triton::ReduceOp op,
+                         typename triton::ReduceOp::Adaptor adaptor,
+                         ConversionPatternRewriter &rewriter) const {
+    assert(llvm::hasSingleElement(op.getSrcs()));
+
+    auto returnOp = cast<triton::ReduceReturnOp>(*op.getOps().begin());
+    assert(llvm::hasSingleElement(returnOp.getResult()));
+    assert(cast<BlockArgument>(returnOp.getResult().front()).getArgNumber() ==
+           0);
+
+    auto source = op.getSrcs().front();
+    auto zeroIdx =
+        rewriter.createOrFold<arith::ConstantIndexOp>(op.getLoc(), 0);
+    rewriter.replaceOpWithNewOp<tensor::ExtractOp>(op, source, zeroIdx);
+    return success();
+  }
+
 public:
   LogicalResult
   matchAndRewrite(triton::ReduceOp op,
@@ -1398,6 +1416,11 @@ public:
            "Expected reduction "
            "axis is within "
            "operand's rank");
+
+    if (llvm::hasSingleElement(op.getOps()) && sourceType.getRank() == 1 &&
+        sourceType.getShape()[0] == 1) {
+      return convertToTensorExtract(op, adaptor, rewriter);
+    }
 
     return convertToLinalgReduce(op, adaptor, rewriter);
   }
