@@ -20,10 +20,10 @@ def _get_llvm_bin_path(bin_name: str) -> str:
 
 def _get_sanitizer_type():
     # returns "" if not set
-    # throws error if set to something other than "asan"
+    # throws error if set to something other than "asan" or "tsan"
     sanitizer_type = os.getenv("TRITON_SHARED_SANITIZER_TYPE", "")
 
-    if sanitizer_type != "" and sanitizer_type != "asan":
+    if sanitizer_type != "" and sanitizer_type != "asan" and sanitizer_type != "tsan":
         # throw error
         raise Exception(f"TRITON_SHARED_SANITIZER_TYPE {sanitizer_type} is invalid.")
     
@@ -114,6 +114,9 @@ extern "C" {{
 static void _launch(int gridX, int gridY, int gridZ, {arg_decls}) {{
   if (gridX*gridY*gridZ > 0) {{
     // Cast "function" to the real function type.
+    // apply parallelization to the triton grid when using ThreadSanitizer (TSan) 
+    // to help detect potential data races across program instances during kernel execution
+    {"#pragma omp parallel for collapse(3)" if _get_sanitizer_type() == "tsan" else ""}
     for(int x = 0; x < gridX; x++) {{
       for(int y = 0; y < gridY; y++) {{
         for(int z = 0; z < gridZ; z++) {{
@@ -317,6 +320,16 @@ def compile_module(launcher_src, kernel_placeholder_name):
 
                       if sanitizer_type == "asan":
                           subprocess_args.extend(["-g", "-fsanitize=address", "-mllvm", "-asan-stack=0"])
+                      elif sanitizer_type == "tsan":
+                          # ensure that openmp is available
+                          libomp_path = next(Path(Path(_get_llvm_bin_path("")).parent).rglob("libomp.so"), None)
+
+                          if not libomp_path:
+                              raise Exception(f"libomp.so does not exist.")
+
+                          libomp_path = str(libomp_path.parent)
+
+                          subprocess_args.extend(["-g", "-fsanitize=thread", "-fopenmp", f"-Wl,-rpath,{libomp_path}"])
                       
                       subprocess.check_call(subprocess_args)
                   else:
