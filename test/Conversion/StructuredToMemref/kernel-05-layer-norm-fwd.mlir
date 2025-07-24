@@ -91,7 +91,6 @@ module {
 // CHECK-DAG:   [[MAP_0_:#.+]] = affine_map<(d0) -> (d0)>
 // CHECK-LABEL:  func.func @_layer_norm_fwd_fused_0123456789
 // CHECK-SAME:   ([[PARAM_0_:%.+]]: memref<*xf32>, [[PARAM_1_:%.+]]: memref<*xf32>, [[PARAM_2_:%.+]]: memref<*xf32>, [[PARAM_3_:%.+]]: memref<*xf32>, [[PARAM_4_:%.+]]: memref<*xf32>, [[PARAM_5_:%.+]]: memref<*xf32>, [[PARAM_6_:%.+]]: i32, [[PARAM_7_:%.+]]: i32, [[PARAM_8_:%.+]]: f32, [[PARAM_9_:%.+]]: i32, [[PARAM_10_:%.+]]: i32, [[PARAM_11_:%.+]]: i32, [[PARAM_12_:%.+]]: i32, [[PARAM_13_:%.+]]: i32, [[PARAM_14_:%.+]]: i32) {
-// CHECK-DAG:      %[[C0:.*]] = arith.constant 0 : index
 // CHECK-DAG:       [[CST_1_dot_000000_:%.+]] = arith.constant 1.000000e+00 : f32
 // CHECK-DAG:       [[CST_0_:%.+]] = arith.constant 0 : i32
 // CHECK-DAG:       [[CST_256_:%.+]] = arith.constant 256 : i32
@@ -213,9 +212,9 @@ module {
 // CHECK-DAG:       [[VAR_17_:%.+]] = arith.divf [[CST_1_dot_000000_]], [[VAR_16_]] : f32
 // CHECK-DAG:       [[VAR_18_:%.+]] = arith.index_cast [[PARAM_12_]] : i32 to index
 // CHECK:           [[VAR_reinterpret_cast_:%.+]] = memref.reinterpret_cast [[PARAM_4_]] to offset: {{.}}[[VAR_18_]]{{.}}, sizes: [1], strides: [1] : memref<*xf32> to memref<1xf32, strided<[1], offset: ?>>
-// CHECK:           memref.store [[VAR_10_]], [[VAR_reinterpret_cast_]][%[[C0]]] : memref<1xf32, strided<[1], offset: ?>>
+// CHECK:           affine.store [[VAR_10_]], [[VAR_reinterpret_cast_]][0] : memref<1xf32, strided<[1], offset: ?>>
 // CHECK:           [[VAR_reinterpret_cast_4_:%.+]] = memref.reinterpret_cast [[PARAM_5_]] to offset: {{.}}[[VAR_18_]]{{.}}, sizes: [1], strides: [1] : memref<*xf32> to memref<1xf32, strided<[1], offset: ?>>
-// CHECK:           memref.store [[VAR_17_]], [[VAR_reinterpret_cast_4_]][%[[C0]]] : memref<1xf32, strided<[1], offset: ?>>
+// CHECK:           affine.store [[VAR_17_]], [[VAR_reinterpret_cast_4_]][0] : memref<1xf32, strided<[1], offset: ?>>
 // CHECK:           [[VAR_19_:%.+]] = linalg.fill ins([[VAR_17_]] : f32) outs([[VAR_0_]] : tensor<256xf32>) -> tensor<256xf32>
 // CHECK:           scf.for [[VAR_arg15_1_:%.+]] = [[CST_0_]] to [[PARAM_7_]] step [[CST_256_]]  : i32 {
 // CHECK:             [[VAR_20_5_:%.+]] = arith.index_cast [[VAR_arg15_1_]] : i32 to index

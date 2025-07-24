@@ -74,6 +74,7 @@ tests_supported = {
     "test_transpose",
     "test_trans_4d",
     "test_unsplat",
+    "test_arange",
 }
 
 

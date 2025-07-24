@@ -38,5 +38,5 @@ For building LLVM and triton_shared for usage with sanitizers, run the scripts i
 
 For runtime setup (one-time per shell): `source setup_runtime_for_sanitizers.sh <existing path to venv> <existing path to llvm install dir> <existing path to triton shared>`
 
-For running a python program with sanitizers enabled: `run_triton_with_sanitizers.sh <sanitizer type> python program.py`. Currently, the only supported `<sanitizer type>` is `asan`.
+For running a python program with sanitizers enabled: `run_triton_with_sanitizers.sh <sanitizer type> python program.py`. Currently, the supported `<sanitizer type>`s are `asan` and `tsan`.
 

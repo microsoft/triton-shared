@@ -15,7 +15,6 @@ module {
 
 // CHECK-LABEL:   func.func @addi(
 // CHECK-SAME:              %[[VAL_0:.*]]: memref<*xi32>, %[[VAL_1:.*]]: i32, %[[VAL_2:.*]]: i32, %[[VAL_3:.*]]: i32, %[[VAL_4:.*]]: i32, %[[VAL_5:.*]]: i32, %[[VAL_6:.*]]: i32) {
-// CHECK-DAG:      %[[C0:.*]] = arith.constant 0 : index
 // CHECK:           %[[VAL_7:.*]] = arith.constant 0 : i32
 // CHECK:           %[[VAL_8:.*]] = tensor.empty() : tensor<4096xi32>
 // CHECK:           %[[VAL_9:.*]] = linalg.fill ins(%[[VAL_7]] : i32) outs(%[[VAL_8]] : tensor<4096xi32>) -> tensor<4096xi32>
@@ -28,6 +27,6 @@ module {
 // CHECK:             }
 // CHECK:           %[[VAL_16:.*]] = tensor.extract %[[VAL_12]][] : tensor<i32>
 // CHECK:           %[[VAL_17:.*]] = memref.reinterpret_cast %[[VAL_0]] to offset: [0], sizes: [1], strides: [1] : memref<*xi32> to memref<1xi32, strided<[1]>>
-// CHECK:           memref.store %[[VAL_16]], %[[VAL_17]][%[[C0]]] : memref<1xi32, strided<[1]>>
+// CHECK:           affine.store %[[VAL_16]], %[[VAL_17]][0] : memref<1xi32, strided<[1]>>
 // CHECK:           return
 // CHECK:         }
