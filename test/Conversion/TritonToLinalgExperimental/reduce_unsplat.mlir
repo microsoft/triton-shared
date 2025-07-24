@@ -45,7 +45,7 @@ module {
 // CHECK:           [[VAR_extracted_:%.+]] = tensor.extract [[VAR_6_]]{{.}}[[CST_0_1_]]{{.}} : tensor<1xi1>
 // CHECK:           scf.if [[VAR_extracted_]] {
 // CHECK:             [[VAR_reinterpret_cast_:%.+]] = memref.reinterpret_cast [[PARAM_0_]] to offset: {{.}}[[CST_0_1_]]{{.}}, sizes: [1], strides: [1] : memref<*xi32> to memref<1xi32, strided<[1], offset: ?>>
-// CHECK:             memref.store [[CST_42_]], [[VAR_reinterpret_cast_]]{{.}}[[CST_0_1_]]{{.}} : memref<1xi32, strided<[1], offset: ?>>
+// CHECK:             affine.store [[CST_42_]], [[VAR_reinterpret_cast_]][0] : memref<1xi32, strided<[1], offset: ?>>
 // CHECK:           }
 // CHECK:           return
 // CHECK:         }
