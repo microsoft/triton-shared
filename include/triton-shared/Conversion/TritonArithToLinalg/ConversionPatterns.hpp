@@ -1417,6 +1417,9 @@ public:
            "axis is within "
            "operand's rank");
 
+    // Unsplat is implemented as a single element, rank 1 reduction where
+    // single element is yielded immediately. This can be simplified into
+    // a single element extract.
     if (llvm::hasSingleElement(op.getOps()) && sourceType.getRank() == 1 &&
         sourceType.getShape()[0] == 1) {
       return convertToTensorExtract(op, adaptor, rewriter);
