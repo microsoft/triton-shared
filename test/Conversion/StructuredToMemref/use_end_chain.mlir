@@ -45,7 +45,9 @@ module {
 // CHECK-DAG:       [[CST_1024_:%.+]] = arith.constant 1024 : i32
 // CHECK-DAG:       [[VAR_0_:%.+]] = tensor.empty() : tensor<256x128xi32>
 // CHECK-NOT: separator of consecutive DAGs
-// CHECK-DAG:       [[VAR_1_:%.+]] = linalg.fill ins([[CST_6_]] : i32) outs([[VAR_0_]] : tensor<256x128xi32>) -> tensor<256x128xi32>
+// CHECK-DAG:       [[VAL_2:%.+]] = tensor.collapse_shape [[VAR_0_]] {{\[\[}}0, 1]] : tensor<256x128xi32> into tensor<32768xi32>
+// CHECK-DAG:       [[VAL_3:%.+]] = linalg.fill ins([[CST_6_]] : i32) outs([[VAL_2]] : tensor<32768xi32>) -> tensor<32768xi32>
+// CHECK-DAG:       [[VAR_1_:%.+]] = tensor.expand_shape [[VAL_3]] {{\[\[}}0, 1]] output_shape [256, 128] : tensor<32768xi32> into tensor<256x128xi32>
 // CHECK-DAG:       [[VAR_2_:%.+]] = tensor.empty() : tensor<256xi32>
 // CHECK:           [[VAR_3_:%.+]] = linalg.generic {indexing_maps = [#map], iterator_types = ["parallel"]} outs([[VAR_2_]] : tensor<256xi32>) {
 // CHECK:           ^bb0([[IN_0_:%.+]]: i32):

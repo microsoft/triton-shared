@@ -42,7 +42,9 @@ module {
 // CHECK-DAG:       [[CST_0_dot_000000_:%.+]] = arith.constant 0.000000e+00 : bf16
 // CHECK-DAG:       [[VAR_0_:%.+]] = tensor.empty() : tensor<128x64xbf16>
 // CHECK-NOT: separator of consecutive DAGs
-// CHECK-DAG:       [[VAR_1_:%.+]] = linalg.fill ins([[CST_0_dot_000000_]] : bf16) outs([[VAR_0_]] : tensor<128x64xbf16>) -> tensor<128x64xbf16>
+// CHECK-DAG:       [[VAL_6:%.+]] = tensor.collapse_shape [[VAR_0_]] {{\[\[}}0, 1]] : tensor<128x64xbf16> into tensor<8192xbf16>
+// CHECK-DAG:       [[VAL_7:%.+]] = linalg.fill ins([[CST_0_dot_000000_]] : bf16) outs([[VAL_6]] : tensor<8192xbf16>) -> tensor<8192xbf16>
+// CHECK-DAG:       [[VAR_1_:%.+]] = tensor.expand_shape [[VAL_7]] {{\[\[}}0, 1]] output_shape [128, 64] : tensor<8192xbf16> into tensor<128x64xbf16>
 // CHECK-DAG:       [[VAR_2_:%.+]] = arith.index_cast [[PARAM_6_]] : i32 to index
 // CHECK-DAG:       [[VAR_3_:%.+]] = arith.index_cast [[PARAM_12_]] : i32 to index
 // CHECK-NOT: separator of consecutive DAGs

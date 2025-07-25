@@ -46,7 +46,9 @@ module {
 // CHECK-SAME:   ([[PARAM_0_:%.+]]: memref<*xbf16>, [[PARAM_1_:%.+]]: memref<*xbf16>, [[PARAM_2_:%.+]]: memref<*xbf16>, [[PARAM_3_:%.+]]: i32, [[PARAM_4_:%.+]]: i32, [[PARAM_5_:%.+]]: i32, [[PARAM_6_:%.+]]: i32, [[PARAM_7_:%.+]]: i32, [[PARAM_8_:%.+]]: i32) {
 // CHECK-DAG:       [[CST_0_:%.+]] = arith.constant 0 : i32
 // CHECK-DAG:       [[VAR_empty_offsets_:%.+]] = tensor.empty() : tensor<32x16xi32>
-// CHECK-DAG:       [[VAR_zero_offsets_:%.+]] = linalg.fill ins([[CST_0_]] : i32) outs([[VAR_empty_offsets_]] : tensor<32x16xi32>) -> tensor<32x16xi32>
+// CHECK-DAG:           [[VAR_collapse_0_:%.+]] = tensor.collapse_shape [[VAR_empty_offsets_]] {{\[\[}}0, 1]] : tensor<32x16xi32> into tensor<512xi32>
+// CHECK-DAG:           [[VAR_zero_offsets_collapse_0_:%.+]] = linalg.fill ins([[CST_0_]] : i32) outs([[VAR_collapse_0_]] : tensor<512xi32>) -> tensor<512xi32>
+// CHECK-DAG:           [[VAR_zero_offsets_:%.+]] = tensor.expand_shape [[VAR_zero_offsets_collapse_0_]] {{\[\[}}0, 1]] output_shape [32, 16] : tensor<512xi32> into tensor<32x16xi32>
 // CHECK-DAG:       [[CST_0_dot_000000_:%.+]] = arith.constant 0.000000e+00 : bf16
 // CHECK-NOT: separator of consecutive DAGs
 // CHECK-DAG:       [[VAR_reinterpret_cast_:%.+]] = memref.reinterpret_cast [[PARAM_0_]] to offset: [0], sizes: [32, 256, 16], strides: [256, 1, 1] : memref<*xbf16> to memref<32x256x16xbf16, strided<[256, 1, 1]>>
@@ -54,7 +56,9 @@ module {
 // CHECK:           memref.copy [[VAR_reinterpret_cast_]], [[RES_]] : memref<32x256x16xbf16, strided<[256, 1, 1]>> to memref<32x256x16xbf16>
 // CHECK-DAG:       [[VAR_0_:%.+]] = bufferization.to_tensor [[RES_]] restrict writable : memref<32x256x16xbf16>
 // CHECK-DAG:       [[VAR_1_:%.+]] = tensor.empty() : tensor<32x16xbf16>
-// CHECK:           [[VAR_2_:%.+]] = linalg.fill ins([[CST_0_dot_000000_]] : bf16) outs([[VAR_1_]] : tensor<32x16xbf16>) -> tensor<32x16xbf16>
+// CHECK:           [[VAR_collapse_1_:%.+]] = tensor.collapse_shape [[VAR_1_]] {{\[\[}}0, 1]] : tensor<32x16xbf16> into tensor<512xbf16>
+// CHECK:           [[VAR_zero_offsets_collapse_1_:%.+]] = linalg.fill ins([[CST_0_dot_000000_]] : bf16) outs([[VAR_collapse_1_]] : tensor<512xbf16>) -> tensor<512xbf16>
+// CHECK:           [[VAR_2_:%.+]] = tensor.expand_shape [[VAR_zero_offsets_collapse_1_]] {{\[\[}}0, 1]] output_shape [32, 16] : tensor<512xbf16> into tensor<32x16xbf16>
 // CHECK:           [[VAR_reduced_:%.+]] = linalg.reduce ins([[VAR_0_]] : tensor<32x256x16xbf16>) outs([[VAR_2_]] : tensor<32x16xbf16>) dimensions = [1]
 // CHECK:             ([[in_:.+]]: bf16, [[init_:.+]]: bf16) {
 // CHECK:               [[VAR_3_:%.+]] = arith.addf [[in_]], [[init_]] : bf16

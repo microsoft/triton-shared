@@ -88,7 +88,8 @@ module {
 // CHECK-NOT: separator of consecutive DAGs
 // CHECK-DAG:         [[VAR_reinterpret_cast_1_:%.+]] = memref.reinterpret_cast [[PARAM_0_]] to offset: {{.}}[[VAR_12_]]{{.}}, sizes: {{.}}[[VAR_16_]], [[CST_4_]]{{.}}, strides: {{.}}[[VAR_1_]], [[VAR_4_]]{{.}} : memref<*xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
 // CHECK-DAG:         [[RES_:%.+]] = memref.alloc() : memref<4x4xf32>
-// CHECK:             linalg.fill ins([[CST_minus_9_dot_900000_]] : f32) outs([[RES_]] : memref<4x4xf32>)
+// CHECK:             [[RES_2_:%.+]] = memref.collapse_shape [[RES_]] {{\[\[}}0, 1]] : memref<4x4xf32> into memref<16xf32>
+// CHECK:             linalg.fill ins([[CST_minus_9_dot_900000_]] : f32) outs([[RES_2_]] : memref<16xf32>)
 // CHECK:             [[VAR_17_:%.+]] = arith.minsi [[VAR_15_]], [[CST_4_]] : index
 // CHECK-DAG:         [[VAR_18_:%.+]] = arith.subi [[CST_4_]], [[VAR_17_]] : index
 // CHECK-DAG:         [[VAR_subview_:%.+]] = memref.subview [[VAR_reinterpret_cast_0_]][0, 0] {{.}}[[VAR_17_]], 3] [1, 1] : memref<?x?xf32, strided<[?, ?], offset: ?>> to memref<?x3xf32, strided<[?, ?], offset: ?>>

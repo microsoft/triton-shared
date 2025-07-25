@@ -55,7 +55,9 @@ module {
 // CHECK-DAG:       [[CST_0_dot_000000_:%.+]] = arith.constant 0.000000e+00 : bf16
 // CHECK-DAG:       [[VAR_0_:%.+]] = tensor.empty() : tensor<128x256xbf16>
 // CHECK-NOT: separator of consecutive DAGs
-// CHECK-DAG:       [[VAR_1_:%.+]] = linalg.fill ins([[CST_0_dot_000000_]] : bf16) outs([[VAR_0_]] : tensor<128x256xbf16>) -> tensor<128x256xbf16>
+// CHECK-DAG:       [[VAL_2:%.+]] = tensor.collapse_shape [[VAR_0_]] {{\[\[}}0, 1]] : tensor<128x256xbf16> into tensor<32768xbf16>
+// CHECK-DAG:       [[VAL_3:%.+]] = linalg.fill ins([[CST_0_dot_000000_]] : bf16) outs([[VAL_2]] : tensor<32768xbf16>) -> tensor<32768xbf16>
+// CHECK-DAG:       [[VAR_1_:%.+]] = tensor.expand_shape [[VAL_3]] {{\[\[}}0, 1]] output_shape [128, 256] : tensor<32768xbf16> into tensor<128x256xbf16>
 // CHECK-DAG:       [[VAR_reinterpret_cast_:%.+]] = memref.reinterpret_cast [[PARAM_0_]] to offset: [0], sizes: [128, 64], strides: [128, 1] : memref<*xbf16> to memref<128x64xbf16, strided<[128, 1]>>
 // CHECK-DAG:       [[RES_:%.+]] = memref.alloc() : memref<128x64xbf16>
 // CHECK:           memref.copy [[VAR_reinterpret_cast_]], [[RES_]] : memref<128x64xbf16, strided<[128, 1]>> to memref<128x64xbf16>

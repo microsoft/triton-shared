@@ -70,7 +70,9 @@ module {
 // CHECK:           memref.copy [[VAR_reinterpret_cast_2_]], [[RES_2_]] : memref<128x256xbf16, strided<[256, 1]>> to memref<128x256xbf16>
 // CHECK:           [[VAR_3_:%.+]] = bufferization.to_tensor [[RES_2_]] restrict writable : memref<128x256xbf16>
 // CHECK:           [[VAR_4_:%.+]] = tensor.empty() : tensor<128x256xbf16>
-// CHECK:           [[VAR_5_:%.+]] = linalg.fill ins([[CST_0_]] : bf16) outs([[VAR_4_]] : tensor<128x256xbf16>) -> tensor<128x256xbf16>
+// CHECK:           [[VAR_10_:%.+]] = tensor.collapse_shape [[VAR_4_]] {{\[\[}}0, 1]] : tensor<128x256xbf16> into tensor<32768xbf16>
+// CHECK:           [[VAR_11_:%.+]] = linalg.fill ins([[CST_0_]] : bf16) outs([[VAR_10_]] : tensor<32768xbf16>) -> tensor<32768xbf16>
+// CHECK:           [[VAR_5_:%.+]] = tensor.expand_shape [[VAR_11_]] {{\[\[}}0, 1]] output_shape [128, 256] : tensor<32768xbf16> into tensor<128x256xbf16>
 // CHECK:           [[VAR_6_:%.+]] = linalg.matmul ins([[VAR_0_]], [[VAR_transposed_]] : tensor<128x64xbf16>, tensor<64x256xbf16>) outs([[VAR_5_]] : tensor<128x256xbf16>) -> tensor<128x256xbf16>
 // CHECK:           [[VAR_7_:%.+]] = linalg.generic {indexing_maps = [[[MAP_]], [[MAP_]], [[MAP_]]], iterator_types = ["parallel", "parallel"]} ins([[VAR_3_]], [[VAR_6_]] : tensor<128x256xbf16>, tensor<128x256xbf16>) outs([[VAR_3_]] : tensor<128x256xbf16>) {
 // CHECK:           ^bb0([[VAR_in_1:%.+]]: bf16, [[VAR_in_2:%.+]]: bf16, {{%.+}}: bf16):

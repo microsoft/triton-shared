@@ -69,7 +69,9 @@ module {
 // CHECK-DAG:       [[CST_0_dot_000000_:%.+]] = arith.constant 0.000000e+00 : f32
 // CHECK-DAG:       [[VAR_0_:%.+]] = tensor.empty() : tensor<256x256xf32>
 // CHECK-NOT: separator of consecutive DAGs
-// CHECK-DAG:       [[VAR_1_:%.+]] = linalg.fill ins([[CST_0_dot_000000_]] : f32) outs([[VAR_0_]] : tensor<256x256xf32>) -> tensor<256x256xf32>
+// CHECK-DAG:       [[VAL_5:%.+]] = tensor.collapse_shape [[VAR_0_]] {{\[\[}}0, 1]] : tensor<256x256xf32> into tensor<65536xf32>
+// CHECK-DAG:       [[VAL_6:%.+]] = linalg.fill ins([[CST_0_dot_000000_]] : f32) outs([[VAL_5]] : tensor<65536xf32>) -> tensor<65536xf32>
+// CHECK-DAG:       [[VAR_1_:%.+]] = tensor.expand_shape [[VAL_6]] {{\[\[}}0, 1]] output_shape [256, 256] : tensor<65536xf32> into tensor<256x256xf32>
 // CHECK-DAG:       [[VAR_2_:%.+]] = arith.muli [[PARAM_9_]], [[CST_256_]] : i32
 // CHECK-NOT: separator of consecutive DAGs
 // CHECK-DAG:       [[VAR_3_:%.+]] = arith.index_cast [[VAR_2_]] : i32 to index
@@ -96,7 +98,8 @@ module {
 // CHECK:             [[VAR_28_:%.+]] = arith.cmpi slt, [[VAR_26_]], [[CST_256_1_]] : index
 // CHECK:             [[VAR_29_:%.+]] = arith.ori [[VAR_27_]], [[VAR_28_]] : i1
 // CHECK:             scf.if [[VAR_29_]] {
-// CHECK:               linalg.fill ins([[CST_0_dot_000000_]] : f32) outs([[RES_]] : memref<256x256xf32>)
+// CHECK:               [[VAL_34:%.+]] = memref.collapse_shape [[RES_]] {{\[\[}}0, 1]] : memref<256x256xf32> into memref<65536xf32>
+// CHECK:               linalg.fill ins([[CST_0_dot_000000_]] : f32) outs([[VAL_34]] : memref<65536xf32>)
 // CHECK:             }
 // CHECK-DAG:         [[VAR_subview_5_:%.+]] = memref.subview [[VAR_reinterpret_cast_4_]][0, 0] {{.}}[[VAR_25_]], [[VAR_26_]]{{.}} [1, 1] : memref<256x256xf32, strided<[?, 1], offset: ?>> to memref<?x?xf32, strided<[?, 1], offset: ?>>
 // CHECK-DAG:         [[VAR_subview_6_:%.+]] = memref.subview [[RES_]][0, 0] {{.}}[[VAR_25_]], [[VAR_26_]]{{.}} [1, 1] : memref<256x256xf32> to memref<?x?xf32, strided<[256, 1]>>
@@ -110,7 +113,8 @@ module {
 // CHECK-DAG:         [[VAR_reinterpret_cast_7_:%.+]] = memref.reinterpret_cast [[PARAM_1_]] to offset: {{.}}[[VAR_15_]]{{.}}, sizes: [256, 256], strides: {{.}}[[VAR_13_]], 1] : memref<*xf32> to memref<256x256xf32, strided<[?, 1], offset: ?>>
 // CHECK-DAG:         [[RES_1_:%.+]] = memref.alloc() : memref<256x256xf32>
 // CHECK:             scf.if [[VAR_29_]] {
-// CHECK:               linalg.fill ins([[CST_0_dot_000000_]] : f32) outs([[RES_1_]] : memref<256x256xf32>)
+// CHECK:               [[VAL_34:%.+]] = memref.collapse_shape [[RES_1_]] {{\[\[}}0, 1]] : memref<256x256xf32> into memref<65536xf32>
+// CHECK:               linalg.fill ins([[CST_0_dot_000000_]] : f32) outs([[VAL_34]] : memref<65536xf32>)
 // CHECK:             }
 // CHECK-DAG:         [[VAR_subview_9_:%.+]] = memref.subview [[VAR_reinterpret_cast_7_]][0, 0] {{.}}[[VAR_25_]], [[VAR_26_]]{{.}} [1, 1] : memref<256x256xf32, strided<[?, 1], offset: ?>> to memref<?x?xf32, strided<[?, 1], offset: ?>>
 // CHECK-DAG:         [[VAR_subview_10_:%.+]] = memref.subview [[RES_1_]][0, 0] {{.}}[[VAR_25_]], [[VAR_26_]]{{.}} [1, 1] : memref<256x256xf32> to memref<?x?xf32, strided<[256, 1]>>

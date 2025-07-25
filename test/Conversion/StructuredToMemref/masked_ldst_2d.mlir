@@ -91,7 +91,8 @@ module {
 // CHECK:           [[VAR_11_:%.+]] = arith.cmpi slt, [[VAR_9_]], [[CST_256_]] : index
 // CHECK:           [[VAR_12_:%.+]] = arith.ori [[VAR_10_]], [[VAR_11_]] : i1
 // CHECK:           scf.if [[VAR_12_]] {
-// CHECK:             linalg.fill ins([[CST_0_]] : bf16) outs([[RES_]] : memref<128x256xbf16>)
+// CHECK:             [[RES_1_:%.+]] = memref.collapse_shape [[RES_]] {{\[\[}}0, 1]] : memref<128x256xbf16> into memref<32768xbf16>
+// CHECK:             linalg.fill ins([[CST_0_]] : bf16) outs([[RES_1_]] : memref<32768xbf16>)
 // CHECK:           }
 // CHECK-DAG:       [[VAR_subview_:%.+]] = memref.subview [[VAR_reinterpret_cast_]][0, 0] {{.}}[[VAR_8_]], [[VAR_9_]]{{.}} [1, 1] : memref<128x256xbf16, strided<[1, 1024], offset: ?>> to memref<?x?xbf16, strided<[1, 1024], offset: ?>>
 // CHECK-DAG:       [[VAR_subview_1_:%.+]] = memref.subview [[RES_]][0, 0] {{.}}[[VAR_8_]], [[VAR_9_]]{{.}} [1, 1] : memref<128x256xbf16> to memref<?x?xbf16, strided<[256, 1]>>
