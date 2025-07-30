@@ -9,6 +9,7 @@
 #include "triton-shared/Conversion/StructuredToMemref/StructuredToMemref.h"
 #include "triton-shared/Conversion/TritonArithToLinalg/TritonArithToLinalg.h"
 #include "triton-shared/Conversion/TritonPtrToMemref/TritonPtrToMemref.h"
+#include "triton-shared/Conversion/TritonToLinalgExperimental/CollapseShape.h"
 #include "triton-shared/Conversion/TritonToLinalgExperimental/ReconcilePtrCasts.h"
 #include "triton-shared/Conversion/TritonToLinalgExperimental/TritonToLinalgExperimental.h"
 #include "triton-shared/Conversion/TritonToLinalgExperimental/TritonToPtr.h"
@@ -75,6 +76,12 @@ public:
     pm.addPass(createRemoveDeadValuesPass());
     pm.addPass(createCSEPass());
     pm.addPass(createCanonicalizerPass());
+    if (enableCollapseShape) {
+      // Canonicalizer pass will rewrite tensor.expand_shape(linalg.fill) to
+      // linalg.fill(tensor.expand_shape) so we need to run it before
+      // collapseShape pass
+      pm.addPass(createCollapseShapePass());
+    }
 
     if (failed(runPipeline(pm, getOperation()))) {
       signalPassFailure();

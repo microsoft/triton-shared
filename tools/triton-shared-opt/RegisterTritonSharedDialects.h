@@ -30,11 +30,9 @@ inline void registerTritonSharedDialects(mlir::DialectRegistry &registry) {
   mlir::registerLinalgPasses();
   mlir::triton::registerTritonPasses();
   mlir::triton::registerTritonToLinalgPass();
-  mlir::triton::registerTritonToLinalgExperimentalPass();
+  mlir::triton::registerTritonToLinalgExperimentalPasses();
   mlir::triton::registerTritonToStructuredPass();
   mlir::triton::registerTritonPtrToMemref();
-  mlir::triton::registerReconcilePtrCasts();
-  mlir::triton::registerTritonToPtr();
   mlir::triton::registerUnstructuredToMemref();
   mlir::triton::registerTritonToUnstructuredPasses();
   mlir::triton::registerTritonArithToLinalgPasses();
