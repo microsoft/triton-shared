@@ -8,6 +8,7 @@
 #include "triton-shared/Analysis/MaskAnalysis.h"
 #include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/SCF/IR/SCF.h"
+#include "mlir/IR/Builders.h"
 #include "mlir/Support/LogicalResult.h"
 
 #include "triton-shared/Analysis/OpFoldResultUtils.h"
@@ -457,9 +458,23 @@ LogicalResult MaskState::parseLoopIterArg(Value v, const Location loc,
   if (auto getStateOp = initArg.getDefiningOp<tts::GetStructuredStateOp>()) {
     auto tritonValue = getStateOp->getOperand(0);
     MaskState lhsState;
-    if (failed(lhsState.parse(tritonValue, loc, builder))) {
-      return failure();
+
+    {
+      OpBuilder::InsertionGuard guard(builder);
+      builder.setInsertionPoint(forOp);
+      if (failed(lhsState.parse(tritonValue, loc, builder))) {
+        return failure();
+      }
     }
+
+    // ok so now lhs state contains the dimensions, start, and end
+    // but start is the init arg
+    // how do we compute end?
+    // ok so just assume we have everything
+    // but the start is actually the iter-arg
+    auto dist = subOFRs(lhsState.end, lhsState.start, loc, builder);
+    lhsState.start = forOp.getRegionIterArgs()[argIndex + 1];
+    lhsState.end = addOFRs(lhsState.start, dist, loc, builder);
 
     // This is a bit of a hack!!
     //
@@ -474,7 +489,7 @@ LogicalResult MaskState::parseLoopIterArg(Value v, const Location loc,
     // This will not work for nested loop scenarios, which would need a
     // more robust implementation.
     if (failed(this->addStateScalar(
-            lhsState, forOp.getRegionIterArgs()[argIndex + 1], loc, builder))) {
+            lhsState, builder.getIndexAttr(0), loc, builder))) {
       return failure();
     }
 
