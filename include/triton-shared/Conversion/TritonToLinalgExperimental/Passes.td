@@ -15,7 +15,9 @@ def TritonToLinalgExperimental : Pass<"triton-to-linalg-experimental", "mlir::Mo
   let constructor = "triton::createTritonToLinalgExperimentalPass()";
   let options = [
       Option<"enableMakeGatherScatterTensorPtr", "enable-make-gather-scatter", "bool", /*default*/"true",
-             "Enable make_gather_scatter_tptr support">
+             "Enable make_gather_scatter_tptr support">,
+      Option<"enableCollapseShape", "enable-collapse-shape", "bool", /*default*/"false",
+             "Enable collapse shape pass">,
   ];
 }
 
@@ -29,4 +31,8 @@ def TritonToPtr : Pass<"triton-to-ptr", "mlir::ModuleOp"> {
   let constructor = "triton::createTritonToPtrPass()";
 }
 
+def CollapseShape : Pass</*cli-arg*/"collapse-shape", /*Op*/"mlir::ModuleOp"> {
+  let summary = "Compress tensor dimensions to improve linalg{broadcast,transpose,fill,reduce} efficiency";
+  let constructor = "triton::createCollapseShapePass()";
+}
 #endif
