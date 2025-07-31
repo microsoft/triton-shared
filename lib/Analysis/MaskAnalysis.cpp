@@ -508,7 +508,7 @@ LogicalResult MaskState::parseLoopIterArg(Value v, const Location loc,
     }
 
     auto dist = subOFRs(lhsState.end, lhsState.start, loc, builder);
-    this->start = forOp.getRegionIterArgs()[argIndex + 1];
+    this->start = forOp.getRegionIterArg(argIndex + 1);
     this->end = addOFRs(this->start, dist, loc, builder);
     this->dims = lhsState.dims;
 
