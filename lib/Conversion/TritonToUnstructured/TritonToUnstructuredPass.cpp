@@ -173,6 +173,9 @@
 #include <queue>
 
 #define DEBUG_TYPE "triton-to-unstructured"
+#define DBGS() (llvm::dbgs() << "[" DEBUG_TYPE "]: ")
+#define LDBG(X) \
+  LLVM_DEBUG(DBGS() << "[" << __FILE__ << ":" << __LINE__ << "]" << X << "\n")
 
 using namespace mlir;
 using namespace triton;
@@ -181,6 +184,28 @@ using namespace triton;
 #include "triton-shared/Conversion/TritonToUnstructured/Passes.h.inc"
 
 namespace {
+
+bool check_addrptr_in_same_block_with_its_users(Operation *addptr) {
+  auto ret = true;
+  auto if_parent = addptr->getParentOfType<scf::IfOp>();  // in if block
+  if (if_parent) {
+    // LDBG("addptr in scf.if");
+    // LDBG("scf.if : \n" << ret);
+    auto users = addptr->getUsers();
+    for (auto user : users) {
+      // LDBG("user : \n" << *user);
+      if (auto user_parent = user->getParentOfType<scf::IfOp>()) {
+        // LDBG("user->parent : \n" << user_parent);
+        if (user_parent != if_parent) {
+          ret = false;  // than, there would not insert PtrOffset into
+          // offsetMap
+          break;
+        }
+      }
+    }
+  }
+  return ret;
+}
 
 // Given a type, return the offset type corresponding to that type with the
 // specified width.
@@ -320,8 +345,11 @@ public:
                   // Bail when we have an addptr in an scf.if as we  do not know
                   // if the pointer returning from both branches will have the
                   // same source
-                  if (addptr->getParentOfType<scf::IfOp>()) {
+
+                  // check if ptr and load is in the same block
+                  if (!check_addrptr_in_same_block_with_its_users(addptr)) {
                     return failure();
+                    // TODO: We Shall Need Another Pass Later To Deal With this situation
                   }
 
                   OpBuilder b{addptr};
@@ -363,6 +391,9 @@ public:
                 })
                 .Case<triton::SplatOp, triton::BroadcastOp,
                       triton::ExpandDimsOp>([&](Operation *op) {
+                  if (!offsetMap.contains(op->getOperand(0))) {
+                    return failure();
+                  }
                   auto res = op->getResult(0);
                   auto resType = res.getType();
 
@@ -418,6 +449,9 @@ public:
                   auto argIndex = use.getOperandNumber() - 3;
                   auto init = forOp.getInitArgs()[argIndex];
 
+                  if (!offsetMap.contains(init)) {
+                    return failure();
+                  }
                   auto offsetInfo = offsetMap.at(init);
 
                   auto offsetType =
@@ -458,8 +492,9 @@ public:
                 })
                 .Case<scf::YieldOp>([](auto) { return success(); })
                 .Case<triton::CatOp>([](triton::CatOp op) {
-                  op->emitError("Do not support gather / scatter with multiple "
-                                "bases yet");
+                  op->emitError(
+                      "Do not support gather / scatter with multiple "
+                      "bases yet");
                   return failure();
                 })
                 .Default([&](Operation *op) {
@@ -467,9 +502,10 @@ public:
                   return failure();
                 });
 
-        if (failed(res)) {
-          return failure();
-        }
+        // if (failed(res)) {
+        //                    // outside just continue
+        //   return failure();
+        // }
       }
     }
 
@@ -479,6 +515,9 @@ public:
       auto res =
           llvm::TypeSwitch<Operation *, LogicalResult>(op)
               .Case<triton::LoadOp>([&](triton::LoadOp load) {
+                if (!offsetMap.contains(load.getPtr())) {
+                  return failure();
+                }
                 auto offsetInfo = offsetMap.at(load.getPtr());
 
                 auto other = load.getOther();
@@ -500,6 +539,9 @@ public:
                 return success();
               })
               .Case<triton::StoreOp>([&](triton::StoreOp store) {
+                if (!offsetMap.contains(store.getPtr())) {
+                  return failure();
+                }
                 auto offsetInfo = offsetMap.at(store.getPtr());
                 b.create<tts::ScatterOp>(loc, offsetInfo.ptr, offsetInfo.offset,
                                          store.getValue(), store.getMask());
@@ -508,6 +550,9 @@ public:
               })
               .Case<triton::MakeTensorPtrOp,
                     tts::MakeTensorPtrOp>([&](auto makeTensorPtr) {
+                if (!offsetMap.contains(makeTensorPtr.getBase())) {
+                  return failure();
+                }
                 // For block pointers, the base could come from a sequence of
                 // `tt.addptr`. Accumulate the target offset with the offset
                 // we have saved.
@@ -557,9 +602,9 @@ public:
                 return failure();
               });
 
-      if (failed(res)) {
-        return failure();
-      }
+      // if (failed(res)) {
+      //   return failure();
+      // }
     }
 
     for (auto op : toDelete) {
@@ -587,7 +632,7 @@ public:
     }
   }
 };
-} // namespace
+}  // namespace
 
 std::unique_ptr<OperationPass<ModuleOp>>
 triton::createTritonToUnstructuredPass() {
