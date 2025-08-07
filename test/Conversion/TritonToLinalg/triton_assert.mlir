@@ -1,15 +1,50 @@
 // RUN: triton-shared-opt --triton-to-linalg %s | FileCheck %s
-tt.func public @assert_lol(%arg0: i32) {
-  %c0_i32 = arith.constant 0 : i32
-  %0 = arith.cmpi sgt, %arg0, %c0_i32 : i32
-  %1 = tt.splat %0 : i1 -> tensor<1xi1>
-  tt.assert %1, "lol": tensor<1xi1>
+
+// CHECK:           #map = affine_map<(d0) -> (d0)>
+// CHECK:           #map1 = affine_map<(d0, d1) -> (d0, d1)>
+// CHECK:           #map2 = affine_map<(d0, d1, d2) -> (d0, d1, d2)>
+
+tt.func public @assert_tensor_1d() {
+  %0 = tensor.empty() : tensor<4xi1>
+  tt.assert %0, "message" : tensor<4xi1>
   tt.return
 }
 
-// CHECK: func.func @assert_lol(%arg0: i32, %arg1: i32, %arg2: i32, %arg3: i32, %arg4: i32, %arg5: i32, %arg6: i32) {
-// CHECK:   %c0_i32 = arith.constant 0 : i32
-// CHECK:   %0 = arith.cmpi sgt, %arg0, %c0_i32 : i32
-// CHECK:   cf.assert %0, "Assertion `lol` failed"
-// CHECK:   return
-// CHECK: }
+// CHECK-LABEL:   func.func @assert_tensor_1d
+// CHECK-NOT:       tt.assert
+// CHECK:           linalg.generic {indexing_maps = [#map], iterator_types = ["parallel"]} ins(%0 : tensor<4xi1>) { 
+// CHECK:           ^bb0(%in: i1):
+// CHECK:             cf.assert %in, "Assertion `message` failed"
+// CHECK:             linalg.yield
+// CHECK:           }
+// CHECK-NOT:       tt.assert
+
+tt.func public @assert_tensor_2d() {
+  %0 = tensor.empty() : tensor<4x4xi1>
+  tt.assert %0, "message" : tensor<4x4xi1>
+  tt.return
+}
+
+// CHECK-LABEL:   func.func @assert_tensor_2d
+// CHECK-NOT:       tt.assert
+// CHECK:           linalg.generic {indexing_maps = [#map1], iterator_types = ["parallel", "parallel"]} ins(%0 : tensor<4x4xi1>) { 
+// CHECK:           ^bb0(%in: i1):
+// CHECK:             cf.assert %in, "Assertion `message` failed"
+// CHECK:             linalg.yield
+// CHECK:           }
+// CHECK-NOT:       tt.assert
+
+tt.func public @assert_tensor_3d() {
+  %0 = tensor.empty() : tensor<4x4x4xi1>
+  tt.assert %0, "message" : tensor<4x4x4xi1>
+  tt.return
+}
+
+// CHECK-LABEL:   func.func @assert_tensor_3d
+// CHECK-NOT:       tt.assert
+// CHECK:           linalg.generic {indexing_maps = [#map2], iterator_types = ["parallel", "parallel", "parallel"]} ins(%0 : tensor<4x4x4xi1>) { 
+// CHECK:           ^bb0(%in: i1):
+// CHECK:             cf.assert %in, "Assertion `message` failed"
+// CHECK:             linalg.yield
+// CHECK:           }
+// CHECK-NOT:       tt.assert
