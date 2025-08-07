@@ -1,16 +1,55 @@
 // RUN: triton-shared-opt --triton-arith-to-linalg %s | FileCheck %s
-tt.func public @assert_lol(%arg0: i32) {
-  %c0_i32 = arith.constant 0 : i32
-  %0 = arith.cmpi sgt, %arg0, %c0_i32 : i32
-  %1 = tt.splat %0 : i1 -> tensor<1xi1>
-  tt.assert %1, "lol" : tensor<1xi1>
+
+tt.func public @assert_tensor_1d(%arg0: tensor<4xi1>) {
+  tt.assert %arg0, "message" : tensor<4xi1>
   tt.return
 }
 
-// CHECK-LABEL:  func.func @assert_lol
-// CHECK-SAME:   ([[PARAM_0_:%.+]]: i32, [[PARAM_1_:%.+]]: i32, [[PARAM_2_:%.+]]: i32, [[PARAM_3_:%.+]]: i32, [[PARAM_4_:%.+]]: i32, [[PARAM_5_:%.+]]: i32, [[PARAM_6_:%.+]]: i32) {
-// CHECK:           [[CST_0_:%.+]] = arith.constant 0 : i32
-// CHECK-DAG:       [[VAR_0_:%.+]] = arith.cmpi sgt, [[PARAM_0_]], [[CST_0_]] : i32
-// CHECK:           cf.assert [[VAR_0_]], "Assertion `lol` failed"
-// CHECK:           return
-// CHECK:         }
+// CHECK-LABEL:   func.func @assert_tensor_1d
+// CHECK:           %c1 = arith.constant 1 : index
+// CHECK:           %c0 = arith.constant 0 : index
+// CHECK:           %c4 = arith.constant 4 : index
+// CHECK:           scf.for %{{.*}} = %c0 to %c1 step %c1 {
+// CHECK:             scf.for [[INDEX:%.+]] = %c0 to %c4 step %c1 {
+// CHECK:               scf.for %{{.*}} = %c0 to %c1 step %c1 {
+// CHECK:                 %extracted = tensor.extract %arg0[[[INDEX]]] : tensor<4xi1>
+// CHECK:                 cf.assert %extracted, "Assertion `message` failed"
+// CHECK:               }
+// CHECK:             }
+// CHECK:           }
+
+tt.func public @assert_tensor_2d(%arg0: tensor<4x4xi1>) {
+  tt.assert %arg0, "message" : tensor<4x4xi1>
+  tt.return
+}
+
+// CHECK-LABEL:   func.func @assert_tensor_2d
+// CHECK:           %c1 = arith.constant 1 : index
+// CHECK:           %c0 = arith.constant 0 : index
+// CHECK:           %c4 = arith.constant 4 : index
+// CHECK:           scf.for [[INDEX0:%.+]] = %c0 to %c4 step %c1 {
+// CHECK:             scf.for [[INDEX1:%.+]] = %c0 to %c4 step %c1 {
+// CHECK:               scf.for %{{.*}} = %c0 to %c1 step %c1 {
+// CHECK:                 %extracted = tensor.extract %arg0[[[INDEX0]], [[INDEX1]]] : tensor<4x4xi1>
+// CHECK:                 cf.assert %extracted, "Assertion `message` failed"
+// CHECK:               }
+// CHECK:             }
+// CHECK:           }
+
+tt.func public @assert_tensor_3d(%arg0: tensor<4x4x4xi1>) {
+  tt.assert %arg0, "message" : tensor<4x4x4xi1>
+  tt.return
+}
+
+// CHECK-LABEL:   func.func @assert_tensor_3d
+// CHECK:           %c1 = arith.constant 1 : index
+// CHECK:           %c0 = arith.constant 0 : index
+// CHECK:           %c4 = arith.constant 4 : index
+// CHECK:           scf.for [[INDEX0:%.+]] = %c0 to %c4 step %c1 {
+// CHECK:             scf.for [[INDEX1:%.+]] = %c0 to %c4 step %c1 {
+// CHECK:               scf.for [[INDEX2:%.+]] = %c0 to %c4 step %c1 {
+// CHECK:                 %extracted = tensor.extract %arg0[[[INDEX0]], [[INDEX1]], [[INDEX2]]] : tensor<4x4x4xi1>
+// CHECK:                 cf.assert %extracted, "Assertion `message` failed"
+// CHECK:               }
+// CHECK:             }
+// CHECK:           }

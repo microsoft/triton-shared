@@ -790,25 +790,91 @@ struct AssertConverter : public OpConversionPattern<triton::AssertOp> {
                   ConversionPatternRewriter &rewriter) const override {
     Value condVal = op.getCondition();
 
-    if (isa<mlir::TensorType>(condVal.getType())) {
-      auto scalarVal = getScalarValue(op.getCondition(), op.getLoc(), rewriter);
-      condVal = scalarVal ? scalarVal : condVal;
-    }
-    assert(condVal && isa<mlir::IntegerType>(condVal.getType()) &&
-           "Only asserts on scalars are currently supported");
-
-    if (!condVal.getType().isInteger(1)) {
-      auto zero =
-          rewriter.create<mlir::arith::ConstantIntOp>(op.getLoc(), 0, 32);
-      auto newCond = rewriter.create<mlir::arith::CmpIOp>(
-          op.getLoc(), arith::CmpIPredicate::ne, condVal, zero);
-      condVal = newCond.getResult();
-    }
-
     auto assertMessage =
-        llvm::formatv("Assertion `{0}` failed", op.getMessage());
-    rewriter.create<mlir::cf::AssertOp>(op.getLoc(), condVal,
-                                        assertMessage.str());
+          llvm::formatv("Assertion `{0}` failed", op.getMessage());
+
+    if (isa<mlir::IntegerType>(condVal.getType())) {
+      // handle scalar case
+      if (!condVal.getType().isInteger(1)) {
+        auto zero =
+            rewriter.create<mlir::arith::ConstantIntOp>(op.getLoc(), 0, 32);
+        auto newCond = rewriter.create<mlir::arith::CmpIOp>(
+            op.getLoc(), arith::CmpIPredicate::ne, condVal, zero);
+        condVal = newCond.getResult();
+      }
+
+      rewriter.create<mlir::cf::AssertOp>(op.getLoc(), condVal,
+                                          assertMessage.str());
+    } else {
+      // handle tensor case
+      // dimensions
+      auto tensorType = dyn_cast<RankedTensorType>(condVal.getType()); // TODO: assertion?
+      int64_t rank = tensorType.getRank();
+
+      Value dim0, dim1, dim2;
+      if (rank == 1) {
+        dim0 = rewriter.create<arith::ConstantIndexOp>(op.getLoc(), 1);
+        dim1 = rewriter.create<tensor::DimOp>(op.getLoc(), condVal, 0);
+        dim2 = rewriter.create<arith::ConstantIndexOp>(op.getLoc(), 1);
+      } else if (rank == 2) {
+        dim0 = rewriter.create<tensor::DimOp>(op.getLoc(), condVal, 0);
+        dim1 = rewriter.create<tensor::DimOp>(op.getLoc(), condVal, 1);
+        dim2 = rewriter.create<arith::ConstantIndexOp>(op.getLoc(), 1);
+      } else if (rank == 3) {
+        dim0 = rewriter.create<tensor::DimOp>(op.getLoc(), condVal, 0);
+        dim1 = rewriter.create<tensor::DimOp>(op.getLoc(), condVal, 1);
+        dim2 = rewriter.create<tensor::DimOp>(op.getLoc(), condVal, 2);
+      }
+
+      // loop bounds
+      Value begin = rewriter.create<arith::ConstantIndexOp>(op.getLoc(), 0);
+      Value step = rewriter.create<arith::ConstantIndexOp>(op.getLoc(), 1);
+
+      rewriter.create<scf::ForOp>(
+        op.getLoc(), begin, dim0, step, ValueRange{}, 
+        [&](OpBuilder &b0, Location loc0, Value index0, ValueRange args0) {
+          b0.create<scf::ForOp>(
+            op.getLoc(), begin, dim1, step, ValueRange{},
+            [&](OpBuilder &b1, Location loc1, Value index1, ValueRange args1) {
+              b1.create<scf::ForOp>(
+                op.getLoc(), begin, dim2, step, ValueRange{},
+                [&](OpBuilder &b2, Location loc2, Value index2, ValueRange args2) {
+                  // make an extract op to load in the value from the tensor at current index
+                  Value element;
+                  
+                  if (rank == 1) {
+                    element = b2.create<tensor::ExtractOp>(op.getLoc(), condVal, ValueRange{index1});
+                  } else if (rank == 2) {
+                    element = b2.create<tensor::ExtractOp>(op.getLoc(), condVal, ValueRange{index0, index1});
+                  } else {
+                    element = b2.create<tensor::ExtractOp>(op.getLoc(), condVal, ValueRange{index0, index1, index2});
+                  }
+
+                  // convert to I1
+                  if (!element.getType().isInteger(1)) {
+                    auto zero =
+                        b2.create<mlir::arith::ConstantIntOp>(op.getLoc(), 0, 32);
+                    auto newCond = rewriter.create<mlir::arith::CmpIOp>(
+                        op.getLoc(), arith::CmpIPredicate::ne, element, zero);
+                    element = newCond.getResult();
+                  }
+                  
+                  // make a cf.assert for the current element
+                  b2.create<mlir::cf::AssertOp>(op.getLoc(), element, assertMessage.str());
+                  
+                  b2.create<scf::YieldOp>(op.getLoc());
+                }
+              );
+
+              b1.create<scf::YieldOp>(op.getLoc());
+            }
+          );
+
+          // yield
+          b0.create<scf::YieldOp>(op.getLoc());
+        }
+      );
+    }
 
     rewriter.eraseOp(op);
     return success();
