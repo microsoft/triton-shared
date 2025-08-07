@@ -131,9 +131,11 @@ struct ToMemrefConverter : public OpRewritePattern<UnrealizedConversionCastOp> {
       auto ptrToMemref = rewriter.create<tptr::ToMemrefOp>(
           op->getLoc(), MemRefType::get({1}, elemType), input);
 
-      auto newUnrankedMemref = rewriter.create<memref::CastOp>(
-          op.getLoc(), MemRefType::get({ShapedType::kDynamic}, elemType),
-          ptrToMemref);
+      SmallVector<OpFoldResult> sizes = {rewriter.getIndexAttr(1)};
+      SmallVector<OpFoldResult> newStrides = {rewriter.getIndexAttr(1)};
+      auto newUnrankedMemref = rewriter.create<memref::ReinterpretCastOp>(
+          op->getLoc(), MemRefType::get({ShapedType::kDynamic}, elemType),
+          ptrToMemref, rewriter.getIndexAttr(0), sizes, newStrides);
 
       rewriter.replaceAllUsesWith(output, newUnrankedMemref);
       rewriter.eraseOp(op);
