@@ -53,9 +53,11 @@ module {
 // CHECK-DAG:       [[RES_:%.+]] = memref.alloc() : memref<32x256x16xbf16>
 // CHECK:           memref.copy [[VAR_reinterpret_cast_]], [[RES_]] : memref<32x256x16xbf16, strided<[256, 1, 1]>> to memref<32x256x16xbf16>
 // CHECK-DAG:       [[VAR_0_:%.+]] = bufferization.to_tensor [[RES_]] restrict writable : memref<32x256x16xbf16>
+// CHECK:           [[VAL_7:%.+]] = tensor.empty() : tensor<256x32x16xbf16>
+// CHECK:           [[VAL_8:%.+]] = linalg.transpose ins([[VAR_0_]] : tensor<32x256x16xbf16>) outs([[VAL_7]] : tensor<256x32x16xbf16>) permutation = [1, 0, 2]
 // CHECK-DAG:       [[VAR_1_:%.+]] = tensor.empty() : tensor<32x16xbf16>
 // CHECK:           [[VAR_2_:%.+]] = linalg.fill ins([[CST_0_dot_000000_]] : bf16) outs([[VAR_1_]] : tensor<32x16xbf16>) -> tensor<32x16xbf16>
-// CHECK:           [[VAR_reduced_:%.+]] = linalg.reduce ins([[VAR_0_]] : tensor<32x256x16xbf16>) outs([[VAR_2_]] : tensor<32x16xbf16>) dimensions = [1]
+// CHECK:           [[VAR_reduced_:%.+]] = linalg.reduce ins([[VAL_8]] : tensor<256x32x16xbf16>) outs([[VAR_2_]] : tensor<32x16xbf16>) dimensions = [0]
 // CHECK:             ([[in_:.+]]: bf16, [[init_:.+]]: bf16) {
 // CHECK:               [[VAR_3_:%.+]] = arith.addf [[in_]], [[init_]] : bf16
 // CHECK:               linalg.yield [[VAR_3_]] : bf16
