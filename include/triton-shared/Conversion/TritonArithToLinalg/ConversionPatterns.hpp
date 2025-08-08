@@ -797,14 +797,6 @@ struct AssertConverter : public OpConversionPattern<triton::AssertOp> {
     // Tensors will always be RankedTensorType.
     if (isa<mlir::IntegerType>(condVal.getType())) {
       // handle scalar case
-      if (!condVal.getType().isInteger(1)) {
-        auto zero =
-            rewriter.create<mlir::arith::ConstantIntOp>(op.getLoc(), 0, 32);
-        auto newCond = rewriter.create<mlir::arith::CmpIOp>(
-            op.getLoc(), arith::CmpIPredicate::ne, condVal, zero);
-        condVal = newCond.getResult();
-      }
-
       rewriter.create<mlir::cf::AssertOp>(op.getLoc(), condVal,
                                           assertMessage.str());
     } else if (auto tensorType = dyn_cast<RankedTensorType>(condVal.getType())) {
@@ -827,15 +819,6 @@ struct AssertConverter : public OpConversionPattern<triton::AssertOp> {
         [&](OpBuilder &b, Location loc, ValueRange args) {
           // obtain the element in the tensor
           Value element = args[0];
-          
-          // convert to I1 if needed
-          if (!element.getType().isInteger(1)) {
-            auto zero =
-                b.create<mlir::arith::ConstantIntOp>(loc, 0, 32);
-            auto newCond = rewriter.create<mlir::arith::CmpIOp>(
-                loc, arith::CmpIPredicate::ne, element, zero);
-            element = newCond.getResult();
-          }
 
           // make a cf.assert for the current element
           b.create<mlir::cf::AssertOp>(loc, element, assertMessage.str());
