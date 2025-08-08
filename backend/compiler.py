@@ -170,7 +170,7 @@ def _llir_to_bin(llir: str, metadata):
             subprocess.check_call(subprocess_args)
         else:
             llc_path = _get_llvm_bin_path("llc")
-            subprocess.check_call([llc_path, src_path, "-filetype=obj", "-o", dst_path])
+            subprocess.check_call([llc_path, src_path, "-filetype=obj", "-relocation-model=pic", "-o", dst_path])
         
         return Path(dst_path).read_bytes()
 
