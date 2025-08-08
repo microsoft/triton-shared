@@ -1,5 +1,6 @@
 import torch
-
+import pytest
+import math
 import triton
 from triton.backends.compiler import GPUTarget
 import triton.language as tl
@@ -35,7 +36,7 @@ def test(device):
     x = torch.rand([n_cols, n_rows], device=device, dtype=torch.float32)
     output = torch.empty([n_cols], device=device, dtype=x.dtype)
     BLOCK_SIZE = n_rows
-    grid = lambda meta: (n_cols,)
+    grid = lambda meta: (n_cols, )
 
     reduce_kernel_2d[grid](x, output, x.stride(0), n_rows, BLOCK_SIZE=BLOCK_SIZE)
     ans = torch.sum(x, dim=1)
@@ -43,19 +44,53 @@ def test(device):
 
     # TODO: need to check some conditions otherwise the code below does not make any difference for the test
     src = triton.compiler.ASTSource(
-        fn=reduce_kernel_2d,
-        signature={"x_ptr": "*fp32",
-                   "output_ptr": "*fp32",
-                   "stride": "i32",
-                   "n_elements": "i32",
-                   "BLOCK_SIZE": "constexpr"},
-        constexprs={"BLOCK_SIZE": 32}
-    )
-    ret = triton.compile(
-        src,
-        target=GPUTarget(device, 0, 0)
-    )
+        fn=reduce_kernel_2d, signature={
+            "x_ptr": "*fp32", "output_ptr": "*fp32", "stride": "i32", "n_elements": "i32", "BLOCK_SIZE": "constexpr"
+        }, constexprs={"BLOCK_SIZE": 32})
+    ret = triton.compile(src, target=GPUTarget(device, 0, 0))
     print(ret.asm["ttir"])
     print(ret.asm["ttsharedir"])
     print(ret.asm["llir"])
     print(ret.asm["obj"])
+
+
+@pytest.mark.interpreter
+@pytest.mark.parametrize("dtype_str", ["int32", "float32"])
+@pytest.mark.parametrize("shape", [(128, 2, 4), (64, 2, 4), (32, 2, 4), (2, 4, 32), (2, 4, 2)])
+@pytest.mark.parametrize("axis", [0, 1, 2])
+def test_reduce_max(dtype_str, shape, axis, device):
+
+    @triton.jit
+    def kernel(
+        In,
+        Out,
+        in_shape1: tl.constexpr,
+        in_shape2: tl.constexpr,
+        in_shape3: tl.constexpr,
+        ou_shape1: tl.constexpr,
+        ou_shape2: tl.constexpr,
+        axis: tl.constexpr,
+    ):
+        in_desc = tl.make_tensor_descriptor(
+            base=In,
+            shape=[in_shape1 * in_shape2 * in_shape3],
+            strides=[1],
+            block_shape=[in_shape1 * in_shape2 * in_shape3],
+        )
+        out_desc = tl.make_tensor_descriptor(
+            base=Out,
+            shape=[ou_shape1 * ou_shape2],
+            strides=[1],
+            block_shape=[ou_shape1 * ou_shape2],
+        )
+        val = in_desc.load([0]).reshape(in_shape1, in_shape2, in_shape3)
+        output = tl.max(val, axis=axis)
+        out_desc.store([0], output.reshape(out_desc.block_shape))
+
+    input = torch.arange(math.prod(shape), dtype=getattr(torch, dtype_str),
+                         device="cpu").reshape(shape).to(device=device)
+    expected, indices = torch.max(input, dim=axis)
+    actual = torch.zeros(expected.shape, dtype=getattr(torch, dtype_str), device=device)
+    kernel[(1, )](input, actual, *shape, *expected.shape, axis=axis)
+
+    assert torch.equal(expected, actual)

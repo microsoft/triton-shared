@@ -132,9 +132,11 @@ module {
 // CHECK:             linalg.yield [[VAR_29_6_]] : !tt.ptr<bf16>
 // CHECK:           } -> tensor<32x256x16x!tt.ptr<bf16>>
 // CHECK-DAG:       [[LOAD_VAR_25_MEM_:%.+]] = tt.load [[VAR_25_]] : tensor<32x256x16x!tt.ptr<bf16>>
+// CHECK:           [[VAL_72:%.+]] = tensor.empty() : tensor<256x32x16xbf16>
+// CHECK:           [[VAL_73:%.+]] = linalg.transpose ins([[LOAD_VAR_25_MEM_]] : tensor<32x256x16xbf16>) outs([[VAL_72]] : tensor<256x32x16xbf16>) permutation = [1, 0, 2]
 // CHECK-DAG:       [[VAR_27_:%.+]] = tensor.empty() : tensor<32x16xbf16>
 // CHECK:           [[VAR_28_:%.+]] = linalg.fill ins([[CST_0_dot_000000_]] : bf16) outs([[VAR_27_]] : tensor<32x16xbf16>) -> tensor<32x16xbf16>
-// CHECK:           [[VAR_reduced_:%.+]] = linalg.reduce ins([[LOAD_VAR_25_MEM_]] : tensor<32x256x16xbf16>) outs([[VAR_28_]] : tensor<32x16xbf16>) dimensions = [1]
+// CHECK:           [[VAR_reduced_:%.+]] = linalg.reduce ins([[VAL_73]] : tensor<256x32x16xbf16>) outs([[VAR_28_]] : tensor<32x16xbf16>) dimensions = [0]
 // CHECK:             ([[in_]]: bf16, [[in_]]it: bf16) {
 // CHECK:               [[VAR_29_7_:%.+]] = arith.addf [[in_]], [[in_]]it : bf16
 // CHECK:               linalg.yield [[VAR_29_7_]] : bf16

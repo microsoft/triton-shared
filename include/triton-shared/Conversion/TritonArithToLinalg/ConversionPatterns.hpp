@@ -11,9 +11,9 @@
 #include "triton-shared/Analysis/MaskAnalysis.h"
 #include "triton-shared/Analysis/OpFoldResultUtils.h"
 #include "triton-shared/Analysis/PtrAnalysis.h"
+#include "triton-shared/Conversion/TritonArithToLinalg/ConversionTools.h"
 #include "triton-shared/Dialect/TritonTilingExt/IR/TritonTilingExtDialect.h"
 #include "triton-shared/Utils/Utils.h"
-#include "triton-shared/Conversion/TritonArithToLinalg/ConversionTools.h"
 
 #include "triton/Dialect/Triton/IR/Dialect.h"
 
@@ -1284,11 +1284,22 @@ private:
 
     auto rop = reductionOps.front();
     auto axis = op.getAxis();
-    auto isVectorReduce = sourceType.getRank() == 1;
+    auto rank = sourceType.getRank();
+    auto isVectorReduce = (rank == 1);
 
-    if (axis == sourceType.getRank() - 1 && !isVectorReduce) {
-      source = getTransposedValue(source, op.getLoc(), rewriter);
-      axis = sourceType.getRank() - 2;
+    // if it is not a vector reduce, we can transpose the source
+    // so that the reduction axis is the first dimension.
+    if (!isVectorReduce && axis != 0) {
+      SmallVector<int32_t> order;
+      order.reserve(rank);
+      order.push_back(axis);
+      for (int i = 0; i < rank; ++i) {
+        if (i != axis) {
+          order.push_back(i);
+        }
+      }
+      source = getTransposedValue(source, op.getLoc(), rewriter, order);
+      axis = 0;
     }
 
     bool convertToF32Precision = requiresF32Conversion(resType, rop);
@@ -1334,7 +1345,7 @@ private:
                 })
             .getResult(0);
 
-    if (sourceType.getRank() == 1) {
+    if (isVectorReduce) {
       finalResult =
           rewriter.create<tensor::ExtractOp>(loc, constantType, finalResult);
     }
