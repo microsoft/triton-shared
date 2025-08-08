@@ -792,7 +792,9 @@ struct AssertConverter : public OpConversionPattern<triton::AssertOp> {
 
     auto assertMessage =
           llvm::formatv("Assertion `{0}` failed", op.getMessage());
-
+    
+    // The condition can only be I1 or I1Tensor (integer or tensor) from TritonOps.td.
+    // Tensors will always be RankedTensorType.
     if (isa<mlir::IntegerType>(condVal.getType())) {
       // handle scalar case
       if (!condVal.getType().isInteger(1)) {
@@ -805,21 +807,15 @@ struct AssertConverter : public OpConversionPattern<triton::AssertOp> {
 
       rewriter.create<mlir::cf::AssertOp>(op.getLoc(), condVal,
                                           assertMessage.str());
-    } else {
+    } else if (auto tensorType = dyn_cast<RankedTensorType>(condVal.getType())) {
       // handle tensor case
-      // dimensions
-      auto tensorType = dyn_cast<RankedTensorType>(condVal.getType());
       int64_t rank = tensorType.getRank();
 
       // create identity mapping for access pattern
-      std::vector<AffineMap> indexingMaps;
-      indexingMaps.push_back(AffineMap::getMultiDimIdentityMap(rank, rewriter.getContext()));
+      SmallVector<AffineMap, 3> indexingMaps{AffineMap::getMultiDimIdentityMap(rank, rewriter.getContext())};
 
       // loops do not depend on each other
-      std::vector<utils::IteratorType> iteratorTypes;
-      for (int i = 0; i < rank; i++) {
-        iteratorTypes.push_back(utils::IteratorType::parallel);
-      }
+      SmallVector<utils::IteratorType, 3> iteratorTypes(rank, utils::IteratorType::parallel);
 
       rewriter.create<linalg::GenericOp>(
         op.getLoc(),
@@ -846,6 +842,9 @@ struct AssertConverter : public OpConversionPattern<triton::AssertOp> {
           
           b.create<linalg::YieldOp>(loc);
         });
+    } else {
+      op.emitError("Unexpected type in triton::AssertOp");
+      return failure();
     }
 
     rewriter.eraseOp(op);
