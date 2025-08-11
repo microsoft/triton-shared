@@ -1,4 +1,4 @@
-// RUN: triton-shared-opt --triton-to-structured --remove-dead-values --canonicalize %s | FileCheck %s
+// RUN: triton-shared-opt --triton-to-structured --remove-dead-values --canonicalize --cse %s | FileCheck %s
 
 module {
   tt.func @mask_ld_st_scalar(
@@ -38,10 +38,11 @@ module {
   }
 }
 
-// CHECK:   %{{.*}} = "tts.load"(%{{.*}}, %{{.*}}) <{operandSegmentSizes = array<i32: 1, 1, 0>, static_mask_dims = array<i64: -9223372036854775808, 1>}> : (tensor<2x1x!tt.ptr<f32>>, index) -> tensor<2x1xf32>
-// CHECK:   %{{.*}} = "tts.load"(%{{.*}}, %{{.*}}) <{operandSegmentSizes = array<i32: 1, 1, 0>, static_mask_dims = array<i64: -9223372036854775808, 1>}> : (tensor<2x1x!tt.ptr<f32>>, index) -> tensor<2x1xf32>
-// CHECK:   "tts.store"(%{{.*}}, %{{.*}}, %{{.*}}) <{static_mask_dims = array<i64: -9223372036854775808, 1>}> : (tensor<2x1x!tt.ptr<f32>>, tensor<2x1xf32>, index) -> ()
-// CHECK:   "tts.store"(%{{.*}}, %{{.*}}, %{{.*}}) <{static_mask_dims = array<i64: -9223372036854775808, 1>}> : (tensor<2x1x!tt.ptr<f32>>, tensor<2x1xf32>, index) -> ()
+// CHECK:   %{{.*}} = "tts.load"(%{{.*}}, %{{.*}}, %{{.*}}) <{operandSegmentSizes = array<i32: 1, 2, 0>, static_mask_dims = array<i64: -9223372036854775808, -9223372036854775808>}> : (tensor<2x1x!tt.ptr<f32>>, index, index) -> tensor<2x1xf32>
+// CHECK:   %{{.*}} = "tts.load"(%{{.*}}, %{{.*}}, %{{.*}}) <{operandSegmentSizes = array<i32: 1, 2, 0>, static_mask_dims = array<i64: -9223372036854775808, -9223372036854775808>}> : (tensor<2x1x!tt.ptr<f32>>, index, index) -> tensor<2x1xf32>
+// CHECK:   "tts.store"(%{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}) <{static_mask_dims = array<i64: -9223372036854775808, -9223372036854775808>}> : (tensor<2x1x!tt.ptr<f32>>, tensor<2x1xf32>, index, index) -> ()
+// CHECK:   "tts.store"(%{{.*}}, %{{.*}}, %{{.*}}, %{{.*}}) <{static_mask_dims = array<i64: -9223372036854775808, -9223372036854775808>}> : (tensor<2x1x!tt.ptr<f32>>, tensor<2x1xf32>, index, index) -> ()
+
 
 // Original Triton Function:
 // def test_masked_ld_st(

@@ -220,24 +220,24 @@ LogicalResult MaskState::minStateScalar(const MaskState &lhsState,
                                         const MaskState &rhsState, Location loc,
                                         OpBuilder &builder) {
   if (lhsState.scalar && rhsState.scalar) {
-    dims.push_back(minOFRs(lhsState.dims[0], rhsState.dims[0], loc, builder));
-  } else if (lhsState.scalar) {
-    for (uint32_t i = 0; i < rhsState.getRank(); i++) {
-      auto lhsDim = lhsState.dims[0];
-      auto rhsDim = rhsState.dims[i];
-      dims.push_back(minOFRs(lhsDim, rhsDim, loc, builder));
-    }
-  } else if (rhsState.scalar) {
-    for (uint32_t i = 0; i < lhsState.getRank(); i++) {
-      auto lhsDim = lhsState.dims[i];
-      auto rhsDim = rhsState.dims[0];
-      dims.push_back(minOFRs(lhsDim, rhsDim, loc, builder));
-    }
-  } else {
+    InFlightDiagnostic diag =
+        emitError(loc) << "Unexpected case where both lhs and rhs are scalars";
+    return failure();
+  }
+  if (!lhsState.scalar && !rhsState.scalar) {
     InFlightDiagnostic diag =
         emitError(loc)
         << "Unexpected case where both lhs and rhs are not scalars";
     return failure();
+  }
+
+  auto &scalarState = lhsState.scalar ? lhsState : rhsState;
+  auto &nonScalarState = lhsState.scalar ? rhsState : lhsState;
+  for (uint32_t i = 0; i < nonScalarState.getRank(); i++) {
+    auto nonScalarDim = nonScalarState.dims[i];
+    dims.push_back(selectOFRs(scalarState.scalar, nonScalarDim,
+                              builder.getZeroAttr(builder.getIndexType()), loc,
+                              builder));
   }
   return success();
 }
