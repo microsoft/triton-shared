@@ -790,25 +790,45 @@ struct AssertConverter : public OpConversionPattern<triton::AssertOp> {
                   ConversionPatternRewriter &rewriter) const override {
     Value condVal = op.getCondition();
 
-    if (isa<mlir::TensorType>(condVal.getType())) {
-      auto scalarVal = getScalarValue(op.getCondition(), op.getLoc(), rewriter);
-      condVal = scalarVal ? scalarVal : condVal;
-    }
-    assert(condVal && isa<mlir::IntegerType>(condVal.getType()) &&
-           "Only asserts on scalars are currently supported");
-
-    if (!condVal.getType().isInteger(1)) {
-      auto zero =
-          rewriter.create<mlir::arith::ConstantIntOp>(op.getLoc(), 0, 32);
-      auto newCond = rewriter.create<mlir::arith::CmpIOp>(
-          op.getLoc(), arith::CmpIPredicate::ne, condVal, zero);
-      condVal = newCond.getResult();
-    }
-
     auto assertMessage =
-        llvm::formatv("Assertion `{0}` failed", op.getMessage());
-    rewriter.create<mlir::cf::AssertOp>(op.getLoc(), condVal,
-                                        assertMessage.str());
+          llvm::formatv("Assertion `{0}` failed", op.getMessage());
+    
+    // The condition can only be I1 or I1Tensor (integer or tensor) from TritonOps.td.
+    // Tensors will always be RankedTensorType.
+    if (isa<mlir::IntegerType>(condVal.getType())) {
+      // handle scalar case
+      rewriter.create<mlir::cf::AssertOp>(op.getLoc(), condVal,
+                                          assertMessage.str());
+    } else if (auto tensorType = dyn_cast<RankedTensorType>(condVal.getType())) {
+      // handle tensor case
+      int64_t rank = tensorType.getRank();
+
+      // create identity mapping for access pattern
+      SmallVector<AffineMap, 3> indexingMaps{AffineMap::getMultiDimIdentityMap(rank, rewriter.getContext())};
+
+      // loops do not depend on each other
+      SmallVector<utils::IteratorType, 3> iteratorTypes(rank, utils::IteratorType::parallel);
+
+      rewriter.create<linalg::GenericOp>(
+        op.getLoc(),
+        TypeRange{},
+        condVal,
+        ValueRange{},
+        ArrayRef<AffineMap>{indexingMaps},
+        ArrayRef<utils::IteratorType>{iteratorTypes},
+        [&](OpBuilder &b, Location loc, ValueRange args) {
+          // obtain the element in the tensor
+          Value element = args[0];
+
+          // make a cf.assert for the current element
+          b.create<mlir::cf::AssertOp>(loc, element, assertMessage.str());
+          
+          b.create<linalg::YieldOp>(loc);
+        });
+    } else {
+      op.emitError("Unexpected type in triton::AssertOp");
+      return failure();
+    }
 
     rewriter.eraseOp(op);
     return success();
