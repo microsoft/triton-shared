@@ -219,11 +219,15 @@ LogicalResult MaskState::addStates(const MaskState &lhsState,
 LogicalResult MaskState::minStateScalar(const MaskState &lhsState,
                                         const MaskState &rhsState, Location loc,
                                         OpBuilder &builder) {
+  // Conjunction where both sides are scalar should not be done after splats. We
+  // should ensure that code generation pushes the splat as late as possible.
   if (lhsState.scalar && rhsState.scalar) {
     InFlightDiagnostic diag =
         emitError(loc) << "Unexpected case where both lhs and rhs are scalars";
     return failure();
   }
+
+  // Caller should ensure that at least one side is scalar.
   if (!lhsState.scalar && !rhsState.scalar) {
     InFlightDiagnostic diag =
         emitError(loc)
@@ -231,6 +235,10 @@ LogicalResult MaskState::minStateScalar(const MaskState &lhsState,
     return failure();
   }
 
+  // If we see a scalar condition in a conjunction with a mask, this means we
+  // are either going to take the mask dimension or take nothing at all. To do
+  // that we use a select on the scalar value with the mask dimension in the
+  // true case and zero in the false case.
   auto &scalarState = lhsState.scalar ? lhsState : rhsState;
   auto &nonScalarState = lhsState.scalar ? rhsState : lhsState;
   for (uint32_t i = 0; i < nonScalarState.getRank(); i++) {

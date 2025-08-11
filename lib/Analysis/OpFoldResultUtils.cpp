@@ -346,6 +346,10 @@ OpFoldResult selectOFRs(const OpFoldResult condOFR, const OpFoldResult trueOFR,
   auto falseValue = ofrToIndexValue(falseOFR, loc, b);
   auto condValue = ofrToIndexValue(condOFR, loc, b);
 
+  // Ideally we should not be passing around everything as index type since mask
+  // analysis can come across i1 values, but that improvement is being left for
+  // future work. For now we just unwrap an index back into it's i1 value if
+  // necessary.
   if (!condValue.getType().isInteger(1)) {
     assert(condValue.getDefiningOp<arith::IndexCastOp>());
     condValue = condValue.getDefiningOp<arith::IndexCastOp>().getOperand();
