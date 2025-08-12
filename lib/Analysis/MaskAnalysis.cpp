@@ -219,25 +219,41 @@ LogicalResult MaskState::addStates(const MaskState &lhsState,
 LogicalResult MaskState::minStateScalar(const MaskState &lhsState,
                                         const MaskState &rhsState, Location loc,
                                         OpBuilder &builder) {
+  // Conjunction where both sides are scalar should not be done after splats. We
+  // should ensure that code generation pushes the splat as late as possible.
   if (lhsState.scalar && rhsState.scalar) {
-    dims.push_back(minOFRs(lhsState.dims[0], rhsState.dims[0], loc, builder));
-  } else if (lhsState.scalar) {
-    for (uint32_t i = 0; i < rhsState.getRank(); i++) {
-      auto lhsDim = lhsState.dims[0];
-      auto rhsDim = rhsState.dims[i];
-      dims.push_back(minOFRs(lhsDim, rhsDim, loc, builder));
-    }
-  } else if (rhsState.scalar) {
-    for (uint32_t i = 0; i < lhsState.getRank(); i++) {
-      auto lhsDim = lhsState.dims[i];
-      auto rhsDim = rhsState.dims[0];
-      dims.push_back(minOFRs(lhsDim, rhsDim, loc, builder));
-    }
-  } else {
+    InFlightDiagnostic diag =
+        emitError(loc) << "Unexpected case where both lhs and rhs are scalars";
+    return failure();
+  }
+
+  // Caller should ensure that at least one side is scalar.
+  if (!lhsState.scalar && !rhsState.scalar) {
     InFlightDiagnostic diag =
         emitError(loc)
         << "Unexpected case where both lhs and rhs are not scalars";
     return failure();
+  }
+
+  // If we see a scalar condition in a conjunction with a mask, this means we
+  // are either going to take the mask dimension or take nothing at all. To do
+  // that we use a select on the scalar value with the mask dimension in the
+  // true case and zero in the false case.
+  //
+  // Example:
+  // def kernel(..., index: i32, ...):
+  //   ...
+  //   offs = tl.arange(0, 8)
+  //   mask = offs < 4
+  //   scalar = index < 4
+  //   ... = tl.load(some_ptr, mask=scalar & mask, other=0)
+  auto &scalarState = lhsState.scalar ? lhsState : rhsState;
+  auto &nonScalarState = lhsState.scalar ? rhsState : lhsState;
+  for (uint32_t i = 0; i < nonScalarState.getRank(); i++) {
+    auto nonScalarDim = nonScalarState.dims[i];
+    dims.push_back(selectOFRs(scalarState.scalar, nonScalarDim,
+                              builder.getZeroAttr(builder.getIndexType()), loc,
+                              builder));
   }
   return success();
 }
