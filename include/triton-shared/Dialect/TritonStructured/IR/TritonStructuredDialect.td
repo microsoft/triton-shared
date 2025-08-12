@@ -159,6 +159,7 @@ def TTS_MakeGatherScatterTensorPtrOp
   // strides: The strides of the parent tensor, which means how much to increase the pointer
   //          by when moving by 1 element in a specific axis.
   // offsets: Offset of the block along each dimension from base.
+  // gather_scatter_mask: Optional bool mask for mask which failed MaskAnalysis.
   // result:  A tensor of pointers.
 
   let arguments = (ins TT_Ptr:$base,
