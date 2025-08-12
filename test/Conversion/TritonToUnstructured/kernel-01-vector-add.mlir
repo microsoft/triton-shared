@@ -28,7 +28,11 @@ module {
 // CHECK-NOT: tt.load
 // CHECK-NOT: tt.store
 
-// CHECK-COUNT-2: tts.gather %arg{{[0-9]+}}
-// CHECK-NOT: tts.gather %arg{{[0-9]+}}
-// CHECK-COUNT-1: tts.scatter {{.+}} into %arg{{[0-9]+}}
-// CHECK-NOT:    tts.scatter {{.+}} into %arg{{[0-9]+}}
+// CHECK:           %[[VAL_12:.*]] = tts.make_gather_scatter_tptr %arg0 to sizes: [1024] gather_scatter_dim: 0 gather_scatter_offset: %[[VAL_9:.*]] gather_scatter_mask: %[[VAL_11:.*]], strides: [1], offsets: [0] : tensor<1024xi32> tensor<1024xi1> <f32> to !tt.ptr<tensor<1024xf32>>
+// CHECK:           %[[VAL_13:.*]] = "tts.load"(%[[VAL_12]]) <{operandSegmentSizes = array<i32: 1, 0, 0>, static_mask_dims = array<i64: 0>}> : (!tt.ptr<tensor<1024xf32>>) -> tensor<1024xf32>
+// CHECK:           %[[VAL_14:.*]] = tts.make_gather_scatter_tptr %arg1 to sizes: [1024] gather_scatter_dim: 0 gather_scatter_offset: %[[VAL_9]] gather_scatter_mask: %[[VAL_11]], strides: [1], offsets: [0] : tensor<1024xi32> tensor<1024xi1> <f32> to !tt.ptr<tensor<1024xf32>>
+// CHECK:           %[[VAL_15:.*]] = "tts.load"(%[[VAL_14]]) <{operandSegmentSizes = array<i32: 1, 0, 0>, static_mask_dims = array<i64: 0>}> : (!tt.ptr<tensor<1024xf32>>) -> tensor<1024xf32>
+// CHECK:           %[[VAL_16:.*]] = arith.addf %[[VAL_13]], %[[VAL_15]] : tensor<1024xf32>
+// CHECK:           %[[VAL_17:.*]] = tts.make_gather_scatter_tptr %arg2 to sizes: [1024] gather_scatter_dim: 0 gather_scatter_offset: %[[VAL_9]] gather_scatter_mask: %[[VAL_11]], strides: [1], offsets: [0] : tensor<1024xi32> tensor<1024xi1> <f32> to !tt.ptr<tensor<1024xf32>>
+// CHECK:           "tts.store"(%[[VAL_17]], %[[VAL_16]]) <{static_mask_dims = array<i64: 0>}> : (!tt.ptr<tensor<1024xf32>>, tensor<1024xf32>) -> ()
+// CHECK-NOT:       tts.make_gather_scatter_tptr

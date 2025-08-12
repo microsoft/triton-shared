@@ -11,6 +11,7 @@ add_triton_library(TritonToUnstructured
   MLIRIR
   MLIRMathDialect
   MLIRPass
+  MLIRShapeDialect
   MLIRTensorDialect
   MLIRTransforms
   MLIRSupport

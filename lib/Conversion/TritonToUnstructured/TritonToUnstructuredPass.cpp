@@ -137,6 +137,7 @@
 
 #include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/SCF/IR/SCF.h"
+#include "mlir/Dialect/Shape/IR/Shape.h"
 #include "mlir/IR/Builders.h"
 #include "mlir/IR/BuiltinAttributes.h"
 #include "mlir/IR/BuiltinOps.h"
@@ -491,18 +492,90 @@ public:
                   }
                 }
 
-                auto gather = b.create<tts::GatherOp>(
-                    loc, load.getType(), offsetInfo.ptr, offsetInfo.offset,
-                    load.getMask(), other);
+                Type type = load.getType();
+                Value gatherPtr = create1DGatherScatterPtr(
+                    offsetInfo, type, load.getMask(), b, loc);
 
-                load->replaceAllUsesWith(gather->getResults());
-                load->erase();
+                if (type.isIntOrIndexOrFloat()) {
+                  // Update ptr operand of load to gatherPtr directly.
+                  load.getPtrMutable().set(gatherPtr);
+                  return success();
+                }
+                SmallVector<OpFoldResult> masks;
+                // To support generic mask, save the mask in gatherPtr, just
+                // create a 0 mask here to keep a mask.
+                if (load.getMask()) {
+                  masks.emplace_back(b.getIndexAttr(0));
+                }
+
+                Value newValue =
+                    b.create<tts::LoadOp>(loc, gatherPtr, masks, other)
+                        .getResult();
+
+                if (isa<RankedTensorType>(type)) {
+                  auto rankedType = cast<RankedTensorType>(type);
+                  if (rankedType.getRank() > 1) {
+                    auto flatShapeType = shape::getExtentTensorType(
+                        type.getContext(), rankedType.getRank());
+                    SmallVector<Value> shapeValues;
+                    for (auto dim : rankedType.getShape()) {
+                      shapeValues.push_back(
+                          b.create<arith::ConstantIndexOp>(loc, dim));
+                    }
+                    auto flatInputShape = b.create<tensor::FromElementsOp>(
+                        loc, flatShapeType, shapeValues);
+                    newValue = b.create<tensor::ReshapeOp>(
+                                    loc, rankedType, newValue, flatInputShape)
+                                   .getResult();
+                  }
+                }
+
+                load.replaceAllUsesWith(newValue);
+                load.erase();
                 return success();
               })
               .Case<triton::StoreOp>([&](triton::StoreOp store) {
                 auto offsetInfo = offsetMap.at(store.getPtr());
-                b.create<tts::ScatterOp>(loc, offsetInfo.ptr, offsetInfo.offset,
-                                         store.getValue(), store.getMask());
+                Value gatherPtr = create1DGatherScatterPtr(
+                    offsetInfo, store.getValue().getType(), store.getMask(), b,
+                    loc);
+                Value stValue = store.getValue();
+                Type type = stValue.getType();
+                if (type.isIntOrIndexOrFloat()) {
+                  // Update ptr operand of store to gatherPtr directly.
+                  store.getPtrMutable().set(gatherPtr);
+                  return success();
+                }
+
+                SmallVector<OpFoldResult> masks;
+                // To support generic mask, save the mask in gatherPtr, just
+                // create a 0 mask here to keep a mask.
+                if (store.getMask()) {
+                  masks.emplace_back(b.getIndexAttr(0));
+                }
+
+                if (isa<RankedTensorType>(type)) {
+                  auto rankedType = cast<RankedTensorType>(type);
+                  if (rankedType.getRank() > 1) {
+                    int64_t staticSize = 1;
+                    for (auto dim : rankedType.getShape()) {
+                      staticSize *= dim;
+                    }
+                    auto flatShapeType =
+                        shape::getExtentTensorType(type.getContext(), 1);
+                    SmallVector<Value> shapeValues = {
+                        b.create<arith::ConstantIndexOp>(loc, 0)};
+                    auto flatInputShape = b.create<tensor::FromElementsOp>(
+                        loc, flatShapeType, shapeValues);
+                    auto flatType = RankedTensorType::get(
+                        {staticSize}, rankedType.getElementType());
+                    stValue = b.create<tensor::ReshapeOp>(
+                                   loc, flatType, stValue, flatInputShape)
+                                  .getResult();
+                  }
+                }
+
+                b.create<tts::StoreOp>(loc, gatherPtr, stValue, masks);
                 store->erase();
                 return success();
               })
@@ -585,6 +658,56 @@ public:
     if (failed(runPipeline(pm, getOperation()))) {
       signalPassFailure();
     }
+  }
+
+private:
+  Value create1DGatherScatterPtr(PtrOffset &offsetInfo, Type type, Value mask,
+                                 OpBuilder &b, Location loc) {
+    // It must be 1D here, so nonContinuousDim is always 0.
+    int nonContinuousDim = 0;
+    Value nonContinuousOffset = offsetInfo.offset;
+    Value ptr = offsetInfo.ptr;
+    // Get size, strides
+    int64_t staticSize = 1;
+
+    if (isa<RankedTensorType>(type)) {
+      auto rankedType = cast<RankedTensorType>(type);
+      assert(rankedType.hasStaticShape() &&
+             "expected load to have static shape");
+      for (auto dim : rankedType.getShape()) {
+        staticSize *= dim;
+      }
+      if (rankedType.getRank() > 1) {
+        auto flatShapeType = shape::getExtentTensorType(type.getContext(), 1);
+        SmallVector<Value> shapeValues = {
+            b.create<arith::ConstantIndexOp>(loc, 0)};
+        auto flatInputShape =
+            b.create<tensor::FromElementsOp>(loc, flatShapeType, shapeValues);
+        nonContinuousOffset = b.create<tensor::ReshapeOp>(
+            loc,
+            RankedTensorType::get(
+                {staticSize},
+                cast<RankedTensorType>(nonContinuousOffset.getType())
+                    .getElementType()),
+            nonContinuousOffset, flatInputShape);
+        if (mask) {
+          mask = b.create<tensor::ReshapeOp>(
+              loc,
+              RankedTensorType::get(
+                  {staticSize},
+                  cast<RankedTensorType>(mask.getType()).getElementType()),
+              mask, flatInputShape);
+        }
+      }
+    }
+    OpFoldResult stride = b.getIndexAttr(1);
+    OpFoldResult offset = nonContinuousOffset;
+
+    auto gatherPtr = b.create<tts::MakeGatherScatterTensorPtrOp>(
+        loc, offsetInfo.ptr, nonContinuousOffset, mask, nonContinuousDim,
+        ArrayRef<int64_t>{staticSize}, ArrayRef<OpFoldResult>{stride},
+        ArrayRef<OpFoldResult>{offset});
+    return gatherPtr.getResult();
   }
 };
 } // namespace

@@ -42,7 +42,8 @@ module {
 // CHECK-NOT: tt.load
 // CHECK-NOT: tt.store
 
-// CHECK-COUNT-1: tts.gather %arg{{[0-9]+}}
-// CHECK-NOT: tts.gather %arg{{[0-9]+}}
-// CHECK-COUNT-1: tts.scatter {{.+}} into %arg{{[0-9]+}}
-// CHECK-NOT:    tts.scatter {{.+}} into %arg{{[0-9]+}}
+// CHECK:           %[[PTR:.*]] = tts.make_gather_scatter_tptr %arg1 to sizes: [128] gather_scatter_dim: 0 gather_scatter_offset: %{{.*}} gather_scatter_mask: %[[VAL_12:.*]], strides: [1], offsets: [0] : tensor<128xi32> tensor<128xi1> <f32> to !tt.ptr<tensor<128xf32>>
+// CHECK:           "tts.load"(%[[PTR]], %{{.*}}) <{operandSegmentSizes = array<i32: 1, 0, 1>, static_mask_dims = array<i64: 0>}> : (!tt.ptr<tensor<128xf32>>, f32) -> tensor<128xf32>
+// CHECK:           %[[PTR2:.*]] = tts.make_gather_scatter_tptr %arg0 to sizes: [128] gather_scatter_dim: 0 gather_scatter_offset: %{{.*}} gather_scatter_mask: %[[VAL_12]], strides: [1], offsets: [0] : tensor<128xi32> tensor<128xi1> <f32> to !tt.ptr<tensor<128xf32>>
+// CHECK:           "tts.store"(%[[PTR2]], %{{.*}}) <{static_mask_dims = array<i64: 0>}> : (!tt.ptr<tensor<128xf32>>, tensor<128xf32>) -> ()
+// CHECK-NOT:       tts.make_gather_scatter_tptr

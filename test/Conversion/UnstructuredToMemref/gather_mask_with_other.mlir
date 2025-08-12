@@ -1,4 +1,4 @@
-// RUN: triton-shared-opt --triton-to-unstructured --canonicalize --unstructured-to-memref --canonicalize %s | FileCheck %s
+// RUN: triton-shared-opt --triton-to-unstructured --canonicalize  --structured-to-memref --canonicalize %s | FileCheck %s
 
 module {
   tt.func public @gather_simple_mask_with_other(%arg0: !tt.ptr<f32>, %arg1: !tt.ptr<f32>) attributes {noinline = false} {

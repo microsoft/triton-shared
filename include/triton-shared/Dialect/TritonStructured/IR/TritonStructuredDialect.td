@@ -120,7 +120,7 @@ def TTS_MakeTensorPtrOp
   //let hasCanonicalizer = 1;
 }
 
-def TT_IndexTensorLike : AnyTypeOf<[I32Tensor, I64Tensor]>;
+def TT_IndexTensorLike : AnyTypeOf<[TT_IntLike, I16Tensor, I32Tensor, I64Tensor]>;
 
 def TTS_MakeGatherScatterTensorPtrOp
   : TTS_Op<"make_gather_scatter_tptr", [AttrSizedOperandSegments, Pure]> {
@@ -168,7 +168,8 @@ def TTS_MakeGatherScatterTensorPtrOp
                        Variadic<Index>:$strides,
                        Variadic<Index>:$offsets,
                        DenseI64ArrayAttr:$static_strides,
-                       DenseI64ArrayAttr:$static_offsets);
+                       DenseI64ArrayAttr:$static_offsets,
+                       Optional<TT_BoolLike>:$gather_scatter_mask);
 
   let results = (outs TT_PtrLike:$result);
 
@@ -176,11 +177,12 @@ def TTS_MakeGatherScatterTensorPtrOp
     $base `to` `sizes` `` `:` $sizes
     `gather_scatter_dim` `` `:` $gather_scatter_dim
     `gather_scatter_offset` `` `:` $gather_scatter_offset
+    (`gather_scatter_mask` `` `:` $gather_scatter_mask^)?
     `` `,` `strides` `` `:`
     custom<DynamicIndexList>($strides, $static_strides)
     `` `,` `offsets` `` `:`
     custom<DynamicIndexList>($offsets, $static_offsets)
-    attr-dict `:`  type($gather_scatter_offset) type($base) `to` type($result)
+    attr-dict `:`  type($gather_scatter_offset) type($gather_scatter_mask) type($base) `to` type($result)
   }];
 
 
@@ -189,6 +191,15 @@ def TTS_MakeGatherScatterTensorPtrOp
     OpBuilder<(ins
       "Value":$base,
       "Value":$gather_scatter_offset,
+      "int":$gather_scatter_dim,
+      "ArrayRef<int64_t>":$sizes,
+      "ArrayRef<OpFoldResult>":$strides,
+      "ArrayRef<OpFoldResult>":$offsets)>,
+
+    OpBuilder<(ins
+      "Value":$base,
+      "Value":$gather_scatter_offset,
+      "Value":$gather_scatter_mask,
       "int":$gather_scatter_dim,
       "ArrayRef<int64_t>":$sizes,
       "ArrayRef<OpFoldResult>":$strides,

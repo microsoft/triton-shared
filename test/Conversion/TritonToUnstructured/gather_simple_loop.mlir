@@ -34,5 +34,7 @@ module {
 // CHECK-NOT: tt.load
 // CHECK-NOT: tt.store
 
-// CHECK: [[tensor:%.+]] = tts.gather %arg0
-// CHECK: tts.scatter [[tensor]] into %arg1
+// CHECK:             %[[PTR:.*]] = tts.make_gather_scatter_tptr %arg0 to sizes: [64] gather_scatter_dim: 0 gather_scatter_offset: {{.*}}, strides: [1], offsets: [0] : tensor<64xi32>  <f32> to !tt.ptr<tensor<64xf32>>
+// CHECK:             %[[VAL_20:.*]] = "tts.load"(%[[PTR]]) <{operandSegmentSizes = array<i32: 1, 0, 0>, static_mask_dims = array<i64>}> : (!tt.ptr<tensor<64xf32>>) -> tensor<64xf32>
+// CHECK:             %[[PTR2:.*]] = tts.make_gather_scatter_tptr %arg1 to sizes: [64] gather_scatter_dim: 0 gather_scatter_offset: {{.*}}, strides: [1], offsets: [0] : tensor<64xi32>  <f32> to !tt.ptr<tensor<64xf32>>
+// CHECK:             "tts.store"(%[[PTR2]], %[[VAL_20]]) <{static_mask_dims = array<i64>}> : (!tt.ptr<tensor<64xf32>>, tensor<64xf32>) -> ()
