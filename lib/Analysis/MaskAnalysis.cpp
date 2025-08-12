@@ -239,6 +239,14 @@ LogicalResult MaskState::minStateScalar(const MaskState &lhsState,
   // are either going to take the mask dimension or take nothing at all. To do
   // that we use a select on the scalar value with the mask dimension in the
   // true case and zero in the false case.
+  //
+  // Example:
+  // def kernel(..., index: i32, ...):
+  //   ...
+  //   offs = tl.arange(0, 8)
+  //   mask = offs < 4
+  //   scalar = index < 4
+  //   ... = tl.load(some_ptr, mask=scalar & mask, other=0)
   auto &scalarState = lhsState.scalar ? lhsState : rhsState;
   auto &nonScalarState = lhsState.scalar ? rhsState : lhsState;
   for (uint32_t i = 0; i < nonScalarState.getRank(); i++) {
