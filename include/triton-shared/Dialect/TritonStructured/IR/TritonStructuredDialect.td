@@ -120,7 +120,7 @@ def TTS_MakeTensorPtrOp
   //let hasCanonicalizer = 1;
 }
 
-def TT_IndexTensorLike : AnyTypeOf<[TT_IntLike, I16Tensor, I32Tensor, I64Tensor]>;
+def TTS_OffsetLike : AnyTypeOf<[I16, I32, I64, I16Tensor, I32Tensor, I64Tensor]>;
 
 def TTS_MakeGatherScatterTensorPtrOp
   : TTS_Op<"make_gather_scatter_tptr", [AttrSizedOperandSegments, Pure]> {
@@ -163,7 +163,7 @@ def TTS_MakeGatherScatterTensorPtrOp
   // result:  A tensor of pointers.
 
   let arguments = (ins TT_Ptr:$base,
-                       TT_IndexTensorLike:$gather_scatter_offset,
+                       TTS_OffsetLike:$gather_scatter_offset,
                        I32Attr:$gather_scatter_dim,
                        DenseI64ArrayAttr:$sizes,
                        Variadic<Index>:$strides,

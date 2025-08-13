@@ -408,7 +408,7 @@ public:
       }
 
       Value tensor = rewriter.create<bufferization::ToTensorOp>(
-          loc, tensorType, alloc, true /* restrict */, true /* writable */);
+          loc, tensorType, alloc, /*restrict=*/true, /*writable=*/true);
       rewriter.replaceOp(op, tensor);
 
       return success();
@@ -496,7 +496,7 @@ public:
     }
 
     Value tensor = rewriter.create<bufferization::ToTensorOp>(
-        loc, tensorType, alloc, true /* restrict */, true /* writable */);
+        loc, tensorType, alloc, /*restrict=*/true, /*writable=*/true);
     rewriter.replaceOp(op, tensor);
 
     return success();

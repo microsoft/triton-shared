@@ -780,7 +780,7 @@ private:
     }
 
     Value tensor = rewriter.create<bufferization::ToTensorOp>(
-        loc, tensorType, alloc, /* restrict */ true, /* writable */ true);
+        loc, tensorType, alloc, /*restrict=*/true, /*writable=*/true);
     rewriter.replaceOp(op, tensor);
 
     return success();
@@ -841,7 +841,7 @@ private:
     }
 
     Value tensor = rewriter.create<bufferization::ToTensorOp>(
-        loc, tensorType, alloc, /* restrict */ true, /* writable */ true);
+        loc, tensorType, alloc, /*restrict=*/true, /*writable=*/true);
     rewriter.replaceOp(op, tensor);
 
     return success();
@@ -875,7 +875,7 @@ private:
                 RankedTensorType::get(
                     SmallVector<int64_t>(1, ShapedType::kDynamic),
                     resultType.getElementType()),
-                baseMemref, /* restrict */ true, /* writable */ false)
+                baseMemref, /*restrict=*/true, /*writable=*/false)
             .getResult();
 
     // The linalg.generic op should have the following inputs:
@@ -1027,7 +1027,7 @@ private:
 
     // Create tensor from alloc and use it as the result to replace op.
     Value tensor = rewriter.create<bufferization::ToTensorOp>(
-        loc, op.getType(), alloc, /* restrict */ true, /* writable */ true);
+        loc, op.getType(), alloc, /*restrict=*/true, /*writable=*/true);
     rewriter.replaceOp(op, tensor);
 
     // Build loop body.
