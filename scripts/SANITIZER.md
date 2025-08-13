@@ -31,9 +31,9 @@ Following setup, LLVM sanitizers are now capable of being enabled during runtime
 # Usage
 
 For building LLVM and triton_shared for usage with sanitizers, run the scripts in the following order:
-1. `setup_triton_shared_with_venv.sh <desired path to venv> <desired path to triton shared>`
-2. Activate the virtual environment created by `setup_triton_shared_with_venv.sh` in the current shell: `source ./path/to/venv/bin/activate`
-3. `build_llvm_for_sanitizers.sh <desired path to LLVM installation directory> <existing path to triton shared>`
+1. `setup_triton_shared_with_venv.sh <desired path to venv>`
+2. Activate the virtual environment created by `setup_triton_shared_with_venv.sh` in the current shell: `source <desired path to venv>/venv/bin/activate`
+3. `build_llvm_for_sanitizers.sh <desired path to LLVM installation directory>`
 4. `build_triton_shared_for_sanitizers.sh <existing path to llvm build dir> <existing path to llvm install dir> <existing path to triton shared>`
 
 For runtime setup (one-time per shell): `source setup_runtime_for_sanitizers.sh <existing path to venv> <existing path to llvm install dir> <existing path to triton shared>`
