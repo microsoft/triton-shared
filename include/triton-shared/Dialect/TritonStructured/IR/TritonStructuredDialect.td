@@ -120,7 +120,7 @@ def TTS_MakeTensorPtrOp
   //let hasCanonicalizer = 1;
 }
 
-def TT_IndexTensorLike : AnyTypeOf<[I32Tensor, I64Tensor]>;
+def TTS_OffsetLike : AnyTypeOf<[I16, I32, I64, I16Tensor, I32Tensor, I64Tensor]>;
 
 def TTS_MakeGatherScatterTensorPtrOp
   : TTS_Op<"make_gather_scatter_tptr", [AttrSizedOperandSegments, Pure]> {
@@ -159,16 +159,18 @@ def TTS_MakeGatherScatterTensorPtrOp
   // strides: The strides of the parent tensor, which means how much to increase the pointer
   //          by when moving by 1 element in a specific axis.
   // offsets: Offset of the block along each dimension from base.
+  // gather_scatter_mask: Optional bool mask for mask which failed MaskAnalysis.
   // result:  A tensor of pointers.
 
   let arguments = (ins TT_Ptr:$base,
-                       TT_IndexTensorLike:$gather_scatter_offset,
+                       TTS_OffsetLike:$gather_scatter_offset,
                        I32Attr:$gather_scatter_dim,
                        DenseI64ArrayAttr:$sizes,
                        Variadic<Index>:$strides,
                        Variadic<Index>:$offsets,
                        DenseI64ArrayAttr:$static_strides,
-                       DenseI64ArrayAttr:$static_offsets);
+                       DenseI64ArrayAttr:$static_offsets,
+                       Optional<TT_BoolLike>:$gather_scatter_mask);
 
   let results = (outs TT_PtrLike:$result);
 
@@ -176,11 +178,12 @@ def TTS_MakeGatherScatterTensorPtrOp
     $base `to` `sizes` `` `:` $sizes
     `gather_scatter_dim` `` `:` $gather_scatter_dim
     `gather_scatter_offset` `` `:` $gather_scatter_offset
+    (`gather_scatter_mask` `` `:` $gather_scatter_mask^)?
     `` `,` `strides` `` `:`
     custom<DynamicIndexList>($strides, $static_strides)
     `` `,` `offsets` `` `:`
     custom<DynamicIndexList>($offsets, $static_offsets)
-    attr-dict `:`  type($gather_scatter_offset) type($base) `to` type($result)
+    attr-dict `:`  type($gather_scatter_offset) type($gather_scatter_mask) type($base) `to` type($result)
   }];
 
 
@@ -189,6 +192,15 @@ def TTS_MakeGatherScatterTensorPtrOp
     OpBuilder<(ins
       "Value":$base,
       "Value":$gather_scatter_offset,
+      "int":$gather_scatter_dim,
+      "ArrayRef<int64_t>":$sizes,
+      "ArrayRef<OpFoldResult>":$strides,
+      "ArrayRef<OpFoldResult>":$offsets)>,
+
+    OpBuilder<(ins
+      "Value":$base,
+      "Value":$gather_scatter_offset,
+      "Value":$gather_scatter_mask,
       "int":$gather_scatter_dim,
       "ArrayRef<int64_t>":$sizes,
       "ArrayRef<OpFoldResult>":$strides,
@@ -239,51 +251,6 @@ def TTS_GetStructuredStateOp : TTS_Op<"get_structured_state", [AttrSizedResultSe
 
   let hasFolder = 0;
   let hasVerifier = 1;
-}
-
-def TTS_GatherOp : TTS_Op<"gather", [
-  MemoryEffects<[MemRead]>,
-  AttrSizedOperandSegments,
-  OptionalTypesMatchWith<"mask type matches ptr type", "offset", "mask", "triton::getI1SameShape($_self)">,
-  OptionalTypesMatchWith<"other matches ptr type", "ptr", "other", "triton::getPointeeType($_self)">
-]> {
-  let summary = "optionally load data from in memory to fill a portion of the tensor";
-
-  let arguments = (
-    ins
-    TT_Ptr:$ptr,
-    TT_IntLike:$offset,
-    Optional<TT_BoolLike>:$mask,
-    Optional<TT_Type>:$other
-  );
-
-  let results = (outs TT_Type:$result);
-
-  let assemblyFormat = [{
-    $ptr `[` $offset `]` (`mask` `=` $mask^)? (`default` `=` $other^)?
-    attr-dict `:` `(` type($ptr) `,` type($offset) `)` `->` type($result)
-  }];
-}
-
-def TTS_ScatterOp : TTS_Op<"scatter", [
-  MemoryEffects<[MemWrite]>,
-  OptionalTypesMatchWith<"mask type matches offset type", "offset", "mask",
-                 "triton::getI1SameShape($_self)">
-]> {
-  let summary = "optionally store data from in memory to fill a portion of the tensor";
-
-  let arguments = (
-    ins
-    TT_Ptr:$ptr,
-    TT_IntLike:$offset,
-    TT_Type:$value,
-    Optional<TT_BoolLike>:$mask
-  );
-
-  let assemblyFormat = [{
-    $value `into` $ptr `[` $offset `]` (`mask` `=` $mask^)?
-    attr-dict `:` type($value) `into` ` ` `(` type($ptr) `,` type($offset) `)`
-  }];
 }
 
 def TTS_LoadOp : TTS_Op<"load", [

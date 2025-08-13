@@ -64,7 +64,12 @@ module {
 // CHECK-NOT: tt.load
 // CHECK-NOT: tt.store
 
-// CHECK-COUNT-2: tts.gather %arg{{[0-9]+}}
-// CHECK-NOT: tts.gather %arg{{[0-9]+}}
-// CHECK-COUNT-2: tts.scatter {{.+}} into %arg{{[0-9]+}}
-// CHECK-NOT:    tts.scatter {{.+}} into %arg{{[0-9]+}}
+// CHECK:             %[[PTR:.*]] = tts.make_gather_scatter_tptr %arg0 to sizes: [65536] gather_scatter_dim: 0 gather_scatter_offset: %[[VAL_37:.*]] gather_scatter_mask: %[[VAL_38:.*]], strides: [1], offsets: [0] : tensor<65536xi32> tensor<65536xi1> <f32> to !tt.ptr<tensor<65536xf32>>
+// CHECK:             %[[VAL_40:.*]] = "tts.load"(%[[PTR]], %[[VAL_11:.*]]) <{operandSegmentSizes = array<i32: 1, 0, 1>, static_mask_dims = array<i64: 0>}> : (!tt.ptr<tensor<65536xf32>>, f32) -> tensor<65536xf32>
+// CHECK:             %[[PTR2:.*]] = tts.make_gather_scatter_tptr %arg1 to sizes: [65536] gather_scatter_dim: 0 gather_scatter_offset: %[[VAL_37]] gather_scatter_mask: %[[VAL_38]], strides: [1], offsets: [0] : tensor<65536xi32> tensor<65536xi1> <f32> to !tt.ptr<tensor<65536xf32>>
+// CHECK:             %[[VAL_44:.*]] = "tts.load"(%[[PTR2]], %[[VAL_11]]) <{operandSegmentSizes = array<i32: 1, 0, 1>, static_mask_dims = array<i64: 0>}> : (!tt.ptr<tensor<65536xf32>>, f32) -> tensor<65536xf32>
+// CHECK:           %[[PTR3:.*]] = tts.make_gather_scatter_tptr %arg2 to sizes: [256] gather_scatter_dim: 0 gather_scatter_offset: %[[VAL_16:.*]] gather_scatter_mask: %[[VAL_58:.*]], strides: [1], offsets: [0] : tensor<256xi32> tensor<256xi1> <f32> to !tt.ptr<tensor<256xf32>>
+// CHECK:           "tts.store"(%[[PTR3]], %{{.*}}) <{static_mask_dims = array<i64: 0>}> : (!tt.ptr<tensor<256xf32>>, tensor<256xf32>) -> ()
+// CHECK:           %[[PTR4:.*]] = tts.make_gather_scatter_tptr %arg3 to sizes: [256] gather_scatter_dim: 0 gather_scatter_offset: %[[VAL_16]] gather_scatter_mask: %[[VAL_58]], strides: [1], offsets: [0] : tensor<256xi32> tensor<256xi1> <f32> to !tt.ptr<tensor<256xf32>>
+// CHECK:           "tts.store"(%[[PTR4]], %{{.*}}) <{static_mask_dims = array<i64: 0>}> : (!tt.ptr<tensor<256xf32>>, tensor<256xf32>) -> ()
+// CHECK-NOT:       tts.make_gather_scatter_tptr

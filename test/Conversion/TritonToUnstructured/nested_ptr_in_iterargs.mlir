@@ -45,44 +45,48 @@ module {
   }
 }
 
-// CHECK:         tt.func public @nested2_complex_body([[PARAM_0_:%.+]]: !tt.ptr<f32>, [[PARAM_1_:%.+]]: !tt.ptr<f32>, [[PARAM_2_:%.+]]: i32, [[PARAM_3_:%.+]]: i32) attributes {noinline = false} {
-// CHECK-DAG:       [[CST_0_:%.+]] = arith.constant 0 : i32
-// CHECK-DAG:       [[CST_1_:%.+]] = arith.constant 1 : i32
-// CHECK-DAG:       [[VAR_cst_:%.+]] = arith.constant dense<3> : tensor<2x2xi32>
-// CHECK-DAG:       [[VAR_cst_0_:%.+]] = arith.constant dense<1> : tensor<2x2xi32>
-// CHECK-DAG:       [[CST_2_:%.+]] = arith.constant 2 : i32
-// CHECK-DAG:       [[VAR_0_:%.+]] = tt.make_range {end = 2 : i32, start = 0 : i32} : tensor<2xi32>
-// CHECK-NOT: separator of consecutive DAGs
-// CHECK-DAG:       [[VAR_1_:%.+]] = tt.expand_dims [[VAR_0_]] {axis = 1 : i32} : tensor<2xi32> -> tensor<2x1xi32>
-// CHECK-DAG:       [[VAR_2_:%.+]] = tt.splat [[PARAM_2_]] : i32 -> tensor<2x1xi32>
-// CHECK-NOT: separator of consecutive DAGs
-// CHECK-DAG:       [[VAR_3_:%.+]] = arith.muli [[VAR_1_]], [[VAR_2_]] : tensor<2x1xi32>
-// CHECK-DAG:       [[VAR_4_:%.+]] = tt.expand_dims [[VAR_0_]] {axis = 0 : i32} : tensor<2xi32> -> tensor<1x2xi32>
-// CHECK-DAG:       [[VAR_5_:%.+]] = tt.splat [[PARAM_3_]] : i32 -> tensor<1x2xi32>
-// CHECK-NOT: separator of consecutive DAGs
-// CHECK-DAG:       [[VAR_6_:%.+]] = arith.muli [[VAR_4_]], [[VAR_5_]] : tensor<1x2xi32>
-// CHECK-DAG:       [[VAR_7_:%.+]] = tt.broadcast [[VAR_3_]] : tensor<2x1xi32> -> tensor<2x2xi32>
-// CHECK:           [[VAR_8_:%.+]] = tt.broadcast [[VAR_6_]] : tensor<1x2xi32> -> tensor<2x2xi32>
-// CHECK-DAG:       [[VAR_9_:%.+]] = arith.addi [[VAR_7_]], [[VAR_8_]] : tensor<2x2xi32>
-// CHECK-DAG:       [[VAR_10_:%.+]] = arith.muli [[PARAM_2_]], [[CST_2_]] : i32
-// CHECK-NOT: separator of consecutive DAGs
-// CHECK-DAG:       [[VAR_11_:%.+]] = tt.splat [[VAR_10_]] : i32 -> tensor<2x2xi32>
-// CHECK-DAG:       [[VAR_12_:%.+]]:2 = scf.for [[VAR_arg4_:%.+]] = [[CST_0_]] to [[CST_2_]] step [[CST_1_]] iter_args([[VAR_arg5_:%.+]] = [[VAR_9_]], [[VAR_arg6_:%.+]] = [[VAR_9_]]) -> (tensor<2x2xi32>, tensor<2x2xi32>)  : i32 {
-// CHECK-DAG:         [[VAR_13_:%.+]] = arith.addi [[VAR_arg5_]], [[VAR_cst_0_]] : tensor<2x2xi32>
-// CHECK-DAG:         [[VAR_14_:%.+]] = arith.addi [[VAR_arg6_]], [[VAR_cst_0_]] : tensor<2x2xi32>
-// CHECK-NOT: separator of consecutive DAGs
-// CHECK-DAG:         [[VAR_15_:%.+]]:2 = scf.for [[VAR_arg7_:%.+]] = [[CST_0_]] to [[CST_2_]] step [[CST_1_]] iter_args([[VAR_arg8_:%.+]] = [[VAR_13_]], [[VAR_arg9_:%.+]] = [[VAR_14_]]) -> (tensor<2x2xi32>, tensor<2x2xi32>)  : i32 {
-// CHECK-DAG:           [[VAR_20_:%.+]] = tts.gather [[PARAM_0_]]{{.}}[[VAR_arg8_]]{{.}} : (<f32>, tensor<2x2xi32>) -> tensor<2x2xf32>
-// CHECK:               tts.scatter [[VAR_20_]] into [[PARAM_1_]]{{.}}[[VAR_arg9_]]{{.}} : tensor<2x2xf32> into (<f32>, tensor<2x2xi32>)
-// CHECK-DAG:           [[VAR_21_:%.+]] = arith.addi [[VAR_arg8_]], [[VAR_cst_]] : tensor<2x2xi32>
-// CHECK-DAG:           [[VAR_22_:%.+]] = arith.addi [[VAR_arg9_]], [[VAR_cst_]] : tensor<2x2xi32>
-// CHECK:               scf.yield [[VAR_21_]], [[VAR_22_]] : tensor<2x2xi32>, tensor<2x2xi32>
+// CHECK-LABEL:   tt.func public @nested2_complex_body(
+// CHECK-SAME:                                         %[[VAL_0:[0-9]+|[a-zA-Z$._-][a-zA-Z0-9$._-]*]]: !tt.ptr<f32>,
+// CHECK-SAME:                                         %[[VAL_1:[0-9]+|[a-zA-Z$._-][a-zA-Z0-9$._-]*]]: !tt.ptr<f32>,
+// CHECK-SAME:                                         %[[VAL_2:[0-9]+|[a-zA-Z$._-][a-zA-Z0-9$._-]*]]: i32,
+// CHECK-SAME:                                         %[[VAL_3:[0-9]+|[a-zA-Z$._-][a-zA-Z0-9$._-]*]]: i32) attributes {noinline = false} {
+// CHECK:           %[[VAL_4:.*]] = arith.constant dense<0> : tensor<1xindex>
+// CHECK:           %[[VAL_5:.*]] = arith.constant 0 : i32
+// CHECK:           %[[VAL_6:.*]] = arith.constant 1 : i32
+// CHECK:           %[[VAL_7:.*]] = arith.constant dense<3> : tensor<2x2xi32>
+// CHECK:           %[[VAL_8:.*]] = arith.constant dense<1> : tensor<2x2xi32>
+// CHECK:           %[[VAL_9:.*]] = arith.constant 2 : i32
+// CHECK:           %[[VAL_10:.*]] = tt.make_range {end = 2 : i32, start = 0 : i32} : tensor<2xi32>
+// CHECK:           %[[VAL_11:.*]] = tt.expand_dims %[[VAL_10]] {axis = 1 : i32} : tensor<2xi32> -> tensor<2x1xi32>
+// CHECK:           %[[VAL_12:.*]] = tt.splat %[[VAL_2]] : i32 -> tensor<2x1xi32>
+// CHECK:           %[[VAL_13:.*]] = arith.muli %[[VAL_11]], %[[VAL_12]] : tensor<2x1xi32>
+// CHECK:           %[[VAL_14:.*]] = tt.expand_dims %[[VAL_10]] {axis = 0 : i32} : tensor<2xi32> -> tensor<1x2xi32>
+// CHECK:           %[[VAL_15:.*]] = tt.splat %[[VAL_3]] : i32 -> tensor<1x2xi32>
+// CHECK:           %[[VAL_16:.*]] = arith.muli %[[VAL_14]], %[[VAL_15]] : tensor<1x2xi32>
+// CHECK:           %[[VAL_17:.*]] = tt.broadcast %[[VAL_13]] : tensor<2x1xi32> -> tensor<2x2xi32>
+// CHECK:           %[[VAL_18:.*]] = tt.broadcast %[[VAL_16]] : tensor<1x2xi32> -> tensor<2x2xi32>
+// CHECK:           %[[VAL_19:.*]] = arith.addi %[[VAL_17]], %[[VAL_18]] : tensor<2x2xi32>
+// CHECK:           %[[VAL_20:.*]] = arith.muli %[[VAL_2]], %[[VAL_9]] : i32
+// CHECK:           %[[VAL_21:.*]] = tt.splat %[[VAL_20]] : i32 -> tensor<2x2xi32>
+// CHECK:           %[[VAL_22:.*]]:2 = scf.for %[[VAL_23:.*]] = %[[VAL_5]] to %[[VAL_9]] step %[[VAL_6]] iter_args(%[[VAL_24:.*]] = %[[VAL_19]], %[[VAL_25:.*]] = %[[VAL_19]]) -> (tensor<2x2xi32>, tensor<2x2xi32>)  : i32 {
+// CHECK:             %[[VAL_26:.*]] = arith.addi %[[VAL_24]], %[[VAL_8]] : tensor<2x2xi32>
+// CHECK:             %[[VAL_27:.*]] = arith.addi %[[VAL_25]], %[[VAL_8]] : tensor<2x2xi32>
+// CHECK:             %[[VAL_28:.*]]:2 = scf.for %[[VAL_29:.*]] = %[[VAL_5]] to %[[VAL_9]] step %[[VAL_6]] iter_args(%[[VAL_30:.*]] = %[[VAL_26]], %[[VAL_31:.*]] = %[[VAL_27]]) -> (tensor<2x2xi32>, tensor<2x2xi32>)  : i32 {
+// CHECK:               %[[VAL_32:.*]] = tensor.reshape %[[VAL_30]](%[[VAL_4]]) : (tensor<2x2xi32>, tensor<1xindex>) -> tensor<4xi32>
+// CHECK:               %[[VAL_33:.*]] = tts.make_gather_scatter_tptr %[[VAL_0]] to sizes: [4] gather_scatter_dim: 0 gather_scatter_offset: %[[VAL_32]], strides: [1], offsets: [0] : tensor<4xi32>  <f32> to !tt.ptr<tensor<4xf32>>
+// CHECK:               %[[VAL_34:.*]] = "tts.load"(%[[VAL_33]]) <{operandSegmentSizes = array<i32: 1, 0, 0>, static_mask_dims = array<i64>}> : (!tt.ptr<tensor<4xf32>>) -> tensor<4xf32>
+// CHECK:               %[[VAL_35:.*]] = tensor.reshape %[[VAL_31]](%[[VAL_4]]) : (tensor<2x2xi32>, tensor<1xindex>) -> tensor<4xi32>
+// CHECK:               %[[VAL_36:.*]] = tts.make_gather_scatter_tptr %[[VAL_1]] to sizes: [4] gather_scatter_dim: 0 gather_scatter_offset: %[[VAL_35]], strides: [1], offsets: [0] : tensor<4xi32>  <f32> to !tt.ptr<tensor<4xf32>>
+// CHECK:               "tts.store"(%[[VAL_36]], %[[VAL_34]]) <{static_mask_dims = array<i64>}> : (!tt.ptr<tensor<4xf32>>, tensor<4xf32>) -> ()
+// CHECK:               %[[VAL_37:.*]] = arith.addi %[[VAL_30]], %[[VAL_7]] : tensor<2x2xi32>
+// CHECK:               %[[VAL_38:.*]] = arith.addi %[[VAL_31]], %[[VAL_7]] : tensor<2x2xi32>
+// CHECK:               scf.yield %[[VAL_37]], %[[VAL_38]] : tensor<2x2xi32>, tensor<2x2xi32>
 // CHECK:             }
-// CHECK:             [[VAR_16_:%.+]] = arith.addi [[VAR_arg5_]], [[VAR_11_]] : tensor<2x2xi32>
-// CHECK-DAG:         [[VAR_17_:%.+]] = arith.addi [[VAR_16_]], [[VAR_cst_0_]] : tensor<2x2xi32>
-// CHECK-DAG:         [[VAR_18_:%.+]] = arith.addi [[VAR_arg6_]], [[VAR_11_]] : tensor<2x2xi32>
-// CHECK:             [[VAR_19_:%.+]] = arith.addi [[VAR_18_]], [[VAR_cst_0_]] : tensor<2x2xi32>
-// CHECK:             scf.yield [[VAR_17_]], [[VAR_19_]] : tensor<2x2xi32>, tensor<2x2xi32>
+// CHECK:             %[[VAL_39:.*]] = arith.addi %[[VAL_24]], %[[VAL_21]] : tensor<2x2xi32>
+// CHECK:             %[[VAL_40:.*]] = arith.addi %[[VAL_39]], %[[VAL_8]] : tensor<2x2xi32>
+// CHECK:             %[[VAL_41:.*]] = arith.addi %[[VAL_25]], %[[VAL_21]] : tensor<2x2xi32>
+// CHECK:             %[[VAL_42:.*]] = arith.addi %[[VAL_41]], %[[VAL_8]] : tensor<2x2xi32>
+// CHECK:             scf.yield %[[VAL_40]], %[[VAL_42]] : tensor<2x2xi32>, tensor<2x2xi32>
 // CHECK:           }
 // CHECK:           tt.return
 // CHECK:         }

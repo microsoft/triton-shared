@@ -36,7 +36,8 @@ module {
 // CHECK-DAG:         [[VAR_3_:%.+]]:2 = scf.for [[VAR_arg3_:%.+]] = [[CST_0_]] to [[CST_2_]] step [[CST_1_]] iter_args([[VAR_arg4_:%.+]] = [[VAR_2_]], [[VAR_arg5_:%.+]] = [[VAR_arg2_]]) -> (i32, i32)  : i32 {
 // CHECK-DAG:           [[VAR_4_:%.+]] = arith.addi [[VAR_arg4_]], [[VAR_arg3_]] : i32
 // CHECK:               [[VAR_5_:%.+]] = arith.sitofp [[VAR_4_]] : i32 to f32
-// CHECK:               tts.scatter [[VAR_5_]] into [[PARAM_0_]]{{.}}[[VAR_arg5_]]{{.}} : f32 into (<f32>, i32)
+// CHECK:               %[[PTR:.*]] = tts.make_gather_scatter_tptr [[PARAM_0_]] to sizes: [1] gather_scatter_dim: 0 gather_scatter_offset: [[VAR_arg5_]], strides: [1], offsets: [0] : i32  <f32> to !tt.ptr<f32>
+// CHECK:               tt.store %[[PTR]], [[VAR_5_]] : !tt.ptr<f32>
 // CHECK:               [[VAR_6_:%.+]] = arith.addi [[VAR_arg5_]], [[CST_1_]] : i32
 // CHECK:               scf.yield [[VAR_4_]], [[VAR_6_]] : i32, i32
 // CHECK:             }

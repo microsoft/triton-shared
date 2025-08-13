@@ -53,9 +53,11 @@ module {
 // CHECK:           [[VAR_9_:%.+]] = arith.extsi [[VAR_8_]] : tensor<64xi32> to tensor<64xi64>
 // CHECK:           [[VAR_10_:%.+]] = arith.addi [[VAR_6_]], [[VAR_9_]] : tensor<64xi64>
 // CHECK-DAG:       [[VAR_11_:%.+]]:2 = scf.for [[VAR_arg2_:%.+]] = [[CST_0_]] to [[CST_2_]] step [[CST_1_]] iter_args([[VAR_arg3_:%.+]] = [[VAR_10_]], [[VAR_arg4_:%.+]] = [[VAR_0_]]) -> (tensor<64xi64>, tensor<64xi32>)  : i32 {
-// CHECK-DAG:         [[VAR_12_:%.+]] = tts.gather [[PARAM_0_]]{{.}}[[VAR_arg3_]]{{.}} : (<f32>, tensor<64xi64>) -> tensor<64xf32>
+// CHECK:             [[PTR:%.*]] = tts.make_gather_scatter_tptr [[PARAM_0_]] to sizes: [64] gather_scatter_dim: 0 gather_scatter_offset: [[VAR_arg3_]], strides: [1], offsets: [0] : tensor<64xi64>  <f32> to !tt.ptr<tensor<64xf32>>
+// CHECK:             [[VAR_12_:%.+]] = "tts.load"([[PTR]]) <{operandSegmentSizes = array<i32: 1, 0, 0>, static_mask_dims = array<i64>}> : (!tt.ptr<tensor<64xf32>>) -> tensor<64xf32>
 // CHECK-DAG:         [[VAR_13_:%.+]] = arith.extsi [[VAR_arg4_]] : tensor<64xi32> to tensor<64xi64>
-// CHECK:             tts.scatter [[VAR_12_]] into [[PARAM_1_]]{{.}}[[VAR_13_]]{{.}} : tensor<64xf32> into (<f32>, tensor<64xi64>)
+// CHECK:             %[[PTR:.*]] = tts.make_gather_scatter_tptr [[PARAM_1_]] to sizes: [64] gather_scatter_dim: 0 gather_scatter_offset: [[VAR_13_]], strides: [1], offsets: [0] : tensor<64xi64>  <f32> to !tt.ptr<tensor<64xf32>>
+// CHECK:             "tts.store"(%[[PTR]], [[VAR_12_]]) <{static_mask_dims = array<i64>}> : (!tt.ptr<tensor<64xf32>>, tensor<64xf32>) -> ()
 // CHECK:             [[VAR_14_:%.+]] = arith.extsi [[VAR_7_]] : tensor<64xi32> to tensor<64xi64>
 // CHECK-DAG:         [[VAR_15_:%.+]] = arith.addi [[VAR_arg3_]], [[VAR_14_]] : tensor<64xi64>
 // CHECK-DAG:         [[VAR_16_:%.+]] = arith.addi [[VAR_arg4_]], [[VAR_cst_]] : tensor<64xi32>

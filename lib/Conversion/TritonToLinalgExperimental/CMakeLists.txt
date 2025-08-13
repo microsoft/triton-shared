@@ -34,5 +34,4 @@ add_triton_library(TritonToLinalgExperimental
   TritonToStructured
   TritonToUnstructured
   TritonPtrToMemref
-  UnstructuredToMemref
 )

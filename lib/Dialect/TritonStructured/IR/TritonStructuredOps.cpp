@@ -132,10 +132,11 @@ void MakeTensorPtrOp::build(OpBuilder &b, OperationState &state, Value base,
 }
 
 void MakeGatherScatterTensorPtrOp::build(OpBuilder &b, OperationState &state,
-                                    Value base, Value gatherScatterOffset,
-                                    int gatherScatterDim, ArrayRef<int64_t> sizes,
-                                    ArrayRef<OpFoldResult> strides,
-                                    ArrayRef<OpFoldResult> offsets) {
+                                         Value base, Value gatherScatterOffset,
+                                         int gatherScatterDim,
+                                         ArrayRef<int64_t> sizes,
+                                         ArrayRef<OpFoldResult> strides,
+                                         ArrayRef<OpFoldResult> offsets) {
   SmallVector<int64_t> staticStrides, staticOffsets;
   SmallVector<Value> dynamicStrides, dynamicOffsets;
   for (auto [i, offset] : llvm::enumerate(offsets)) {
@@ -156,7 +157,41 @@ void MakeGatherScatterTensorPtrOp::build(OpBuilder &b, OperationState &state,
   build(b, state, resType, base, gatherScatterOffset,
         b.getI32IntegerAttr(gatherScatterDim), b.getDenseI64ArrayAttr(sizes),
         dynamicStrides, dynamicOffsets, b.getDenseI64ArrayAttr(staticStrides),
-        b.getDenseI64ArrayAttr(staticOffsets));
+        b.getDenseI64ArrayAttr(staticOffsets), Value());
+}
+
+void MakeGatherScatterTensorPtrOp::build(
+    OpBuilder &b, OperationState &state, Value base, Value gatherScatterOffset,
+    Value gatherScatterMask, int gatherScatterDim, ArrayRef<int64_t> sizes,
+    ArrayRef<OpFoldResult> strides, ArrayRef<OpFoldResult> offsets) {
+  SmallVector<int64_t> staticStrides, staticOffsets;
+  SmallVector<Value> dynamicStrides, dynamicOffsets;
+  for (auto [i, offset] : llvm::enumerate(offsets)) {
+    if (i != gatherScatterDim)
+      dispatchIndexOpFoldResult(offset, dynamicOffsets, staticOffsets);
+    else
+      staticOffsets.push_back(0);
+  }
+  dispatchIndexOpFoldResults(strides, dynamicStrides, staticStrides);
+
+  Type resType;
+  auto basePtr = cast<triton::PointerType>(base.getType());
+  auto elemType = basePtr.getPointeeType();
+
+  if (gatherScatterOffset.getType().isIntOrIndex()) {
+    assert(sizes.size() == 1 && sizes[0] == 1 &&
+           "gatherScatterOffset should be a scalar for 1D gather/scatter");
+    resType = triton::PointerType::get(elemType, basePtr.getAddressSpace());
+
+  } else {
+    resType = triton::PointerType::get(RankedTensorType::get(sizes, elemType),
+                                       basePtr.getAddressSpace());
+  }
+
+  build(b, state, resType, base, gatherScatterOffset,
+        b.getI32IntegerAttr(gatherScatterDim), b.getDenseI64ArrayAttr(sizes),
+        dynamicStrides, dynamicOffsets, b.getDenseI64ArrayAttr(staticStrides),
+        b.getDenseI64ArrayAttr(staticOffsets), gatherScatterMask);
 }
 
 void LoadOp::build(OpBuilder &b, OperationState &state, Value ptr,
