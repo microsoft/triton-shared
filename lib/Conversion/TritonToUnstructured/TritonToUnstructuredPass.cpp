@@ -496,16 +496,17 @@ public:
                 Value gatherPtr = create1DGatherScatterPtr(
                     offsetInfo, type, load.getMask(), b, loc);
 
-                if (type.isIntOrIndexOrFloat()) {
-                  // Update ptr operand of load to gatherPtr directly.
-                  load.getPtrMutable().set(gatherPtr);
-                  return success();
-                }
                 SmallVector<OpFoldResult> masks;
                 // To support generic mask, save the mask in gatherPtr, just
                 // create a 0 mask here to keep a mask.
                 if (load.getMask()) {
                   masks.emplace_back(b.getIndexAttr(0));
+                }
+
+                if (type.isIntOrIndexOrFloat()) {
+                  // Update ptr operand of load to gatherPtr directly.
+                  load.getPtrMutable().set(gatherPtr);
+                  return success();
                 }
 
                 Value newValue =
@@ -539,6 +540,14 @@ public:
                 Value gatherPtr = create1DGatherScatterPtr(
                     offsetInfo, store.getValue().getType(), store.getMask(), b,
                     loc);
+
+                SmallVector<OpFoldResult> masks;
+                // To support generic mask, save the mask in gatherPtr, just
+                // create a 0 mask here to keep a mask.
+                if (store.getMask()) {
+                  masks.emplace_back(b.getIndexAttr(0));
+                }
+
                 Value stValue = store.getValue();
                 Type type = stValue.getType();
                 if (type.isIntOrIndexOrFloat()) {
@@ -547,12 +556,6 @@ public:
                   return success();
                 }
 
-                SmallVector<OpFoldResult> masks;
-                // To support generic mask, save the mask in gatherPtr, just
-                // create a 0 mask here to keep a mask.
-                if (store.getMask()) {
-                  masks.emplace_back(b.getIndexAttr(0));
-                }
 
                 if (isa<RankedTensorType>(type)) {
                   auto rankedType = cast<RankedTensorType>(type);

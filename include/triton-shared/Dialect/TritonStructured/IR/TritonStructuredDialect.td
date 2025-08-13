@@ -225,9 +225,8 @@ def TTS_MakeGatherScatterTensorPtrOp
     }
   }];
 
-  // TODO
-  //let hasVerifier = 1;
-  //let hasCanonicalizer = 1;
+  let hasVerifier = 1;
+  let hasCanonicalizer = 0;
 }
 
 def TTS_GetStructuredStateOp : TTS_Op<"get_structured_state", [AttrSizedResultSegments, Pure]> {
