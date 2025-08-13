@@ -161,3 +161,41 @@ def test_complex_gather_scatter(device):
         -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
         -1, -1], device=device, dtype=torch.int32)
     run_test(complex_gather_scatter, device, expected_output)
+
+
+@triton.jit
+def masked_scalar_gather_scatter(in0, out0, in_mask, out_mask):
+        a = tl.load(in0, mask=in_mask, other=99)
+        tl.store(out0, a, mask=out_mask)
+
+def test_masked_scalar_gather_scatter(device):
+    input = torch.tensor([42], device=device, dtype=torch.int32)
+    output = torch.tensor([-1], device=device, dtype=torch.int32)
+
+    if device == 'cpu':
+        triton.runtime.driver.set_active(CPUDriver())
+
+    grid = lambda meta: (1,)
+
+    masked_scalar_gather_scatter[grid](input, output, in_mask=False, out_mask=False)
+    
+    expected_output = torch.tensor([-1], device=device, dtype=torch.int32)
+    torch.testing.assert_close(output, expected_output)
+    
+    
+    masked_scalar_gather_scatter[grid](input, output, in_mask=True, out_mask=False)
+    
+    expected_output = torch.tensor([-1], device=device, dtype=torch.int32)
+    torch.testing.assert_close(output, expected_output)
+
+    
+    masked_scalar_gather_scatter[grid](input, output, in_mask=False, out_mask=True)
+    
+    expected_output = torch.tensor([99], device=device, dtype=torch.int32)
+    torch.testing.assert_close(output, expected_output)
+
+    
+    masked_scalar_gather_scatter[grid](input, output, in_mask=True, out_mask=True)
+    
+    expected_output = torch.tensor([42], device=device, dtype=torch.int32)
+    torch.testing.assert_close(output, expected_output)

@@ -780,7 +780,7 @@ private:
     }
 
     Value tensor = rewriter.create<bufferization::ToTensorOp>(
-        loc, tensorType, alloc, true /* restrict */, true /* writable */);
+        loc, tensorType, alloc, /* restrict */ true, /* writable */ true);
     rewriter.replaceOp(op, tensor);
 
     return success();
@@ -841,7 +841,7 @@ private:
     }
 
     Value tensor = rewriter.create<bufferization::ToTensorOp>(
-        loc, tensorType, alloc, true /* restrict */, true /* writable */);
+        loc, tensorType, alloc, /* restrict */ true, /* writable */ true);
     rewriter.replaceOp(op, tensor);
 
     return success();
@@ -875,7 +875,7 @@ private:
                 RankedTensorType::get(
                     SmallVector<int64_t>(1, ShapedType::kDynamic),
                     resultType.getElementType()),
-                baseMemref, true /* restrict */, false /* writable */)
+                baseMemref, /* restrict */ true, /* writable */ false)
             .getResult();
 
     // The linalg.generic op should have the following inputs:
@@ -959,7 +959,7 @@ private:
                                   tts::LoadOp op, Value memRefPtr,
                                   ConversionPatternRewriter &rewriter) const {
     auto offsets = ptr.getMixedOffsets();
-    if (offsets.size() == 1) {
+    if (offsets.size() == 1 && (!op.hasMask() || ptr.getGatherScatterMask())) {
       return rewrite1DGather(ptr, op, memRefPtr, rewriter);
     }
     auto loc = op.getLoc();
@@ -1027,7 +1027,7 @@ private:
 
     // Create tensor from alloc and use it as the result to replace op.
     Value tensor = rewriter.create<bufferization::ToTensorOp>(
-        loc, op.getType(), alloc, true /* restrict */, true /* writable */);
+        loc, op.getType(), alloc, /* restrict */ true, /* writable */ true);
     rewriter.replaceOp(op, tensor);
 
     // Build loop body.
@@ -1111,14 +1111,23 @@ public:
   LogicalResult
   matchAndRewrite(triton::LoadOp op, OpAdaptor adaptor,
                   ConversionPatternRewriter &rewriter) const override {
-    assert(!op.getMask());
     assert(op.getType().isIntOrIndexOrFloat() &&
            "Scalar load must be scalar type");
+
+    auto loc = op->getLoc();
+    scf::IfOp ifOp;
+    if (op.getMask()) {
+      ifOp = rewriter.create<scf::IfOp>(loc, op.getType(), adaptor.getMask(),
+                                        /* withElseRegion */ op.getOther() !=
+                                            nullptr);
+      rewriter.setInsertionPointToStart(
+          &ifOp.getThenRegion().getBlocks().front());
+    }
+
     auto ptr = op.getPtr();
     auto gatherScatterPtr =
         ptr.getDefiningOp<tts::MakeGatherScatterTensorPtrOp>();
 
-    auto loc = op->getLoc();
     Value offset = gatherScatterPtr.getGatherScatterOffset();
 
     Value loadIndex = rewriter.create<arith::IndexCastOp>(
@@ -1138,7 +1147,17 @@ public:
     auto scalarLoadOp = rewriter.create<affine::AffineLoadOp>(
         loc, memref, zeroMap, std::nullopt);
 
-    rewriter.replaceOp(op, scalarLoadOp.getResult());
+    if (ifOp) {
+      rewriter.create<scf::YieldOp>(loc, scalarLoadOp.getResult());
+      if (op.getOther()) {
+        rewriter.setInsertionPointToStart(
+            &ifOp.getElseRegion().getBlocks().front());
+        rewriter.create<scf::YieldOp>(loc, op.getOther());
+      }
+      rewriter.replaceOp(op, ifOp.getResults());
+    } else {
+      rewriter.replaceOp(op, scalarLoadOp.getResult());
+    }
 
     return success();
   }
@@ -1249,7 +1268,7 @@ private:
                                    ConversionPatternRewriter &rewriter) const {
     auto loc = op.getLoc();
     auto offsets = ptr.getMixedOffsets();
-    if (offsets.size() == 1) {
+    if (offsets.size() == 1 && (!op.hasMask() || ptr.getGatherScatterMask())) {
       return rewrite1DScatter(ptr, op, memRefPtr, stVal, rewriter);
     }
 
@@ -1406,15 +1425,21 @@ public:
   LogicalResult
   matchAndRewrite(triton::StoreOp op, OpAdaptor adaptor,
                   ConversionPatternRewriter &rewriter) const override {
-    assert(!op.getMask());
     auto storeVal = adaptor.getValue();
     assert(storeVal.getType().isIntOrIndexOrFloat() &&
            "Scalar load must be scalar type");
+
+    auto loc = op->getLoc();
+    if (op.getMask()) {
+      auto ifOp = rewriter.create<scf::IfOp>(loc, adaptor.getMask());
+      rewriter.setInsertionPointToStart(
+          &ifOp.getThenRegion().getBlocks().front());
+    }
+
     auto ptr = op.getPtr();
     auto gatherScatterPtr =
         ptr.getDefiningOp<tts::MakeGatherScatterTensorPtrOp>();
 
-    auto loc = op->getLoc();
     Value offset = gatherScatterPtr.getGatherScatterOffset();
 
     Value storeIndex = rewriter.create<arith::IndexCastOp>(
