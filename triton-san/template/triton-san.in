@@ -4,7 +4,7 @@
 set -e
 
 function usage {
-  echo "Usage: triton-san <sanitizer type> <path to trtion program>."
+  echo "Usage: triton-san <sanitizer type> <path to trtion program> <original program input arguments...>."
   echo "<sanitizer type>:"
   echo "  \"asan\": to detect buffer overflows" 
   echo "  \"tsan\": to detect data races"
@@ -108,14 +108,14 @@ LD_PRELOAD=\"$tsan_dir\" \
 TRITON_ALWAYS_COMPILE=1 \
 TRITON_SHARED_SANITIZER_TYPE=\"tsan\" \
 TSAN_OPTIONS=\"ignore_noninstrumented_modules=0:report_mutex_bugs=0:suppressions=${SUPPRESSION_FILE}\" \
-OMP_NUM_THREADS=16 \
+OMP_NUM_THREADS=$(nproc --all) \
 OMP_TOOL_LIBRARIES=\"$archer_dir\" \
-ARCHER_OPTIONS=\"verbose=1\""
+ARCHER_OPTIONS=\"verbose=0\""
 
     # shift command line arguments to the left by 1 to account for "tsan"
     shift 1
 fi
 
 # invoke python function
-echo "Running command: ${env_args} python $*"
+# echo "Running command: ${env_args} python $*"
 eval "${env_args} python $*"

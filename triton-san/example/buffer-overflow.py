@@ -30,9 +30,6 @@ def kernel(output_ptr, n_elements, BLOCK_SIZE: tl.constexpr):
 size = 2049
 
 output = torch.empty((size, )).to("cpu")
-print(output)
 
 grid = lambda meta: (triton.cdiv(size, meta['BLOCK_SIZE']), )
 kernel[grid](output, size, BLOCK_SIZE=2048)
-
-print(output)

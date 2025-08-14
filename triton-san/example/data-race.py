@@ -30,9 +30,6 @@ def kernel(output_ptr, n_elements, BLOCK_SIZE: tl.constexpr):
 size = 256
 
 output = torch.empty((size, )).to("cpu") # initialize GPU tensor with one extra element
-print(output)
 
 grid = lambda meta: (triton.cdiv(size, meta['BLOCK_SIZE']), )
 kernel[grid](output, size, BLOCK_SIZE=2)
-
-print(output)

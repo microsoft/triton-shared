@@ -58,7 +58,7 @@ sed -e "s#@ROOT@#${TRITON_SAN_INSTALL_ROOT}#"                    \
     -e "s#@LLVM_INSTALL_DIR@#${LLVM_INSTALL_DIR}#"               \
     "${SCRIPT_FOLDER}/template/triton-san.in" > "${TRITON_SAN_INSTALL_ROOT}/triton-san"
 
-chmod 700 "${TRITON_SAN_INSTALL_ROOT}/triton-san"
+chmod 775 "${TRITON_SAN_INSTALL_ROOT}/triton-san"
 
 # Copy examples
 cp -r "${SCRIPT_FOLDER}/example" "${TRITON_SAN_INSTALL_ROOT}/example"
