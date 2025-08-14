@@ -32,9 +32,9 @@ fi
 # activate Python virtual environment
 . ${VENV_PATH}/bin/activate
 
-# use '~/.triton_san' as the cache folder
-export TRITON_HOME="$(realpath "~/.triton_san")"
-echo "Use \"${TRITON_HOME}\" as TritonSan's cache"
+# use '~/.triton-san' as the cache folder
+export TRITON_HOME="$(realpath "~/.triton-san")"
+echo "Use \"${TRITON_HOME}\" as triton-san's cache"
 if [ -e "${TRITON_HOME}" ]; then
   rm -rf "${TRITON_HOME}"
 fi

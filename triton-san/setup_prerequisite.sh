@@ -17,7 +17,7 @@ if [ ! -e "${VENV_PATH}" ]; then
 fi
 
 # set up venv
-python3 -m venv ${VENV_PATH} --prompt TritonSan
+python3 -m venv ${VENV_PATH} --prompt triton-san
 source ${VENV_PATH}/bin/activate
 
 python3 -m pip install --upgrade pip

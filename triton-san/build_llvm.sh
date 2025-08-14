@@ -1,6 +1,6 @@
 # Build a custom llvm with sanitizer and openmp supports.
 # This script uses the same version of LLVM that is recorded in llvm-hash.txt
-# and installs the required LLVM projects for TritonSan (compiler-rt, openmp).
+# and installs the required LLVM projects for triton-san (compiler-rt, openmp).
 
 #!/bin/bash
 set -e

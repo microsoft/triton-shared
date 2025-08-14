@@ -1,4 +1,5 @@
 option(TRITON_SHARED_BUILD_CPU_BACKEND "Build triton-shared CPU backend" ON)
+option(TRITON_SAN_ENABLED "Build the triton-san sanitizer suite" ON)
 
 set(TRITON_SHARED_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
 set(TRITON_SHARED_BINARY_DIR "${CMAKE_CURRENT_BINARY_DIR}")
