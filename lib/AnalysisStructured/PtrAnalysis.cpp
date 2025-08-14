@@ -1217,10 +1217,6 @@ LogicalResult PtrAnalysis::rewriteAddptrOp(triton::AddPtrOp op) {
       auto maketptrOp = state.createTTSMakeTensorPtrOp(builder, op.getLoc());
       ptrMap.map(op.getResult(), maketptrOp.getResult());
     } else if (enableMakeGatherScatterTensorPtr) {
-      // If there is only one dimension, return failure since there are no
-      // continuous dimensions.
-      if (state.getRank() == 1)
-        return failure();
       PtrState unstructuredState;
       // Switch to unstructured state analysis to create offsets and strides
       // for the non-structured dimension.
