@@ -10,7 +10,7 @@ if [ "$#" -lt 1 ]; then
   exit 0
 fi
 
-TRITON_SHARED_PATH="$(realpath "$(dirname "$0")/..")"
+TRITON_SHARED_PATH="$(realpath "$(dirname "$0")/../..")"
 LLVM_PATH="$(realpath "$1")"
 
 echo "Installing LLVM to path: $LLVM_PATH"

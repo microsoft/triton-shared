@@ -22,8 +22,8 @@ fi
 
 mkdir -p "${TRITON_SAN_INSTALL_ROOT}"
 
-SCRIPT_FOLDER="$(realpath "$(dirname "$0")")"
-TRITON_SHARED_PATH="$(realpath "$(dirname "$0")/..")"
+SCRIPT_FOLDER="$(realpath "$(dirname "$0")/..")"
+TRITON_SHARED_PATH="$(realpath "$(dirname "$0")/../..")"
 VENV_PATH="$(realpath "$2")"
 LLVM_INSTALL_DIR="$(realpath "$3")"
 

@@ -8,7 +8,7 @@ if [ "$#" -lt 1 ]; then
   exit 0
 fi
 
-TRITON_SHARED_PATH="$(realpath "$(dirname "$0")/..")"
+TRITON_SHARED_PATH="$(realpath "$(dirname "$0")/../..")"
 VENV_PATH="$(realpath "$1")"
 
 # check if the path exists

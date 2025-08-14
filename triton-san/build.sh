@@ -2,7 +2,7 @@
 set -e
 
 ROOT="$(realpath "$(dirname "$0")/../..")"
-SCRIPT_FOLDER="$(realpath "$(dirname "$0")")"
+SCRIPT_FOLDER="$(realpath "$(dirname "$0")/script")"
 VENV_PATH="${ROOT}/venv"
 LLVM_PATH="${ROOT}/llvm"
 LLVM_BUILD_PATH="${LLVM_PATH}/llvm-build"
