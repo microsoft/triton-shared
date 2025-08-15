@@ -15,6 +15,9 @@ if [ ! -e "${VENV_PATH}" ]; then
 else 
   echo "Reuse Python virtual environment at ${VENV_PATH}"
 fi
+
+# start the virtual environment to ensure prerequisites like cmake and ninja are available in the current session
+. "${VENV_PATH}/bin/activate"
 echo -e "\n\n\n"
 
 echo "=========================== Build LLVM ============================"

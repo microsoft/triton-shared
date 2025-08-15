@@ -7,7 +7,7 @@ set -e
 
 if [ "$#" -lt 1 ]; then
   echo "Usage: $0 <desired path for LLVM installation>"
-  exit 0
+  exit 1
 fi
 
 TRITON_SHARED_PATH="$(realpath "$(dirname "$0")/../..")"
@@ -28,7 +28,7 @@ LLVM_SOURCE="${LLVM_SOURCE_DIR}/llvm"
 
 # compiler-rt and clang are the sanitizer-specific LLVM projects
 # openmp is used for parallelizing the triton grid for ThreadSanitizer (TSan)
-LLVM_PROJECTS="clang;compiler-rt;openmp;mlir;lld"
+LLVM_PROJECTS="clang;compiler-rt;openmp;mlir"
 
 # these are the targets supported by the Triton language
 # Triton's build script for LLVM uses these exact targets

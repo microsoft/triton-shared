@@ -5,7 +5,7 @@ set -e
 
 if [ "$#" -lt 3 ]; then
   echo "Usage: $0 <desired path for triton-san installation> <path to venv> <path to LLVM install dir>"
-  exit 0
+  exit 1
 fi
 
 TRITON_SAN_INSTALL_DIR="$(realpath "$1")"
@@ -44,12 +44,7 @@ if [ "$count" -gt 1 ]; then
 fi
 
 # Generate the suppression file
-cat <<TSAN_SUPPRESSION > "${TRITON_SAN_INSTALL_ROOT}/tsan_suppression.txt"
-called_from_lib:libomp.so
-called_from_lib:libtorch_python.so
-called_from_lib:libtorch_cpu.so
-called_from_lib:libtorch_cuda.so"
-TSAN_SUPPRESSION
+cp "${SCRIPT_FOLDER}/template/tsan_suppression.in" "${TRITON_SAN_INSTALL_ROOT}/tsan_suppression.txt"
 
 # Generate triton-san helper script
 sed -e "s#@ROOT@#${TRITON_SAN_INSTALL_ROOT}#"                    \
@@ -58,10 +53,10 @@ sed -e "s#@ROOT@#${TRITON_SAN_INSTALL_ROOT}#"                    \
     -e "s#@LLVM_INSTALL_DIR@#${LLVM_INSTALL_DIR}#"               \
     "${SCRIPT_FOLDER}/template/triton-san.in" > "${TRITON_SAN_INSTALL_ROOT}/triton-san"
 
-chmod 775 "${TRITON_SAN_INSTALL_ROOT}/triton-san"
+chmod +x "${TRITON_SAN_INSTALL_ROOT}/triton-san"
 
 # Copy examples
-cp -r "${SCRIPT_FOLDER}/example" "${TRITON_SAN_INSTALL_ROOT}/example"
+cp -r "${SCRIPT_FOLDER}/examples" "${TRITON_SAN_INSTALL_ROOT}/examples"
 
 echo "triton-san has been installed into ${TRITON_SAN_INSTALL_ROOT} successfully"
 echo "To optionally enable global access, add triton-san to your PATH environment variable using:"

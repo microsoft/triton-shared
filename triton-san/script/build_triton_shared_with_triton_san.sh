@@ -5,7 +5,7 @@ set -e
 
 if [ "$#" -lt 2 ]; then
   echo "Usage: $0 <path to llvm-build directory> <path to Python venv>"
-  exit 0
+  exit 1
 fi
 
 TRITON_SHARED_PATH="$(realpath "$(dirname "$0")/../..")"
@@ -32,12 +32,13 @@ fi
 # activate Python virtual environment
 . ${VENV_PATH}/bin/activate
 
-# use '~/.triton-san' as the cache folder
-export TRITON_HOME="$(realpath "~/.triton-san")"
+# use '~/.triton-san/.triton' as the cache folder
+export TRITON_HOME="$(readlink -f "$HOME/.triton-san")"
 echo "Use \"${TRITON_HOME}\" as triton-san's cache"
 if [ -e "${TRITON_HOME}" ]; then
   rm -rf "${TRITON_HOME}"
 fi
+mkdir -p "${TRITON_HOME}"
 
 # build triton-shared with the custom LLVM
 cd "${TRITON_SHARED_PATH}/triton"

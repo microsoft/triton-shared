@@ -5,7 +5,7 @@ set -e
 
 if [ "$#" -lt 1 ]; then
   echo "Usage: $0 <desired path to venv>"
-  exit 0
+  exit 1
 fi
 
 TRITON_SHARED_PATH="$(realpath "$(dirname "$0")/../..")"

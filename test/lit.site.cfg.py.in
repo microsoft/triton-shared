@@ -15,7 +15,7 @@ config.lit_tools_dir = "@LLVM_LIT_TOOLS_DIR@"
 config.mlir_binary_dir = "@MLIR_BINARY_DIR@"
 config.python_executable = "@Python3_EXECUTABLE@"
 config.enable_bindings_python = @MLIR_ENABLE_BINDINGS_PYTHON@
-config.triton_san_enabled = "@TRITON_SAN_ENABLED@"
+config.triton_san_enabled = "@TRITON_SHARED_BUILD_TRITON_SAN@"
 
 
 import lit.llvm
