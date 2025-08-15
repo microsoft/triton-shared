@@ -14,6 +14,9 @@ function usage {
 
 ROOT="@ROOT@"
 TRITON_SHARED_OPT_PATH="@TRITON_SHARED_OPT_PATH@"
+ASAN_OBJ_PATH="@ASAN_OBJ_PATH@"
+TSAN_OBJ_PATH="@TSAN_OBJ_PATH@"
+ARCHER_OBJ_PATH="@ARCHER_OBJ_PATH@"
 VENV_PATH="@VENV_PATH@"
 LLVM_INSTALL_DIR="@LLVM_INSTALL_DIR@"
 
@@ -33,35 +36,15 @@ fi
 
 env_args=""
 
-llvm_install_dir="${LLVM_INSTALL_DIR}"
-
 # set up the virtual environment and LLVM
-triton_shared_opt_path="${TRITON_SHARED_OPT_PATH}"
-
 . "${VENV_PATH}/bin/activate"
-export TRITON_SHARED_OPT_PATH="$triton_shared_opt_path"
+export TRITON_SHARED_OPT_PATH="${TRITON_SHARED_OPT_PATH}"
 export LLVM_BINARY_DIR="${LLVM_INSTALL_DIR}/bin"
 export PATH="${LLVM_INSTALL_DIR}/bin:${PATH}"
 
 if [ "${sanitizer_type}" = "asan" ]; then
-  # find path to asan shared library
-  asan_dir="$(find "$llvm_install_dir" -type f -name "libclang_rt.asan.so")"
-
-  if [ -z "$asan_dir" ]; then
-    echo "Error: unable to find libclang_rt.asan.so in $llvm_install_dir"
-    exit 1
-  fi
-
-  count=$(echo "$asan_dir" | wc -l)
-
-  if [ "$count" -gt 1 ]; then
-    echo "Error: multiple libclang_rt.asan.so found in $llvm_install_dir"
-    echo "$asan_dir"
-    exit 1
-  fi
-
   env_args=(
-    LD_PRELOAD="$asan_dir"
+    LD_PRELOAD="${ASAN_OBJ_PATH}"
     TRITON_ALWAYS_COMPILE=1
     TRITON_SHARED_SANITIZER_TYPE="asan"
     ASAN_OPTIONS="detect_leaks=0"
@@ -70,47 +53,15 @@ if [ "${sanitizer_type}" = "asan" ]; then
   # shift command line arguments to the left by 1 to account for "asan"
   shift 1
 elif [ "${sanitizer_type}" = "tsan" ]; then
-  # find path to tsan shared library
-  tsan_dir="$(find "$llvm_install_dir" -type f -name "libclang_rt.tsan.so")"
-
-  if [ -z "$tsan_dir" ]; then
-    echo "Error: unable to find libclang_rt.tsan.so in $llvm_install_dir"
-    exit 1
-  fi
-
-  count=$(echo "$tsan_dir" | wc -l)
-
-  if [ "$count" -gt 1 ]; then
-    echo "Error: multiple libclang_rt.tsan.so found in $llvm_install_dir"
-    echo "$tsan_dir"
-    exit 1
-  fi
-
-  # find path to archer library
-  archer_dir="$(find "$llvm_install_dir" -type f -name "libarcher.so")"
-
-  if [ -z "$archer_dir" ]; then
-    echo "Error: unable to find libarcher.so in $llvm_install_dir"
-    exit 1
-  fi
-
-  count=$(echo "$archer_dir" | wc -l)
-
-  if [ "$count" -gt 1 ]; then
-    echo "Error: multiple libarcher.so found in $llvm_install_dir"
-    echo "$archer_dir"
-    exit 1
-  fi
-    
   SUPPRESSION_FILE="${ROOT}/tsan_suppression.txt"
 
   env_args=(
-    LD_PRELOAD="$tsan_dir"
+    LD_PRELOAD="${TSAN_OBJ_PATH}"
     TRITON_ALWAYS_COMPILE=1
     TRITON_SHARED_SANITIZER_TYPE=tsan
     TSAN_OPTIONS="ignore_noninstrumented_modules=0:report_mutex_bugs=0:suppressions=${SUPPRESSION_FILE}"
     OMP_NUM_THREADS="$(nproc --all)"
-    OMP_TOOL_LIBRARIES="$archer_dir"
+    OMP_TOOL_LIBRARIES="${ARCHER_OBJ_PATH}"
     ARCHER_OPTIONS="verbose=0"
   )
 
