@@ -42,7 +42,7 @@ if [ "$count" -gt 1 ]; then
   exit 1
 fi
 
-source ${VENV_PATH}/bin/activate
+. ${VENV_PATH}/bin/activate
 
 export PATH="${LLVM_INSTALL_PATH}/bin:${VENV_PATH}/bin:${PATH}"
 export LLVM_BINARY_DIR="${LLVM_INSTALL_PATH}/bin"

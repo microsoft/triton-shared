@@ -26,9 +26,10 @@ config.test_source_root = os.path.dirname(__file__)
 
 # test_exec_root: The root path where tests should be run.
 config.test_exec_root = os.path.join(config.triton_obj_root, 'test')
+config.triton_shared_sanitizer_lib_dir = os.path.join(config.triton_shared_obj_root, "lib/Sanitizer/SanitizerAttributes")
 
 config.substitutions.append(('%PATH%', config.environment['PATH']))
-config.substitutions.append(("%shlibdir", config.llvm_shlib_dir))
+config.substitutions.append(("%sanitizer_dir", config.triton_shared_sanitizer_dir))
 config.substitutions.append(('%shlibext', config.llvm_shlib_ext))
 config.substitutions.append(('%toolsdir', config.llvm_tools_dir))
 
@@ -64,6 +65,7 @@ tool_dirs = [
 for d in tool_dirs:
     llvm_config.with_environment('PATH', d, append_path=True)
 tools = [
+    'opt',
     'triton-shared-opt',
     ToolSubst('%PYTHON', config.python_executable, unresolved='ignore'),
 ]
@@ -74,3 +76,6 @@ llvm_config.add_tool_substitutions(tools, tool_dirs)
 llvm_config.with_environment('PYTHONPATH', [
     os.path.join(config.mlir_binary_dir, 'python_packages', 'triton'),
 ], append_path=True)
+
+if config.triton_san_enabled == "ON":
+    config.available_features.add("triton-san")

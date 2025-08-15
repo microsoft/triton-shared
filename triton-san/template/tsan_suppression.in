@@ -1,0 +1,4 @@
+called_from_lib:libomp.so
+called_from_lib:libtorch_python.so
+called_from_lib:libtorch_cpu.so
+called_from_lib:libtorch_cuda.so"
