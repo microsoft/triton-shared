@@ -1,11 +1,10 @@
 #include "mlir/IR/Builders.h"
-
 #include "triton-shared/Dialect/TPtr/IR/TPtrDialect.h"
 
-#include "mlir/Dialect/Ptr/IR/PtrDialect.h"
-#include "mlir/Dialect/Ptr/IR/PtrTypes.h"
-#include "mlir/IR/DialectImplementation.h"
 #include "llvm/ADT/TypeSwitch.h"
+#include "mlir/IR/DialectImplementation.h"
+#include "triton/Dialect/Triton/IR/Dialect.h"
+#include "triton/Dialect/Triton/IR/Types.h"
 
 #define GET_TYPEDEF_CLASSES
 #include "triton-shared/Dialect/TPtr/IR/TPtrTypes.cpp.inc"
@@ -16,15 +15,24 @@ namespace {
 ParseResult parseIntType(OpAsmParser &parser, Type &ty) {
   if (succeeded(parser.parseOptionalColon()) && parser.parseType(ty))
     return parser.emitError(parser.getNameLoc(), "expected a type");
-  if (!ty)
-    ty = parser.getBuilder().getIndexType();
+  if (!ty) ty = parser.getBuilder().getIndexType();
   return success();
 }
 void printIntType(OpAsmPrinter &p, Operation *op, Type ty) {
-  if (!ty.isIndex())
-    p << " : " << ty;
+  if (!ty.isIndex()) p << " : " << ty;
 }
-} // namespace
+}  // namespace
+
+mlir::Attribute tptr::TPtrDialect::parseAttribute(
+    mlir::DialectAsmParser &parser, mlir::Type type) const {
+  parser.emitError(parser.getNameLoc(), "no dialect attributes are supported");
+  return {};
+}
+
+void tptr::TPtrDialect::printAttribute(mlir::Attribute attr,
+                                       mlir::DialectAsmPrinter &printer) const {
+  llvm_unreachable("no dialect attributes are supported");
+}
 
 //===----------------------------------------------------------------------===//
 // Dialect
@@ -39,10 +47,10 @@ void mlir::tptr::TPtrDialect::registerTypes() {
 /// Dialect creation, the instance will be owned by the context. This is the
 /// point of registration of custom types and operations for the dialect.
 void mlir::tptr::TPtrDialect::initialize() {
-  addAttributes<
-#define GET_ATTRDEF_LIST
-#include "triton-shared/Dialect/TPtr/IR/TPtrAttributes.cpp.inc"
-      >();
+  //   addAttributes<
+  // #define GET_ATTRDEF_LIST
+  // #include "triton-shared/Dialect/TPtr/IR/TPtrAttributes.cpp.inc"
+  //       >();
   registerTypes();
   addOperations<
 #define GET_OP_LIST
@@ -50,43 +58,44 @@ void mlir::tptr::TPtrDialect::initialize() {
       >();
 }
 
-bool tptr::DefaultMemorySpaceAttr::isValidLoad(
-    Type type, mlir::ptr::AtomicOrdering ordering, IntegerAttr alignment,
-    llvm::function_ref<InFlightDiagnostic()> emitError) const {
-  return true;
-}
+// bool tptr::DefaultMemorySpaceAttr::isValidLoad(
+//     Type type, mlir::ptr::AtomicOrdering ordering, IntegerAttr alignment,
+//     llvm::function_ref<InFlightDiagnostic()> emitError) const {
+//   return true;
+// }
 
-bool tptr::DefaultMemorySpaceAttr::isValidStore(
-    Type type, mlir::ptr::AtomicOrdering ordering, IntegerAttr alignment,
-    llvm::function_ref<InFlightDiagnostic()> emitError) const {
-  return true;
-}
+// bool tptr::DefaultMemorySpaceAttr::isValidStore(
+//     Type type, mlir::ptr::AtomicOrdering ordering, IntegerAttr alignment,
+//     llvm::function_ref<InFlightDiagnostic()> emitError) const {
+//   return true;
+// }
 
-bool tptr::DefaultMemorySpaceAttr::isValidAtomicOp(
-    mlir::ptr::AtomicBinOp binOp, Type type, mlir::ptr::AtomicOrdering ordering,
-    IntegerAttr alignment,
-    llvm::function_ref<InFlightDiagnostic()> emitError) const {
-  return true;
-}
+// bool tptr::DefaultMemorySpaceAttr::isValidAtomicOp(
+//     mlir::ptr::AtomicBinOp binOp, Type type, mlir::ptr::AtomicOrdering
+//     ordering, IntegerAttr alignment, llvm::function_ref<InFlightDiagnostic()>
+//     emitError) const {
+//   return true;
+// }
 
-bool tptr::DefaultMemorySpaceAttr::isValidAtomicXchg(
-    Type type, mlir::ptr::AtomicOrdering successOrdering,
-    mlir::ptr::AtomicOrdering failureOrdering, IntegerAttr alignment,
-    llvm::function_ref<InFlightDiagnostic()> emitError) const {
-  return true;
-}
+// bool tptr::DefaultMemorySpaceAttr::isValidAtomicXchg(
+//     Type type, mlir::ptr::AtomicOrdering successOrdering,
+//     mlir::ptr::AtomicOrdering failureOrdering, IntegerAttr alignment,
+//     llvm::function_ref<InFlightDiagnostic()> emitError) const {
+//   return true;
+// }
 
-bool tptr::DefaultMemorySpaceAttr::isValidAddrSpaceCast(
-    Type tgt, Type src,
-    llvm::function_ref<InFlightDiagnostic()> emitError) const {
-  return true;
-}
+// bool tptr::DefaultMemorySpaceAttr::isValidAddrSpaceCast(
+//     Type tgt, Type src,
+//     llvm::function_ref<InFlightDiagnostic()> emitError) const {
+//   return true;
+// }
 
-bool tptr::DefaultMemorySpaceAttr::isValidPtrIntCast(
-    Type intLikeTy, Type ptrLikeTy,
-    llvm::function_ref<InFlightDiagnostic()> emitError) const {
-  return true;
-}
+// bool tptr::DefaultMemorySpaceAttr::isValidPtrIntCast(
+//     Type intLikeTy, Type ptrLikeTy,
+//     llvm::function_ref<InFlightDiagnostic()> emitError) const {
+//   return true;
+// }
+
 //===----------------------------------------------------------------------===//
 // TableGen'd op method definitions
 //===----------------------------------------------------------------------===//
@@ -96,5 +105,4 @@ bool tptr::DefaultMemorySpaceAttr::isValidPtrIntCast(
 
 #define GET_ATTRDEF_CLASSES
 #include "triton-shared/Dialect/TPtr/IR/TPtrAttributes.cpp.inc"
-
 #include "triton-shared/Dialect/TPtr/IR/TPtrDialect.cpp.inc"

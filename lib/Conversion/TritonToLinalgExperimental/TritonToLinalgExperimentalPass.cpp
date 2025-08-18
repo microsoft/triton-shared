@@ -5,7 +5,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "mlir/Dialect/Ptr/IR/PtrDialect.h"
 #include "triton-shared/Conversion/StructuredToMemref/StructuredToMemref.h"
 #include "triton-shared/Conversion/TritonArithToLinalg/TritonArithToLinalg.h"
 #include "triton-shared/Conversion/TritonPtrToMemref/TritonPtrToMemref.h"
@@ -46,7 +45,7 @@ public:
                     scf::SCFDialect, tensor::TensorDialect,
                     bufferization::BufferizationDialect, memref::MemRefDialect,
                     ttx::TritonTilingExtDialect, tts::TritonStructuredDialect,
-                    tptr::TPtrDialect, ptr::PtrDialect>();
+                    tptr::TPtrDialect>();
   }
 
   void runOnOperation() override {
