@@ -8,5 +8,4 @@ add_triton_library(TPtrIR
   LINK_LIBS PUBLIC
   TritonIR
   MLIRIR
-  MLIRPtrDialect
   )
