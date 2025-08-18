@@ -100,6 +100,8 @@ def _ttsharedir_to_llir(ttsharedir: str):
         triton_shared.to_llir.add_memref_expand(pm)
         triton_shared.to_llir.add_finalize_memref_to_llvm(pm)
         triton_shared.to_llir.add_convert_func_to_llvm(pm)
+        # triton_shared.debug.enable_mlir_debug("tptr-to-llvm")
+        triton_shared.to_llir.add_convert_tptr_to_llvm(pm)
 
         triton_shared.to_llir.add_convert_cf_to_llvm(pm)
         triton_shared.to_llir.add_lower_affine(pm)

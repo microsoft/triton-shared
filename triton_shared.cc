@@ -63,6 +63,8 @@ namespace py = pybind11;
 
 // Triton and other third-party dialects
 #include "third_party/proton/dialect/include/Dialect/Proton/IR/Dialect.h"
+#include "triton-shared/Conversion/TPtrToLLVM/TPtrToLLVM.h"
+#include "triton-shared/Dialect/TPtr/IR/TPtrDialect.h"
 #include "triton/Dialect/Triton/IR/Dialect.h"
 #include "triton/Dialect/TritonGPU/IR/Dialect.h"
 #include "triton/Dialect/TritonInstrument/IR/Dialect.h"
@@ -120,6 +122,7 @@ void init_to_llvm(py::module &&m) {
   ADD_PASS_WRAPPER_0("add_finalize_memref_to_llvm",
                      createFinalizeMemRefToLLVMConversionPass);
   ADD_PASS_WRAPPER_0("add_convert_func_to_llvm", createConvertFuncToLLVMPass);
+  ADD_PASS_WRAPPER_0("add_convert_tptr_to_llvm", tptr::createTPtrToLLVMPass);
   ADD_PASS_WRAPPER_0("add_convert_cf_to_llvm",
                      createConvertControlFlowToLLVMPass);
   ADD_PASS_WRAPPER_0("add_reconcile_unrealized_casts",
