@@ -1,5 +1,5 @@
 from triton.backends.compiler import BaseBackend, GPUTarget
-from triton._C.libtriton import ir, passes
+from triton._C.libtriton import ir, passes, triton_shared
 from dataclasses import dataclass
 from typing import Any, Dict, Tuple
 from types import ModuleType
@@ -78,41 +78,36 @@ def _ttsharedir_to_llir(ttsharedir: str):
         llmlir_path = os.path.join(tmpdir, "ll.mlir")
         llir_path = os.path.join(tmpdir, "ll.ir")
         Path(ttshared_path).write_text(ttsharedir)
-        mlir_opt_path = _get_llvm_bin_path("mlir-opt")
-        # TritonShared-MLIR to LLVM-MLIR
-        subprocess.check_call([mlir_opt_path, ttshared_path,
-            "--convert-linalg-to-affine-loops",
-            # Note: eliminate-empty-tensors fails when there are multiple func.return ops
-            # in a single kernel which are the results of early returns.
-            # See python/examples/test_early_return.py for examples.
-            # We disable this pass for now since performance on CPU isn't the main
-            # focus at the moment.
-            # "--eliminate-empty-tensors",
-            "--empty-tensor-to-alloc-tensor",
-            "--one-shot-bufferize=allow-return-allocs-from-loops=true",
-            "--lower-affine",
-            "--convert-linalg-to-loops",
-            "--expand-strided-metadata",
-            "--convert-scf-to-cf",
-            "--convert-arith-to-llvm",
-            "--convert-math-to-llvm",
-            "--convert-complex-to-llvm",
-            "--convert-vector-to-llvm",
-            "--convert-index-to-llvm",
-            "--memref-expand",
-            "--finalize-memref-to-llvm",
-            "--convert-func-to-llvm",
-            "--convert-cf-to-llvm",
-            # Lowering memrefs creates more affine.apply ops.
-            # Lowering these affine ops again creates further arith ops,
-            # so we have to run these two passes again here.
-            "--lower-affine",
-            "--convert-arith-to-llvm",
-            # Remove all unrealized casts created
-            "--reconcile-unrealized-casts",
-            "--mlir-print-debuginfo",
-            "-o",
-            llmlir_path])
+        context = ir.context()
+        triton_shared.ir.load_dialects(context)
+        mod = ir.parse_mlir_module(ttshared_path, context)
+
+        pm = ir.pass_manager(context)
+        pm.enable_debug()
+        triton_shared.to_llir.add_convert_linalg_to_affine_loops(pm)
+        triton_shared.to_llir.add_empty_tensor_to_alloc_tensor(pm)
+        triton_shared.to_llir.add_one_shot_bufferize_with_options(
+            pm, allow_return_allocs_from_loops=True)
+        triton_shared.to_llir.add_lower_affine(pm)
+        triton_shared.to_llir.add_convert_linalg_to_loops(pm)
+        triton_shared.to_llir.add_expand_strided_metadata(pm)
+        triton_shared.to_llir.add_convert_scf_to_cf(pm)
+        triton_shared.to_llir.add_convert_arith_to_llvm(pm)
+        triton_shared.to_llir.add_convert_math_to_llvm(pm)
+        triton_shared.to_llir.add_convert_complex_to_llvm(pm)
+        triton_shared.to_llir.add_convert_vector_to_llvm(pm)
+        triton_shared.to_llir.add_convert_index_to_llvm(pm)
+        triton_shared.to_llir.add_memref_expand(pm)
+        triton_shared.to_llir.add_finalize_memref_to_llvm(pm)
+        triton_shared.to_llir.add_convert_func_to_llvm(pm)
+
+        triton_shared.to_llir.add_convert_cf_to_llvm(pm)
+        triton_shared.to_llir.add_lower_affine(pm)
+        triton_shared.to_llir.add_convert_arith_to_llvm(pm)
+        triton_shared.to_llir.add_reconcile_unrealized_casts(pm)
+        pm.run(mod)
+
+        Path(llmlir_path).write_text(str(mod))
 
         # LLVM-MLIR to LLVM-IR
         mlir_translate_path = _get_llvm_bin_path("mlir-translate")

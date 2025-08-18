@@ -6,3 +6,5 @@ build/*
 /.clang-format
 test_core.py
 test_annotations.py
+
+.clangd/*

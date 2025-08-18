@@ -22,9 +22,42 @@ add_subdirectory(lib)
 add_subdirectory(test)
 add_subdirectory(tools/triton-shared-opt)
 
-if (TRITON_SHARED_BUILD_CPU_BACKEND)
+if(TRITON_SHARED_BUILD_CPU_BACKEND)
     add_triton_plugin(TritonShared ${CMAKE_CURRENT_SOURCE_DIR}/triton_shared.cc LINK_LIBS TritonSharedAnalysis TritonToLinalg TritonTilingExtIR)
-    target_link_libraries(TritonShared PRIVATE Python3::Module pybind11::headers)
+    target_link_libraries(TritonShared
+        PRIVATE
+        MLIRAffineToStandard
+        MLIRReconcileUnrealizedCasts
+        MLIRSCFToControlFlow
+
+        # ! transforms
+        MLIRBufferizationTransforms
+        MLIRArithTransforms
+        MLIRMemRefTransforms
+        MLIRSCFTransforms
+        MLIRFuncTransforms
+        MLIRVectorTransforms
+        MLIRTensorTransforms
+
+        MLIRArithToLLVM
+        MLIRIndexToLLVM
+        MLIRMathToLLVM
+        MLIRComplexToLLVM
+        MLIRVectorToLLVM
+        MLIRVectorToLLVMPass
+        MLIRFuncToLLVM
+        MLIRControlFlowToLLVM
+        MLIRMemRefToLLVM
+        MLIRVectorToSCF
+        MLIRUBToLLVM
+        # MLIRMathToLibm
+
+
+        PRIVATE
+        Python3::Module
+        pybind11::headers
+        ${Python3_LIBRARIES}
+    )
 endif()
 
 # Add symlinks to selected pytest files and the clang-format setting in triton. The tests are imported into triton-shared’s test folder to 
