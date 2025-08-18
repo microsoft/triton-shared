@@ -40,6 +40,7 @@ if(TRITON_SHARED_BUILD_CPU_BACKEND)
         MLIRControlFlowToLLVM
         MLIRMemRefToLLVM
         MLIRVectorToSCF
+        TPtrToLLVM
         MLIRUBToLLVM
         # MLIRMathToLibm
 

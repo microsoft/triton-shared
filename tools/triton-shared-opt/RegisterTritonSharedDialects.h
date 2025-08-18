@@ -4,7 +4,7 @@
 #include "mlir/Dialect/Linalg/IR/Linalg.h"
 #include "mlir/Dialect/Linalg/Passes.h"
 #include "mlir/Dialect/MemRef/IR/MemRef.h"
-#include "mlir/Dialect/Ptr/IR/PtrDialect.h"
+// #include "mlir/Dialect/Ptr/IR/PtrDialect.h"
 #include "mlir/Dialect/Tensor/IR/Tensor.h"
 
 #include "triton/Dialect/Triton/IR/Dialect.h"
@@ -22,6 +22,7 @@
 #include "triton-shared/Dialect/TritonStructured/IR/TritonStructuredDialect.h"
 #include "triton-shared/Dialect/TritonTilingExt/IR/TritonTilingExtDialect.h"
 #include "triton-shared/Transform/AddLLVMDebugInfo/Passes.h"
+#include "triton-shared/Conversion/TPtrToLLVM/Passes.h"
 
 #include "mlir/InitAllPasses.h"
 
@@ -38,14 +39,22 @@ inline void registerTritonSharedDialects(mlir::DialectRegistry &registry) {
   mlir::triton::registerTritonArithToLinalgPasses();
   mlir::triton::registerStructuredToMemrefPasses();
   mlir::triton::registerAddLLVMDebugInfoPass();
+  mlir::tptr::registerTPtrToLLVM();
 
   // TODO: register Triton & TritonGPU passes
   registry.insert<
-      mlir::tptr::TPtrDialect, mlir::ptr::PtrDialect,
-      mlir::ttx::TritonTilingExtDialect, mlir::tts::TritonStructuredDialect,
-      mlir::triton::TritonDialect, mlir::cf::ControlFlowDialect,
-      mlir::math::MathDialect, mlir::arith::ArithDialect, mlir::scf::SCFDialect,
-      mlir::gpu::GPUDialect, mlir::linalg::LinalgDialect,
-      mlir::func::FuncDialect, mlir::tensor::TensorDialect,
-      mlir::memref::MemRefDialect, mlir::bufferization::BufferizationDialect>();
+      mlir::tptr::TPtrDialect,
+      // mlir::ptr::PtrDialect,
+      mlir::ttx::TritonTilingExtDialect,
+      mlir::tts::TritonStructuredDialect,
+      mlir::triton::TritonDialect,
+      mlir::cf::ControlFlowDialect, mlir::scf::SCFDialect,
+      mlir::math::MathDialect, mlir::arith::ArithDialect,
+      // mlir::gpu::GPUDialect,
+      mlir::linalg::LinalgDialect,
+      mlir::func::FuncDialect,
+      mlir::tensor::TensorDialect,
+      mlir::memref::MemRefDialect,
+      mlir::bufferization::BufferizationDialect,
+      mlir::LLVM::LLVMDialect>();
 }
