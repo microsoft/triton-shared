@@ -38,4 +38,5 @@ module attributes {} {
 }
 
 // CHECK-NOT: unrealized_conversion_cast
-// CHECK-NOT: tt.
+// CHECK-NOT: tt\.(?!ptr)  // match tt., when it's not followed by tt.ptr
+

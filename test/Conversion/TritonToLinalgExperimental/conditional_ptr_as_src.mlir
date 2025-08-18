@@ -28,26 +28,23 @@ module {
 
 // CHECK-LABEL:  func.func @simple_cf_into_structured_load
 // CHECK-SAME:   ([[PARAM_0_:%.+]]: memref<*xf32>, [[PARAM_1_:%.+]]: memref<*xf32>, [[PARAM_2_:%.+]]: i32, [[PARAM_3_:%.+]]: i32, [[PARAM_4_:%.+]]: i32, [[PARAM_5_:%.+]]: i32, [[PARAM_6_:%.+]]: i32, [[PARAM_7_:%.+]]: i32, [[PARAM_8_:%.+]]: i32) {
-// CHECK-DAG:       [[VAR_0_:%.+]] = tptr.type_offset f32  : i32
 // CHECK-DAG:       [[CST_6_:%.+]] = arith.constant 6 : index
 // CHECK-DAG:       [[CST_2_:%.+]] = arith.constant 2 : i32
 // CHECK-DAG:       [[CST_1_:%.+]] = arith.constant 1 : i32
 // CHECK-DAG:       [[VAR_cast_:%.+]] = memref.cast [[PARAM_0_]] : memref<*xf32> to memref<1xf32>
 // CHECK-NOT: separator of consecutive DAGs
-// CHECK-DAG:       [[VAR_1_:%.+]] = tptr.from_memref [[VAR_cast_]] : memref<1xf32> to <#tptr.default_memory_space>
+// CHECK-DAG:       [[VAR_1_:%.+]] = tptr.from_memref [[VAR_cast_]] : memref<1xf32> to !tt.ptr<f32>
 // CHECK-DAG:       [[VAR_2_:%.+]] = arith.cmpi eq, [[PARAM_2_]], [[CST_1_]] : i32
 // CHECK-NOT: separator of consecutive DAGs
-// CHECK-DAG:       [[VAR_3_:%.+]] = scf.if [[VAR_2_]] -> (!ptr.ptr<#tptr.default_memory_space>) {
+// CHECK-DAG:       [[VAR_3_:%.+]] = scf.if [[VAR_2_]] -> (!tt.ptr<f32>) {
 // CHECK-DAG:         [[VAR_6_:%.+]] = arith.muli [[PARAM_2_]], [[CST_2_]] : i32
-// CHECK:             [[VAR_7_:%.+]] = arith.muli [[VAR_6_]], [[VAR_0_]] : i32
-// CHECK:             [[VAR_8_:%.+]] = tptr.ptradd [[VAR_1_]] [[VAR_7_]] : <#tptr.default_memory_space>, i32 to <#tptr.default_memory_space>
-// CHECK:             scf.yield [[VAR_8_]] : !ptr.ptr<#tptr.default_memory_space>
+// CHECK:             [[VAR_8_:%.+]] = tptr.ptradd [[VAR_1_]] [[VAR_6_]] : !tt.ptr<f32>, i32 to !tt.ptr<f32>
+// CHECK:             scf.yield [[VAR_8_]] : !tt.ptr<f32>
 // CHECK:           } else {
-// CHECK:             [[VAR_6_1_:%.+]] = arith.muli [[PARAM_2_]], [[VAR_0_]] : i32
-// CHECK:             [[VAR_7_1_:%.+]] = tptr.ptradd [[VAR_1_]] [[VAR_6_1_]] : <#tptr.default_memory_space>, i32 to <#tptr.default_memory_space>
-// CHECK:             scf.yield [[VAR_7_1_]] : !ptr.ptr<#tptr.default_memory_space>
+// CHECK:             [[VAR_7_1_:%.+]] = tptr.ptradd [[VAR_1_]] [[PARAM_2_]] : !tt.ptr<f32>, i32
+// CHECK:             scf.yield [[VAR_7_1_]] : !tt.ptr<f32>
 // CHECK:           }
-// CHECK:           [[VAR_4_:%.+]] = tptr.to_memref [[VAR_3_]] : <#tptr.default_memory_space> to memref<1xf32>
+// CHECK:           [[VAR_4_:%.+]] = tptr.to_memref [[VAR_3_]] : !tt.ptr<f32> to memref<1xf32>
 // CHECK-DAG:       [[VAR_reinterpret_cast_:%.+]] = memref.reinterpret_cast [[VAR_4_]] to offset: {{.}}[[CST_6_]]{{.}}, sizes: [4], strides: [1] : memref<1xf32> to memref<4xf32, strided<[1], offset: ?>>
 // CHECK-DAG:       [[RES_:%.+]] = memref.alloc() : memref<4xf32>
 // CHECK:           memref.copy [[VAR_reinterpret_cast_]], [[RES_]] : memref<4xf32, strided<[1], offset: ?>> to memref<4xf32>
