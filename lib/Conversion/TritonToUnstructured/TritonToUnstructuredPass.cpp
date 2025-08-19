@@ -503,12 +503,6 @@ public:
                   masks.emplace_back(b.getIndexAttr(0));
                 }
 
-                if (type.isIntOrIndexOrFloat()) {
-                  // Update ptr operand of load to gatherPtr directly.
-                  load.getPtrMutable().set(gatherPtr);
-                  return success();
-                }
-
                 Value newValue =
                     b.create<tts::LoadOp>(loc, gatherPtr, masks, other)
                         .getResult();
@@ -550,12 +544,6 @@ public:
 
                 Value stValue = store.getValue();
                 Type type = stValue.getType();
-                if (type.isIntOrIndexOrFloat()) {
-                  // Update ptr operand of store to gatherPtr directly.
-                  store.getPtrMutable().set(gatherPtr);
-                  return success();
-                }
-
 
                 if (isa<RankedTensorType>(type)) {
                   auto rankedType = cast<RankedTensorType>(type);

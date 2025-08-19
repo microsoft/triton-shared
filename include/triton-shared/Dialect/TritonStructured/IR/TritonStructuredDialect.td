@@ -263,7 +263,7 @@ def TTS_LoadOp : TTS_Op<"load", [
                        DenseI64ArrayAttr:$static_mask_dims,
                        Optional<AnyTypeOf<[TT_Float, TT_Int, TT_Ptr]>>:$other);
 
-  let results = (outs TT_Tensor:$result);
+  let results = (outs TT_Type:$result);
 
   let builders = [
     OpBuilder<(ins "Value":$ptr, "ArrayRef<OpFoldResult>":$mask_dims, "Value":$other)>,
@@ -292,7 +292,7 @@ def TTS_StoreOp : TTS_Op<"store", [
   let summary = "optionally store data from in memory to fill a portion of the tensor";
 
   let arguments = (ins TT_PtrLike:$ptr,
-                       TT_Tensor:$value,
+                       TT_Type:$value,
                        Variadic<Index>:$mask_dims,
                        DenseI64ArrayAttr:$static_mask_dims);
 

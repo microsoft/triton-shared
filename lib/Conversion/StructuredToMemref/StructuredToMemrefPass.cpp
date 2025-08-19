@@ -94,15 +94,6 @@ public:
 
     target.addIllegalOp<tts::LoadOp, tts::StoreOp, tts::MakeTensorPtrOp>();
 
-    target.addDynamicallyLegalOp<triton::LoadOp>([&](triton::LoadOp op) {
-      return !isa_and_present<tts::MakeGatherScatterTensorPtrOp>(
-          op.getPtr().getDefiningOp());
-    });
-    target.addDynamicallyLegalOp<triton::StoreOp>([&](triton::StoreOp op) {
-      return !isa_and_present<tts::MakeGatherScatterTensorPtrOp>(
-          op.getPtr().getDefiningOp());
-    });
-
     target.addLegalOp<UnrealizedConversionCastOp>();
 
     PtrToUnrankedMemrefConverter typeConverter;

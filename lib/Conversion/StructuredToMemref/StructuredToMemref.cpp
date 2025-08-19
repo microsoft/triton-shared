@@ -847,6 +847,57 @@ private:
     return success();
   }
 
+  LogicalResult rewriteScalarLoad(tts::MakeGatherScatterTensorPtrOp ptr,
+                                  tts::LoadOp op, Value memRefPtr,
+                                  ConversionPatternRewriter &rewriter) const {
+    assert(op.getType().isIntOrIndexOrFloat() &&
+           "Scalar load must be scalar type");
+
+    auto loc = op->getLoc();
+    scf::IfOp ifOp;
+    if (op.hasMask()) {
+      assert(ptr.getGatherScatterMask() && "Expected gather-scatter mask");
+      ifOp = rewriter.create<scf::IfOp>(
+          loc, op.getType(), ptr.getGatherScatterMask(),
+          /* withElseRegion */ op.getOther() != nullptr);
+      rewriter.setInsertionPointToStart(
+          &ifOp.getThenRegion().getBlocks().front());
+    }
+
+    Value offset = ptr.getGatherScatterOffset();
+
+    Value loadIndex = rewriter.create<arith::IndexCastOp>(
+        loc, rewriter.getIndexType(), offset);
+
+    auto memref = rewriter.create<memref::ReinterpretCastOp>(
+        loc,
+        getMemrefTypeForScalarPtr(
+            cast<triton::PointerType>(op.getPtr().getType()),
+            rewriter.getContext()),
+        memRefPtr, getAsOpFoldResult(loadIndex) /*offset*/,
+        ArrayRef<OpFoldResult>{rewriter.getIndexAttr(1)} /*sizes*/,
+        ArrayRef<OpFoldResult>{rewriter.getIndexAttr(1)} /*strides*/);
+
+    auto zeroMap = AffineMap::getConstantMap(0, rewriter.getContext());
+
+    auto scalarLoadOp = rewriter.create<affine::AffineLoadOp>(
+        loc, memref, zeroMap, std::nullopt);
+
+    if (ifOp) {
+      rewriter.create<scf::YieldOp>(loc, scalarLoadOp.getResult());
+      if (op.getOther()) {
+        rewriter.setInsertionPointToStart(
+            &ifOp.getElseRegion().getBlocks().front());
+        rewriter.create<scf::YieldOp>(loc, op.getOther());
+      }
+      rewriter.replaceOp(op, ifOp.getResults());
+    } else {
+      rewriter.replaceOp(op, scalarLoadOp.getResult());
+    }
+
+    return success();
+  }
+
   LogicalResult rewrite1DGather(tts::MakeGatherScatterTensorPtrOp ptr,
                                 tts::LoadOp op, Value memRefPtr,
                                 ConversionPatternRewriter &rewriter) const {
@@ -868,15 +919,14 @@ private:
                               memRefPtr)
                           .getResult();
 
-    auto baseTensor =
-        rewriter
-            .create<bufferization::ToTensorOp>(
-                loc,
-                RankedTensorType::get(
-                    SmallVector<int64_t>(1, ShapedType::kDynamic),
-                    resultType.getElementType()),
-                baseMemref, /*restrict=*/true, /*writable=*/false)
-            .getResult();
+    auto baseTensor = rewriter
+                          .create<bufferization::ToTensorOp>(
+                              loc,
+                              RankedTensorType::get(
+                                  SmallVector<int64_t>(1, ShapedType::kDynamic),
+                                  resultType.getElementType()),
+                              baseMemref, /*restrict=*/true, /*writable=*/false)
+                          .getResult();
 
     // The linalg.generic op should have the following inputs:
     // - the offset tensor.
@@ -958,6 +1008,9 @@ private:
   LogicalResult rewriteGather(tts::MakeGatherScatterTensorPtrOp ptr,
                                   tts::LoadOp op, Value memRefPtr,
                                   ConversionPatternRewriter &rewriter) const {
+    if (op.getType().isIntOrIndexOrFloat()) {
+      return rewriteScalarLoad(ptr, op, memRefPtr, rewriter);
+    }
     auto offsets = ptr.getMixedOffsets();
     if (offsets.size() == 1 && (!op.hasMask() || ptr.getGatherScatterMask())) {
       return rewrite1DGather(ptr, op, memRefPtr, rewriter);
@@ -1100,69 +1153,6 @@ public:
   }
 };
 
-struct ScalarLoadConverter : public OpConversionPattern<triton::LoadOp> {
-private:
-  using OpConversionPattern<triton::LoadOp>::OpConversionPattern;
-
-public:
-  ScalarLoadConverter(const TypeConverter &typeConverter, MLIRContext *context)
-      : OpConversionPattern<triton::LoadOp>(typeConverter, context) {}
-
-  LogicalResult
-  matchAndRewrite(triton::LoadOp op, OpAdaptor adaptor,
-                  ConversionPatternRewriter &rewriter) const override {
-    assert(op.getType().isIntOrIndexOrFloat() &&
-           "Scalar load must be scalar type");
-
-    auto loc = op->getLoc();
-    scf::IfOp ifOp;
-    if (op.getMask()) {
-      ifOp = rewriter.create<scf::IfOp>(loc, op.getType(), adaptor.getMask(),
-                                        /* withElseRegion */ op.getOther() !=
-                                            nullptr);
-      rewriter.setInsertionPointToStart(
-          &ifOp.getThenRegion().getBlocks().front());
-    }
-
-    auto ptr = op.getPtr();
-    auto gatherScatterPtr =
-        ptr.getDefiningOp<tts::MakeGatherScatterTensorPtrOp>();
-
-    Value offset = gatherScatterPtr.getGatherScatterOffset();
-
-    Value loadIndex = rewriter.create<arith::IndexCastOp>(
-        loc, rewriter.getIndexType(), offset);
-
-    auto memref = rewriter.create<memref::ReinterpretCastOp>(
-        loc,
-        getMemrefTypeForScalarPtr(
-            cast<triton::PointerType>(op.getPtr().getType()),
-            rewriter.getContext()),
-        adaptor.getPtr(), getAsOpFoldResult(loadIndex) /*offset*/,
-        ArrayRef<OpFoldResult>{rewriter.getIndexAttr(1)} /*sizes*/,
-        ArrayRef<OpFoldResult>{rewriter.getIndexAttr(1)} /*strides*/);
-
-    auto zeroMap = AffineMap::getConstantMap(0, rewriter.getContext());
-
-    auto scalarLoadOp = rewriter.create<affine::AffineLoadOp>(
-        loc, memref, zeroMap, std::nullopt);
-
-    if (ifOp) {
-      rewriter.create<scf::YieldOp>(loc, scalarLoadOp.getResult());
-      if (op.getOther()) {
-        rewriter.setInsertionPointToStart(
-            &ifOp.getElseRegion().getBlocks().front());
-        rewriter.create<scf::YieldOp>(loc, op.getOther());
-      }
-      rewriter.replaceOp(op, ifOp.getResults());
-    } else {
-      rewriter.replaceOp(op, scalarLoadOp.getResult());
-    }
-
-    return success();
-  }
-};
-
 struct StoreConverter : public OpConversionPattern<tts::StoreOp> {
 private:
   using OpConversionPattern<tts::StoreOp>::OpConversionPattern;
@@ -1179,6 +1169,43 @@ private:
 
     return b.create<tensor::ExtractSliceOp>(loc, dstType, source, offsets, dims,
                                             strides);
+  }
+
+  LogicalResult rewriteScalarStore(tts::StoreOp op,
+                                   tts::MakeGatherScatterTensorPtrOp ptr,
+                                   Value memRefPtr, Value stVal,
+                                   ConversionPatternRewriter &rewriter) const {
+    assert(stVal.getType().isIntOrIndexOrFloat() &&
+           "Scalar load must be scalar type");
+
+    auto loc = op->getLoc();
+    if (op.hasMask()) {
+      assert(ptr.getGatherScatterMask() && "Expected gather-scatter mask");
+      auto ifOp = rewriter.create<scf::IfOp>(loc, ptr.getGatherScatterMask());
+      rewriter.setInsertionPointToStart(
+          &ifOp.getThenRegion().getBlocks().front());
+    }
+
+    Value offset = ptr.getGatherScatterOffset();
+
+    Value storeIndex = rewriter.create<arith::IndexCastOp>(
+        loc, rewriter.getIndexType(), offset);
+
+    auto memref = rewriter.create<memref::ReinterpretCastOp>(
+        loc,
+        getMemrefTypeForScalarPtr(
+            cast<triton::PointerType>(op.getPtr().getType()),
+            rewriter.getContext()),
+        memRefPtr, getAsOpFoldResult(storeIndex) /*offset*/,
+        ArrayRef<OpFoldResult>{rewriter.getIndexAttr(1)} /*sizes*/,
+        ArrayRef<OpFoldResult>{rewriter.getIndexAttr(1)} /*strides*/);
+
+    auto zeroMap = AffineMap::getConstantMap(0, rewriter.getContext());
+
+    rewriter.create<affine::AffineStoreOp>(loc, stVal, memref, zeroMap,
+                                           std::nullopt);
+    rewriter.eraseOp(op);
+    return success();
   }
 
   LogicalResult rewrite1DScatter(tts::MakeGatherScatterTensorPtrOp ptr,
@@ -1266,6 +1293,9 @@ private:
                                    tts::StoreOp op, Value memRefPtr,
                                    Value stVal,
                                    ConversionPatternRewriter &rewriter) const {
+    if (stVal.getType().isIntOrIndexOrFloat()) {
+      return rewriteScalarStore(op, ptr, memRefPtr, stVal, rewriter);
+    }
     auto loc = op.getLoc();
     auto offsets = ptr.getMixedOffsets();
     if (offsets.size() == 1 && (!op.hasMask() || ptr.getGatherScatterMask())) {
@@ -1414,61 +1444,11 @@ public:
   }
 };
 
-struct ScalarStoreConverter : public OpConversionPattern<triton::StoreOp> {
-private:
-  using OpConversionPattern<triton::StoreOp>::OpConversionPattern;
-
-public:
-  ScalarStoreConverter(const TypeConverter &typeConverter, MLIRContext *context)
-      : OpConversionPattern<triton::StoreOp>(typeConverter, context) {}
-
-  LogicalResult
-  matchAndRewrite(triton::StoreOp op, OpAdaptor adaptor,
-                  ConversionPatternRewriter &rewriter) const override {
-    auto storeVal = adaptor.getValue();
-    assert(storeVal.getType().isIntOrIndexOrFloat() &&
-           "Scalar load must be scalar type");
-
-    auto loc = op->getLoc();
-    if (op.getMask()) {
-      auto ifOp = rewriter.create<scf::IfOp>(loc, adaptor.getMask());
-      rewriter.setInsertionPointToStart(
-          &ifOp.getThenRegion().getBlocks().front());
-    }
-
-    auto ptr = op.getPtr();
-    auto gatherScatterPtr =
-        ptr.getDefiningOp<tts::MakeGatherScatterTensorPtrOp>();
-
-    Value offset = gatherScatterPtr.getGatherScatterOffset();
-
-    Value storeIndex = rewriter.create<arith::IndexCastOp>(
-        loc, rewriter.getIndexType(), offset);
-
-    auto memref = rewriter.create<memref::ReinterpretCastOp>(
-        loc,
-        getMemrefTypeForScalarPtr(
-            cast<triton::PointerType>(op.getPtr().getType()),
-            rewriter.getContext()),
-        adaptor.getPtr(), getAsOpFoldResult(storeIndex) /*offset*/,
-        ArrayRef<OpFoldResult>{rewriter.getIndexAttr(1)} /*sizes*/,
-        ArrayRef<OpFoldResult>{rewriter.getIndexAttr(1)} /*strides*/);
-
-    auto zeroMap = AffineMap::getConstantMap(0, rewriter.getContext());
-
-    rewriter.create<affine::AffineStoreOp>(loc, storeVal, memref, zeroMap,
-                                           std::nullopt);
-    rewriter.eraseOp(op);
-    return success();
-  }
-};
-
 } // namespace
 
 void mlir::triton::populateStructuredToMemrefConversionPatterns(
     RewritePatternSet &patterns, TypeConverter &typeConverter) {
   patterns.add<MakeTensorPtrConverter, MakeGatherScatterTensorPtrConverter>(
       typeConverter, patterns.getContext());
-  patterns.add<LoadConverter, ScalarLoadConverter, StoreConverter,
-               ScalarStoreConverter>(patterns.getContext());
+  patterns.add<LoadConverter, StoreConverter>(patterns.getContext());
 }

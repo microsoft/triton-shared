@@ -223,7 +223,7 @@ LogicalResult MakeGatherScatterTensorPtrOp::verify() {
                      "int or index type");
   }
 
-  // Verify that the gatherScatterMask, if provided, is a 1D tensor.
+  // Verify that the gatherScatterMask, if provided, is a 1D tensor or scalar.
   if (getGatherScatterMask()) {
     Type maskType = getGatherScatterMask().getType();
     Type maskEltType = maskType;
@@ -289,7 +289,6 @@ LogicalResult MakeGatherScatterTensorPtrOp::verify() {
               "gather_scatter_mask must have "
               "mask provided");
         }
-      } else if (isa<triton::LoadOp, triton::StoreOp>(user)) {
       } else {
         return emitError("tts.make_gather_scatter_tptr can only be used in "
                          "tts.load or tts.store operations");
@@ -319,9 +318,13 @@ void LoadOp::build(OpBuilder &b, OperationState &state, Value ptr,
     resType = RankedTensorType::get(ptrTensorType.getShape(), elemType);
 
   } else if (tensorPtrType) {
-    auto tensorType = cast<ShapedType>(tensorPtrType.getPointeeType());
-    resType = RankedTensorType::get(tensorType.getShape(),
-                                    tensorType.getElementType());
+    if (auto tensorType =
+            dyn_cast<ShapedType>(tensorPtrType.getPointeeType())) {
+      resType = RankedTensorType::get(tensorType.getShape(),
+                                      tensorType.getElementType());
+    } else {
+      resType = tensorPtrType.getPointeeType();
+    }
   }
   build(b, state, resType, ptr, dynamicDims, b.getDenseI64ArrayAttr(staticDims),
         other);

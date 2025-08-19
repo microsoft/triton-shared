@@ -97,9 +97,9 @@ module {
 // CHECK:             %[[PTR2:.*]] = tts.make_gather_scatter_tptr %arg0 to sizes: [256] gather_scatter_dim: 0 gather_scatter_offset: %{{.*}} gather_scatter_mask: %{{.*}}, strides: [1], offsets: [0] : tensor<256xi32> tensor<256xi1> <f32> to !tt.ptr<tensor<256xf32>>
 // CHECK:             %[[VAL_44:.*]] = "tts.load"(%[[PTR2]], %[[VAL_13]]) <{operandSegmentSizes = array<i32: 1, 0, 1>, static_mask_dims = array<i64: 0>}> : (!tt.ptr<tensor<256xf32>>, f32) -> tensor<256xf32>
 // CHECK:           %[[PTR3:.*]] = tts.make_gather_scatter_tptr %arg4 to sizes: [1] gather_scatter_dim: 0 gather_scatter_offset: %[[VAL_14:.*]], strides: [1], offsets: [0] : i32  <f32> to !tt.ptr<f32>
-// CHECK:           tt.store %[[PTR3]], %{{.*}} : !tt.ptr<f32>
+// CHECK:           "tts.store"(%[[PTR3]], %{{.*}}) <{static_mask_dims = array<i64>}> : (!tt.ptr<f32>, f32) -> ()
 // CHECK:           %[[PTR4:.*]] = tts.make_gather_scatter_tptr %arg5 to sizes: [1] gather_scatter_dim: 0 gather_scatter_offset: %[[VAL_14]], strides: [1], offsets: [0] : i32  <f32> to !tt.ptr<f32>
-// CHECK:           tt.store %[[PTR4]], %{{.*}} : !tt.ptr<f32>
+// CHECK:           "tts.store"(%[[PTR4]], %{{.*}}) <{static_mask_dims = array<i64>}> : (!tt.ptr<f32>, f32) -> ()
 // CHECK:             %[[PTR5:.*]] = tts.make_gather_scatter_tptr %arg2 to sizes: [256] gather_scatter_dim: 0 gather_scatter_offset: %[[VAL_62:.*]] gather_scatter_mask: %[[VAL_63:.*]], strides: [1], offsets: [0] : tensor<256xi32> tensor<256xi1> <f32> to !tt.ptr<tensor<256xf32>>
 // CHECK:             %[[VAL_65:.*]] = "tts.load"(%[[PTR5]]) <{operandSegmentSizes = array<i32: 1, 0, 0>, static_mask_dims = array<i64: 0>}> : (!tt.ptr<tensor<256xf32>>) -> tensor<256xf32>
 // CHECK:             %[[PTR6:.*]] = tts.make_gather_scatter_tptr %arg3 to sizes: [256] gather_scatter_dim: 0 gather_scatter_offset: %[[VAL_62]] gather_scatter_mask: %[[VAL_63]], strides: [1], offsets: [0] : tensor<256xi32> tensor<256xi1> <f32> to !tt.ptr<tensor<256xf32>>
