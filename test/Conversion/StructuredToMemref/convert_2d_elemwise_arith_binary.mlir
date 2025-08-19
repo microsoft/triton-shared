@@ -58,7 +58,7 @@ module {
 // CHECK:             [[VAR_4_1_:%.+]] = arith.subf [[IN_3_]], [[IN_4_]] : f32
 // CHECK:             linalg.yield [[VAR_4_1_]] : f32
 // CHECK:           } -> tensor<128x128xf32>
-// CHECK:           [[FLAT0:%.+]] = tensor.reshape [[VAR_2_]](%cst) : (tensor<128x128xf32>, tensor<1xindex>) -> tensor<16384xf32>
+// CHECK:           [[FLAT0:%.+]] = tensor.collapse_shape [[VAR_2_]] {{.*}}0, 1{{.*}} : tensor<128x128xf32> into tensor<16384xf32>
 // CHECK:           [[VAR_cast_2_:%.+]] = memref.cast [[PARAM_2_]] : memref<*xf32> to memref<?xf32>
 // CHECK:           linalg.generic {indexing_maps = [#[[MAP_1_]], #[[MAP_1_]]], iterator_types = ["parallel"]} ins([[VAR_zero_offsets_]], [[FLAT0]] : tensor<16384xi32>, tensor<16384xf32>) {
 // CHECK:           ^bb0([[IN_6_:%.+]]: i32, [[IN_7_:%.+]]: f32):
@@ -66,7 +66,7 @@ module {
 // CHECK:             memref.store [[IN_7_]], [[VAR_cast_2_]]{{.}}[[VAR_5_]]{{.}} : memref<?xf32>
 // CHECK:             linalg.yield
 // CHECK:           }
-// CHECK:           [[FLAT1:%.+]]  = tensor.reshape [[VAR_3_]](%cst) : (tensor<128x128xf32>, tensor<1xindex>) -> tensor<16384xf32>
+// CHECK:           [[FLAT1:%.+]] = tensor.collapse_shape [[VAR_3_]] {{.*}}0, 1{{.*}} : tensor<128x128xf32> into tensor<16384xf32> 
 // CHECK:           [[VAR_cast_3_:%.+]] = memref.cast [[PARAM_3_]] : memref<*xf32> to memref<?xf32>
 // CHECK:           linalg.generic {indexing_maps = [#[[MAP_1_]], #[[MAP_1_]]], iterator_types = ["parallel"]} ins([[VAR_zero_offsets_]], [[FLAT1]] : tensor<16384xi32>, tensor<16384xf32>) {
 // CHECK:           ^bb0([[IN_8_:%.+]]: i32, [[IN_9_:%.+]]: f32):

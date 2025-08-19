@@ -217,6 +217,39 @@ static unsigned int getBitWidth(Type type) {
   return 0;
 }
 
+static Value flattenTensor(Value tensor, OpBuilder &b) {
+  auto loc = tensor.getLoc();
+  auto rankedType = cast<RankedTensorType>(tensor.getType());
+  if (rankedType.getRank() == 1) {
+    return tensor;
+  }
+  int64_t staticSize = 1;
+  for (auto dim : rankedType.getShape()) {
+    staticSize *= dim;
+  }
+  auto flatType =
+      RankedTensorType::get({staticSize}, rankedType.getElementType());
+  auto maybeReassociationMap =
+      getReassociationIndicesForReshape(rankedType, flatType);
+  SmallVector<ReassociationIndices> reassociation = *maybeReassociationMap;
+  return b.create<tensor::CollapseShapeOp>(loc, flatType, tensor, reassociation)
+      .getResult();
+}
+
+static Value reshape1DTensor(Value tensor, RankedTensorType targetType,
+                             OpBuilder &b) {
+  if (targetType.getRank() == 1) {
+    // If targeting 1D, just return the original tensor.
+    return tensor;
+  }
+  auto loc = tensor.getLoc();
+  auto maybeReassociationMap = getReassociationIndicesForReshape(
+      cast<RankedTensorType>(tensor.getType()), targetType);
+  SmallVector<ReassociationIndices> reassociation = *maybeReassociationMap;
+  return b.create<tensor::ExpandShapeOp>(loc, targetType, tensor, reassociation)
+      .getResult();
+}
+
 class TritonToUnstructuredPass
     : public TritonToUnstructuredBase<TritonToUnstructuredPass> {
 
@@ -507,21 +540,9 @@ public:
                     b.create<tts::LoadOp>(loc, gatherPtr, masks, other)
                         .getResult();
 
-                if (isa<RankedTensorType>(type)) {
-                  auto rankedType = cast<RankedTensorType>(type);
+                if (auto rankedType = dyn_cast<RankedTensorType>(type)) {
                   if (rankedType.getRank() > 1) {
-                    auto flatShapeType = shape::getExtentTensorType(
-                        type.getContext(), rankedType.getRank());
-                    SmallVector<Value> shapeValues;
-                    for (auto dim : rankedType.getShape()) {
-                      shapeValues.push_back(
-                          b.create<arith::ConstantIndexOp>(loc, dim));
-                    }
-                    auto flatInputShape = b.create<tensor::FromElementsOp>(
-                        loc, flatShapeType, shapeValues);
-                    newValue = b.create<tensor::ReshapeOp>(
-                                    loc, rankedType, newValue, flatInputShape)
-                                   .getResult();
+                    newValue = reshape1DTensor(newValue, rankedType, b);
                   }
                 }
 
@@ -545,24 +566,9 @@ public:
                 Value stValue = store.getValue();
                 Type type = stValue.getType();
 
-                if (isa<RankedTensorType>(type)) {
-                  auto rankedType = cast<RankedTensorType>(type);
+                if (auto rankedType = dyn_cast<RankedTensorType>(type)) {
                   if (rankedType.getRank() > 1) {
-                    int64_t staticSize = 1;
-                    for (auto dim : rankedType.getShape()) {
-                      staticSize *= dim;
-                    }
-                    auto flatShapeType =
-                        shape::getExtentTensorType(type.getContext(), 1);
-                    SmallVector<Value> shapeValues = {
-                        b.create<arith::ConstantIndexOp>(loc, 0)};
-                    auto flatInputShape = b.create<tensor::FromElementsOp>(
-                        loc, flatShapeType, shapeValues);
-                    auto flatType = RankedTensorType::get(
-                        {staticSize}, rankedType.getElementType());
-                    stValue = b.create<tensor::ReshapeOp>(
-                                   loc, flatType, stValue, flatInputShape)
-                                  .getResult();
+                    stValue = flattenTensor(stValue, b);
                   }
                 }
 
@@ -669,25 +675,9 @@ private:
         staticSize *= dim;
       }
       if (rankedType.getRank() > 1) {
-        auto flatShapeType = shape::getExtentTensorType(type.getContext(), 1);
-        SmallVector<Value> shapeValues = {
-            b.create<arith::ConstantIndexOp>(loc, 0)};
-        auto flatInputShape =
-            b.create<tensor::FromElementsOp>(loc, flatShapeType, shapeValues);
-        nonContinuousOffset = b.create<tensor::ReshapeOp>(
-            loc,
-            RankedTensorType::get(
-                {staticSize},
-                cast<RankedTensorType>(nonContinuousOffset.getType())
-                    .getElementType()),
-            nonContinuousOffset, flatInputShape);
+        nonContinuousOffset = flattenTensor(nonContinuousOffset, b);
         if (mask) {
-          mask = b.create<tensor::ReshapeOp>(
-              loc,
-              RankedTensorType::get(
-                  {staticSize},
-                  cast<RankedTensorType>(mask.getType()).getElementType()),
-              mask, flatInputShape);
+          mask = flattenTensor(mask, b);
         }
       }
     }

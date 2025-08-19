@@ -102,11 +102,11 @@ module {
 
 // CHECK:             %[[PTR:.*]] = tts.make_gather_scatter_tptr %arg0 to sizes: [8192] gather_scatter_dim: 0 gather_scatter_offset: %{{.*}}, strides: [1], offsets: [0] : tensor<8192xi32>  <bf16> to !tt.ptr<tensor<8192xbf16>>
 // CHECK:             %[[VAL_80:.*]] = "tts.load"(%[[PTR]]) <{operandSegmentSizes = array<i32: 1, 0, 0>, static_mask_dims = array<i64>}> : (!tt.ptr<tensor<8192xbf16>>) -> tensor<8192xbf16>
-// CHECK:             %[[VAL_81:.*]] = tensor.reshape %[[VAL_80]](%{{.*}}) : (tensor<8192xbf16>, tensor<2xindex>) -> tensor<128x64xbf16>
-// CHECK:             %[[VAL_82:.*]] = tensor.reshape %{{.*}}(%[[VAL_14:.*]]) : (tensor<64x256xi32>, tensor<1xindex>) -> tensor<16384xi32>
+// CHECK:             %[[VAL_81:.*]] = tensor.expand_shape %[[VAL_80]] {{.*}}0, 1{{.*}} output_shape [128, 64] : tensor<8192xbf16> into tensor<128x64xbf16>
+// CHECK:             %[[VAL_82:.*]] = tensor.collapse_shape %{{.*}} {{.*}}0, 1{{.*}} : tensor<64x256xi32> into tensor<16384xi32>
 // CHECK:             %[[PTR2:.*]] = tts.make_gather_scatter_tptr %arg1 to sizes: [16384] gather_scatter_dim: 0 gather_scatter_offset: %[[VAL_82]], strides: [1], offsets: [0] : tensor<16384xi32>  <bf16> to !tt.ptr<tensor<16384xbf16>>
 // CHECK:             %[[VAL_84:.*]] = "tts.load"(%[[PTR2]]) <{operandSegmentSizes = array<i32: 1, 0, 0>, static_mask_dims = array<i64>}> : (!tt.ptr<tensor<16384xbf16>>) -> tensor<16384xbf16>
 // CHECK:           %[[PTR3:.*]] = tts.make_gather_scatter_tptr %arg2 to sizes: [32768] gather_scatter_dim: 0 gather_scatter_offset: %{{.*}} gather_scatter_mask: %{{.*}}, strides: [1], offsets: [0] : tensor<32768xi32> tensor<32768xi1> <bf16> to !tt.ptr<tensor<32768xbf16>>
-// CHECK:           %[[VAL_109:.*]] = tensor.reshape %{{.*}}(%[[VAL_14]]) : (tensor<128x256xbf16>, tensor<1xindex>) -> tensor<32768xbf16>
+// CHECK:           %[[VAL_109:.*]] = tensor.collapse_shape %{{.*}} {{.*}}0, 1{{.*}} : tensor<128x256xbf16> into tensor<32768xbf16>
 // CHECK:           "tts.store"(%[[PTR3]], %[[VAL_109]]) <{static_mask_dims = array<i64: 0>}> : (!tt.ptr<tensor<32768xbf16>>, tensor<32768xbf16>) -> ()
 // CHECK-NOT:       tts.make_gather_scatter_tptr

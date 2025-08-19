@@ -60,7 +60,7 @@ module {
 // CHECK:               [[VAR_3_:%.+]] = arith.maximumf [[in_]], [[init_]] : bf16
 // CHECK:               linalg.yield [[VAR_3_]] : bf16
 // CHECK:             }
-// CHECK:           [[FLAT0:%.+]] = tensor.reshape [[VAR_reduced_]](%cst) : (tensor<256x16xbf16>, tensor<1xindex>) -> tensor<4096xbf16>
+// CHECK:           [[FLAT0:%.+]] = tensor.collapse_shape [[VAR_reduced_]] {{.*}}0, 1{{.*}} : tensor<256x16xbf16> into tensor<4096xbf16>
 // CHECK:           [[VAR_cast_:%.+]] = memref.cast [[PARAM_1_]] : memref<*xbf16> to memref<?xbf16>
 // CHECK:           linalg.generic {indexing_maps = [[[MAP_0_]], [[MAP_0_]]], iterator_types = ["parallel"]} ins([[VAR_zero_offsets_]], [[FLAT0]] : tensor<4096xi32>, tensor<4096xbf16>) {
 // CHECK:           ^bb0([[IN_0_:%.+]]: i32, [[IN_1_:%.+]]: bf16):
