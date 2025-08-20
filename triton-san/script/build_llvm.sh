@@ -10,15 +10,19 @@ if [ "$#" -lt 1 ]; then
   exit 1
 fi
 
-TRITON_SHARED_PATH="$(realpath "$(dirname "$0")/../..")"
+PARENT_FOLDER="$(realpath "$(dirname "$0")")"
+TRITON_SHARED_PATH="$(realpath "${PARENT_FOLDER}/../..")"
 LLVM_PATH="$(realpath "$1")"
 
-echo "Installing LLVM to path: $LLVM_PATH"
+# include utility functions
+source "${PARENT_FOLDER}/utility.inc"
+
+print_info "Installing LLVM to path: ${LLVM_PATH}."
 cd $LLVM_PATH
 
 LLVM_HASH_FILE="${TRITON_SHARED_PATH}/triton/cmake/llvm-hash.txt"
 if [ ! -e "${LLVM_HASH_FILE}" ]; then
-  print_error "${LLVM_HASH_FILE} does not exist"
+  print_error_and_exit "${LLVM_HASH_FILE} does not exist"
 fi
 
 LLVM_BUILD_DIR="${LLVM_PATH}/llvm-build"
@@ -57,8 +61,7 @@ cmake -GNinja -DCMAKE_BUILD_TYPE=Release        \
   -DLLVM_TARGETS_TO_BUILD=$LLVM_TARGETS         \
   $LLVM_SOURCE
 
-echo "Installing LLVM to: $LLVM_INSTALL_DIR"
 ninja -j$(nproc --all) -l$(nproc --all) || exit -1
 ninja -j$(nproc --all) -l$(nproc --all) install
 
-echo "LLVM installation succeeded"
+print_info "LLVM installation succeeded."

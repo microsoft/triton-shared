@@ -8,8 +8,12 @@ if [ "$#" -lt 1 ]; then
   exit 1
 fi
 
-TRITON_SHARED_PATH="$(realpath "$(dirname "$0")/../..")"
+PARENT_FOLDER="$(realpath "$(dirname "$0")")"
+TRITON_SHARED_PATH="$(realpath "${PARENT_FOLDER}/../..")"
 VENV_PATH="$(realpath "$1")"
+
+# include utility functions
+source "${PARENT_FOLDER}/utility.inc"
 
 # check if the path exists
 if [ ! -e "${VENV_PATH}" ]; then
@@ -22,8 +26,8 @@ source ${VENV_PATH}/bin/activate
 
 python3 -m pip install --upgrade pip
 python3 -m pip install cmake==3.24 ninja pytest-xdist pybind11 setuptools torch
-sudo apt-get install -y ccache clang lld
 
 # echo to user to start virtual environment
-echo "Please start the virtual environment: source \"${VENV_PATH}/bin/activate\""
-echo "This export is recommended for subsequent triton-shared builds: export TRITON_PLUGIN_DIRS=\"${TRITON_SHARED_PATH}/triton_shared\""
+info_message=("Please start the virtual environment: source \"${VENV_PATH}/bin/activate\""
+              "This export is recommended for subsequent triton-shared builds: export TRITON_PLUGIN_DIRS=\"${TRITON_SHARED_PATH}/triton_shared\"")
+print_info "${info_message[@]}"

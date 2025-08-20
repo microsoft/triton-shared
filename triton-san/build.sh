@@ -1,19 +1,42 @@
 #!/bin/bash
 set -e
 
-ROOT="$(realpath "$(dirname "$0")/../..")"
-SCRIPT_FOLDER="$(realpath "$(dirname "$0")/script")"
+function check_required_files() {
+  for f in "$@"; do
+    if [ ! -e "$f" ]; then
+      return 1
+    fi
+  done
+  return 0
+}
+
+PARENT_FOLDER="$(realpath "$(dirname "$0")")"
+ROOT="$(realpath "${PARENT_FOLDER}/../..")"
+SCRIPT_FOLDER="$(realpath "${PARENT_FOLDER}/script")"
 VENV_PATH="${ROOT}/venv"
 LLVM_PATH="${ROOT}/llvm"
 LLVM_BUILD_PATH="${LLVM_PATH}/llvm-build"
 LLVM_INSTALL_DIR="${LLVM_PATH}/llvm-install"
 TRITON_SAN_INSTALL_DIR="${ROOT}"
 
-echo "================= Setup Python Virtual Environment ================"
+# include utility functions
+source "${SCRIPT_FOLDER}/utility.inc"
+
+echo "================= Setup Python virtual environment ================"
 if [ ! -e "${VENV_PATH}" ]; then
   "${SCRIPT_FOLDER}/setup_prerequisite.sh" "${VENV_PATH}"
 else 
-  echo "Reuse Python virtual environment at ${VENV_PATH}"
+  required_file=(
+    "${VENV_PATH}/bin/activate"
+  )
+  if ! check_required_files "${required_file[@]}"; then
+    error_msg=(
+      "${VENV_PATH} exists but is not a valid Python virtual environment."
+      "Please delete the directory ${VENV_PATH} and rerun this build script."
+    )
+    print_error_and_exit "${error_msg[@]}"
+  fi
+  print_info "Reuse Python virtual environment at ${VENV_PATH}."
 fi
 
 # start the virtual environment to ensure prerequisites like cmake and ninja are available in the current session
@@ -25,7 +48,17 @@ if [ ! -e "${LLVM_PATH}" ]; then
   mkdir -p "${LLVM_PATH}"
   "${SCRIPT_FOLDER}/build_llvm.sh" "${LLVM_PATH}"
 else
-  echo "Reuse LLVM binary at ${LLVM_PATH}"
+  required_file=(
+    "${LLVM_PATH}/llvm-install/bin"
+    "${LLVM_PATH}/llvm-install/include"
+    "${LLVM_PATH}/llvm-install/lib"
+  )
+  if ! check_required_files "${required_file[@]}"; then
+    error_msg=("${LLVM_PATH} exists but has no valid LLVM binary."
+               "Please delete the directory ${LLVM_PATH} and rerun this build script.")
+    print_error_and_exit "${error_msg[@]}"
+  fi
+  print_info "Reuse LLVM binary at ${LLVM_PATH}."
 fi
 echo -e "\n\n\n"
 
