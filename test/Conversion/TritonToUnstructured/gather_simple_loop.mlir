@@ -34,7 +34,17 @@ module {
 // CHECK-NOT: tt.load
 // CHECK-NOT: tt.store
 
-// CHECK:             %[[PTR:.*]] = tts.make_gather_scatter_tptr %arg0 to sizes: [64] gather_scatter_dim: 0 gather_scatter_offset: {{.*}}, strides: [1], offsets: [0] : tensor<64xi32>  <f32> to !tt.ptr<tensor<64xf32>>
-// CHECK:             %[[VAL_20:.*]] = "tts.load"(%[[PTR]]) <{operandSegmentSizes = array<i32: 1, 0, 0>, static_mask_dims = array<i64>}> : (!tt.ptr<tensor<64xf32>>) -> tensor<64xf32>
-// CHECK:             %[[PTR2:.*]] = tts.make_gather_scatter_tptr %arg1 to sizes: [64] gather_scatter_dim: 0 gather_scatter_offset: {{.*}}, strides: [1], offsets: [0] : tensor<64xi32>  <f32> to !tt.ptr<tensor<64xf32>>
-// CHECK:             "tts.store"(%[[PTR2]], %[[VAL_20]]) <{static_mask_dims = array<i64>}> : (!tt.ptr<tensor<64xf32>>, tensor<64xf32>) -> ()
+// CHECK:           %[[VAL_10:.*]]:2 = scf.for %[[VAL_11:.*]] = %[[VAL_2:.*]] to %[[VAL_4:.*]] step %[[VAL_3:.*]] iter_args(%[[VAL_12:.*]] = %[[VAL_9:.*]], %[[VAL_13:.*]] = %[[VAL_9]]) -> (tensor<64xi32>, tensor<64xi32>)  : i32 {
+// CHECK:             %[[VAL_14:.*]] = arith.divsi %[[VAL_12]], %[[VAL_8:.*]] : tensor<64xi32>
+// CHECK:             %[[VAL_15:.*]] = arith.addi %[[VAL_11]], %[[VAL_7:.*]] : i32
+// CHECK:             %[[VAL_16:.*]] = arith.remsi %[[VAL_15]], %[[VAL_6:.*]] : i32
+// CHECK:             %[[VAL_17:.*]] = tt.splat %[[VAL_16]] : i32 -> tensor<64xi32>
+// CHECK:             %[[VAL_18:.*]] = arith.addi %[[VAL_14]], %[[VAL_17]] : tensor<64xi32>
+// CHECK:             %[[VAL_19:.*]] = tts.make_gather_scatter_tptr %[[VAL_0:.*]] to sizes: [64] gather_scatter_dim: 0 gather_scatter_offset: %[[VAL_18]], strides: [1], offsets: [0] : tensor<64xi32>  <f32> to !tt.ptr<tensor<64xf32>>
+// CHECK:             %[[VAL_20:.*]] = "tts.load"(%[[VAL_19]]) <{operandSegmentSizes = array<i32: 1, 0, 0>, static_mask_dims = array<i64>}> : (!tt.ptr<tensor<64xf32>>) -> tensor<64xf32>
+// CHECK:             %[[VAL_21:.*]] = tts.make_gather_scatter_tptr %[[VAL_1:.*]] to sizes: [64] gather_scatter_dim: 0 gather_scatter_offset: %[[VAL_13]], strides: [1], offsets: [0] : tensor<64xi32>  <f32> to !tt.ptr<tensor<64xf32>>
+// CHECK:             "tts.store"(%[[VAL_21]], %[[VAL_20]]) <{static_mask_dims = array<i64>}> : (!tt.ptr<tensor<64xf32>>, tensor<64xf32>) -> ()
+// CHECK:             %[[VAL_22:.*]] = arith.addi %[[VAL_18]], %[[VAL_5:.*]] : tensor<64xi32>
+// CHECK:             %[[VAL_23:.*]] = arith.addi %[[VAL_13]], %[[VAL_5]] : tensor<64xi32>
+// CHECK:             scf.yield %[[VAL_22]], %[[VAL_23]] : tensor<64xi32>, tensor<64xi32>
+// CHECK:           }

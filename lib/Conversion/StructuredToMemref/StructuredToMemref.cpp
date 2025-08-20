@@ -230,10 +230,6 @@ static MemRefType getMemrefTypeForScalarPtr(triton::PointerType ptrType,
   SmallVector<int64_t> strides{1};
   auto layout = StridedLayoutAttr::get(context, ShapedType::kDynamic, strides);
   auto elemType = ptrType.getPointeeType();
-  if (auto shapedType = dyn_cast<ShapedType>(elemType)) {
-    // If the pointee type is a shaped type, we need to get its element type.
-    elemType = shapedType.getElementType();
-  }
   auto memrefType = MemRefType::get({1}, elemType, layout);
   return memrefType;
 }
@@ -930,7 +926,7 @@ private:
 
     // The linalg.generic op should have the following inputs:
     // - the offset tensor.
-    // - an optional mask tensor if the gather op contains mask.
+    // - an optional mask tensor if the load op contains mask.
     SmallVector<Value> inputs{offsetTensor};
 
     if (op.hasMask()) {
