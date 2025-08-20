@@ -269,7 +269,7 @@ def compile_module(launcher_src, kernel_placeholder_name):
         kernel_name = kernel_metadata[6] # see pack_metadata in compiler.py
         src = launcher_src.replace(kernel_placeholder_name, kernel_name)
 
-        key = hashlib.md5(src.encode("utf-8") + kernel_obj).hexdigest()
+        key = hashlib.sha256(src.encode("utf-8") + kernel_obj).hexdigest()
         cache = get_cache_manager(key)
         name = "__triton_shared_ref_cpu_kernel_launcher"
 
