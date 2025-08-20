@@ -4,7 +4,7 @@ TritonSan is a dynamic analysis tool that is capable of accurately detecting bug
 TritonSan leverages triton-shared, a shared middleware layer for the Triton compiler that includes a reference CPU backend, to compile Triton kernels into CPU executables. During this compilation process, TritonSan enables instrumentions for LLVM sanitizers and applies the necessary transformations to ensure they receive complete debug information. When the Triton kernel executes, it runs alongside the specified LLVM sanitizer, enabling accurate detection of bugs within the kernel.
 
 ## Table of Contents
-1. [Installation](#llvm-sanitizer-feature-introduction)
+1. [Installation](#install-tritonsan)
 2. [Usage](#usage)
 3. [Example](#example)
 4. [Known Issues](#known-issues)
