@@ -27,7 +27,7 @@ fi
 
 
 if [ ! -e "${VENV_PATH}/bin/activate" ]; then
-  print_error_and_exit "\"${VENV_PATH}/bin/activate\" does not exist"
+  print_error_and_exit "\"${VENV_PATH}/bin/activate\" does not exist."
 fi
 
 # activate Python virtual environment

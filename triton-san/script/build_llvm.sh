@@ -22,7 +22,7 @@ cd $LLVM_PATH
 
 LLVM_HASH_FILE="${TRITON_SHARED_PATH}/triton/cmake/llvm-hash.txt"
 if [ ! -e "${LLVM_HASH_FILE}" ]; then
-  print_error_and_exit "${LLVM_HASH_FILE} does not exist"
+  print_error_and_exit "${LLVM_HASH_FILE} does not exist."
 fi
 
 LLVM_BUILD_DIR="${LLVM_PATH}/llvm-build"

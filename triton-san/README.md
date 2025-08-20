@@ -11,6 +11,11 @@ TritonSan leverages triton-shared, a shared middleware layer for the Triton comp
 5. [How TritonSan works](#an-overview-of-the-tritonsan-workflow)
 
 ## Install TritonSan
+
+### Supported Platforms
+- Ubuntu 24.04
+
+### Use the provided build script
 Because the prebuilt LLVM downloaded by Triton’s `setup.py` excludes LLVM sanitizers (i.e., the compiler-rt subproject is disabled), we need to utilize a custom LLVM build that matches the top commit hash specified in `triton/cmake/llvm-hash.txt`.
 
 To simplify installation, we provide a `build.sh` script that automates the entire process, including:
@@ -57,7 +62,7 @@ Usage: triton-san <sanitizer type> <original command used to launch the triton p
 Example: triton-san asan python ./my_triton_program.py
 ```
 
-**Note: before running TritonSan, please add the following import to the Triton program to specify the use of the CPU backend, which ensures all Triton kernels run on the CPU.**
+**Note: before running TritonSan, please add the following import to the Triton program to specify the use of the CPU backend, which ensures all Triton kernels run on the CPU. The sanitizers require CPU backend in order to work.**
 
 ```python
 from triton.backends.triton_shared.driver import CPUDriver
@@ -146,7 +151,7 @@ In both examples, TritonSan’s output should correspond to the bug description 
 **We also found that these two bugs are not detected by [Compute Sanitizer](https://triton-lang.org/main/programming-guide/chapter-3/debugging.html#using-third-party-tools), highlighting the value of TritonSan as a complementary debugging tool for Triton programs.**
 
 ## Known Issues
-### Warning generated from LLVM Sanitizers
+### Warning generated from LLVM sanitizers
 When using 'tsan' for data race detection, LLVM sanitizers may emit the following warning. This message is harmless and can be safely ignored for now.
 
 ```sh
