@@ -16,6 +16,7 @@
 
 #include "mlir/Conversion/ReconcileUnrealizedCasts/ReconcileUnrealizedCasts.h"
 #include "mlir/Dialect/MemRef/IR/MemRef.h"
+#include "mlir/Dialect/Ptr/IR/PtrAttrs.h"
 #include "mlir/Dialect/Ptr/IR/PtrTypes.h"
 #include "mlir/IR/Builders.h"
 #include "mlir/IR/BuiltinDialect.h"
@@ -95,9 +96,8 @@ struct FromMemrefConverter
           input);
       auto memrefToPtr = rewriter.create<tptr::FromMemrefOp>(
           op->getLoc(),
-          ptr::PtrType::get(
-              rewriter.getContext(),
-              tptr::DefaultMemorySpaceAttr::get(rewriter.getContext())),
+          ptr::PtrType::get(rewriter.getContext(),
+                            ptr::GenericSpaceAttr::get(rewriter.getContext())),
           rankedMemref);
 
       rewriter.replaceAllUsesWith(output, memrefToPtr);

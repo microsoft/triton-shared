@@ -20,36 +20,9 @@ def TPtr_Dialect : Dialect {
     Typed Pointer Dialect.
   }];
 
-  let extraClassDeclaration = [{
-    void registerTypes();
-  }];
-
   let dependentDialects = [
     "mlir::ptr::PtrDialect"
   ];
-
-  let useDefaultAttributePrinterParser = 1;
-  let usePropertiesForAttributes = 1;
-}
-
-class TPtrTypeDef<string name, string _mnemonic, list<Trait> traits = []>
-    : TypeDef<TPtr_Dialect, name, traits> {
-    // Used by printer/parser
-    let mnemonic = _mnemonic;
-}
-
-class TPtr_Attr<string name, string _mnemonic,
-                     list<Trait> traits = []>
-    : AttrDef<TPtr_Dialect, name, traits> {
-  let mnemonic = _mnemonic;
-}
-
-// Memory space attr is required for building Ptr ops
-// This acts as default memory space since there is
-// no such default implemented upstream
-def DefaultMemorySpaceAttr
-    : TPtr_Attr<"DefaultMemorySpace", "default_memory_space",
-                     [DeclareAttrInterfaceMethods<MemorySpaceAttrInterface>]> {
 }
 
 //
