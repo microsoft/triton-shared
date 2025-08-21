@@ -1,0 +1,73 @@
+# Executes a triton program with triton-san
+
+#!/bin/bash
+set -e
+
+function usage {
+  echo "Usage: triton-san <sanitizer type> <original command used to launch the triton program...>."
+  echo "<sanitizer type>:"
+  echo "  \"asan\": to detect buffer overflows" 
+  echo "  \"tsan\": to detect data races"
+  echo ""
+  echo "Example: triton-san asan python ./my_triton_program.py"
+}
+
+ROOT="@ROOT@"
+TRITON_SHARED_OPT_PATH="@TRITON_SHARED_OPT_PATH@"
+ASAN_OBJ_PATH="@ASAN_OBJ_PATH@"
+TSAN_OBJ_PATH="@TSAN_OBJ_PATH@"
+ARCHER_OBJ_PATH="@ARCHER_OBJ_PATH@"
+VENV_PATH="@VENV_PATH@"
+LLVM_INSTALL_DIR="@LLVM_INSTALL_DIR@"
+
+if [ "$#" -eq 0 ]; then
+  usage
+  exit 1
+fi
+
+sanitizer_type=$1
+
+if [ "$sanitizer_type" != "asan" ] && [ "$sanitizer_type" != "tsan" ]; then
+  echo "Error: Unsupported <sanitizer type> $sanitizer_type."
+  echo ""
+  usage
+  exit 1
+fi
+
+env_args=""
+
+# set up the virtual environment and LLVM
+. "${VENV_PATH}/bin/activate"
+export TRITON_SHARED_OPT_PATH="${TRITON_SHARED_OPT_PATH}"
+export LLVM_BINARY_DIR="${LLVM_INSTALL_DIR}/bin"
+export PATH="${LLVM_INSTALL_DIR}/bin:${PATH}"
+
+if [ "${sanitizer_type}" = "asan" ]; then
+  env_args=(
+    LD_PRELOAD="${ASAN_OBJ_PATH}"
+    TRITON_ALWAYS_COMPILE=1
+    TRITON_SHARED_SANITIZER_TYPE="asan"
+    ASAN_OPTIONS="detect_leaks=0"
+  )
+
+  # shift command line arguments to the left by 1 to account for "asan"
+  shift 1
+elif [ "${sanitizer_type}" = "tsan" ]; then
+  SUPPRESSION_FILE="${ROOT}/tsan_suppression.txt"
+
+  env_args=(
+    LD_PRELOAD="${TSAN_OBJ_PATH}"
+    TRITON_ALWAYS_COMPILE=1
+    TRITON_SHARED_SANITIZER_TYPE=tsan
+    TSAN_OPTIONS="ignore_noninstrumented_modules=0:report_mutex_bugs=0:suppressions=${SUPPRESSION_FILE}"
+    OMP_NUM_THREADS="$(nproc --all)"
+    OMP_TOOL_LIBRARIES="${ARCHER_OBJ_PATH}"
+    ARCHER_OPTIONS="verbose=0"
+  )
+
+  # shift command line arguments to the left by 1 to account for "tsan"
+  shift 1
+fi
+
+# invoke python function
+env "${env_args[@]}" "$@"

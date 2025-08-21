@@ -1,37 +1,28 @@
-# build a custom llvm for sanitizers
-# this build uses the same version of LLVM that is currently supported by triton-shared
-# and installs the required projects that the sanitizers need (compiler-rt, clang)
-# users need to activate venv before running this script
+# Build a custom llvm with sanitizer and openmp supports.
+# This script uses the same version of LLVM that is recorded in llvm-hash.txt
+# and installs the required LLVM projects for triton-san (compiler-rt, openmp).
 
 #!/bin/bash
 set -e
-set -x
 
-if [ "$#" -ne 2 ]; then
-  echo "Usage: $0 <desired path to LLVM installation directory> <existing path to triton shared>"
+if [ "$#" -lt 1 ]; then
+  echo "Usage: $0 <desired path for LLVM installation>"
   exit 1
 fi
 
+PARENT_FOLDER="$(realpath "$(dirname "$0")")"
+TRITON_SHARED_PATH="$(realpath "${PARENT_FOLDER}/../..")"
 LLVM_PATH="$(realpath "$1")"
-TRITON_SHARED_PATH="$(realpath "$2")"
 
-# check if the path exists
-if [ ! -e "$LLVM_PATH" ]; then
-  echo "Error: Path '$LLVM_PATH' does not exist."
-  exit 1
-fi
+# include utility functions
+source "${PARENT_FOLDER}/utility.inc"
 
-if [ ! -e "$TRITON_SHARED_PATH" ]; then
-  echo "Error: Path '$TRITON_SHARED_PATH' does not exist."
-  exit 1
-fi
-
-echo "Installing LLVM to path: $LLVM_PATH"
+print_info "Installing LLVM to path: ${LLVM_PATH}."
 cd $LLVM_PATH
 
 LLVM_HASH_FILE="${TRITON_SHARED_PATH}/triton/cmake/llvm-hash.txt"
 if [ ! -e "${LLVM_HASH_FILE}" ]; then
-  print_error "${LLVM_HASH_FILE} does not exist"
+  print_error_and_exit "${LLVM_HASH_FILE} does not exist."
 fi
 
 LLVM_BUILD_DIR="${LLVM_PATH}/llvm-build"
@@ -62,16 +53,15 @@ export CXXFLAGS="-Wno-unused-command-line-argument $CXXFLAGS"
 export CFLAGS="-Wno-unused-command-line-argument $CFLAGS" 
 
 cd "$LLVM_BUILD_DIR"
-cmake -GNinja -DCMAKE_BUILD_TYPE=Release \
-  -DCMAKE_C_COMPILER=clang               \
-  -DCMAKE_CXX_COMPILER=clang++           \
-  -DCMAKE_INSTALL_PREFIX=$LLVM_INSTALL_DIR    \
-  -DLLVM_ENABLE_PROJECTS=$LLVM_PROJECTS       \
-  -DLLVM_TARGETS_TO_BUILD=$LLVM_TARGETS \
+cmake -GNinja -DCMAKE_BUILD_TYPE=Release        \
+  -DCMAKE_C_COMPILER=clang                      \
+  -DCMAKE_CXX_COMPILER=clang++                  \
+  -DCMAKE_INSTALL_PREFIX=$LLVM_INSTALL_DIR      \
+  -DLLVM_ENABLE_PROJECTS=$LLVM_PROJECTS         \
+  -DLLVM_TARGETS_TO_BUILD=$LLVM_TARGETS         \
   $LLVM_SOURCE
 
-echo "Installing LLVM to: $LLVM_INSTALL_DIR"
 ninja -j$(nproc --all) -l$(nproc --all) || exit -1
 ninja -j$(nproc --all) -l$(nproc --all) install
 
-echo "LLVM installation succeeded"
+print_info "LLVM installation succeeded."
