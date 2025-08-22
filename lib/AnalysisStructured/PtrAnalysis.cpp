@@ -37,6 +37,80 @@
 
 #define DEBUG_TYPE "triton-ptr-analysis"
 
+using namespace mlir;
+
+// Try to apply generic mask on the ptr.
+static Value applyGenericMask(Operation *op, Value ptr,
+                              triton::MaskState &mstate, Location loc,
+                              OpBuilder builder) {
+  SmallVector<std::pair<unsigned, Value>> masks = mstate.getGenericMasks();
+  if (masks.empty()) {
+    return ptr;
+  }
+  if (masks.size() > 1) {
+    op->emitRemark("MaskAnalysis failed for more than one generic masks");
+    return nullptr;
+  }
+
+  auto [dim, genericMask] = masks[0];
+  if (auto scatterPtr =
+          ptr.getDefiningOp<tts::MakeGatherScatterTensorPtrOp>()) {
+    if (dim != scatterPtr.getGatherScatterDim()) {
+      op->emitRemark("MaskAnalysis failed for generic mask dim not equal "
+                     "gather scatter dim");
+      return nullptr;
+    }
+
+    ptr = builder
+              .create<tts::MakeGatherScatterTensorPtrOp>(
+                  loc, scatterPtr.getBase(),
+                  scatterPtr.getGatherScatterOffset(), genericMask,
+                  scatterPtr.getGatherScatterDim(), scatterPtr.getSizes(),
+                  scatterPtr.getMixedStrides(), scatterPtr.getMixedOffsets())
+              .getResult();
+
+  } else if (auto tptr = ptr.getDefiningOp<tts::MakeTensorPtrOp>()) {
+    OpFoldResult offsetFold = tptr.getMixedOffsets()[dim];
+    Value offset = dyn_cast<Value>(offsetFold);
+    if (!offset) {
+      offset = builder
+                   .create<arith::ConstantOp>(
+                       loc, cast<TypedAttr>(cast<Attribute>(offsetFold)))
+                   .getResult();
+    }
+    // Cast to integer for splat and makerange.
+    if (isa<IndexType>(offset.getType())) {
+      offset =
+          builder.create<arith::IndexCastOp>(loc, builder.getI32Type(), offset)
+              .getResult();
+    } else if (offset.getType().isInteger(64)) {
+      offset =
+          builder.create<arith::TruncIOp>(loc, builder.getI32Type(), offset)
+              .getResult();
+    }
+    auto offsetRowType =
+        RankedTensorType::get({tptr.getSizes()[dim]}, offset.getType());
+    Value scatterOffset =
+        builder.create<tensor::SplatOp>(loc, offsetRowType, offset).getResult();
+    Value range = builder
+                      .create<triton::MakeRangeOp>(loc, offsetRowType, 0,
+                                                   tptr.getSizes()[dim])
+                      .getResult();
+    scatterOffset = builder.create<arith::AddIOp>(loc, scatterOffset, range);
+    ptr =
+        builder
+            .create<tts::MakeGatherScatterTensorPtrOp>(
+                loc, tptr.getBase(), scatterOffset, genericMask, dim,
+                tptr.getSizes(), tptr.getMixedStrides(), tptr.getMixedOffsets())
+            .getResult();
+  } else {
+    return nullptr;
+  }
+  // Clear the mask size for gather/scatter dim.
+  mstate.dims[dim] = OpFoldResult(builder.getI32IntegerAttr(0));
+  return ptr;
+}
+
 namespace mlir {
 
 namespace tts {
@@ -1602,6 +1676,10 @@ LogicalResult PtrAnalysis::rewriteLoadOp(triton::LoadOp op,
       op->emitRemark("MaskAnalysis failed");
       return failure();
     }
+    ptr = applyGenericMask(op, ptr, mstate, loc, builder);
+    if (!ptr) {
+      return failure();
+    }
     dims = mstate.dims;
   }
 
@@ -1735,6 +1813,10 @@ LogicalResult PtrAnalysis::rewriteStoreOp(triton::StoreOp op,
   if (mask) {
     if (mstate.parse(mask, loc, builder).failed()) {
       op->emitRemark("MaskAnalysis failed");
+      return failure();
+    }
+    ptr = applyGenericMask(op, ptr, mstate, loc, builder);
+    if (!ptr) {
       return failure();
     }
     dims = mstate.dims;

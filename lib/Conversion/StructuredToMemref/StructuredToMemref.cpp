@@ -885,6 +885,11 @@ private:
       if (auto gatherMaskDimIndex = getIntAttr(gatherMaskDim)) {
         // If the gather mask dimension is a constant, we can use it directly.
         unsigned gatherMaskDimValue = gatherMaskDimIndex.value();
+        if (gatherMaskDimValue == 0 && ptr.getGatherScatterMask()) {
+          // For generic mask case, do the full loop and use the generic mask to
+          // guard the store.
+          gatherMaskDimValue = offsetSize;
+        }
         offsetSize = std::min(offsetSize, gatherMaskDimValue);
         upperBound = rewriter.create<arith::ConstantIndexOp>(loc, offsetSize).getResult();
       } else {
@@ -908,8 +913,18 @@ private:
     // Build loop body.
     rewriter.setInsertionPointToStart(loop.getBody());
 
-    // Load the offsetElt first.
     Value inductionVar = loop.getInductionVar();
+
+    if (Value genericMask = ptr.getGatherScatterMask()) {
+      // If the gather scatter mask is present, we need to use it to guard the
+      // load.
+      auto maskValue = rewriter.create<tensor::ExtractOp>(
+          loc, genericMask, ValueRange{inductionVar});
+      auto ifOp = rewriter.create<scf::IfOp>(loc, maskValue);
+      rewriter.setInsertionPointToStart(&ifOp.getThenRegion().front());
+    }
+
+    // Load the offsetElt first.
     auto gatherOffsetElt = rewriter.create<tensor::ExtractOp>(
         loc, gatherOffset, ValueRange{inductionVar});
 
@@ -1032,6 +1047,11 @@ private:
       if (auto gatherMaskDimIndex = getIntAttr(gatherMaskDim)) {
         // If the gather mask dimension is a constant, we can use it directly.
         unsigned gatherMaskDimValue = gatherMaskDimIndex.value();
+        if (gatherMaskDimValue == 0 && ptr.getGatherScatterMask()) {
+          // For generic mask case, do the full loop and use the generic mask to
+          // guard the store.
+          gatherMaskDimValue = offsetSize;
+        }
         offsetSize = std::min(offsetSize, gatherMaskDimValue);
         upperBound = rewriter.create<arith::ConstantIndexOp>(loc, offsetSize).getResult();
       } else {
@@ -1050,9 +1070,18 @@ private:
     // Build loop body.
     rewriter.setInsertionPointToStart(loop.getBody());
 
-    // Load the offsetElt first.
     Value inductionVar = loop.getInductionVar();
 
+    if (Value genericMask = ptr.getGatherScatterMask()) {
+      // If the gather scatter mask is present, we need to use it to guard the
+      // store.
+      auto maskValue = rewriter.create<tensor::ExtractOp>(
+          loc, genericMask, ValueRange{inductionVar});
+      auto ifOp = rewriter.create<scf::IfOp>(loc, maskValue);
+      rewriter.setInsertionPointToStart(&ifOp.getThenRegion().front());
+    }
+
+    // Load the offsetElt first.
     auto gatherOffsetElt = rewriter.create<tensor::ExtractOp>(
         loc, gatherOffset, ValueRange{inductionVar});
 

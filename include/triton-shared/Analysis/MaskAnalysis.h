@@ -44,16 +44,32 @@ namespace triton {
 //
 // Example of creating 2D mask:
 //  mask = (rows[:, None] < M) & (cols[None, :] < N)
+//
+// Bool tensor mask could be saved into masks in case that dimension failed
+// MaskAnalysis. These is to allow case where only one dimension failed while
+// others passed. A MakeGatherScatterTensorPtrOp operation could be generated
+// for the failed dimension. Only 3 patterns are supported for this.
+// 1. offsets[:, None] < n where the offsets is 1d tensor.
+//    It will in pattern of expandDims -> broadcast -> cmp
+// 2. mask[:, None] where mask is 1d bool tensor.
+//    It will in pattern of cmp -> expandDims -> broadcast
+// 3. scalar_mask[:, None] where scalar mask is scalar bool.
+//    It will in pattern of splat -> expandDims -> broadcast
+// Only one tensor mask is allowed. If multiple dimensions have failed
+// MaskAnalysis, then MaskAnalysis will still fail on the current operation.
 struct MaskState {
   OpFoldResult start;
   OpFoldResult end;
   SmallVector<OpFoldResult> dims;
+  SmallVector<Value> masks;
   OpFoldResult scalar;
   const bool useUnsafeMask;
 
   void dump() const;
 
   MaskState(bool useUnsafeMask = false) : useUnsafeMask(useUnsafeMask) {}
+
+  SmallVector<std::pair<unsigned, Value>> getGenericMasks();
 
   int64_t getRank() const { return dims.size(); }
 
