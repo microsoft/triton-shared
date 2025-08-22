@@ -1,4 +1,4 @@
-﻿// pybind11
+﻿// PyBind11
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 #include <pybind11/stl_bind.h>
@@ -55,8 +55,8 @@ namespace py = pybind11;
 #include "mlir/Target/LLVMIR/Dialect/Builtin/BuiltinToLLVMIRTranslation.h"
 #include "mlir/Target/LLVMIR/Dialect/LLVMIR/LLVMToLLVMIRTranslation.h"
 
-// llvm:Debug
-#include "llvm/Support/Debug.h"  // 关键头文件
+// LLVM: Debug
+#include "llvm/Support/Debug.h"  // Key header file
 
 // MLIR: Top-level Transforms
 #include "mlir/Transforms/Passes.h"
@@ -71,17 +71,18 @@ namespace py = pybind11;
 
 #define ADD_PASS_WRAPPER_0(name, builder) \
   m.def(name, [](mlir::PassManager &pm) { pm.addPass(builder()); })
+
 #define ADD_PASS_WRAPPER_1(name, builder, ty0) \
-  m.def(name,                                  \
+  m.def(name, \
         [](mlir::PassManager &pm, ty0 val0) { pm.addPass(builder(val0)); })
 
-#define ADD_PASS_WRAPPER_1_ARG(name, builder, ty0, arg0, val0)            \
-  m.def(                                                                  \
-      name,                                                               \
+#define ADD_PASS_WRAPPER_1_ARG(name, builder, ty0, arg0, val0) \
+  m.def( \
+      name, \
       [](mlir::PassManager &pm, ty0 arg0) { pm.addPass(builder(val0)); }, \
       py::arg("pm"), py::arg(#arg0) = val0);
 
-// 一个函数，用于设置 MLIR/LLVM 的调试类型
+// Function to set MLIR/LLVM debug type
 void enable_mlir_debug(const std::string &debug_type) {
   ::llvm::DebugFlag = true;
   llvm::setCurrentDebugType(debug_type.c_str());
@@ -89,11 +90,13 @@ void enable_mlir_debug(const std::string &debug_type) {
 
 void init_to_llvm(py::module &&m) {
   using namespace mlir;
+
   // Note: Linalg conversions may not be available in this MLIR version
   ADD_PASS_WRAPPER_0("add_convert_linalg_to_affine_loops",
                      createConvertLinalgToAffineLoopsPass);
   ADD_PASS_WRAPPER_0("add_empty_tensor_to_alloc_tensor",
                      bufferization::createEmptyTensorToAllocTensorPass);
+
   ADD_PASS_WRAPPER_1_ARG(
       "add_one_shot_bufferize_with_options",
       [](bool allowReturnAllocsFromLoops) {
@@ -102,6 +105,7 @@ void init_to_llvm(py::module &&m) {
         return mlir::bufferization::createOneShotBufferizePass(options);
       },
       bool, allow_return_allocs_from_loops, true);
+
   ADD_PASS_WRAPPER_0("add_one_shot_bufferize",
                      bufferization::createOneShotBufferizePass);
   ADD_PASS_WRAPPER_0("add_lower_affine", createLowerAffinePass);
@@ -132,6 +136,8 @@ void init_to_llvm(py::module &&m) {
 void init_triton_shared_ir(py::module &&m) {
   m.def("load_dialects", [](mlir::MLIRContext &context) {
     mlir::DialectRegistry registry;
+
+    // Register core dialects
     registry.insert<
         ::mlir::triton::TritonDialect,
         // ::mlir::triton::gpu::TritonGPUDialect,
@@ -139,25 +145,30 @@ void init_triton_shared_ir(py::module &&m) {
         ::mlir::linalg::LinalgDialect,
         ::mlir::bufferization::BufferizationDialect,
         ::mlir::tptr::TPtrDialect,
-        ::mlir::math::MathDialect, ::mlir::memref::MemRefDialect,
-        ::mlir::arith::ArithDialect, ::mlir::scf::SCFDialect,
-        ::mlir::vector::VectorDialect, ::mlir::cf::ControlFlowDialect,
-        ::mlir::triton::proton::ProtonDialect, ::mlir::LLVM::LLVMDialect,
-        ::mlir::ub::UBDialect, ::mlir::func::FuncDialect>();
+        ::mlir::math::MathDialect,
+        ::mlir::memref::MemRefDialect,
+        ::mlir::arith::ArithDialect,
+        ::mlir::scf::SCFDialect,
+        ::mlir::vector::VectorDialect,
+        ::mlir::cf::ControlFlowDialect,
+        ::mlir::triton::proton::ProtonDialect,
+        ::mlir::LLVM::LLVMDialect,
+        ::mlir::ub::UBDialect,
+        ::mlir::func::FuncDialect>();
+
+    // Register interfaces and translations
     // ::mlir::registerAllDialects(registry);
     ::mlir::LLVM::registerInlinerInterface(registry);
     ::mlir::registerBuiltinDialectTranslation(registry);
     ::mlir::registerLLVMDialectTranslation(registry);
     ::mlir::LLVM::registerInlinerInterface(registry);
 
+    // Register bufferizable op interface external models
     ::mlir::arith::registerBufferizableOpInterfaceExternalModels(registry);
     ::mlir::scf::registerBufferizableOpInterfaceExternalModels(registry);
     ::mlir::linalg::registerBufferizableOpInterfaceExternalModels(registry);
     ::mlir::vector::registerBufferizableOpInterfaceExternalModels(registry);
     ::mlir::tensor::registerBufferizableOpInterfaceExternalModels(registry);
-    //! didn't know if exists
-    // ::mlir::memref::registerBufferizableOpInterfaceExternalModels(registry);
-    // ::mlir::func::registerBufferizableOpInterfaceExternalModels(registry);
 
     ::mlir::bufferization::func_ext::
         registerBufferizableOpInterfaceExternalModels(registry);

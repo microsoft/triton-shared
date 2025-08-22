@@ -81,6 +81,7 @@ def _ttsharedir_to_llir(ttsharedir: str):
         context = ir.context()
         triton_shared.ir.load_dialects(context)
         mod = ir.parse_mlir_module(ttshared_path, context)
+        # TritonShared-MLIR to LLVM-MLIR
 
         pm = ir.pass_manager(context)
         pm.enable_debug()
