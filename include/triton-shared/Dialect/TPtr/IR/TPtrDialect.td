@@ -116,6 +116,11 @@ def TPTR_TypeOffsetOp : TPTR_Op<"type_offset", [ConstantLike, Pure]> {
      attr-dict $baseType custom<IntType>(type($result))
   }];
   let hasFolder = 1;
+let extraClassDeclaration = [{
+    /// Returns the type offset according to `layout`. If `layout` is `nullopt`
+    /// the nearest layout the op will be used for the computation.
+    llvm::TypeSize getTypeSize(std::optional<DataLayout> layout = std::nullopt);
+  }];
 }
 
 def TPTR_FromMemrefOp : TPTR_Op<"from_memref", [Pure]> {
@@ -215,3 +220,4 @@ def TTPTR_StoreOp : TPTR_Op<"store", [
 }
 
 #endif // TPTR_DIALECT
+

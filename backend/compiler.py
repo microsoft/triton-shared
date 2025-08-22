@@ -42,7 +42,7 @@ def _get_sanitizer_type():
     if sanitizer_type != "" and sanitizer_type != "asan" and sanitizer_type != "tsan":
         # throw error
         raise Exception(f"TRITON_SHARED_SANITIZER_TYPE {sanitizer_type} is invalid.")
-    
+
     return sanitizer_type
 
 def _ttir_to_ttsharedir(mod):
@@ -92,6 +92,7 @@ def _ttsharedir_to_llir(ttsharedir: str):
         triton_shared.to_llir.add_convert_linalg_to_loops(pm)
         triton_shared.to_llir.add_expand_strided_metadata(pm)
         triton_shared.to_llir.add_convert_scf_to_cf(pm)
+        triton_shared.to_llir.add_convert_tptr_to_llvm(pm)
         triton_shared.to_llir.add_convert_arith_to_llvm(pm)
         triton_shared.to_llir.add_convert_math_to_llvm(pm)
         triton_shared.to_llir.add_convert_complex_to_llvm(pm)
@@ -100,9 +101,6 @@ def _ttsharedir_to_llir(ttsharedir: str):
         triton_shared.to_llir.add_memref_expand(pm)
         triton_shared.to_llir.add_finalize_memref_to_llvm(pm)
         triton_shared.to_llir.add_convert_func_to_llvm(pm)
-        # triton_shared.debug.enable_mlir_debug("tptr-to-llvm")
-        triton_shared.to_llir.add_convert_tptr_to_llvm(pm)
-
         triton_shared.to_llir.add_convert_cf_to_llvm(pm)
         triton_shared.to_llir.add_lower_affine(pm)
         triton_shared.to_llir.add_convert_arith_to_llvm(pm)
@@ -142,7 +140,7 @@ def _llir_to_bin(llir: str, metadata):
             # using a sanitizer
             # invoke pass to append sanitizer attributes
             instrumented_src_path = os.path.join(tmpdir, "kernel-instrumented.ll")
-        
+
             opt_path = _get_llvm_bin_path("opt")
             top_level_triton_path = os.path.dirname(triton.__file__)
             sanitizer_attributes_pass_path = str(next(Path(top_level_triton_path).rglob("libSanitizerAttributes.so"), None))
@@ -150,8 +148,8 @@ def _llir_to_bin(llir: str, metadata):
             if not sanitizer_attributes_pass_path:
                 raise Exception(f"libSanitizerAttributes.so does not exist.")
 
-            subprocess.check_call([opt_path, "-load-pass-plugin", sanitizer_attributes_pass_path, 
-                "-passes=sanitizer-attributes", f"-sanitizer-type={sanitizer_type}", "-S", src_path, 
+            subprocess.check_call([opt_path, "-load-pass-plugin", sanitizer_attributes_pass_path,
+                "-passes=sanitizer-attributes", f"-sanitizer-type={sanitizer_type}", "-S", src_path,
                 "-o", instrumented_src_path])
 
             # compile to object file
@@ -163,12 +161,12 @@ def _llir_to_bin(llir: str, metadata):
                 subprocess_args.extend(["-g", "-fsanitize=address", "-mllvm", "-asan-stack=0"])
             elif sanitizer_type == "tsan":
                 subprocess_args.extend(["-g", "-fsanitize=thread"])
-                
+
             subprocess.check_call(subprocess_args)
         else:
             llc_path = _get_llvm_bin_path("llc")
             subprocess.check_call([llc_path, src_path, "-filetype=obj", "-relocation-model=pic", "-o", dst_path])
-        
+
         return Path(dst_path).read_bytes()
 
 
@@ -262,7 +260,6 @@ class CPUBackend(BaseBackend):
         stages["llir"] = lambda src, metadata: _optimize_llir(_ttsharedir_to_llir(src))
         stages["obj"] = lambda src, metadata: _llir_to_bin(src, metadata)
 
-
     @functools.lru_cache()
     def hash(self):
         return self.target
@@ -270,3 +267,4 @@ class CPUBackend(BaseBackend):
     # The CPU backend does not use any extra python modules, return an empty dictionary
     def get_module_map(self) -> Dict[str, ModuleType]:
         return {}
+
