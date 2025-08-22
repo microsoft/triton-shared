@@ -16,7 +16,7 @@
 
 #include "mlir/Conversion/ReconcileUnrealizedCasts/ReconcileUnrealizedCasts.h"
 #include "mlir/Dialect/MemRef/IR/MemRef.h"
-// #include "mlir/Dialect/Ptr/IR/PtrTypes.h"
+#include "mlir/Dialect/Ptr/IR/PtrTypes.h"
 #include "mlir/IR/Builders.h"
 #include "mlir/IR/BuiltinDialect.h"
 #include "mlir/IR/BuiltinOps.h"
@@ -25,8 +25,11 @@
 #include "mlir/Pass/PassManager.h"
 #include "mlir/Transforms/GreedyPatternRewriteDriver.h"
 #include "triton-shared/Conversion/TritonToLinalgExperimental/ReconcilePtrCasts.h"
-#include "triton-shared/Dialect/TPtr/IR/TPtrDialect.h"
+
 #include "triton/Dialect/Triton/IR/Types.h"
+
+#include "triton-shared/Conversion/TritonToLinalgExperimental/ReconcilePtrCasts.h"
+#include "triton-shared/Dialect/TPtr/IR/TPtrDialect.h"
 
 using namespace mlir;
 using namespace triton;
@@ -84,7 +87,7 @@ struct FromMemrefConverter
     auto output = op.getResult(0);
     auto outType = output.getType();
 
-    if (unrankedInput && isa<triton::PointerType /*, ptr::PtrType*/>(outType)) {
+    if (unrankedInput && isa<triton::PointerType, ptr::PtrType>(outType)) {
       // from_memref only takes ranked memref, cast the unranked memref to
       // ranked memref first.
       auto rankedMemref = rewriter.create<memref::CastOp>(
@@ -92,10 +95,9 @@ struct FromMemrefConverter
           input);
       auto memrefToPtr = rewriter.create<tptr::FromMemrefOp>(
           op->getLoc(),
-          // ptr::PtrType::get(
-          //     rewriter.getContext(),
-          //     tptr::DefaultMemorySpaceAttr::get(rewriter.getContext())),
-          triton::PointerType::get(unrankedInput.getElementType(), 1),
+          ptr::PtrType::get(
+              rewriter.getContext(),
+              tptr::DefaultMemorySpaceAttr::get(rewriter.getContext())),
           rankedMemref);
 
       rewriter.replaceAllUsesWith(output, memrefToPtr);
@@ -121,7 +123,7 @@ struct ToMemrefConverter : public OpRewritePattern<UnrealizedConversionCastOp> {
     auto inType = input.getType();
     auto output = op.getResult(0);
     auto outUnrankedMemrefType = dyn_cast<UnrankedMemRefType>(output.getType());
-    if (isa<triton::PointerType/*, ptr::PtrType*/>(inType) &&
+    if (isa<triton::PointerType, ptr::PtrType>(inType) &&
         outUnrankedMemrefType) {
       // to_memref can only cast to ranked static shape memref, we have to cast
       // the resulting memref back to unranked
