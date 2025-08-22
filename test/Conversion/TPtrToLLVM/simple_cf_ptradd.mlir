@@ -1,64 +1,56 @@
 // RUN: triton-shared-opt --tptr-to-llvm %s | FileCheck %s
 
+#loc = loc("/data03/yanxitan/yanxi-doing/from_nhat/test_ptr.py":316:0)
+#loc7 = loc("/data03/yanxitan/yanxi-doing/from_nhat/test_ptr.py":323:7)
 module {
-  llvm.func @simple_cf_ptradd(%arg0: i64, %arg1: !llvm.ptr, %arg2: i64, %arg3: !llvm.ptr, %arg4: i64, %arg5: !llvm.ptr, %arg6: i32, %arg7: i32, %arg8: i32, %arg9: i32, %arg10: i32, %arg11: i32) {
-    %0 = llvm.mlir.poison : !llvm.struct<(i64, ptr)>
-    %1 = llvm.insertvalue %arg4, %0[0] : !llvm.struct<(i64, ptr)>
-    %2 = llvm.insertvalue %arg5, %1[1] : !llvm.struct<(i64, ptr)>
-    %3 = builtin.unrealized_conversion_cast %2 : !llvm.struct<(i64, ptr)> to memref<*xf32>
-    %4 = llvm.mlir.poison : !llvm.struct<(i64, ptr)>
-    %5 = llvm.insertvalue %arg2, %4[0] : !llvm.struct<(i64, ptr)>
-    %6 = llvm.insertvalue %arg3, %5[1] : !llvm.struct<(i64, ptr)>
-    %7 = builtin.unrealized_conversion_cast %6 : !llvm.struct<(i64, ptr)> to memref<*xi64>
-    %8 = llvm.mlir.poison : !llvm.struct<(i64, ptr)>
-    %9 = llvm.insertvalue %arg0, %8[0] : !llvm.struct<(i64, ptr)>
-    %10 = llvm.insertvalue %arg1, %9[1] : !llvm.struct<(i64, ptr)>
-    %11 = builtin.unrealized_conversion_cast %10 : !llvm.struct<(i64, ptr)> to memref<*xi64>
-    %12 = builtin.unrealized_conversion_cast %11 : memref<*xi64> to !llvm.struct<(i64, ptr)>
-    %13 = builtin.unrealized_conversion_cast %7 : memref<*xi64> to !llvm.struct<(i64, ptr)>
-    %14 = builtin.unrealized_conversion_cast %3 : memref<*xf32> to !llvm.struct<(i64, ptr)>
-    %15 = llvm.mlir.constant(0 : i32) : i32
-    %16 = llvm.mlir.constant(2 : i32) : i32
-    %17 = llvm.mlir.constant(3 : i32) : i32
-    %18 = llvm.mlir.constant(0 : index) : i64
-    %19 = llvm.extractvalue %14[1] : !llvm.struct<(i64, ptr)>
-    %20 = llvm.load %19 : !llvm.ptr -> !llvm.struct<(ptr, ptr, i64, array<1 x i64>, array<1 x i64>)>
-    %21 = builtin.unrealized_conversion_cast %20 : !llvm.struct<(ptr, ptr, i64, array<1 x i64>, array<1 x i64>)> to memref<1xf32>
-    %22 = tptr.from_memref %21 : memref<1xf32> to !tt.ptr<f32>
-    %23 = llvm.extractvalue %13[1] : !llvm.struct<(i64, ptr)>
-    %24 = llvm.load %23 : !llvm.ptr -> !llvm.struct<(ptr, ptr, i64, array<1 x i64>, array<1 x i64>)>
-    %25 = builtin.unrealized_conversion_cast %24 : !llvm.struct<(ptr, ptr, i64, array<1 x i64>, array<1 x i64>)> to memref<1xi64>
-    %26 = tptr.from_memref %25 : memref<1xi64> to !tt.ptr<i64>
-    %27 = llvm.extractvalue %12[1] : !llvm.struct<(i64, ptr)>
-    %28 = llvm.load %27 : !llvm.ptr -> !llvm.struct<(ptr, ptr, i64, array<1 x i64>, array<1 x i64>)>
-    %29 = builtin.unrealized_conversion_cast %28 : !llvm.struct<(ptr, ptr, i64, array<1 x i64>, array<1 x i64>)> to memref<1xi64>
-    %30 = tptr.from_memref %29 : memref<1xi64> to !tt.ptr<i64>
-    %31 = llvm.srem %arg9, %16 : i32
-    %32 = llvm.icmp "eq" %31, %15 : i32
-    cf.cond_br %32, ^bb1(%30, %16 : !tt.ptr<i64>, i32), ^bb1(%26, %17 : !tt.ptr<i64>, i32)
-  ^bb1(%33: !tt.ptr<i64>, %34: i32):  // 2 preds: ^bb0, ^bb0
-    %35 = tptr.ptradd %33 %34 : !tt.ptr<i64>, i32 to !tt.ptr<i64>
-    cf.br ^bb2
-  ^bb2:  // pred: ^bb1
-    cf.br ^bb3
-  ^bb3:  // pred: ^bb2
-    %36 = tptr.ptradd %35 %arg9 : !tt.ptr<i64>, i32 to !tt.ptr<i64>
-    %37 = tptr.to_memref %36 : !tt.ptr<i64> to memref<1xi64>
-    %38 = builtin.unrealized_conversion_cast %37 : memref<1xi64> to !llvm.struct<(ptr, ptr, i64, array<1 x i64>, array<1 x i64>)>
-    %39 = llvm.extractvalue %38[1] : !llvm.struct<(ptr, ptr, i64, array<1 x i64>, array<1 x i64>)>
-    %40 = llvm.getelementptr inbounds|nuw %39[%18] : (!llvm.ptr, i64) -> !llvm.ptr, i64
-    %41 = llvm.load %40 : !llvm.ptr -> i64
-    %42 = tptr.ptradd %22 %arg9 : !tt.ptr<f32>, i32 to !tt.ptr<f32>
-    %43 = llvm.sitofp %41 : i64 to f32
-    %44 = tptr.to_memref %42 : !tt.ptr<f32> to memref<1xf32>
-    %45 = builtin.unrealized_conversion_cast %44 : memref<1xf32> to !llvm.struct<(ptr, ptr, i64, array<1 x i64>, array<1 x i64>)>
-    %46 = llvm.extractvalue %45[1] : !llvm.struct<(ptr, ptr, i64, array<1 x i64>, array<1 x i64>)>
-    %47 = llvm.getelementptr inbounds|nuw %46[%18] : (!llvm.ptr, i64) -> !llvm.ptr, f32
-    llvm.store %43, %47 : f32, !llvm.ptr
-    llvm.return
-  }
-}
-
+  func.func @simple_cf_into_structured_load_2(%arg0: memref<*xi64> {tt.divisibility = 16 : i32} loc("/data03/yanxitan/yanxi-doing/from_nhat/test_ptr.py":316:0), %arg1: memref<*xi64> {tt.divisibility = 16 : i32} loc("/data03/yanxitan/yanxi-doing/from_nhat/test_ptr.py":316:0), %arg2: memref<*xf32> {tt.divisibility = 16 : i32} loc("/data03/yanxitan/yanxi-doing/from_nhat/test_ptr.py":316:0), %arg3: i32 loc("/data03/yanxitan/yanxi-doing/from_nhat/test_ptr.py":316:0), %arg4: i32 loc("/data03/yanxitan/yanxi-doing/from_nhat/test_ptr.py":316:0), %arg5: i32 loc("/data03/yanxitan/yanxi-doing/from_nhat/test_ptr.py":316:0), %arg6: i32 loc("/data03/yanxitan/yanxi-doing/from_nhat/test_ptr.py":316:0), %arg7: i32 loc("/data03/yanxitan/yanxi-doing/from_nhat/test_ptr.py":316:0), %arg8: i32 loc("/data03/yanxitan/yanxi-doing/from_nhat/test_ptr.py":316:0)) {
+    %0 = tptr.type_offset f32  : i32 loc(#loc1)
+    %c0 = arith.constant 0 : index loc(#loc1)
+    %1 = tptr.type_offset i64  : i32 loc(#loc1)
+    %c3_i32 = arith.constant 3 : i32 loc(#loc1)
+    %c2_i32 = arith.constant 2 : i32 loc(#loc1)
+    %c0_i32 = arith.constant 0 : i32 loc(#loc1)
+    %cast = memref.cast %arg2 : memref<*xf32> to memref<1xf32> loc(#loc2)
+    %2 = tptr.from_memref %cast : memref<1xf32> to <#tptr.default_memory_space> loc(#loc2)
+    %cast_0 = memref.cast %arg1 : memref<*xi64> to memref<1xi64> loc(#loc3)
+    %3 = tptr.from_memref %cast_0 : memref<1xi64> to <#tptr.default_memory_space> loc(#loc3)
+    %cast_1 = memref.cast %arg0 : memref<*xi64> to memref<1xi64> loc(#loc4)
+    %4 = tptr.from_memref %cast_1 : memref<1xi64> to <#tptr.default_memory_space> loc(#loc4)
+    %5 = arith.remsi %arg6, %c2_i32 : i32 loc(#loc5)
+    %6 = arith.cmpi eq, %5, %c0_i32 : i32 loc(#loc6)
+    cf.cond_br %6, ^bb1, ^bb2 loc(#loc7)
+  ^bb1:  // pred: ^bb0
+    %7 = arith.muli %c2_i32, %1 : i32 loc(#loc4)
+    %8 = tptr.ptradd %4 %7 : <#tptr.default_memory_space>, i32 to <#tptr.default_memory_space> loc(#loc4)
+    cf.br ^bb3(%8 : !ptr.ptr<#tptr.default_memory_space>) loc(#loc7)
+  ^bb2:  // pred: ^bb0
+    %9 = arith.muli %c3_i32, %1 : i32 loc(#loc3)
+    %10 = tptr.ptradd %3 %9 : <#tptr.default_memory_space>, i32 to <#tptr.default_memory_space> loc(#loc3)
+    cf.br ^bb3(%10 : !ptr.ptr<#tptr.default_memory_space>) loc(#loc7)
+  ^bb3(%11: !ptr.ptr<#tptr.default_memory_space> loc("/data03/yanxitan/yanxi-doing/from_nhat/test_ptr.py":323:7)):  // 2 preds: ^bb1, ^bb2
+    cf.br ^bb4 loc(#loc7)
+  ^bb4:  // pred: ^bb3
+    %12 = arith.muli %arg6, %1 : i32 loc(#loc8)
+    %13 = tptr.ptradd %11 %12 : <#tptr.default_memory_space>, i32 to <#tptr.default_memory_space> loc(#loc8)
+    %14 = tptr.to_memref %13 : <#tptr.default_memory_space> to memref<1xi64> loc(#loc9)
+    %15 = memref.load %14[%c0] : memref<1xi64> loc(#loc9)
+    %16 = arith.muli %arg6, %0 : i32 loc(#loc2)
+    %17 = tptr.ptradd %2 %16 : <#tptr.default_memory_space>, i32 to <#tptr.default_memory_space> loc(#loc2)
+    %18 = arith.sitofp %15 : i64 to f32 loc(#loc10)
+    %19 = tptr.to_memref %17 : <#tptr.default_memory_space> to memref<1xf32> loc(#loc10)
+    memref.store %18, %19[%c0] : memref<1xf32> loc(#loc10)
+    return loc(#loc)
+  } loc(#loc)
+} loc(#loc)
+#loc1 = loc(unknown)
+#loc2 = loc("/data03/yanxitan/yanxi-doing/from_nhat/test_ptr.py":329:23)
+#loc3 = loc("/data03/yanxitan/yanxi-doing/from_nhat/test_ptr.py":326:24)
+#loc4 = loc("/data03/yanxitan/yanxi-doing/from_nhat/test_ptr.py":324:24)
+#loc5 = loc("/data03/yanxitan/yanxi-doing/from_nhat/test_ptr.py":318:23)
+#loc6 = loc("/data03/yanxitan/yanxi-doing/from_nhat/test_ptr.py":318:28)
+#loc8 = loc("/data03/yanxitan/yanxi-doing/from_nhat/test_ptr.py":328:27)
+#loc9 = loc("/data03/yanxitan/yanxi-doing/from_nhat/test_ptr.py":328:21)
+#loc10 = loc("/data03/yanxitan/yanxi-doing/from_nhat/test_ptr.py":329:28)
 
 // NOTE: Assertions have been autogenerated by utils/generate-test-checks.py
 
@@ -67,27 +59,53 @@ module {
 // about what constitutes a good test! The CHECK should be
 // minimized and named to reflect the test intent.
 
-// CHECK-LABEL:   llvm.func @simple_cf_ptradd(
-// CHECK-SAME:  %[[VAL_0:.*]]: i64, %[[VAL_1:.*]]: !llvm.ptr, %[[VAL_2:.*]]: i64, %[[VAL_3:.*]]: !llvm.ptr, %[[VAL_4:.*]]: i64, %[[VAL_5:.*]]: !llvm.ptr, %[[VAL_6:.*]]: i32, %[[VAL_7:.*]]: i32, %[[VAL_8:.*]]: i32, %[[VAL_9:.*]]: i32, %[[VAL_10:.*]]: i32, %[[VAL_11:.*]]: i32) {
-// CHECK:           %[[VAL_12:.*]] = llvm.mlir.constant(3 : i32) : i32
-// CHECK:           %[[VAL_13:.*]] = llvm.mlir.constant(2 : i32) : i32
-// CHECK:           %[[VAL_14:.*]] = llvm.mlir.constant(0 : i32) : i32
-// CHECK:           %[[VAL_15:.*]] = llvm.load %[[VAL_5]] : !llvm.ptr -> !llvm.struct<(ptr, ptr, i64, array<1 x i64>, array<1 x i64>)>
-// CHECK:           %[[VAL_16:.*]] = llvm.extractvalue %[[VAL_15]][0] : !llvm.struct<(ptr, ptr, i64, array<1 x i64>, array<1 x i64>)>
-// CHECK:           %[[VAL_17:.*]] = llvm.load %[[VAL_3]] : !llvm.ptr -> !llvm.struct<(ptr, ptr, i64, array<1 x i64>, array<1 x i64>)>
-// CHECK:           %[[VAL_18:.*]] = llvm.extractvalue %[[VAL_17]][0] : !llvm.struct<(ptr, ptr, i64, array<1 x i64>, array<1 x i64>)>
-// CHECK:           %[[VAL_19:.*]] = llvm.load %[[VAL_1]] : !llvm.ptr -> !llvm.struct<(ptr, ptr, i64, array<1 x i64>, array<1 x i64>)>
+
+
+// CHECK-LABEL:   func.func @simple_cf_into_structured_load_2(
+// CHECK-SAME:  %[[VAL_0:.*]]: memref<*xi64> {tt.divisibility = 16 : i32}, %[[VAL_1:.*]]: memref<*xi64> {tt.divisibility = 16 : i32}, %[[VAL_2:.*]]: memref<*xf32> {tt.divisibility = 16 : i32}, %[[VAL_3:.*]]: i32, %[[VAL_4:.*]]: i32, %[[VAL_5:.*]]: i32, %[[VAL_6:.*]]: i32, %[[VAL_7:.*]]: i32, %[[VAL_8:.*]]: i32) {
+// CHECK:           %[[VAL_9:.*]] = llvm.mlir.constant(1 : i64) : i64
+// CHECK:           %[[VAL_10:.*]] = llvm.mlir.constant(0 : i64) : i64
+// CHECK:           %[[VAL_11:.*]] = llvm.mlir.undef : !llvm.struct<(ptr, ptr, i64, array<1 x i64>, array<1 x i64>)>
+// CHECK:           %[[VAL_12:.*]] = llvm.mlir.constant(4 : i32) : i32
+// CHECK:           %[[VAL_13:.*]] = arith.constant 0 : index
+// CHECK:           %[[VAL_14:.*]] = llvm.mlir.constant(8 : i32) : i32
+// CHECK:           %[[VAL_15:.*]] = arith.constant 3 : i32
+// CHECK:           %[[VAL_16:.*]] = arith.constant 2 : i32
+// CHECK:           %[[VAL_17:.*]] = arith.constant 0 : i32
+// CHECK:           %[[VAL_18:.*]] = memref.cast %[[VAL_2]] : memref<*xf32> to memref<1xf32>
+// CHECK:           %[[VAL_19:.*]] = builtin.unrealized_conversion_cast %[[VAL_18]] : memref<1xf32> to !llvm.struct<(ptr, ptr, i64, array<1 x i64>, array<1 x i64>)>
 // CHECK:           %[[VAL_20:.*]] = llvm.extractvalue %[[VAL_19]][0] : !llvm.struct<(ptr, ptr, i64, array<1 x i64>, array<1 x i64>)>
-// CHECK:           %[[VAL_21:.*]] = llvm.srem %[[VAL_9]], %[[VAL_13]] : i32
-// CHECK:           %[[VAL_22:.*]] = llvm.icmp "eq" %[[VAL_21]], %[[VAL_14]] : i32
-// CHECK:           %[[VAL_23:.*]] = arith.select %[[VAL_22]], %[[VAL_20]], %[[VAL_18]] : !llvm.ptr
-// CHECK:           %[[VAL_24:.*]] = arith.select %[[VAL_22]], %[[VAL_13]], %[[VAL_12]] : i32
-// CHECK:           %[[VAL_25:.*]] = llvm.getelementptr %[[VAL_23]]{{\[}}%[[VAL_24]]] : (!llvm.ptr, i32) -> !llvm.ptr, i64
-// CHECK:           %[[VAL_26:.*]] = llvm.getelementptr %[[VAL_25]]{{\[}}%[[VAL_9]]] : (!llvm.ptr, i32) -> !llvm.ptr, i64
-// CHECK:           %[[VAL_27:.*]] = llvm.load %[[VAL_26]] : !llvm.ptr -> i64
-// CHECK:           %[[VAL_28:.*]] = llvm.getelementptr %[[VAL_16]]{{\[}}%[[VAL_9]]] : (!llvm.ptr, i32) -> !llvm.ptr, f32
-// CHECK:           %[[VAL_29:.*]] = llvm.sitofp %[[VAL_27]] : i64 to f32
-// CHECK:           llvm.store %[[VAL_29]], %[[VAL_28]] : f32, !llvm.ptr
-// CHECK:           llvm.return
+// CHECK:           %[[VAL_21:.*]] = memref.cast %[[VAL_1]] : memref<*xi64> to memref<1xi64>
+// CHECK:           %[[VAL_22:.*]] = builtin.unrealized_conversion_cast %[[VAL_21]] : memref<1xi64> to !llvm.struct<(ptr, ptr, i64, array<1 x i64>, array<1 x i64>)>
+// CHECK:           %[[VAL_23:.*]] = llvm.extractvalue %[[VAL_22]][0] : !llvm.struct<(ptr, ptr, i64, array<1 x i64>, array<1 x i64>)>
+// CHECK:           %[[VAL_24:.*]] = memref.cast %[[VAL_0]] : memref<*xi64> to memref<1xi64>
+// CHECK:           %[[VAL_25:.*]] = builtin.unrealized_conversion_cast %[[VAL_24]] : memref<1xi64> to !llvm.struct<(ptr, ptr, i64, array<1 x i64>, array<1 x i64>)>
+// CHECK:           %[[VAL_26:.*]] = llvm.extractvalue %[[VAL_25]][0] : !llvm.struct<(ptr, ptr, i64, array<1 x i64>, array<1 x i64>)>
+// CHECK:           %[[VAL_27:.*]] = arith.remsi %[[VAL_6]], %[[VAL_16]] : i32
+// CHECK:           %[[VAL_28:.*]] = arith.cmpi eq, %[[VAL_27]], %[[VAL_17]] : i32
+// CHECK:           %[[VAL_29:.*]] = arith.select %[[VAL_28]], %[[VAL_16]], %[[VAL_15]] : i32
+// CHECK:           %[[VAL_30:.*]] = arith.select %[[VAL_28]], %[[VAL_26]], %[[VAL_23]] : !llvm.ptr
+// CHECK:           %[[VAL_31:.*]] = arith.muli %[[VAL_29]], %[[VAL_14]] : i32
+// CHECK:           %[[VAL_32:.*]] = llvm.getelementptr %[[VAL_30]]{{\[}}%[[VAL_31]]] : (!llvm.ptr, i32) -> !llvm.ptr, i8
+// CHECK:           %[[VAL_33:.*]] = arith.muli %[[VAL_6]], %[[VAL_14]] : i32
+// CHECK:           %[[VAL_34:.*]] = llvm.getelementptr %[[VAL_32]]{{\[}}%[[VAL_33]]] : (!llvm.ptr, i32) -> !llvm.ptr, i8
+// CHECK:           %[[VAL_35:.*]] = llvm.insertvalue %[[VAL_34]], %[[VAL_11]][0] : !llvm.struct<(ptr, ptr, i64, array<1 x i64>, array<1 x i64>)>
+// CHECK:           %[[VAL_36:.*]] = llvm.insertvalue %[[VAL_34]], %[[VAL_35]][1] : !llvm.struct<(ptr, ptr, i64, array<1 x i64>, array<1 x i64>)>
+// CHECK:           %[[VAL_37:.*]] = llvm.insertvalue %[[VAL_10]], %[[VAL_36]][2] : !llvm.struct<(ptr, ptr, i64, array<1 x i64>, array<1 x i64>)>
+// CHECK:           %[[VAL_38:.*]] = llvm.insertvalue %[[VAL_9]], %[[VAL_37]][3, 0] : !llvm.struct<(ptr, ptr, i64, array<1 x i64>, array<1 x i64>)>
+// CHECK:           %[[VAL_39:.*]] = llvm.insertvalue %[[VAL_9]], %[[VAL_38]][4, 0] : !llvm.struct<(ptr, ptr, i64, array<1 x i64>, array<1 x i64>)>
+// CHECK:           %[[VAL_40:.*]] = builtin.unrealized_conversion_cast %[[VAL_39]] : !llvm.struct<(ptr, ptr, i64, array<1 x i64>, array<1 x i64>)> to memref<1xi64>
+// CHECK:           %[[VAL_41:.*]] = memref.load %[[VAL_40]]{{\[}}%[[VAL_13]]] : memref<1xi64>
+// CHECK:           %[[VAL_42:.*]] = arith.muli %[[VAL_6]], %[[VAL_12]] : i32
+// CHECK:           %[[VAL_43:.*]] = llvm.getelementptr %[[VAL_20]]{{\[}}%[[VAL_42]]] : (!llvm.ptr, i32) -> !llvm.ptr, i8
+// CHECK:           %[[VAL_44:.*]] = arith.sitofp %[[VAL_41]] : i64 to f32
+// CHECK:           %[[VAL_45:.*]] = llvm.insertvalue %[[VAL_43]], %[[VAL_11]][0] : !llvm.struct<(ptr, ptr, i64, array<1 x i64>, array<1 x i64>)>
+// CHECK:           %[[VAL_46:.*]] = llvm.insertvalue %[[VAL_43]], %[[VAL_45]][1] : !llvm.struct<(ptr, ptr, i64, array<1 x i64>, array<1 x i64>)>
+// CHECK:           %[[VAL_47:.*]] = llvm.insertvalue %[[VAL_10]], %[[VAL_46]][2] : !llvm.struct<(ptr, ptr, i64, array<1 x i64>, array<1 x i64>)>
+// CHECK:           %[[VAL_48:.*]] = llvm.insertvalue %[[VAL_9]], %[[VAL_47]][3, 0] : !llvm.struct<(ptr, ptr, i64, array<1 x i64>, array<1 x i64>)>
+// CHECK:           %[[VAL_49:.*]] = llvm.insertvalue %[[VAL_9]], %[[VAL_48]][4, 0] : !llvm.struct<(ptr, ptr, i64, array<1 x i64>, array<1 x i64>)>
+// CHECK:           %[[VAL_50:.*]] = builtin.unrealized_conversion_cast %[[VAL_49]] : !llvm.struct<(ptr, ptr, i64, array<1 x i64>, array<1 x i64>)> to memref<1xf32>
+// CHECK:           memref.store %[[VAL_44]], %[[VAL_50]]{{\[}}%[[VAL_13]]] : memref<1xf32>
+// CHECK:           return
 // CHECK:         }
 
