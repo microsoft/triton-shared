@@ -3,14 +3,11 @@
 
 include "mlir/IR/OpBase.td"
 include "mlir/Interfaces/SideEffectInterfaces.td"
-// include "mlir/Dialect/Ptr/IR/MemorySpaceInterfaces.td"
-// include "mlir/Dialect/Ptr/IR/PtrDialect.td"
+include "mlir/Dialect/Ptr/IR/MemorySpaceInterfaces.td"
+include "mlir/Dialect/Ptr/IR/PtrDialect.td"
 include "mlir/IR/AttrTypeBase.td"
 include "mlir/IR/BuiltinAttributeInterfaces.td"
 include "mlir/IR/BuiltinTypeInterfaces.td"
-include "triton/Dialect/Triton/IR/TritonDialect.td"
-include "triton/Dialect/Triton/IR/TritonTypes.td"
-
 
 def TPtr_Dialect : Dialect {
   let name = "tptr";
@@ -27,8 +24,8 @@ def TPtr_Dialect : Dialect {
     void registerTypes();
   }];
 
- let dependentDialects = [
-  "mlir::triton::TritonDialect"
+  let dependentDialects = [
+    "mlir::ptr::PtrDialect"
   ];
 
   let useDefaultAttributePrinterParser = 1;
@@ -50,10 +47,10 @@ class TPtr_Attr<string name, string _mnemonic,
 // Memory space attr is required for building Ptr ops
 // This acts as default memory space since there is
 // no such default implemented upstream
-// def DefaultMemorySpaceAttr
-//     : TPtr_Attr<"DefaultMemorySpace", "default_memory_space",
-//                      [DeclareAttrInterfaceMethods<MemorySpaceAttrInterface>]> {
-// }
+def DefaultMemorySpaceAttr
+    : TPtr_Attr<"DefaultMemorySpace", "default_memory_space",
+                     [DeclareAttrInterfaceMethods<MemorySpaceAttrInterface>]> {
+}
 
 //
 // Op Base
@@ -75,7 +72,7 @@ def TPTR_IntToPtrOp : TPTR_Op<"inttoptr", [
     ```
   }];
   let arguments = (ins AnySignlessIntegerOrIndex:$arg);
-  let results = (outs TT_PtrLike:$res);
+  let results = (outs Ptr_PtrType:$res);
   let assemblyFormat = "$arg attr-dict `:` type($arg) `to` type($res)";
 }
 
@@ -91,61 +88,45 @@ def TPTR_PtrToIntOp : TPTR_Op<"ptrtoint", [
     %int = ptr.ptrtoint %ptr : !ptr.ptr<1 : i32> to i32
     ```
   }];
-  let arguments = (ins TT_PtrLike:$arg);
+  let arguments = (ins Ptr_PtrType:$arg);
   let results = (outs AnySignlessIntegerOrIndex:$res);
   let assemblyFormat = "$arg attr-dict `:` type($arg) `to` type($res)";
 }
 
-// def TPTR_TypeOffsetOp : TPTR_Op<"type_offset", [ConstantLike, Pure]> {
-//   let summary = "Creates a type offset constant.";
-//   let description = [{
-//     The `addr.type_offset` operation produces an int or index-typed SSA value
-//     equal to a target-specific constant representing the offset of a single
-//     element of the given type. The default return type is `index`.
-//     Example:
+def TPTR_TypeOffsetOp : TPTR_Op<"type_offset", [ConstantLike, Pure]> {
+  let summary = "Creates a type offset constant.";
+  let description = [{
+    The `addr.type_offset` operation produces an int or index-typed SSA value
+    equal to a target-specific constant representing the offset of a single
+    element of the given type. The default return type is `index`.
+    Example:
 
-//     ```mlir
-//     %0 = addr.type_offset f32
-//     %1 = addr.type_offset memref<12 x f64> : i32
-//     ```
-//   }];
+    ```mlir
+    %0 = addr.type_offset f32
+    %1 = addr.type_offset memref<12 x f64> : i32
+    ```
+  }];
 
-//   let arguments = (ins TypeAttr:$baseType);
-//   let results = (outs AnySignlessIntegerOrIndex:$result);
-//   let builders = [
-//     OpBuilder<(ins "TypeAttr":$baseType, CArg<"Type", "nullptr">:$resultTy), [{
-//       Type resultType = resultTy ? resultTy : $_builder.getIndexType();
-//       $_state.addAttribute("baseType", baseType);
-//       $_state.addTypes(resultType);
-//     }]>,
-//     OpBuilder<(ins "Type":$baseType), [{
-//       TypeAttr baseTypeAttr = TypeAttr::get(baseType);
-//       Type resultType = $_builder.getIndexType();
-//       $_state.addAttribute("baseType", baseTypeAttr);
-//       $_state.addTypes(resultType);
-//     }]>
-//   ];
-//   let assemblyFormat = [{
-//      attr-dict $baseType custom<IntType>(type($result))
-//   }];
-// let extraClassDeclaration = [{
-//     /// Returns the type offset according to `layout`. If `layout` is `nullopt`
-//     /// the nearest layout the op will be used for the computation.
-//     /// ! I copied this from ptr dialect
-//     llvm::TypeSize getTypeSize(std::optional<DataLayout> layout = std::nullopt);
-//   }];
-//   let hasFolder = 1;
-// }
+  let arguments = (ins TypeAttr:$baseType);
+  let results = (outs AnySignlessIntegerOrIndex:$result);
+  let builders = [
+    OpBuilder<(ins "TypeAttr":$baseType, CArg<"Type", "nullptr">:$resultTy)>
+  ];
+  let assemblyFormat = [{
+     attr-dict $baseType custom<IntType>(type($result))
+  }];
+  let hasFolder = 1;
+}
 
 def TPTR_FromMemrefOp : TPTR_Op<"from_memref", [Pure]> {
   let arguments = (ins AnyMemRef:$input);
-  let results = (outs TT_PtrLike:$result);
+  let results = (outs Ptr_PtrType:$result);
   let assemblyFormat = "$input attr-dict `:` type($input) `to` type($result)";
 }
 
 def TPTR_ToMemrefOp : TPTR_Op<"to_memref", [
     Pure  ]> {
-  let arguments = (ins TT_PtrLike:$arg);
+  let arguments = (ins Ptr_PtrType:$arg);
   let results = (outs AnyStaticShapeMemRef:$res);
   let assemblyFormat = "$arg attr-dict `:` type($arg) `to` type($res)";
 }
@@ -162,8 +143,8 @@ def TPTR_PtrAddOp : TPTR_Op<"ptradd", [Pure, AllTypesMatch<["base", "result"]>]>
     ```
   }];
 
-  let arguments = (ins TT_PtrLike:$base, AnySignlessIntegerOrIndex:$offset);
-  let results = (outs TT_PtrLike:$result);
+  let arguments = (ins Ptr_PtrType:$base, AnySignlessIntegerOrIndex:$offset);
+  let results = (outs Ptr_PtrType:$result);
   let assemblyFormat = "$base $offset attr-dict `:` type($base) `,` type($offset) `to` type($result)";
 }
 

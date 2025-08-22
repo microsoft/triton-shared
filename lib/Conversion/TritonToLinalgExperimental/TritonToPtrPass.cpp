@@ -19,18 +19,17 @@
 // As a result, bitcasts are no-op after this pass.
 //===----------------------------------------------------------------------===//
 
-#include "mlir/Dialect/Affine/IR/AffineOps.h"
 #include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/Func/Transforms/FuncConversions.h"
 #include "mlir/Dialect/Linalg/IR/Linalg.h"
 #include "mlir/Dialect/MemRef/IR/MemRef.h"
-#include "llvm/ADT/STLExtras.h"
-#include "llvm/Support/Debug.h"
-// #include "mlir/Dialect/Ptr/IR/PtrDialect.h"
-// #include "mlir/Dialect/Ptr/IR/PtrTypes.h"
+#include "mlir/Dialect/Ptr/IR/PtrDialect.h"
+#include "mlir/Dialect/Ptr/IR/PtrTypes.h"
 #include "mlir/Dialect/SCF/IR/SCF.h"
 #include "mlir/Dialect/SCF/Transforms/Patterns.h"
 #include "mlir/Dialect/Tensor/IR/Tensor.h"
+
+#include "mlir/Dialect/Affine/IR/AffineOps.h"
 #include "mlir/IR/Builders.h"
 #include "mlir/IR/BuiltinAttributes.h"
 #include "mlir/IR/BuiltinOps.h"
@@ -46,20 +45,20 @@
 #include "mlir/Support/LLVM.h"
 #include "mlir/Support/LogicalResult.h"
 #include "mlir/Transforms/DialectConversion.h"
-#include "mlir/Transforms/GreedyPatternRewriteDriver.h"
+
 #include "triton-shared/Analysis/OpFoldResultUtils.h"
 #include "triton-shared/AnalysisStructured/PtrAnalysis.h"
 #include "triton-shared/Conversion/TritonToLinalgExperimental/TritonToPtr.h"
 #include "triton-shared/Dialect/TPtr/IR/TPtrDialect.h"
 #include "triton-shared/Dialect/TritonStructured/IR/TritonStructuredDialect.h"
 #include "triton-shared/Utils/Utils.h"
+
 #include "triton/Dialect/Triton/IR/Dialect.h"
 #include "triton/Dialect/Triton/IR/Types.h"
 
-#define DEBUG_TYPE "triton-to-ptr"
+#include "llvm/ADT/STLExtras.h"
 
-#define DBGS() (llvm::dbgs() << "[" DEBUG_TYPE "]: ")
-#define LDBG(X) LLVM_DEBUG(DBGS() << X << "\n")
+#define DEBUG_TYPE "triton-to-ptr"
 
 using namespace mlir;
 
@@ -97,11 +96,11 @@ struct EmptyTensorConverter : public OpConversionPattern<tensor::EmptyOp> {
   LogicalResult
   matchAndRewrite(tensor::EmptyOp op, OpAdaptor adaptor,
                   ConversionPatternRewriter &rewriter) const override {
-    // rewriter.replaceOpWithNewOp<tensor::EmptyOp>(
-    //     op, op.getType().getShape(),
-    //     ptr::PtrType::get(
-    //         rewriter.getContext(),
-    //         tptr::DefaultMemorySpaceAttr::get(rewriter.getContext())));
+    rewriter.replaceOpWithNewOp<tensor::EmptyOp>(
+        op, op.getType().getShape(),
+        ptr::PtrType::get(
+            rewriter.getContext(),
+            tptr::DefaultMemorySpaceAttr::get(rewriter.getContext())));
     return success();
   }
 };
@@ -182,13 +181,16 @@ struct AddPtrConverter : public OpConversionPattern<triton::AddPtrOp> {
     auto loc = op->getLoc();
     auto pointeeType = cast<triton::PointerType>(op.getType()).getPointeeType();
     auto offsetType = op.getOffset().getType();
-    // auto pointeeSizeInBytes =
-    //     rewriter.create<tptr::TypeOffsetOp>(loc, offsetType, pointeeType);
-    // auto scaledOffset =
-    //     rewriter.create<arith::MulIOp>(loc, op.getOffset(),
-    //     pointeeSizeInBytes);
+    auto pointeeSizeInBytes =
+        rewriter.create<tptr::TypeOffsetOp>(loc, offsetType, pointeeType);
+    auto scaledOffset =
+        rewriter.create<arith::MulIOp>(loc, op.getOffset(), pointeeSizeInBytes);
     rewriter.replaceOpWithNewOp<tptr::PtrAddOp>(
-        op, op.getType(), adaptor.getPtr(), adaptor.getOffset());
+        op,
+        ptr::PtrType::get(
+            rewriter.getContext(),
+            tptr::DefaultMemorySpaceAttr::get(rewriter.getContext())),
+        adaptor.getPtr(), scaledOffset);
     return success();
   }
 };
@@ -321,8 +323,12 @@ struct IntToPtrConverter : public OpConversionPattern<triton::IntToPtrOp> {
     if (isa<ShapedType>(op.getType())) {
       return failure();
     }
-    rewriter.replaceOpWithNewOp<tptr::IntToPtrOp>(op, op.getType(),
-                                                  adaptor.getSrc());
+    rewriter.replaceOpWithNewOp<tptr::IntToPtrOp>(
+        op,
+        ptr::PtrType::get(
+            rewriter.getContext(),
+            tptr::DefaultMemorySpaceAttr::get(rewriter.getContext())),
+        adaptor.getSrc());
     return success();
   }
 };
@@ -410,7 +416,19 @@ class TritonPtrTypeConverter : public TypeConverter {
 public:
   TritonPtrTypeConverter(MLIRContext *context) {
     addConversion([](Type type) { return type; });
-
+    addConversion([context](triton::PointerType ptrType) {
+      return ptr::PtrType::get(context,
+                               tptr::DefaultMemorySpaceAttr::get(context));
+    });
+    addConversion([context](RankedTensorType tensorType) {
+      if (isa<triton::PointerType>(tensorType.getElementType())) {
+        return RankedTensorType::get(
+            tensorType.getShape(),
+            ptr::PtrType::get(context,
+                              tptr::DefaultMemorySpaceAttr::get(context)));
+      }
+      return tensorType;
+    });
     auto createCast = [&](OpBuilder &builder, Type resultType,
                           ValueRange inputs, Location loc) -> Value {
       return builder.create<UnrealizedConversionCastOp>(loc, resultType, inputs)
@@ -425,11 +443,10 @@ class TritonToPtrPass : public impl::TritonToPtrBase<TritonToPtrPass> {
 
 public:
   void getDependentDialects(DialectRegistry &registry) const override {
-    registry
-        .insert<arith::ArithDialect, math::MathDialect, affine::AffineDialect,
-                scf::SCFDialect, tensor::TensorDialect, triton::TritonDialect,
-                tts::TritonStructuredDialect,
-                /*ptr::PtrDialect, */ tptr::TPtrDialect>();
+    registry.insert<
+        arith::ArithDialect, math::MathDialect, affine::AffineDialect,
+        scf::SCFDialect, tensor::TensorDialect, triton::TritonDialect,
+        tts::TritonStructuredDialect, ptr::PtrDialect, tptr::TPtrDialect>();
   }
 
   void runOnOperation() override {
@@ -451,14 +468,14 @@ public:
       return !triton::isPtrTypeLike(ptrType);
     });
 
-    // target.addDynamicallyLegalOp<
-    //     linalg::FillOp, linalg::GenericOp, linalg::YieldOp, tensor::EmptyOp,
-    //     tensor::ExpandShapeOp, tensor::InsertSliceOp, arith::SelectOp>(
-    //     [](auto op) {
-    //       return llvm::all_of(
-    //           llvm::concat<Value>(op->getOperands(), op->getResults()),
-    //           [&](Value v) { return !triton::isPtrTypeLike(v.getType()); });
-    //     });
+    target.addDynamicallyLegalOp<
+        linalg::FillOp, linalg::GenericOp, linalg::YieldOp, tensor::EmptyOp,
+        tensor::ExpandShapeOp, tensor::InsertSliceOp, arith::SelectOp>(
+        [](auto op) {
+          return llvm::all_of(
+              llvm::concat<Value>(op->getOperands(), op->getResults()),
+              [&](Value v) { return !triton::isPtrTypeLike(v.getType()); });
+        });
 
     target.addLegalDialect<arith::ArithDialect, linalg::LinalgDialect,
                            tensor::TensorDialect, affine::AffineDialect,

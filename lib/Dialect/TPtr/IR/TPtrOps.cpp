@@ -10,8 +10,8 @@
 #include "mlir/IR/OpDefinition.h"
 #include "mlir/IR/Dialect.h"
 
-#include "triton/Dialect/Triton/IR/Dialect.h"
-#include "triton/Dialect/Triton/IR/Types.h"
+#include "mlir/Dialect/Ptr/IR/PtrDialect.h"
+#include "mlir/Dialect/Ptr/IR/PtrTypes.h"
 
 #define GET_OP_CLASSES
 #include "triton-shared/Dialect/TPtr/IR/TPtrOps.h.inc"
@@ -33,3 +33,6 @@ void StoreOp::getEffects(
                        SideEffects::DefaultResource::get());
 }
 
+OpFoldResult TypeOffsetOp::fold(FoldAdaptor adaptor) {
+  return adaptor.getBaseTypeAttr();
+}
