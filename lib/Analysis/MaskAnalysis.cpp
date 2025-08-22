@@ -316,6 +316,11 @@ void MaskState::dump() const {
   llvm::dbgs() << "dims: ";
   for (auto dim : dims)
     llvm::dbgs() << "\t" << dim << "\n";
+  if (!masks.empty()) {
+    llvm::dbgs() << "masks: ";
+    for (auto mask : masks)
+      llvm::dbgs() << "\t" << mask << "\n";
+  }
   llvm::dbgs() << "\n";
 }
 
@@ -337,14 +342,51 @@ LogicalResult MaskState::parseAdd(arith::AddIOp addOp, const Location loc,
 LogicalResult MaskState::parseAnd(arith::AndIOp andOp, const Location loc,
                                   OpBuilder &builder) {
   assert(this->isEmpty());
-
+  bool isBoolOp = false;
+  unsigned rank = 1;
+  if (auto shapedType = dyn_cast<ShapedType>(andOp.getType())) {
+    isBoolOp = shapedType.getElementType().isInteger(1);
+    rank = shapedType.getRank();
+  }
   MaskState lhsState;
-  if (failed(lhsState.parse(andOp.getLhs(), loc, builder)))
+  LogicalResult lResult = lhsState.parse(andOp.getLhs(), loc, builder);
+  if (failed(lResult) && !isBoolOp) {
     return failure();
+  }
 
   MaskState rhsState;
-  if (failed(rhsState.parse(andOp.getRhs(), loc, builder)))
+  LogicalResult rResult = rhsState.parse(andOp.getRhs(), loc, builder);
+  if (failed(rResult) && !isBoolOp) {
     return failure();
+  }
+
+  if (isBoolOp) {
+    if (lhsState.masks.size() != rank) {
+      return failure();
+    }
+
+    if (lhsState.masks.size() != rhsState.masks.size()) {
+      return failure();
+    }
+
+    // merge the masks.
+    if (lhsState.masks.size() == rhsState.masks.size()) {
+      for (size_t i = 0; i < lhsState.masks.size(); i++) {
+        if (lhsState.masks[i] && rhsState.masks[i]) {
+          // And the mask.
+          masks.push_back(builder.create<arith::AndIOp>(loc, lhsState.masks[i],
+                                                        rhsState.masks[i]));
+        } else {
+          masks.push_back(lhsState.masks[i] ? lhsState.masks[i]
+                                            : rhsState.masks[i]);
+        }
+      }
+      // Only support one generic mask.
+      if (getGenericMasks().size() > 1) {
+        return failure();
+      }
+    }
+  }
 
   if (!lhsState.isMask() || !rhsState.isMask()) {
     return this->minStateScalar(lhsState, rhsState, loc, builder);
@@ -361,7 +403,45 @@ LogicalResult MaskState::parseExtSI(arith::ExtSIOp op, const Location loc,
 LogicalResult MaskState::parseCmp(arith::CmpIOp cmpOp, const Location loc,
                                   OpBuilder &builder) {
   assert(this->isEmpty());
-
+  int cmpOpDim = -1;
+  if (auto shapedType = dyn_cast<ShapedType>(cmpOp.getType())) {
+    for (unsigned r = 0; r < shapedType.getRank(); r++) {
+      if (shapedType.getShape()[r] != 1) {
+        if (cmpOpDim != -1) {
+          cmpOpDim = -1;
+          break;
+        }
+        cmpOpDim = r;
+      }
+    }
+    masks.clear();
+    for (unsigned r = 0; r < shapedType.getRank(); r++) {
+      masks.push_back(nullptr);
+    }
+    // If cmpOpDim == -1, parseCmp must fail later.
+    // Here just setup generic masks when cmpOpDim != -1.
+    if (cmpOpDim != -1) {
+      // Save cmpOp as generic mask for failure case, will recover it to nullptr
+      // later if success.
+      Value genericMask = cmpOp;
+      if (shapedType.getRank() > 1) {
+        // If cmpOp is not 1D, collapse it to 1D.
+        auto flatType = RankedTensorType::get({shapedType.getShape()[cmpOpDim]},
+                                              shapedType.getElementType());
+        auto maybeReassociationMap =
+            getReassociationIndicesForReshape(shapedType, flatType);
+        SmallVector<ReassociationIndices> reassociation =
+            *maybeReassociationMap;
+        // Set masks.
+        genericMask = builder.create<tensor::CollapseShapeOp>(
+            loc, flatType, cmpOp, reassociation);
+      }
+      masks[cmpOpDim] = genericMask;
+    }
+  } else {
+    cmpOpDim = 0;
+    masks.push_back(cmpOp);
+  }
   if (cmpOp.getPredicate() != arith::CmpIPredicate::slt &&
       cmpOp.getPredicate() != arith::CmpIPredicate::ult &&
       cmpOp.getPredicate() != arith::CmpIPredicate::sge) {
@@ -449,7 +529,10 @@ LogicalResult MaskState::parseCmp(arith::CmpIOp cmpOp, const Location loc,
     else
       this->dims.push_back(lhsState.dims[i]);
   }
-
+  if (cmpOpDim != -1) {
+    // Clear masks when success.
+    masks[cmpOpDim] = nullptr;
+  }
   return success();
 }
 
@@ -619,7 +702,15 @@ LogicalResult MaskState::parseSplat(triton::SplatOp splatOp, const Location loc,
 
   for (auto s : dstShape)
     this->dims.push_back(builder.getIndexAttr(s));
-
+  bool isBool = src.getType().isInteger(1);
+  if (isBool) {
+    // If src is a 1D boolean tensor and parse success.
+    // Create masks.
+    masks.clear();
+    for (unsigned i = 0; i < dstShape.size(); i++) {
+      masks.push_back(nullptr);
+    }
+  }
   return success();
 }
 
@@ -628,17 +719,74 @@ LogicalResult MaskState::parseExpandDims(triton::ExpandDimsOp expandDimsOp,
                                          OpBuilder &builder) {
   assert(this->isEmpty());
 
-  if (failed(this->parse(expandDimsOp.getSrc(), loc, builder)))
-    return failure();
-
   auto dstShape =
       cast<ShapedType>(expandDimsOp.getResult().getType()).getShape();
   auto axis = expandDimsOp.getAxis();
+  Value src = expandDimsOp.getSrc();
+  auto srcType = cast<ShapedType>(src.getType());
+  bool isBoolOp = srcType.getElementType().isInteger(1);
+  LogicalResult result = parse(src, loc, builder);
+  if (failed(result)) {
+    if (isBoolOp) {
+      if (srcType.getRank() > 1 && masks.size() != srcType.getRank()) {
+        return failure();
+      }
+    } else {
+      return failure();
+    }
+  }
+
+  if (isBoolOp) {
+    // Save mask for 1D boolean tensor
+    if (srcType.getRank() == 1) {
+      assert(dstShape.size() == 2);
+      masks.resize(dstShape.size());
+      masks[axis] = nullptr;
+      if (failed(result)) {
+        // Recover dims to allow other dim to be processed.
+        dims.clear();
+        dims.push_back(builder.getIndexAttr(srcType.getShape()[0]));
+        // Save src as generic mask.
+        masks[1 - axis] = src;
+      } else {
+        // save nullptr when parse success.
+        masks[1 - axis] = nullptr;
+      }
+    } else {
+      if (failed(result)) {
+        auto genericMasks = getGenericMasks();
+        if (genericMasks.empty()) {
+          return failure();
+        }
+        if (genericMasks.size() > 1) {
+          return failure();
+        }
+        auto [dim, mask] = genericMasks.front();
+        // Recover dims for generic mask dim to allow other dim to be processed.
+        dims[dim] = builder.getIndexAttr(srcType.getShape()[dim]);
+      }
+      masks.insert(masks.begin() + axis, nullptr);
+    }
+  }
+
   assert(dstShape[axis] == 1 &&
          "expect changed dimension to be 1 in expand_dims");
   this->dims.insert(this->dims.begin() + axis, builder.getIndexAttr(1));
 
   return success();
+}
+
+// Return all non-nullptr masks along with their dimensions.
+SmallVector<std::pair<unsigned, Value>> MaskState::getGenericMasks() {
+  SmallVector<std::pair<unsigned, Value>> result;
+
+  for (auto [i, m] : llvm::enumerate(masks)) {
+    if (m) {
+      result.push_back({i, m});
+    }
+  }
+
+  return result;
 }
 
 } // namespace triton
