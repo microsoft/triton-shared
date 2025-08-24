@@ -1,63 +1,45 @@
 // RUN: triton-shared-opt --tptr-to-llvm %s | FileCheck %s
 
-#loc = loc("/data03/yanxitan/yanxi-doing/from_nhat/test_ptr.py":316:0)
-#loc7 = loc("/data03/yanxitan/yanxi-doing/from_nhat/test_ptr.py":323:7)
 module {
-  func.func @simple_cf_into_structured_load_2(%arg0: memref<*xi64> {tt.divisibility = 16 : i32} loc("/data03/yanxitan/yanxi-doing/from_nhat/test_ptr.py":316:0), %arg1: memref<*xi64> {tt.divisibility = 16 : i32} loc("/data03/yanxitan/yanxi-doing/from_nhat/test_ptr.py":316:0), %arg2: memref<*xf32> {tt.divisibility = 16 : i32} loc("/data03/yanxitan/yanxi-doing/from_nhat/test_ptr.py":316:0), %arg3: i32 loc("/data03/yanxitan/yanxi-doing/from_nhat/test_ptr.py":316:0), %arg4: i32 loc("/data03/yanxitan/yanxi-doing/from_nhat/test_ptr.py":316:0), %arg5: i32 loc("/data03/yanxitan/yanxi-doing/from_nhat/test_ptr.py":316:0), %arg6: i32 loc("/data03/yanxitan/yanxi-doing/from_nhat/test_ptr.py":316:0), %arg7: i32 loc("/data03/yanxitan/yanxi-doing/from_nhat/test_ptr.py":316:0), %arg8: i32 loc("/data03/yanxitan/yanxi-doing/from_nhat/test_ptr.py":316:0)) {
-    %0 = tptr.type_offset f32  : i32 loc(#loc1)
-    %c0 = arith.constant 0 : index loc(#loc1)
-    %1 = tptr.type_offset i64  : i32 loc(#loc1)
-    %c3_i32 = arith.constant 3 : i32 loc(#loc1)
-    %c2_i32 = arith.constant 2 : i32 loc(#loc1)
-    %c0_i32 = arith.constant 0 : i32 loc(#loc1)
-    %cast = memref.cast %arg2 : memref<*xf32> to memref<1xf32> loc(#loc2)
-    %2 = tptr.from_memref %cast : memref<1xf32> to <#tptr.default_memory_space> loc(#loc2)
-    %cast_0 = memref.cast %arg1 : memref<*xi64> to memref<1xi64> loc(#loc3)
-    %3 = tptr.from_memref %cast_0 : memref<1xi64> to <#tptr.default_memory_space> loc(#loc3)
-    %cast_1 = memref.cast %arg0 : memref<*xi64> to memref<1xi64> loc(#loc4)
-    %4 = tptr.from_memref %cast_1 : memref<1xi64> to <#tptr.default_memory_space> loc(#loc4)
-    %5 = arith.remsi %arg6, %c2_i32 : i32 loc(#loc5)
-    %6 = arith.cmpi eq, %5, %c0_i32 : i32 loc(#loc6)
-    cf.cond_br %6, ^bb1, ^bb2 loc(#loc7)
+  func.func @simple_cf_into_structured_load_2(%arg0: memref<*xi64> {tt.divisibility = 16 : i32}, %arg1: memref<*xi64> {tt.divisibility = 16 : i32}, %arg2: memref<*xf32> {tt.divisibility = 16 : i32}, %arg3: i32, %arg4: i32, %arg5: i32, %arg6: i32, %arg7: i32, %arg8: i32) {
+    %0 = tptr.type_offset f32  : i32
+    %c0 = arith.constant 0 : index
+    %1 = tptr.type_offset i64  : i32
+    %c3_i32 = arith.constant 3 : i32
+    %c2_i32 = arith.constant 2 : i32
+    %c0_i32 = arith.constant 0 : i32
+    %cast = memref.cast %arg2 : memref<*xf32> to memref<1xf32>
+    %2 = tptr.from_memref %cast : memref<1xf32> to <#tptr.default_memory_space>
+    %cast_0 = memref.cast %arg1 : memref<*xi64> to memref<1xi64>
+    %3 = tptr.from_memref %cast_0 : memref<1xi64> to <#tptr.default_memory_space>
+    %cast_1 = memref.cast %arg0 : memref<*xi64> to memref<1xi64>
+    %4 = tptr.from_memref %cast_1 : memref<1xi64> to <#tptr.default_memory_space>
+    %5 = arith.remsi %arg6, %c2_i32 : i32
+    %6 = arith.cmpi eq, %5, %c0_i32 : i32
+    cf.cond_br %6, ^bb1, ^bb2
   ^bb1:  // pred: ^bb0
-    %7 = arith.muli %c2_i32, %1 : i32 loc(#loc4)
-    %8 = tptr.ptradd %4 %7 : <#tptr.default_memory_space>, i32 to <#tptr.default_memory_space> loc(#loc4)
-    cf.br ^bb3(%8 : !ptr.ptr<#tptr.default_memory_space>) loc(#loc7)
+    %7 = arith.muli %c2_i32, %1 : i32
+    %8 = tptr.ptradd %4 %7 : <#tptr.default_memory_space>, i32 to <#tptr.default_memory_space>
+    cf.br ^bb3(%8 : !ptr.ptr<#tptr.default_memory_space>)
   ^bb2:  // pred: ^bb0
-    %9 = arith.muli %c3_i32, %1 : i32 loc(#loc3)
-    %10 = tptr.ptradd %3 %9 : <#tptr.default_memory_space>, i32 to <#tptr.default_memory_space> loc(#loc3)
-    cf.br ^bb3(%10 : !ptr.ptr<#tptr.default_memory_space>) loc(#loc7)
-  ^bb3(%11: !ptr.ptr<#tptr.default_memory_space> loc("/data03/yanxitan/yanxi-doing/from_nhat/test_ptr.py":323:7)):  // 2 preds: ^bb1, ^bb2
-    cf.br ^bb4 loc(#loc7)
+    %9 = arith.muli %c3_i32, %1 : i32
+    %10 = tptr.ptradd %3 %9 : <#tptr.default_memory_space>, i32 to <#tptr.default_memory_space>
+    cf.br ^bb3(%10 : !ptr.ptr<#tptr.default_memory_space>)
+  ^bb3(%11: !ptr.ptr<#tptr.default_memory_space>):  // 2 preds: ^bb1, ^bb2
+    cf.br ^bb4
   ^bb4:  // pred: ^bb3
-    %12 = arith.muli %arg6, %1 : i32 loc(#loc8)
-    %13 = tptr.ptradd %11 %12 : <#tptr.default_memory_space>, i32 to <#tptr.default_memory_space> loc(#loc8)
-    %14 = tptr.to_memref %13 : <#tptr.default_memory_space> to memref<1xi64> loc(#loc9)
-    %15 = memref.load %14[%c0] : memref<1xi64> loc(#loc9)
-    %16 = arith.muli %arg6, %0 : i32 loc(#loc2)
-    %17 = tptr.ptradd %2 %16 : <#tptr.default_memory_space>, i32 to <#tptr.default_memory_space> loc(#loc2)
-    %18 = arith.sitofp %15 : i64 to f32 loc(#loc10)
-    %19 = tptr.to_memref %17 : <#tptr.default_memory_space> to memref<1xf32> loc(#loc10)
-    memref.store %18, %19[%c0] : memref<1xf32> loc(#loc10)
-    return loc(#loc)
-  } loc(#loc)
-} loc(#loc)
-#loc1 = loc(unknown)
-#loc2 = loc("/data03/yanxitan/yanxi-doing/from_nhat/test_ptr.py":329:23)
-#loc3 = loc("/data03/yanxitan/yanxi-doing/from_nhat/test_ptr.py":326:24)
-#loc4 = loc("/data03/yanxitan/yanxi-doing/from_nhat/test_ptr.py":324:24)
-#loc5 = loc("/data03/yanxitan/yanxi-doing/from_nhat/test_ptr.py":318:23)
-#loc6 = loc("/data03/yanxitan/yanxi-doing/from_nhat/test_ptr.py":318:28)
-#loc8 = loc("/data03/yanxitan/yanxi-doing/from_nhat/test_ptr.py":328:27)
-#loc9 = loc("/data03/yanxitan/yanxi-doing/from_nhat/test_ptr.py":328:21)
-#loc10 = loc("/data03/yanxitan/yanxi-doing/from_nhat/test_ptr.py":329:28)
-
-// NOTE: Assertions have been autogenerated by utils/generate-test-checks.py
-
-// The script is designed to make adding checks to
-// a test case fast, it is *not* designed to be authoritative
-// about what constitutes a good test! The CHECK should be
-// minimized and named to reflect the test intent.
+    %12 = arith.muli %arg6, %1 : i32
+    %13 = tptr.ptradd %11 %12 : <#tptr.default_memory_space>, i32 to <#tptr.default_memory_space>
+    %14 = tptr.to_memref %13 : <#tptr.default_memory_space> to memref<1xi64>
+    %15 = memref.load %14[%c0] : memref<1xi64>
+    %16 = arith.muli %arg6, %0 : i32
+    %17 = tptr.ptradd %2 %16 : <#tptr.default_memory_space>, i32 to <#tptr.default_memory_space>
+    %18 = arith.sitofp %15 : i64 to f32
+    %19 = tptr.to_memref %17 : <#tptr.default_memory_space> to memref<1xf32>
+    memref.store %18, %19[%c0] : memref<1xf32>
+    return
+  }
+}
 
 
 
@@ -108,4 +90,5 @@ module {
 // CHECK:           memref.store %[[VAL_44]], %[[VAL_50]]{{\[}}%[[VAL_13]]] : memref<1xf32>
 // CHECK:           return
 // CHECK:         }
+
 
