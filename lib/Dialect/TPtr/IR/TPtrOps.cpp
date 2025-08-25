@@ -1,17 +1,18 @@
-#include "mlir/Interfaces/SideEffectInterfaces.h" // Required for IR/TPtrOps.h.inc
 #include "mlir/Bytecode/BytecodeOpInterface.h"
+#include "mlir/Interfaces/SideEffectInterfaces.h"
 
-#include "mlir/IR/OpImplementation.h"
 #include "mlir/IR/Builders.h"
 #include "mlir/IR/BuiltinAttributes.h"
 #include "mlir/IR/BuiltinTypes.h"
-#include "mlir/IR/MLIRContext.h"
-#include "mlir/IR/OperationSupport.h"
-#include "mlir/IR/OpDefinition.h"
 #include "mlir/IR/Dialect.h"
+#include "mlir/IR/MLIRContext.h"
+#include "mlir/IR/OpDefinition.h"
+#include "mlir/IR/OpImplementation.h"
+#include "mlir/IR/OperationSupport.h"
 
 #include "mlir/Dialect/Ptr/IR/PtrDialect.h"
 #include "mlir/Dialect/Ptr/IR/PtrTypes.h"
+#include "mlir/Interfaces/DataLayoutInterfaces.h"
 
 #define GET_OP_CLASSES
 #include "triton-shared/Dialect/TPtr/IR/TPtrOps.h.inc"
@@ -35,4 +36,11 @@ void StoreOp::getEffects(
 
 OpFoldResult TypeOffsetOp::fold(FoldAdaptor adaptor) {
   return adaptor.getBaseTypeAttr();
+}
+
+llvm::TypeSize TypeOffsetOp::getTypeSize(std::optional<DataLayout> layout) {
+  if (layout)
+    return layout->getTypeSize(getBaseType());
+  DataLayout dl = DataLayout::closest(*this);
+  return dl.getTypeSize(getBaseType());
 }
