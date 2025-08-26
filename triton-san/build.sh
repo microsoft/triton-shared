@@ -15,6 +15,7 @@ ROOT="$(realpath "${PARENT_FOLDER}/../..")"
 SCRIPT_FOLDER="$(realpath "${PARENT_FOLDER}/script")"
 VENV_PATH="${ROOT}/venv"
 LLVM_PATH="${ROOT}/llvm"
+TRITON_PATH="${ROOT}/triton"
 LLVM_BUILD_PATH="${LLVM_PATH}/llvm-build"
 LLVM_INSTALL_DIR="${LLVM_PATH}/llvm-install"
 TRITON_SAN_INSTALL_DIR="${ROOT}"
@@ -63,8 +64,14 @@ fi
 echo -e "\n\n\n"
 
 echo "================== Build trion-shared and triton =================="
-"${SCRIPT_FOLDER}/build_triton_shared_with_triton_san.sh" "${LLVM_BUILD_PATH}" "${VENV_PATH}"
+if [ -e "${TRITON_PATH}" ]; then
+  warning_msg=("The path ${TRITON_PATH} already exists and will be overwritten.")
+  print_warning "${warning_msg[@]}"
+  rm -rf "${TRITON_PATH}"
+fi
+mkdir -p "${TRITON_PATH}"
+"${SCRIPT_FOLDER}/build_triton_shared_with_triton_san.sh" "${LLVM_BUILD_PATH}" "${VENV_PATH}" "${TRITON_PATH}"
 echo -e "\n\n\n"
 
 echo "======================== Install triton-san ======================="
-"${SCRIPT_FOLDER}/install_triton_san.sh" "${TRITON_SAN_INSTALL_DIR}" "${VENV_PATH}" "${LLVM_INSTALL_DIR}"
+"${SCRIPT_FOLDER}/install_triton_san.sh" "${TRITON_SAN_INSTALL_DIR}" "${LLVM_INSTALL_DIR}" "${VENV_PATH}" "${TRITON_PATH}"
