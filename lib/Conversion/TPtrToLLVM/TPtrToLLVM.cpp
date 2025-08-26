@@ -70,6 +70,11 @@ struct PtrAddConverter : OpConversionPattern<tptr::PtrAddOp> {
               mulOp.getRhs().getDefiningOp<tptr::TypeOffsetOp>()) {
         elemTy = typeOffsetOp.getBaseType();
       }
+    } else if (auto mulOp = origOffset.getDefiningOp<arith::MulIOp>()) {
+      if (auto typeOffsetOp =
+              mulOp.getRhs().getDefiningOp<tptr::TypeOffsetOp>()) {
+        elemTy = typeOffsetOp.getBaseType();
+      }
     }
 
     if (!elemTy) {
@@ -83,6 +88,9 @@ struct PtrAddConverter : OpConversionPattern<tptr::PtrAddOp> {
 
     Value elementIndex;
     if (auto mulOp = adaptor.getOffset().getDefiningOp<LLVM::MulOp>()) {
+      elementIndex = mulOp.getLhs();
+    } else if (auto mulOp =
+                   adaptor.getOffset().getDefiningOp<arith::MulIOp>()) {
       elementIndex = mulOp.getLhs();
     } else {
       LDBG("Warning: ptradd offset is not MulOp pattern, using raw offset");
