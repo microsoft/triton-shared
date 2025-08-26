@@ -16,10 +16,6 @@ void populateTPtrToLLVMConversionPatterns(RewritePatternSet &patterns,
 
 std::unique_ptr<OperationPass<ModuleOp>> createTPtrToLLVMPass();
 
-static bool isOneToOneCast(UnrealizedConversionCastOp op) {
-  return (op.getInputs().size() == 1 && op->getNumResults() == 1);
-}
-
 }  // namespace tptr
 }  // namespace mlir
 

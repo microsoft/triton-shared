@@ -20,7 +20,10 @@ namespace tptr {
 #define DBGS() (llvm::dbgs() << "[" DEBUG_TYPE "]: ")
 #define LDBG(X) LLVM_DEBUG(DBGS() << X << "\n")
 
-// Build standard MemRef LLVM struct type
+static bool isOneToOneCast(UnrealizedConversionCastOp op) {
+  return (op.getInputs().size() == 1 && op->getNumResults() == 1);
+}
+
 Type convertMemRefType(MemRefType type) {
   auto ctx = type.getContext();
   auto rank = type.getShape().size();
@@ -41,31 +44,11 @@ Type convertMemRefType(MemRefType type) {
 }
 
 // PtrAddOp -> llvm.getelementptr conversion
-class PtrAddConverter : public OpConversionPattern<tptr::PtrAddOp> {
+struct PtrAddConverter : OpConversionPattern<tptr::PtrAddOp> {
   using OpConversionPattern<tptr::PtrAddOp>::OpConversionPattern;
 
-  Type convertPtrPointerType(ptr::PtrType type,
-                                Type elemTy = nullptr) const {
+  Type convertPtrPointerType(ptr::PtrType type) const {
     auto ctx = type.getContext();
-    auto pointeeType = elemTy ? elemTy : type.getElementType();
-
-    if (isa<RankedTensorType>(pointeeType)) {
-      // struct {
-      //   ptr base_ptr;
-      //   array<rank x i64> offsets;
-      //   array<rank x i64> shape;
-      //   array<rank x i64> strides;
-      // }
-      auto tensorTy = cast<RankedTensorType>(pointeeType);
-      auto rank = tensorTy.getShape().size();
-      auto i64Ty = IntegerType::get(ctx, 64);
-      SmallVector<Type, 4> types{LLVM::LLVMPointerType::get(ctx),
-                                 LLVM::LLVMArrayType::get(ctx, i64Ty, rank),
-                                 LLVM::LLVMArrayType::get(ctx, i64Ty, rank),
-                                 LLVM::LLVMArrayType::get(ctx, i64Ty, rank)};
-      return LLVM::LLVMStructType::getLiteral(ctx, types);
-    }
-
     return LLVM::LLVMPointerType::get(ctx);
   }
 
@@ -96,15 +79,12 @@ class PtrAddConverter : public OpConversionPattern<tptr::PtrAddOp> {
       elemTy = rewriter.getIntegerType(8); // default to i8
     }
 
-    Type resTy = convertPtrPointerType(ptrTy, elemTy);
+    Type resTy = convertPtrPointerType(ptrTy);
 
-    // Critical fix: extract element index from byte offset
-    // offset = count * element_size, we need count
     Value elementIndex;
     if (auto mulOp = adaptor.getOffset().getDefiningOp<LLVM::MulOp>()) {
       elementIndex = mulOp.getLhs();
     } else {
-      // Warning: cannot recognize offset pattern, using raw offset
       LDBG("Warning: ptradd offset is not MulOp pattern, using raw offset");
       elementIndex = adaptor.getOffset();
     }
@@ -118,7 +98,7 @@ class PtrAddConverter : public OpConversionPattern<tptr::PtrAddOp> {
 };
 
 // ToMemrefOp -> build LLVM memref struct
-class ToMemrefConverter : public OpConversionPattern<tptr::ToMemrefOp> {
+struct ToMemrefConverter : OpConversionPattern<tptr::ToMemrefOp> {
   using OpConversionPattern<tptr::ToMemrefOp>::OpConversionPattern;
 
   LogicalResult
@@ -151,7 +131,6 @@ class ToMemrefConverter : public OpConversionPattern<tptr::ToMemrefOp> {
     auto shape = memrefType.getShape();
     auto rank = shape.size();
 
-    // Build memref struct
     Value result = rewriter.create<LLVM::UndefOp>(loc, targetType);
     result =
         rewriter.create<LLVM::InsertValueOp>(loc, result, input, 0); // base_ptr
@@ -162,7 +141,6 @@ class ToMemrefConverter : public OpConversionPattern<tptr::ToMemrefOp> {
         loc, i64Ty, rewriter.getIntegerAttr(i64Ty, 0));
     result = rewriter.create<LLVM::InsertValueOp>(loc, result, zeroOffset, 2);
 
-    // Calculate row-major layout strides
     SmallVector<int64_t> strides(rank, 1);
     for (int i = rank - 2; i >= 0; --i) {
       if (shape[i + 1] != ShapedType::kDynamic) {
@@ -170,7 +148,6 @@ class ToMemrefConverter : public OpConversionPattern<tptr::ToMemrefOp> {
       }
     }
 
-    // Set sizes and strides
     for (auto [i, size] : llvm::enumerate(shape)) {
       Value sizeVal = rewriter.create<LLVM::ConstantOp>(
           loc, i64Ty, rewriter.getIntegerAttr(i64Ty, size));
@@ -191,7 +168,7 @@ class ToMemrefConverter : public OpConversionPattern<tptr::ToMemrefOp> {
 };
 
 // FromMemrefOp -> llvm.extractvalue
-class FromMemrefConverter : public OpConversionPattern<tptr::FromMemrefOp> {
+struct FromMemrefConverter : OpConversionPattern<tptr::FromMemrefOp> {
   using OpConversionPattern<tptr::FromMemrefOp>::OpConversionPattern;
 
   LogicalResult
@@ -221,8 +198,8 @@ class FromMemrefConverter : public OpConversionPattern<tptr::FromMemrefOp> {
 };
 
 // Clean up unused UnrealizedConversionCast
-class UnrealizedCastConverter
-    : public OpConversionPattern<UnrealizedConversionCastOp> {
+struct UnrealizedCastConverter
+    : OpConversionPattern<UnrealizedConversionCastOp> {
   using OpConversionPattern<UnrealizedConversionCastOp>::OpConversionPattern;
 
   LogicalResult
@@ -242,7 +219,6 @@ class UnrealizedCastConverter
       return success();
     }
 
-    // Reject unsafe conversions
     if (isa<ptr::PtrType>(outputType) ||
         (isa<LLVM::LLVMPointerType>(inputType) &&
          isa<ptr::PtrType>(outputType)) ||
@@ -251,7 +227,6 @@ class UnrealizedCastConverter
       return rewriter.notifyMatchFailure(op, "unsafe pointer conversion");
     }
 
-    // Allowed safe conversions
     if ((isa<LLVM::LLVMStructType>(inputType) && isa<MemRefType>(outputType)) ||
         (isa<MemRefType>(inputType) && isa<LLVM::LLVMStructType>(outputType))) {
       LDBG("matchAndRewrite: replace with input: " << op << " -> " << input);
@@ -290,7 +265,7 @@ static LogicalResult legalizeBlockArguments(Block &block, Operation *op,
 }
 
 // Conditional branch conversion
-class ConvertControlFlowOp : public OpConversionPattern<cf::CondBranchOp> {
+struct ConvertControlFlowOp : OpConversionPattern<cf::CondBranchOp> {
   using OpConversionPattern<cf::CondBranchOp>::OpConversionPattern;
 
   LogicalResult
@@ -316,7 +291,7 @@ class ConvertControlFlowOp : public OpConversionPattern<cf::CondBranchOp> {
 };
 
 // Unconditional branch conversion
-class ConvertBranchOp : public OpConversionPattern<cf::BranchOp> {
+struct ConvertBranchOp : OpConversionPattern<cf::BranchOp> {
   using OpConversionPattern<cf::BranchOp>::OpConversionPattern;
 
   LogicalResult
@@ -338,7 +313,7 @@ class ConvertBranchOp : public OpConversionPattern<cf::BranchOp> {
 
 // MemRef allocation with pointer element types -> LLVM malloc + struct
 // construction
-class MemRefAllocConverter : public OpConversionPattern<memref::AllocOp> {
+struct MemRefAllocConverter : OpConversionPattern<memref::AllocOp> {
   using OpConversionPattern<memref::AllocOp>::OpConversionPattern;
 
   LogicalResult
@@ -421,7 +396,7 @@ class MemRefAllocConverter : public OpConversionPattern<memref::AllocOp> {
 };
 
 // MemRef store with pointer element types -> LLVM GEP + store
-class MemRefStoreConverter : public OpConversionPattern<memref::StoreOp> {
+struct MemRefStoreConverter : OpConversionPattern<memref::StoreOp> {
   using OpConversionPattern<memref::StoreOp>::OpConversionPattern;
 
   LogicalResult
@@ -456,7 +431,9 @@ class MemRefStoreConverter : public OpConversionPattern<memref::StoreOp> {
         // Convert index to i64 if needed
         if (index.getType() != i64Ty) {
           if (isa<IndexType>(index.getType())) {
-            index = rewriter.create<UnrealizedConversionCastOp>(loc, i64Ty, index).getResult(0);
+            index =
+                rewriter.create<UnrealizedConversionCastOp>(loc, i64Ty, index)
+                    .getResult(0);
           }
         }
         linearIndex = index;
@@ -470,21 +447,25 @@ class MemRefStoreConverter : public OpConversionPattern<memref::StoreOp> {
           Value convertedIndex = index;
           if (index.getType() != i64Ty) {
             if (isa<IndexType>(index.getType())) {
-              convertedIndex = rewriter.create<UnrealizedConversionCastOp>(loc, i64Ty, index).getResult(0);
+              convertedIndex =
+                  rewriter.create<UnrealizedConversionCastOp>(loc, i64Ty, index)
+                      .getResult(0);
             }
           }
 
           Value stride = rewriter.create<LLVM::ExtractValueOp>(
               loc, i64Ty, memrefDescriptor,
               rewriter.getDenseI64ArrayAttr({4, static_cast<int64_t>(i)}));
-          Value contribution = rewriter.create<LLVM::MulOp>(loc, convertedIndex, stride);
-          linearIndex = rewriter.create<LLVM::AddOp>(loc, linearIndex, contribution);
+          Value contribution =
+              rewriter.create<LLVM::MulOp>(loc, convertedIndex, stride);
+          linearIndex =
+              rewriter.create<LLVM::AddOp>(loc, linearIndex, contribution);
         }
       }
 
       // GEP to get the address of the element
-      Value elementPtr = rewriter.create<LLVM::GEPOp>(
-          loc, ptrTy, ptrTy, basePtr, linearIndex);
+      Value elementPtr =
+          rewriter.create<LLVM::GEPOp>(loc, ptrTy, ptrTy, basePtr, linearIndex);
 
       // Store the value
       rewriter.create<LLVM::StoreOp>(loc, adaptor.getValue(), elementPtr);
@@ -499,7 +480,7 @@ class MemRefStoreConverter : public OpConversionPattern<memref::StoreOp> {
 };
 
 // MemRef load with pointer element types -> LLVM GEP + load
-class MemRefLoadConverter : public OpConversionPattern<memref::LoadOp> {
+struct MemRefLoadConverter : OpConversionPattern<memref::LoadOp> {
   using OpConversionPattern<memref::LoadOp>::OpConversionPattern;
 
   LogicalResult
@@ -540,7 +521,9 @@ class MemRefLoadConverter : public OpConversionPattern<memref::LoadOp> {
         // Convert index to i64 if needed
         if (index.getType() != i64Ty) {
           if (isa<IndexType>(index.getType())) {
-            index = rewriter.create<UnrealizedConversionCastOp>(loc, i64Ty, index).getResult(0);
+            index =
+                rewriter.create<UnrealizedConversionCastOp>(loc, i64Ty, index)
+                    .getResult(0);
           }
         }
         linearIndex = index;
@@ -554,24 +537,29 @@ class MemRefLoadConverter : public OpConversionPattern<memref::LoadOp> {
           Value convertedIndex = index;
           if (index.getType() != i64Ty) {
             if (isa<IndexType>(index.getType())) {
-              convertedIndex = rewriter.create<UnrealizedConversionCastOp>(loc, i64Ty, index).getResult(0);
+              convertedIndex =
+                  rewriter.create<UnrealizedConversionCastOp>(loc, i64Ty, index)
+                      .getResult(0);
             }
           }
 
           Value stride = rewriter.create<LLVM::ExtractValueOp>(
               loc, i64Ty, memrefDescriptor,
               rewriter.getDenseI64ArrayAttr({4, static_cast<int64_t>(i)}));
-          Value contribution = rewriter.create<LLVM::MulOp>(loc, convertedIndex, stride);
-          linearIndex = rewriter.create<LLVM::AddOp>(loc, linearIndex, contribution);
+          Value contribution =
+              rewriter.create<LLVM::MulOp>(loc, convertedIndex, stride);
+          linearIndex =
+              rewriter.create<LLVM::AddOp>(loc, linearIndex, contribution);
         }
       }
 
       // GEP to get the address of the element
-      Value elementPtr = rewriter.create<LLVM::GEPOp>(
-          loc, ptrTy, ptrTy, basePtr, linearIndex);
+      Value elementPtr =
+          rewriter.create<LLVM::GEPOp>(loc, ptrTy, ptrTy, basePtr, linearIndex);
 
       // Load the value
-      Value loadedValue = rewriter.create<LLVM::LoadOp>(loc, newResultType, elementPtr);
+      Value loadedValue =
+          rewriter.create<LLVM::LoadOp>(loc, newResultType, elementPtr);
       rewriter.replaceOp(op, loadedValue);
 
       LDBG("matchAndRewrite: memref.load done -> LLVM GEP + load");
@@ -583,15 +571,24 @@ class MemRefLoadConverter : public OpConversionPattern<memref::LoadOp> {
 };
 
 // TypeOffsetOp -> constant conversion
-class TypeOffsetConverter : public OpConversionPattern<tptr::TypeOffsetOp> {
+struct TypeOffsetConverter : OpConversionPattern<tptr::TypeOffsetOp> {
   using OpConversionPattern<tptr::TypeOffsetOp>::OpConversionPattern;
+
+  llvm::TypeSize
+  getTypeSize(tptr::TypeOffsetOp op,
+              std::optional<DataLayout> layout = std::nullopt) const {
+    if (layout)
+      return layout->getTypeSize(op.getBaseType());
+    DataLayout dl = DataLayout::closest(op);
+    return dl.getTypeSize(op.getBaseType());
+  }
 
   LogicalResult
   matchAndRewrite(tptr::TypeOffsetOp op, OpAdaptor adaptor,
                   ConversionPatternRewriter &rewriter) const override {
     LDBG("matchAndRewrite: type_offset " << op);
 
-    auto size = op.getTypeSize();
+    auto size = getTypeSize(op);
     auto constOp = rewriter.create<LLVM::ConstantOp>(
         op.getLoc(), op.getType(), rewriter.getIntegerAttr(op.getType(), size));
 

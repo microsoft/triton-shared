@@ -37,10 +37,3 @@ void StoreOp::getEffects(
 OpFoldResult TypeOffsetOp::fold(FoldAdaptor adaptor) {
   return adaptor.getBaseTypeAttr();
 }
-
-llvm::TypeSize TypeOffsetOp::getTypeSize(std::optional<DataLayout> layout) {
-  if (layout)
-    return layout->getTypeSize(getBaseType());
-  DataLayout dl = DataLayout::closest(*this);
-  return dl.getTypeSize(getBaseType());
-}

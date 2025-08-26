@@ -30,82 +30,27 @@ namespace tptr {
 
 namespace {
 
-// Simplify chained UnrealizedConversionCast operations
-struct SimplifyUnrealizedCast
-    : public OpRewritePattern<UnrealizedConversionCastOp> {
-  SimplifyUnrealizedCast(MLIRContext *context, PatternBenefit benefit = 1)
-      : OpRewritePattern<UnrealizedConversionCastOp>(context, benefit) {}
-
-  LogicalResult matchAndRewrite(UnrealizedConversionCastOp op,
-                                PatternRewriter &rewriter) const override {
-    if (!isOneToOneCast(op)) {
-      return failure();
-    }
-
-    auto input = op.getInputs().front();
-    if (auto unrealizedCast =
-            input.getDefiningOp<UnrealizedConversionCastOp>()) {
-      if (!isOneToOneCast(unrealizedCast)) {
-        return failure();
-      }
-
-      // Collapse chained casts: cast(cast(x)) -> cast(x)
-      auto prevInput = unrealizedCast.getInputs().front();
-      auto newCast = rewriter.create<UnrealizedConversionCastOp>(
-          op->getLoc(), op->getResultTypes(), ValueRange{prevInput});
-
-      rewriter.replaceOp(op, newCast);
-      return success();
-    }
-    return failure();
-  }
-};
-
-// Type converter for TPtr to LLVM conversion
 class TptrToLLVMTypeConverter : public TypeConverter {
 public:
   Type convertPtrPointerType(ptr::PtrType type) {
     auto ctx = type.getContext();
-    auto pointeeType = type.getElementType();
-
-    if (pointeeType && isa<RankedTensorType>(pointeeType)) {
-      // Convert tensor pointer to struct with metadata
-      auto tensorTy = cast<RankedTensorType>(pointeeType);
-      auto rank = tensorTy.getShape().size();
-      auto i64Ty = IntegerType::get(ctx, 64);
-
-      SmallVector<Type, 4> types{
-          LLVM::LLVMPointerType::get(ctx),             // base_ptr
-          LLVM::LLVMArrayType::get(ctx, i64Ty, rank),  // offsets
-          LLVM::LLVMArrayType::get(ctx, i64Ty, rank),  // shape
-          LLVM::LLVMArrayType::get(ctx, i64Ty, rank)}; // strides
-
-      return LLVM::LLVMStructType::getLiteral(ctx, types);
-    }
-
     return LLVM::LLVMPointerType::get(ctx);
   }
 
   TptrToLLVMTypeConverter(MLIRContext *ctx) {
-    // Identity conversion for non-pointer types
     addConversion([](Type type) -> Type { return type; });
 
-    // Convert ptr::PtrType to LLVM pointer types
     addConversion([&](ptr::PtrType type) -> std::optional<Type> {
       return convertPtrPointerType(type);
     });
 
-    // Convert memref containing pointer types to LLVM struct
     addConversion([&](MemRefType type) -> std::optional<Type> {
       auto elementType = type.getElementType();
 
-      // Only convert memref if it contains pointer types
       if (!isa<ptr::PtrType>(elementType)) {
-        return std::nullopt; // Use default conversion
+        return std::nullopt;
       }
 
-      // Convert memref<NxPtr> to LLVM struct (similar to standard memref
-      // lowering)
       auto ctx = type.getContext();
       auto rank = type.getShape().size();
       auto i64Ty = IntegerType::get(ctx, 64);
@@ -120,7 +65,6 @@ public:
       return LLVM::LLVMStructType::getLiteral(ctx, types);
     });
 
-    // Materialization functions for unrealized casts
     auto createUnrealizedCast = [](OpBuilder &builder, Type resultType,
                                    ValueRange inputs, Location loc) -> Value {
       return builder.create<UnrealizedConversionCastOp>(loc, resultType, inputs)
@@ -131,7 +75,6 @@ public:
   }
 };
 
-// Main conversion pass implementation
 class TPtrToLLVMPass : public tptr::impl::TPtrToLLVMBase<TPtrToLLVMPass> {
   using TPtrToLLVMBase<TPtrToLLVMPass>::TPtrToLLVMBase;
 
@@ -139,31 +82,15 @@ public:
   void runOnOperation() override {
     auto moduleOp = getOperation();
 
-    // Phase 1: Simplify unrealized casts
-    RewritePatternSet simplifyPatterns(&getContext());
-    simplifyPatterns.add<SimplifyUnrealizedCast>(&getContext());
-    if (failed(applyPatternsGreedily(moduleOp, std::move(simplifyPatterns)))) {
-      signalPassFailure();
-      return;
-    }
-    LDBG("runOnOperation: simplify unrealized cast done");
-
-    // Phase 2: Main TPtr to LLVM conversion
     RewritePatternSet patterns(&getContext());
     ConversionTarget target(getContext());
     TptrToLLVMTypeConverter typeConverter(&getContext());
 
-    // Legal dialects after conversion
     target.addLegalDialect<LLVM::LLVMDialect>();
     target.addLegalDialect<cf::ControlFlowDialect>();
     target.addLegalDialect<BuiltinDialect>();
-
-    // Illegal dialects to be converted
     target.addIllegalDialect<tptr::TPtrDialect>();
-
-    // Dynamic legality for control flow ops with pointer operands
     target.addDynamicallyLegalOp<cf::CondBranchOp>([&](cf::CondBranchOp op) {
-      // Check operands
       for (auto operand : op.getOperands()) {
         if (isa<ptr::PtrType>(operand.getType())) {
           LDBG("CondBranchOp marked illegal due to operand type: "
@@ -171,8 +98,6 @@ public:
           return false;
         }
       }
-
-      // Check block arguments
       for (auto dest : {op.getTrueDest(), op.getFalseDest()}) {
         for (auto arg : dest->getArguments()) {
           if (isa<triton::PointerType, ptr::PtrType>(arg.getType())) {
@@ -186,7 +111,6 @@ public:
     });
 
     target.addDynamicallyLegalOp<cf::BranchOp>([&](cf::BranchOp op) {
-      // Check operands
       for (auto operand : op.getOperands()) {
         if (isa<triton::PointerType, ptr::PtrType>(operand.getType())) {
           LDBG("BranchOp marked illegal due to operand type: "
@@ -195,7 +119,6 @@ public:
         }
       }
 
-      // Check destination block arguments
       for (auto arg : op.getDest()->getArguments()) {
         if (isa<triton::PointerType, ptr::PtrType>(arg.getType())) {
           LDBG("BranchOp marked illegal due to block arg type: "
@@ -206,7 +129,6 @@ public:
       return true;
     });
 
-    // Unrealized casts involving pointer types are illegal
     target.addDynamicallyLegalOp<UnrealizedConversionCastOp>(
         [&](UnrealizedConversionCastOp op) {
           for (auto type : op.getResultTypes()) {
@@ -222,7 +144,6 @@ public:
           return true;
         });
 
-    // MemRef operations with pointer element types need conversion
     target.addDynamicallyLegalOp<memref::AllocOp>([&](memref::AllocOp op) {
       auto memrefType = op.getType();
       auto elementType = memrefType.getElementType();
@@ -262,15 +183,13 @@ public:
 
     target.addLegalOp<ModuleOp>();
 
-    // Apply conversion patterns
     populateTPtrToLLVMConversionPatterns(patterns, typeConverter);
     if (failed(applyPartialConversion(moduleOp, target, std::move(patterns)))) {
       signalPassFailure();
       return;
     }
-    LDBG("runOnOperation: after conversion");
+    LDBG("runOnOperation: after conversion\n" << moduleOp);
 
-    // Phase 3: Cleanup and optimization
     {
       mlir::PassManager pm(&getContext(), getOperation().getOperationName());
       pm.addPass(mlir::createCanonicalizerPass());
@@ -281,7 +200,7 @@ public:
       }
     }
 
-    LDBG("runOnOperation: done");
+    LDBG("runOnOperation: done\n" << moduleOp);
   }
 };
 
