@@ -10,13 +10,7 @@ namespace mlir {
 namespace tptr {
 
 #define GEN_PASS_DECL
-// #define GEN_PASS_CLASSES
-// #define GEN_PASS_DECL_TPTRTOLLVM
-// #define GEN_PASS_DEF_TPTRTOLLVM
 #include "triton-shared/Conversion/TPtrToLLVM/Passes.h.inc"
-
-// void populateTPtrToLLVMCanonicalizationPatterns(RewritePatternSet &patterns);
-
 void populateTPtrToLLVMConversionPatterns(RewritePatternSet &patterns,
                                           TypeConverter &typeconverter);
 

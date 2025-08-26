@@ -30,7 +30,6 @@ if(TRITON_SHARED_BUILD_CPU_BACKEND)
         MLIRReconcileUnrealizedCasts
         MLIRSCFToControlFlow
 
-        # ! transforms
         MLIRBufferizationTransforms
         MLIRArithTransforms
         MLIRMemRefTransforms
@@ -51,10 +50,7 @@ if(TRITON_SHARED_BUILD_CPU_BACKEND)
         MLIRVectorToSCF
         TPtrToLLVM
         MLIRUBToLLVM
-        # MLIRMathToLibm
 
-
-        PRIVATE
         Python3::Module
         pybind11::headers
         ${Python3_LIBRARIES}
