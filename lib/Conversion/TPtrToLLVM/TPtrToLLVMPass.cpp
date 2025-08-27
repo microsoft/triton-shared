@@ -30,8 +30,7 @@ namespace tptr {
 
 namespace {
 
-class TptrToLLVMTypeConverter : public TypeConverter {
-public:
+struct TptrToLLVMTypeConverter : TypeConverter {
   Type convertPtrPointerType(ptr::PtrType type) {
     auto ctx = type.getContext();
     return LLVM::LLVMPointerType::get(ctx);

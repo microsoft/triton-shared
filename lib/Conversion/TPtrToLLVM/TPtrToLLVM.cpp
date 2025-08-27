@@ -78,9 +78,6 @@ struct PtrAddConverter : OpConversionPattern<tptr::PtrAddOp> {
     }
 
     if (!elemTy) {
-      elemTy = ptrTy.getElementType();
-    }
-    if (!elemTy) {
       elemTy = rewriter.getIntegerType(8); // default to i8
     }
 
