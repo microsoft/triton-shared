@@ -6,10 +6,7 @@ module {
     %0 = tt.splat %arg0 : !tt.ptr<i32> -> tensor<1x!tt.ptr<i32>>
     %1 = tt.load %0 : tensor<1x!tt.ptr<i32>>
     %2 = arith.cmpi sgt, %1, %cst : tensor<1xi32>
-    %3 = "tt.reduce"(%2) <{axis = 0 : i32}> ({
-    ^bb0(%arg1: i1, %arg2: i1):
-      tt.reduce.return %arg1 : i1
-    }) : (tensor<1xi1>) -> i1
+    %3 = tt.unsplat %2 : tensor<1xi1>
     scf.if %3 {
       tt.store %arg0, %c42_i32 : !tt.ptr<i32>
     }
