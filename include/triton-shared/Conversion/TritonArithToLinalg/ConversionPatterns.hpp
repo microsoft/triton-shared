@@ -360,7 +360,7 @@ public:
                                                   loc, rewriter);
       auto zeroMap = AffineMap::getConstantMap(0, rewriter.getContext());
       auto loadOp = rewriter.create<affine::AffineLoadOp>(
-          op.getLoc(), sMemRef, zeroMap, std::nullopt);
+          op.getLoc(), sMemRef, zeroMap, ValueRange{});
       rewriter.replaceOp(op, loadOp.getResult());
       return success();
     }
@@ -520,7 +520,7 @@ struct StoreConverter : public OpConversionPattern<triton::StoreOp> {
           PtrAnalysis::getScalarMemRef(op.getPtr(), ptr, loc, rewriter);
       auto zeroMap = AffineMap::getConstantMap(0, rewriter.getContext());
       rewriter.create<affine::AffineStoreOp>(loc, val, sMemRef, zeroMap,
-                                             std::nullopt);
+                                             ValueRange{});
       rewriter.eraseOp(op);
       return success();
     }
@@ -645,6 +645,28 @@ struct SplatConverter : public OpConversionPattern<triton::SplatOp> {
             .result();
 
     rewriter.replaceOp(op, filledTensor);
+    return success();
+  }
+};
+
+struct UnsplatConverter : public OpConversionPattern<triton::UnsplatOp> {
+  using OpConversionPattern::OpConversionPattern;
+
+  LogicalResult
+  matchAndRewrite(triton::UnsplatOp op, OpAdaptor adaptor,
+                  ConversionPatternRewriter &rewriter) const override {
+    auto tensorType = op.getSrc().getType();
+
+    // Only generate indices for non-zero rank tensors.
+    SmallVector<Value, 1> indices(tensorType.getRank());
+    if (indices.size() > 0) {
+      auto zeroIdx =
+          rewriter.createOrFold<arith::ConstantIndexOp>(op.getLoc(), 0);
+      llvm::fill(indices, zeroIdx);
+    }
+
+    rewriter.replaceOpWithNewOp<tensor::ExtractOp>(op, adaptor.getSrc(),
+                                                   indices);
     return success();
   }
 };
@@ -1397,24 +1419,6 @@ private:
     return success();
   }
 
-  LogicalResult
-  convertToTensorExtract(triton::ReduceOp op,
-                         typename triton::ReduceOp::Adaptor adaptor,
-                         ConversionPatternRewriter &rewriter) const {
-    assert(llvm::hasSingleElement(op.getSrcs()));
-
-    auto returnOp = cast<triton::ReduceReturnOp>(*op.getOps().begin());
-    assert(llvm::hasSingleElement(returnOp.getResult()));
-    assert(cast<BlockArgument>(returnOp.getResult().front()).getArgNumber() ==
-           0);
-
-    auto source = op.getSrcs().front();
-    auto zeroIdx =
-        rewriter.createOrFold<arith::ConstantIndexOp>(op.getLoc(), 0);
-    rewriter.replaceOpWithNewOp<tensor::ExtractOp>(op, source, zeroIdx);
-    return success();
-  }
-
 public:
   LogicalResult
   matchAndRewrite(triton::ReduceOp op,
@@ -1430,14 +1434,6 @@ public:
            "Expected reduction "
            "axis is within "
            "operand's rank");
-
-    // Unsplat is implemented as a single element, rank 1 reduction where
-    // single element is yielded immediately. This can be simplified into
-    // a single element extract.
-    if (llvm::hasSingleElement(op.getOps()) && sourceType.getRank() == 1 &&
-        sourceType.getShape()[0] == 1) {
-      return convertToTensorExtract(op, adaptor, rewriter);
-    }
 
     return convertToLinalgReduce(op, adaptor, rewriter);
   }
