@@ -3,3 +3,6 @@
 compile_commands.json
 build/*
 .vscode/*
+.clang-format
+test_core.py
+test_annotations.py
