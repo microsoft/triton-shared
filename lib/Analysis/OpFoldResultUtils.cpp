@@ -52,6 +52,16 @@ bool hasConstZero(const OpFoldResult ofr) {
   return false;
 }
 
+Value ofrToValue(const OpFoldResult ofr, const Location loc, OpBuilder &b) {
+  if (Value val = dyn_cast<Value>(ofr)) {
+    return val;
+  }
+
+  auto attr = dyn_cast<Attribute>(ofr);
+  auto typedAttr = dyn_cast<TypedAttr>(attr);
+  return b.create<arith::ConstantOp>(loc, typedAttr);
+}
+
 Value ofrToIndexValue(const OpFoldResult ofr, const Location loc,
                       OpBuilder &b) {
   if (Value val = dyn_cast<Value>(ofr)) {
@@ -344,17 +354,8 @@ OpFoldResult selectOFRs(const OpFoldResult condOFR, const OpFoldResult trueOFR,
                         OpBuilder &b) {
   auto trueValue = ofrToIndexValue(trueOFR, loc, b);
   auto falseValue = ofrToIndexValue(falseOFR, loc, b);
-  auto condValue = ofrToIndexValue(condOFR, loc, b);
-
-  // Ideally we should not be passing around everything as index type since mask
-  // analysis can come across i1 values, but that improvement is being left for
-  // future work. For now we just unwrap an index back into it's i1 value if
-  // necessary.
-  if (!condValue.getType().isInteger(1)) {
-    assert(condValue.getDefiningOp<arith::IndexCastOp>());
-    condValue = condValue.getDefiningOp<arith::IndexCastOp>().getOperand();
-    assert(condValue.getType().isInteger(1));
-  }
+  auto condValue = ofrToValue(condOFR, loc, b);
+  assert(condValue.getType().isInteger(1) && "Condition for selectOp must be a bool type");
 
   auto selectOp =
       b.create<arith::SelectOp>(loc, condValue, trueValue, falseValue);
