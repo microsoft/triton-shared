@@ -27,6 +27,9 @@ std::optional<int64_t> getIntAttr(const OpFoldResult ofr);
 // attribute or a constant value.
 bool hasConstZero(const OpFoldResult ofr);
 
+// Cast OpFoldResult to Value.
+Value ofrToValue(const OpFoldResult ofr, const Location loc, OpBuilder &b);
+
 // Create a value of index type if necessary from an OpFoldResult.
 Value ofrToIndexValue(const OpFoldResult ofr, const Location loc, OpBuilder &b);
 

@@ -302,9 +302,13 @@ LogicalResult MaskState::parseConstant(arith::ConstantOp constOp,
 LogicalResult MaskState::parseIntScalar(Value scalar, const Location loc,
                                         OpBuilder &builder) {
   assert(this->isEmpty());
-  auto castOp =
-      builder.create<arith::IndexCastOp>(loc, builder.getIndexType(), scalar);
-  this->scalar = castOp.getResult();
+  if (scalar.getType().isInteger(1)) {
+    this->scalar = scalar;
+  } else {
+    auto castOp =
+        builder.create<arith::IndexCastOp>(loc, builder.getIndexType(), scalar);
+    this->scalar = castOp.getResult();
+  }
   return success();
 }
 
