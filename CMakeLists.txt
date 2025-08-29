@@ -9,6 +9,14 @@ include_directories(${CMAKE_CURRENT_BINARY_DIR}/include) # Tablegen'd files
 include_directories(${Python3_INCLUDE_DIR})
 include_directories(${pybind11_INCLUDE_DIR})
 
+function(add_symlink source_file link_name)
+    if (EXISTS ${source_file})
+        file(CREATE_LINK ${source_file} ${link_name} SYMBOLIC)
+    else()
+        message(WARNING "${source_file} not found. Skipping symlink creation for ${link_name}.")
+    endif()
+endfunction()
+
 add_subdirectory(include)
 add_subdirectory(lib)
 add_subdirectory(test)
@@ -28,6 +36,6 @@ cmake_path(APPEND CMAKE_SOURCE_DIR "python" "test" "unit" "language" "test_core.
 cmake_path(APPEND CMAKE_SOURCE_DIR "python" "test" "unit" "language" "test_annotations.py" OUTPUT_VARIABLE TRITON_TEST_ANNOTATIONS)
 cmake_path(APPEND CMAKE_SOURCE_DIR ".clang-format" OUTPUT_VARIABLE TRITON_CLANG_FORMAT_SETTING)
 
-file(CREATE_LINK ${TRITON_TEST_CORE} ${TRITON_SHARED_TEST_CORE} SYMBOLIC)
-file(CREATE_LINK ${TRITON_TEST_ANNOTATIONS} ${TRITON_SHARED_TEST_ANNOTATIONS} SYMBOLIC)
-file(CREATE_LINK ${TRITON_CLANG_FORMAT_SETTING} ${TRITON_SHARED_CLANG_FORMAT_SETTING} SYMBOLIC)
+add_symlink(${TRITON_TEST_CORE} ${TRITON_SHARED_TEST_CORE})
+add_symlink(${TRITON_TEST_ANNOTATIONS} ${TRITON_SHARED_TEST_ANNOTATIONS})
+add_symlink(${TRITON_CLANG_FORMAT_SETTING} ${TRITON_SHARED_CLANG_FORMAT_SETTING})
