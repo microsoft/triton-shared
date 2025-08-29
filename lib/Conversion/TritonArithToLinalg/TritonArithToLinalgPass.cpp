@@ -216,6 +216,8 @@ public:
         func.getAllResultAttrs(resAttrs);
 
         auto funcFunc = builder.create<func::FuncOp>(func.getLoc(), name, type);
+        // Preserve the visibility attribute
+        funcFunc.setVisibility(func.getVisibility());
         funcFunc.setAllArgAttrs(argAttrs);
         funcFunc.setAllResultAttrs(resAttrs);
 
