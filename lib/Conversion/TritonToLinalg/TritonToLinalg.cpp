@@ -63,6 +63,7 @@ void mlir::triton::populateTritonToLinalgConversionPatterns(
   patterns.add<AssertConverter>(patterns.getContext());
   patterns.add<MatmulConverter>(patterns.getContext());
   patterns.add<SplatConverter>(patterns.getContext());
+  patterns.add<UnsplatConverter>(patterns.getContext());
   patterns.add<DenseConstantConverter>(patterns.getContext());
   patterns.add<UnrealizedCastConverter>(patterns.getContext());
   patterns.add<CumSumConverter>(patterns.getContext());

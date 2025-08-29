@@ -104,7 +104,7 @@ struct ScalarLoadConverter : public OpConversionPattern<tts::GatherOp> {
     auto zeroMap = AffineMap::getConstantMap(0, rewriter.getContext());
 
     auto scalarLoadOp = rewriter.create<affine::AffineLoadOp>(
-        loc, memref, zeroMap, std::nullopt);
+        loc, memref, zeroMap, ValueRange{});
 
     rewriter.replaceOp(gatherOp, scalarLoadOp.getResult());
 
@@ -150,7 +150,7 @@ struct ScalarStoreConverter : public OpConversionPattern<tts::ScatterOp> {
     auto zeroMap = AffineMap::getConstantMap(0, rewriter.getContext());
 
     rewriter.create<affine::AffineStoreOp>(loc, storeVal, memref, zeroMap,
-                                           std::nullopt);
+                                           ValueRange{});
     rewriter.eraseOp(scatterOp);
 
     return success();

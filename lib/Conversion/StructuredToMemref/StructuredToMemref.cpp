@@ -577,21 +577,18 @@ public:
 
 struct MakeGatherScatterTensorPtrConverter
     : public OpConversionPattern<tts::MakeGatherScatterTensorPtrOp> {
-private:
-  using OpConversionPattern<tts::MakeGatherScatterTensorPtrOp>::OpConversionPattern;
-
-public:
-  MakeGatherScatterTensorPtrConverter(const TypeConverter &typeConverter,
-                         MLIRContext *context)
-      : OpConversionPattern<tts::MakeGatherScatterTensorPtrOp>(typeConverter, context) {}
+  using OpConversionPattern::OpConversionPattern;
 
   LogicalResult
   matchAndRewrite(tts::MakeGatherScatterTensorPtrOp op, OpAdaptor adaptor,
                   ConversionPatternRewriter &rewriter) const override {
     // The gatherScatterPtr is rewritten as separate rows during load/store
     // operations. Therefore, no action is needed here except saving
-    // adaptor.getBase().
-    rewriter.replaceOp(op, adaptor.getBase());
+    // adaptor.getBase(). DialectConversion will ignore pure type conversion if
+    // we were to simply replace the op with adaptor.getBase(). To circumvent
+    // this we create an identity cast.
+    rewriter.replaceOpWithNewOp<UnrealizedConversionCastOp>(
+        op, adaptor.getBase().getType(), adaptor.getBase());
     return success();
   }
 };

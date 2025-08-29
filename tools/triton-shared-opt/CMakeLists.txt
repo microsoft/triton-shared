@@ -15,6 +15,7 @@ target_link_libraries(triton-shared-opt PRIVATE
   # MLIR core
   MLIROptLib
   MLIRPass
+  MLIRRegisterAllPasses
   MLIRTransforms
 )
 

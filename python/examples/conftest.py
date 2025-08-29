@@ -18,6 +18,19 @@ pytest.mark.interpreter = empty_decorator
 def device(request):
     return "cpu"
 
+
+# this fixture is used for test_enable_fp_fusion
+@pytest.fixture
+def fresh_knobs():
+    from triton._internal_testing import _fresh_knobs_impl
+
+    fresh_function, reset_function = _fresh_knobs_impl()
+    try:
+        yield fresh_function()
+    finally:
+        reset_function()
+
+
 # this fixture is used for test_trans_4d && test_trans_reshape
 @pytest.fixture
 def with_allocator():
@@ -32,7 +45,7 @@ def with_allocator():
         triton.set_allocator(NullAllocator())
 
 
-tests_supported = {
+core_tests_supported = {
     "test_store_eviction_policy",
     "test_unary_op",
     "test_umulhi",
@@ -77,6 +90,11 @@ tests_supported = {
     "test_arange",
 }
 
+annotations_tests_supported = {
+    "test_int_annotation",
+    "test_unknown_annotation",
+}
+
 
 def pytest_collection_modifyitems(config, items):
     skip_marker = pytest.mark.skip(reason="CPU backend does not support it yet")
@@ -89,7 +107,11 @@ def pytest_collection_modifyitems(config, items):
         test_func_name = item.originalname if item.originalname else item.name
 
         test_file = str(item.fspath)
-        if test_file.endswith("test_core.py") and test_func_name not in tests_supported:
+        if test_file.endswith("test_core.py") and test_func_name not in core_tests_supported:
+            item.add_marker(skip_marker)
+            continue
+
+        if test_file.endswith("test_annotations.py") and test_func_name not in annotations_tests_supported:
             item.add_marker(skip_marker)
             continue
 
