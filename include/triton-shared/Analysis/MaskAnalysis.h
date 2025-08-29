@@ -55,6 +55,9 @@ namespace triton {
 //    It will in pattern of cmp -> expandDims -> broadcast
 // 3. scalar_mask[:, None] where scalar mask is scalar bool.
 //    It will in pattern of splat -> expandDims -> broadcast
+// These 3 patterns are only about how a bool tensor was created from 1D or
+// scalar bool. How the 1D and scalar bool were created is not important for the
+// unstructured mask.
 // Only one tensor mask is allowed. If multiple dimensions have failed
 // MaskAnalysis, then MaskAnalysis will still fail on the current operation.
 struct MaskState {
@@ -69,7 +72,7 @@ struct MaskState {
 
   MaskState(bool useUnsafeMask = false) : useUnsafeMask(useUnsafeMask) {}
 
-  SmallVector<std::pair<unsigned, Value>> getGenericMasks();
+  SmallVector<std::pair<unsigned, Value>> getUnstructuredMasks();
 
   int64_t getRank() const { return dims.size(); }
 

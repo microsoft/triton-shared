@@ -371,18 +371,63 @@ LogicalResult MaskState::parseAnd(arith::AndIOp andOp, const Location loc,
 
     // merge the masks.
     if (lhsState.masks.size() == rhsState.masks.size()) {
+      auto shapedType = cast<ShapedType>(andOp.getType());
+      assert(shapedType.hasStaticShape());
       for (size_t i = 0; i < lhsState.masks.size(); i++) {
-        if (lhsState.masks[i] && rhsState.masks[i]) {
-          // And the mask.
-          masks.push_back(builder.create<arith::AndIOp>(loc, lhsState.masks[i],
-                                                        rhsState.masks[i]));
+        Value lhsV = lhsState.masks[i];
+        Value rhsV = rhsState.masks[i];
+        if (!lhsV && !rhsV) {
+          masks.push_back(nullptr);
         } else {
-          masks.push_back(lhsState.masks[i] ? lhsState.masks[i]
-                                            : rhsState.masks[i]);
+          uint32_t size = shapedType.getShape()[i];
+          auto structuredMaskToUnstructuredMask = [](MaskState state,
+                                                     unsigned dim,
+                                                     uint32_t size,
+                                                     OpBuilder &builder,
+                                                     Location loc) {
+            OpFoldResult ofr = state.isMask() ? state.dims[dim] : state.scalar;
+            if (auto intV = getIntAttr(ofr)) {
+              if (intV == size) {
+                // Full mask.
+                return Value();
+              }
+            }
+            auto targetTensorType =
+                RankedTensorType::get({size}, builder.getI32Type());
+            Value range =
+                builder
+                    .create<triton::MakeRangeOp>(loc, targetTensorType, 0, size)
+                    .getResult();
+            Value v = ofrToIndexValue(ofr, loc, builder);
+            v = builder
+                    .create<arith::IndexCastUIOp>(loc, builder.getI32Type(), v)
+                    .getResult();
+            v = builder.create<triton::SplatOp>(loc, targetTensorType, v)
+                    .getResult();
+            return builder
+                .create<arith::CmpIOp>(loc, arith::CmpIPredicate::ult, range, v)
+                .getResult();
+          };
+          if (!lhsV) {
+            lhsV = structuredMaskToUnstructuredMask(lhsState, i, size, builder,
+                                                    loc);
+          } else if (!rhsV) {
+            rhsV = structuredMaskToUnstructuredMask(rhsState, i, size, builder,
+                                                    loc);
+          }
+          if (!lhsV) {
+            masks.push_back(rhsV);
+            continue;
+          } else if (!rhsV) {
+            masks.push_back(lhsV);
+            continue;
+          }
+          // And the mask.
+          masks.push_back(builder.create<arith::AndIOp>(loc, lhsV, rhsV));
         }
       }
-      // Only support one generic mask.
-      if (getGenericMasks().size() > 1) {
+      // Only support one unstructured mask.
+      if (getUnstructuredMasks().size() > 1) {
         return failure();
       }
     }
@@ -408,6 +453,9 @@ LogicalResult MaskState::parseCmp(arith::CmpIOp cmpOp, const Location loc,
     for (unsigned r = 0; r < shapedType.getRank(); r++) {
       if (shapedType.getShape()[r] != 1) {
         if (cmpOpDim != -1) {
+          // This will happen when the cmp has more than one dimension with size
+          // larger than 1.
+          // Like a < b while both a and b are tensors with shape 2x2.
           cmpOpDim = -1;
           break;
         }
@@ -419,11 +467,11 @@ LogicalResult MaskState::parseCmp(arith::CmpIOp cmpOp, const Location loc,
       masks.push_back(nullptr);
     }
     // If cmpOpDim == -1, parseCmp must fail later.
-    // Here just setup generic masks when cmpOpDim != -1.
+    // Here just setup unstructured masks when cmpOpDim != -1.
     if (cmpOpDim != -1) {
-      // Save cmpOp as generic mask for failure case, will recover it to nullptr
-      // later if success.
-      Value genericMask = cmpOp;
+      // Save cmpOp as unstructured mask for failure case, will recover it to
+      // nullptr later if success.
+      Value unstructuredMask = cmpOp;
       if (shapedType.getRank() > 1) {
         // If cmpOp is not 1D, collapse it to 1D.
         auto flatType = RankedTensorType::get({shapedType.getShape()[cmpOpDim]},
@@ -433,10 +481,10 @@ LogicalResult MaskState::parseCmp(arith::CmpIOp cmpOp, const Location loc,
         SmallVector<ReassociationIndices> reassociation =
             *maybeReassociationMap;
         // Set masks.
-        genericMask = builder.create<tensor::CollapseShapeOp>(
+        unstructuredMask = builder.create<tensor::CollapseShapeOp>(
             loc, flatType, cmpOp, reassociation);
       }
-      masks[cmpOpDim] = genericMask;
+      masks[cmpOpDim] = unstructuredMask;
     }
   } else {
     cmpOpDim = 0;
@@ -746,7 +794,7 @@ LogicalResult MaskState::parseExpandDims(triton::ExpandDimsOp expandDimsOp,
         // Recover dims to allow other dim to be processed.
         dims.clear();
         dims.push_back(builder.getIndexAttr(srcType.getShape()[0]));
-        // Save src as generic mask.
+        // Save src as unstructured mask.
         masks[1 - axis] = src;
       } else {
         // save nullptr when parse success.
@@ -754,15 +802,16 @@ LogicalResult MaskState::parseExpandDims(triton::ExpandDimsOp expandDimsOp,
       }
     } else {
       if (failed(result)) {
-        auto genericMasks = getGenericMasks();
-        if (genericMasks.empty()) {
+        auto unstructuredMasks = getUnstructuredMasks();
+        if (unstructuredMasks.empty()) {
           return failure();
         }
-        if (genericMasks.size() > 1) {
+        if (unstructuredMasks.size() > 1) {
           return failure();
         }
-        auto [dim, mask] = genericMasks.front();
-        // Recover dims for generic mask dim to allow other dim to be processed.
+        auto [dim, mask] = unstructuredMasks.front();
+        // Recover dims for unstructured mask dim to allow other dim to be
+        // processed.
         dims[dim] = builder.getIndexAttr(srcType.getShape()[dim]);
       }
       masks.insert(masks.begin() + axis, nullptr);
@@ -777,7 +826,7 @@ LogicalResult MaskState::parseExpandDims(triton::ExpandDimsOp expandDimsOp,
 }
 
 // Return all non-nullptr masks along with their dimensions.
-SmallVector<std::pair<unsigned, Value>> MaskState::getGenericMasks() {
+SmallVector<std::pair<unsigned, Value>> MaskState::getUnstructuredMasks() {
   SmallVector<std::pair<unsigned, Value>> result;
 
   for (auto [i, m] : llvm::enumerate(masks)) {

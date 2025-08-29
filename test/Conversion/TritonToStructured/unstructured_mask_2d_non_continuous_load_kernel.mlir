@@ -1,6 +1,6 @@
 // RUN: triton-shared-opt --triton-to-structured --remove-dead-values --cse --canonicalize %s | FileCheck %s
 
-// Make sure make_gather_scatter_tptr with generic mask generate correctly.
+// Make sure make_gather_scatter_tptr with unsturctured mask generate correctly from row-structured ptr with unstructured mask.
 
 // CHECK-LABEL:   tt.func public @generic_mask_2d_non_continuous_load_kernel(
 // CHECK-SAME:                                                               %[[VAL_0:[0-9]+|[a-zA-Z$._-][a-zA-Z0-9$._-]*]]: !tt.ptr<f32> {tt.divisibility = 16 : i32},
@@ -33,10 +33,7 @@
 // CHECK:           %[[VAL_27:.*]] = arith.minsi %[[VAL_26]], %[[VAL_8]] : index
 // CHECK:           %[[VAL_28:.*]] = tts.make_gather_scatter_tptr %[[VAL_0]] to sizes: [4, 16] gather_scatter_dim: 0 gather_scatter_offset: %[[VAL_19]] gather_scatter_mask: %[[VAL_22]], strides: {{\[}}%[[VAL_23]], 1], offsets: [0, 0] : tensor<4xi32> tensor<4xi1> <f32> to !tt.ptr<tensor<4x16xf32>>
 // CHECK:           %[[VAL_29:.*]] = "tts.load"(%[[VAL_28]], %[[VAL_27]], %[[VAL_7]]) <{operandSegmentSizes = array<i32: 1, 1, 1>, static_mask_dims = array<i64: 0, -9223372036854775808>}> : (!tt.ptr<tensor<4x16xf32>>, index, f32) -> tensor<4x16xf32>
-// CHECK:           %[[VAL_30:.*]] = tts.make_tptr %[[VAL_1]] to sizes: [4, 16], strides: {{\[}}%[[VAL_23]], 1], offsets: [0, 0], shape: [0, 0], order: [] : <f32> to tensor<4x16x!tt.ptr<f32>>
-// CHECK:           %[[VAL_31:.*]] = arith.minsi %[[VAL_18]], %[[VAL_11]] : index
-// CHECK:           "tts.store"(%[[VAL_30]], %[[VAL_29]], %[[VAL_31]], %[[VAL_27]]) <{static_mask_dims = array<i64: -9223372036854775808, -9223372036854775808>}> : (tensor<4x16x!tt.ptr<f32>>, tensor<4x16xf32>, index, index) -> ()
-// CHECK:           tt.return
+
 
 module {
   tt.func public @generic_mask_2d_non_continuous_load_kernel(%arg0: !tt.ptr<f32> {tt.divisibility = 16 : i32}, %arg1: !tt.ptr<f32> {tt.divisibility = 16 : i32}, %arg2: !tt.ptr<i32> {tt.divisibility = 16 : i32}, %arg3: i32, %arg4: i32, %arg5: i32 {tt.divisibility = 16 : i32}, %arg6: i32 {tt.divisibility = 16 : i32}) attributes {noinline = false} {

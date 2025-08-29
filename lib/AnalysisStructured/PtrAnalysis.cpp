@@ -39,24 +39,24 @@
 
 using namespace mlir;
 
-// Try to apply generic mask on the ptr.
-static Value applyGenericMask(Operation *op, Value ptr,
-                              triton::MaskState &mstate, Location loc,
-                              OpBuilder builder) {
-  SmallVector<std::pair<unsigned, Value>> masks = mstate.getGenericMasks();
+// Try to apply unstructured mask on the ptr.
+static Value applyUnstructuredMask(Operation *op, Value ptr,
+                                   triton::MaskState &mstate, Location loc,
+                                   OpBuilder builder) {
+  SmallVector<std::pair<unsigned, Value>> masks = mstate.getUnstructuredMasks();
   if (masks.empty()) {
     return ptr;
   }
   if (masks.size() > 1) {
-    op->emitRemark("MaskAnalysis failed for more than one generic masks");
+    op->emitRemark("MaskAnalysis failed for more than one unstructured masks");
     return nullptr;
   }
 
-  auto [dim, genericMask] = masks[0];
+  auto [dim, unstructuredMask] = masks[0];
   if (auto scatterPtr =
           ptr.getDefiningOp<tts::MakeGatherScatterTensorPtrOp>()) {
     if (dim != scatterPtr.getGatherScatterDim()) {
-      op->emitRemark("MaskAnalysis failed for generic mask dim not equal "
+      op->emitRemark("MaskAnalysis failed for unstructured mask dim not equal "
                      "gather scatter dim");
       return nullptr;
     }
@@ -64,45 +64,56 @@ static Value applyGenericMask(Operation *op, Value ptr,
     ptr = builder
               .create<tts::MakeGatherScatterTensorPtrOp>(
                   loc, scatterPtr.getBase(),
-                  scatterPtr.getGatherScatterOffset(), genericMask,
+                  scatterPtr.getGatherScatterOffset(), unstructuredMask,
                   scatterPtr.getGatherScatterDim(), scatterPtr.getSizes(),
                   scatterPtr.getMixedStrides(), scatterPtr.getMixedOffsets())
               .getResult();
 
-  } else if (auto tptr = ptr.getDefiningOp<tts::MakeTensorPtrOp>()) {
-    OpFoldResult offsetFold = tptr.getMixedOffsets()[dim];
-    Value offset = dyn_cast<Value>(offsetFold);
-    if (!offset) {
-      offset = builder
-                   .create<arith::ConstantOp>(
-                       loc, cast<TypedAttr>(cast<Attribute>(offsetFold)))
-                   .getResult();
-    }
-    // Cast to integer for splat and makerange.
-    if (isa<IndexType>(offset.getType())) {
-      offset =
-          builder.create<arith::IndexCastOp>(loc, builder.getI32Type(), offset)
-              .getResult();
-    } else if (offset.getType().isInteger(64)) {
-      offset =
-          builder.create<arith::TruncIOp>(loc, builder.getI32Type(), offset)
-              .getResult();
-    }
-    auto offsetRowType =
-        RankedTensorType::get({tptr.getSizes()[dim]}, offset.getType());
-    Value scatterOffset =
+  } else if (auto structuredPtr = ptr.getDefiningOp<tts::MakeTensorPtrOp>()) {
+    auto ofrToI32Value = [&](OpFoldResult ofr) {
+      Value v = dyn_cast<Value>(ofr);
+      if (!v) {
+        v = builder
+                .create<arith::ConstantOp>(
+                    loc, cast<TypedAttr>(cast<Attribute>(ofr)))
+                .getResult();
+      }
+      if (isa<IndexType>(v.getType())) {
+        v = builder.create<arith::IndexCastOp>(loc, builder.getI32Type(), v)
+                .getResult();
+      } else if (v.getType().isInteger(64)) {
+        v = builder.create<arith::TruncIOp>(loc, builder.getI32Type(), v)
+                .getResult();
+      }
+
+      return v;
+    };
+    OpFoldResult offsetFold = structuredPtr.getMixedOffsets()[dim];
+    Value offset = ofrToI32Value(offsetFold);
+    auto offsetRowType = RankedTensorType::get({structuredPtr.getSizes()[dim]},
+                                               offset.getType());
+    OpFoldResult strideFold = structuredPtr.getMixedStrides()[dim];
+    Value stride = ofrToI32Value(strideFold);
+    // Divide stride since offset of tts::MakeTensorPtrOp already include the
+    // stride, but gatherScatterOffset of tts::MakeGatherScatterTensorPtrOp
+    // should not include stride.
+    offset = builder.create<arith::DivUIOp>(loc, offset, stride);
+
+    Value gatherScatterOffset =
         builder.create<tensor::SplatOp>(loc, offsetRowType, offset).getResult();
     Value range = builder
-                      .create<triton::MakeRangeOp>(loc, offsetRowType, 0,
-                                                   tptr.getSizes()[dim])
+                      .create<triton::MakeRangeOp>(
+                          loc, offsetRowType, 0, structuredPtr.getSizes()[dim])
                       .getResult();
-    scatterOffset = builder.create<arith::AddIOp>(loc, scatterOffset, range);
-    ptr =
-        builder
-            .create<tts::MakeGatherScatterTensorPtrOp>(
-                loc, tptr.getBase(), scatterOffset, genericMask, dim,
-                tptr.getSizes(), tptr.getMixedStrides(), tptr.getMixedOffsets())
-            .getResult();
+    gatherScatterOffset =
+        builder.create<arith::AddIOp>(loc, gatherScatterOffset, range);
+    ptr = builder
+              .create<tts::MakeGatherScatterTensorPtrOp>(
+                  loc, structuredPtr.getBase(), gatherScatterOffset,
+                  unstructuredMask, dim, structuredPtr.getSizes(),
+                  structuredPtr.getMixedStrides(),
+                  structuredPtr.getMixedOffsets())
+              .getResult();
   } else {
     return nullptr;
   }
@@ -358,13 +369,13 @@ LogicalResult PtrState::addState(const PtrState &lhsState,
           }
 
           if (lhsStride == rhsStride) {
-            // For case like lhs_offset * stride + rhs_offset * stride, it is same as
-            // (lhs_offset + rhs_offset) * stride.
-            // We can just
-            // add the offsets and reuse the stride like this:
+            // For case like lhs_offset * stride + rhs_offset * stride, it is
+            // same as (lhs_offset + rhs_offset) * stride. We can just add the
+            // offsets and reuse the stride like this:
             //   offsets[i] = lhsOffset + rhsOffset
             //   strides[i] = lhsStride
-            // Expand structured offset since unstructured offset has tensor type.
+            // Expand structured offset since unstructured offset has tensor
+            // type.
             if (!lhsState.dimIsStructured(i)) {
               rhsOffset = expandOFRIndex(rhsOffset, lhsOffset, loc, builder);
             } else {
@@ -380,10 +391,9 @@ LogicalResult PtrState::addState(const PtrState &lhsState,
             // equal to 1 earlier for case both offsets and strides not equal.
             assert(lhsOffset == rhsOffset &&
                    "If strides are not equal, offsets must be equal");
-            // For case like offset * lhs_stride + offset * rhs_stride, it is same as
-            // offset * (lhs_stride + rhs_stride).
-            // We can just
-            // add the strides and reuse the offset like this:
+            // For case like offset * lhs_stride + offset * rhs_stride, it is
+            // same as offset * (lhs_stride + rhs_stride). We can just add the
+            // strides and reuse the offset like this:
             //   offsets[i] = lhsOffset
             //   strides[i] = lhsStride + rhsStride
 
@@ -1676,7 +1686,7 @@ LogicalResult PtrAnalysis::rewriteLoadOp(triton::LoadOp op,
       op->emitRemark("MaskAnalysis failed");
       return failure();
     }
-    ptr = applyGenericMask(op, ptr, mstate, loc, builder);
+    ptr = applyUnstructuredMask(op, ptr, mstate, loc, builder);
     if (!ptr) {
       return failure();
     }
@@ -1815,7 +1825,7 @@ LogicalResult PtrAnalysis::rewriteStoreOp(triton::StoreOp op,
       op->emitRemark("MaskAnalysis failed");
       return failure();
     }
-    ptr = applyGenericMask(op, ptr, mstate, loc, builder);
+    ptr = applyUnstructuredMask(op, ptr, mstate, loc, builder);
     if (!ptr) {
       return failure();
     }

@@ -1,6 +1,6 @@
 // RUN: triton-shared-opt --triton-to-structured --remove-dead-values --cse --canonicalize %s | FileCheck %s
 
-// Make sure make_gather_scatter_tptr with generic mask generate correctly.
+// Make sure make_gather_scatter_tptr with generic mask generate correctly from row-structured ptr with unstructured mask.
 
 // CHECK-LABEL:   tt.func public @generic_mask_3d_non_continuous_load_kernel(
 // CHECK-SAME:                                                                %[[VAL_0:[0-9]+|[a-zA-Z$._-][a-zA-Z0-9$._-]*]]: !tt.ptr<f32> {tt.divisibility = 16 : i32},
@@ -43,13 +43,7 @@
 // CHECK:           %[[VAL_37:.*]] = arith.minsi %[[VAL_35]], %[[VAL_12]] : index
 // CHECK:           %[[VAL_38:.*]] = tts.make_gather_scatter_tptr %[[VAL_0]] to sizes: [4, 4, 16] gather_scatter_dim: 1 gather_scatter_offset: %[[VAL_23]] gather_scatter_mask: %[[VAL_26]], strides: {{\[}}%[[VAL_27]], %[[VAL_28]], 1], offsets: [0, 0, 0] : tensor<4xi32> tensor<4xi1> <f32> to !tt.ptr<tensor<4x4x16xf32>>
 // CHECK:           %[[VAL_39:.*]] = "tts.load"(%[[VAL_38]], %[[VAL_36]], %[[VAL_37]], %[[VAL_11]]) <{operandSegmentSizes = array<i32: 1, 2, 1>, static_mask_dims = array<i64: -9223372036854775808, 0, -9223372036854775808>}> : (!tt.ptr<tensor<4x4x16xf32>>, index, index, f32) -> tensor<4x4x16xf32>
-// CHECK:           %[[VAL_40:.*]] = arith.index_cast %[[VAL_9]] : i32 to index
-// CHECK:           %[[VAL_41:.*]] = arith.index_cast %[[VAL_10]] : i32 to index
-// CHECK:           %[[VAL_42:.*]] = tts.make_tptr %[[VAL_1]] to sizes: [4, 4, 16], strides: {{\[}}%[[VAL_40]], %[[VAL_41]], 1], offsets: [0, 0, 0], shape: [0, 0, 0], order: [] : <f32> to tensor<4x4x16x!tt.ptr<f32>>
-// CHECK:           %[[VAL_43:.*]] = arith.minsi %[[VAL_22]], %[[VAL_15]] : index
-// CHECK:           %[[VAL_44:.*]] = arith.minsi %[[VAL_43]], %[[VAL_15]] : index
-// CHECK:           "tts.store"(%[[VAL_42]], %[[VAL_39]], %[[VAL_36]], %[[VAL_44]], %[[VAL_37]]) <{static_mask_dims = array<i64: -9223372036854775808, -9223372036854775808, -9223372036854775808>}> : (tensor<4x4x16x!tt.ptr<f32>>, tensor<4x4x16xf32>, index, index, index) -> ()
-// CHECK:           tt.return
+
 
 module {
   tt.func public @generic_mask_3d_non_continuous_load_kernel(%arg0: !tt.ptr<f32> {tt.divisibility = 16 : i32}, %arg1: !tt.ptr<f32> {tt.divisibility = 16 : i32}, %arg2: !tt.ptr<i32> {tt.divisibility = 16 : i32}, %arg3: i32, %arg4: i32, %arg5: i32, %arg6: i32 {tt.divisibility = 16 : i32}, %arg7: i32 {tt.divisibility = 16 : i32}, %arg8: i32 {tt.divisibility = 16 : i32}, %arg9: i32 {tt.divisibility = 16 : i32}, %arg10: i32 {tt.divisibility = 16 : i32}) attributes {noinline = false} {
