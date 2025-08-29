@@ -159,6 +159,7 @@ def TTS_MakeGatherScatterTensorPtrOp
   // strides: The strides of the parent tensor, which means how much to increase the pointer
   //          by when moving by 1 element in a specific axis.
   // offsets: Offset of the block along each dimension from base.
+  // gather_scatter_mask: Optional bool mask for mask which failed MaskAnalysis.
   // result:  A tensor of pointers.
 
   let arguments = (ins TT_Ptr:$base,
@@ -168,7 +169,8 @@ def TTS_MakeGatherScatterTensorPtrOp
                        Variadic<Index>:$strides,
                        Variadic<Index>:$offsets,
                        DenseI64ArrayAttr:$static_strides,
-                       DenseI64ArrayAttr:$static_offsets);
+                       DenseI64ArrayAttr:$static_offsets,
+                       Optional<TT_BoolLike>:$gather_scatter_mask);
 
   let results = (outs TT_PtrLike:$result);
 
@@ -176,11 +178,12 @@ def TTS_MakeGatherScatterTensorPtrOp
     $base `to` `sizes` `` `:` $sizes
     `gather_scatter_dim` `` `:` $gather_scatter_dim
     `gather_scatter_offset` `` `:` $gather_scatter_offset
+    (`gather_scatter_mask` `` `:` $gather_scatter_mask^)?
     `` `,` `strides` `` `:`
     custom<DynamicIndexList>($strides, $static_strides)
     `` `,` `offsets` `` `:`
     custom<DynamicIndexList>($offsets, $static_offsets)
-    attr-dict `:`  type($gather_scatter_offset) type($base) `to` type($result)
+    attr-dict `:`  type($gather_scatter_offset) type($gather_scatter_mask) type($base) `to` type($result)
   }];
 
 
@@ -189,6 +192,15 @@ def TTS_MakeGatherScatterTensorPtrOp
     OpBuilder<(ins
       "Value":$base,
       "Value":$gather_scatter_offset,
+      "int":$gather_scatter_dim,
+      "ArrayRef<int64_t>":$sizes,
+      "ArrayRef<OpFoldResult>":$strides,
+      "ArrayRef<OpFoldResult>":$offsets)>,
+
+    OpBuilder<(ins
+      "Value":$base,
+      "Value":$gather_scatter_offset,
+      "Value":$gather_scatter_mask,
       "int":$gather_scatter_dim,
       "ArrayRef<int64_t>":$sizes,
       "ArrayRef<OpFoldResult>":$strides,
@@ -213,9 +225,8 @@ def TTS_MakeGatherScatterTensorPtrOp
     }
   }];
 
-  // TODO
-  //let hasVerifier = 1;
-  //let hasCanonicalizer = 1;
+  let hasVerifier = 1;
+  let hasCanonicalizer = 0;
 }
 
 def TTS_GetStructuredStateOp : TTS_Op<"get_structured_state", [AttrSizedResultSegments, Pure]> {
