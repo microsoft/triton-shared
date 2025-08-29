@@ -25,8 +25,9 @@ You need to set the `TRITON_PLUGIN_DIRS` environment variable to the location of
 ```
 export TRITON_PLUGIN_DIRS=$(pwd)/triton_shared
 
-git clone --recurse-submodules https://github.com/microsoft/triton-shared.git triton_shared
-cd triton_shared/triton
+git clone https://github.com/microsoft/triton-shared.git triton_shared
+git clone https://github.com/triton-lang/triton.git
+cd triton && git checkout $(cat ../triton_shared/triton-hash.txt)
 ```
 
 To build with Clang:

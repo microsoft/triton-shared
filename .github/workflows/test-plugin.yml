@@ -39,12 +39,18 @@ jobs:
       with:
         ref: ${{ inputs.triton-shared-ref }}
         path: triton_shared
-        # Also checkout triton submodule
-        submodules: recursive
+
+    - name: Checkout triton based on triton-hash.txt
+      run: |
+        git clone https://github.com/triton-lang/triton.git triton
+        cd triton
+        HASH="$(cat ../triton_shared/triton-hash.txt)"
+        echo "Checking out Triton commit: ${HASH}"
+        git checkout "${HASH}"
 
     - name: Checkout triton at ${{ inputs.triton-ref }}
       if: ${{ inputs.triton-ref }}
-      working-directory: triton_shared/triton
+      working-directory: triton
       run: |
         git checkout ${{ inputs.triton-ref }}
         git log -1
@@ -58,13 +64,13 @@ jobs:
         echo "PATH=${HOME}/.local/bin:${PATH}" >> "${GITHUB_ENV}"
 
     - name: Check pre-commit
-      working-directory: triton_shared/triton
+      working-directory: triton
       run: |
         python3 -m pip install --upgrade pre-commit
         python3 -m pre_commit run --all-files --verbose
 
     - name: Build/Install Triton
-      working-directory: triton_shared/triton
+      working-directory: triton
       run: |
         python3 -m pip install --upgrade pip
         python3 -m pip install cmake==3.24 ninja pytest-xdist pybind11 setuptools
@@ -74,7 +80,7 @@ jobs:
         TRITON_BUILD_WITH_CLANG_LLD=true TRITON_BUILD_WITH_CCACHE=true python3 -m pip install --no-build-isolation -vvv '.[tests]'
 
     - name: Run shared middle-layer lit tests
-      working-directory: triton_shared/triton
+      working-directory: triton
       run: |
         python3 -m pip install lit
         LIT_TEST_DIR="build/$(ls build | grep -i cmake)/third_party/triton_shared/test"
@@ -89,7 +95,7 @@ jobs:
         python3 -m pip install pytest
 
     - name: Prepare CPU backend environment
-      working-directory: triton_shared/triton
+      working-directory: triton
       run: |
         CMAKE_BUILD_DIR=$(ls $(pwd)/build | grep -i cmake)
         LLVM_BINARY_DIR=$(find  ${HOME}/.triton/llvm/ -name bin | head -1)
@@ -117,7 +123,14 @@ jobs:
       with:
         ref: ${{ inputs.triton-shared-ref }}
         path: triton_shared
-        submodules: recursive
+    
+    - name: Checkout triton based on triton-hash.txt
+      run: |
+        git clone https://github.com/triton-lang/triton.git triton
+        cd triton
+        HASH="$(cat ../triton_shared/triton-hash.txt)"
+        echo "Checking out Triton commit: ${HASH}"
+        git checkout "${HASH}"
 
     - name: Clear Triton Cache
       run: |
@@ -132,13 +145,13 @@ jobs:
         echo "PATH=${HOME}/.local/bin:${PATH}" >> "${GITHUB_ENV}"
 
     - name: Check pre-commit
-      working-directory: triton_shared/triton
+      working-directory: triton
       run: |
         python3 -m pip install --upgrade pre-commit
         python3 -m pre_commit run --all-files --verbose
 
     - name: Build/Install Triton
-      working-directory: triton_shared/triton
+      working-directory: triton
       run: |
         python3 -m pip install --upgrade pip
         python3 -m pip install cmake==3.24 ninja pytest-xdist pybind11 setuptools
@@ -148,7 +161,7 @@ jobs:
         TRITON_BUILD_WITH_CLANG_LLD=true TRITON_BUILD_WITH_CCACHE=true python3 -m pip install --no-build-isolation -vvv '.[tests]'
 
     - name: Run shared middle-layer lit tests
-      working-directory: triton_shared/triton
+      working-directory: triton
       run: |
         python3 -m pip install lit
         LIT_TEST_DIR="build/$(ls build | grep -i cmake)/third_party/triton_shared/test"
@@ -163,7 +176,7 @@ jobs:
         python3 -m pip install pytest
 
     - name: Prepare CPU backend environment
-      working-directory: triton_shared/triton
+      working-directory: triton
       run: |
         CMAKE_BUILD_DIR=$(ls $(pwd)/build | grep -i cmake)
         LLVM_BINARY_DIR=$(find  ${HOME}/.triton/llvm/ -name bin | head -1)

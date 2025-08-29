@@ -38,13 +38,15 @@ git clone --recurse-submodules https://github.com/microsoft/triton-shared.git
 triton-shared/triton-san/build.sh
 ```
 **Note: because LLVM takes a long time to build, the initial run of `build.sh` may exceed 20 minutes. On later runs, the build script reuses the Python virtual environment and LLVM binary to speed up the build of `triton`, `triton-shared`, and `triton-san`.**
+
 After installation, `build.sh` generates the following folders alongside the `triton-shared` repository.
 ```
-llvm  triton-san  triton-shared  venv
+llvm  triton triton-san  triton-shared  venv
 ```
 - `llvm`: the custom LLVM source and binary,
-- `venv`: Python environment with TritonSan-enabled Triton package installed,
+- `triton` the triton source and binary,
 - `triton-san`: TritonSan driver script and associated files.
+- `venv`: Python environment with TritonSan-enabled Triton package installed,
 
 ## Usage
 To use TritonSan, run the TritonSan driver script (`triton-san/triton-san`) with the target Triton program and its corresponding inputs. We also provide two sample Triton programs containing known bugs, which `build.sh` installs into the `triton-san/examples` directory.
