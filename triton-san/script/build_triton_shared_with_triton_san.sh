@@ -4,7 +4,7 @@
 set -e
 
 if [ "$#" -lt 3 ]; then
-  echo "Usage: $0 <path to LLVM build directory> <path to Python venv> <path to triton>"
+  echo "Usage: $0 <path to LLVM build directory> <path to Python venv> <path to Triton source directory>"
   exit 1
 fi
 

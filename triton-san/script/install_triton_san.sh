@@ -4,7 +4,7 @@
 set -e
 
 if [ "$#" -lt 4 ]; then
-  echo "Usage: $0 <desired path for triton-san installation> <path to LLVM install directory> <path to Python venv> <path to triton>"
+  echo "Usage: $0 <desired path for triton-san installation> <path to LLVM install directory> <path to Python venv> <path to Triton source directory>"
   exit 1
 fi
 
