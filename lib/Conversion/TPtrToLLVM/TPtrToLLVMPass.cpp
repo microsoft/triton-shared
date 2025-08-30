@@ -12,7 +12,6 @@
 #include "mlir/Transforms/Passes.h"
 #include "triton-shared/Conversion/TPtrToLLVM/TPtrToLLVM.h"
 #include "triton-shared/Dialect/TPtr/IR/TPtrDialect.h"
-#include "triton/Dialect/Triton/IR/Types.h"
 
 #define DEBUG_TYPE "tptr-to-llvm"
 #define DBGS() (llvm::dbgs() << "[" DEBUG_TYPE "]: ")
@@ -45,11 +44,6 @@ struct TptrToLLVMTypeConverter : TypeConverter {
 
     addConversion([&](MemRefType type) -> std::optional<Type> {
       auto elementType = type.getElementType();
-
-      if (!isa<ptr::PtrType>(elementType)) {
-        return std::nullopt;
-      }
-
       auto ctx = type.getContext();
       auto rank = type.getShape().size();
       auto i64Ty = IntegerType::get(ctx, 64);
@@ -99,7 +93,7 @@ public:
       }
       for (auto dest : {op.getTrueDest(), op.getFalseDest()}) {
         for (auto arg : dest->getArguments()) {
-          if (isa<triton::PointerType, ptr::PtrType>(arg.getType())) {
+          if (isa<ptr::PtrType>(arg.getType())) {
             LDBG("CondBranchOp marked illegal due to block arg type: "
                  << arg.getType());
             return false;
@@ -111,7 +105,7 @@ public:
 
     target.addDynamicallyLegalOp<cf::BranchOp>([&](cf::BranchOp op) {
       for (auto operand : op.getOperands()) {
-        if (isa<triton::PointerType, ptr::PtrType>(operand.getType())) {
+        if (isa<ptr::PtrType>(operand.getType())) {
           LDBG("BranchOp marked illegal due to operand type: "
                << operand.getType());
           return false;
@@ -119,7 +113,7 @@ public:
       }
 
       for (auto arg : op.getDest()->getArguments()) {
-        if (isa<triton::PointerType, ptr::PtrType>(arg.getType())) {
+        if (isa<ptr::PtrType>(arg.getType())) {
           LDBG("BranchOp marked illegal due to block arg type: "
                << arg.getType());
           return false;
@@ -131,12 +125,12 @@ public:
     target.addDynamicallyLegalOp<UnrealizedConversionCastOp>(
         [&](UnrealizedConversionCastOp op) {
           for (auto type : op.getResultTypes()) {
-            if (isa<triton::PointerType, ptr::PtrType>(type)) {
+            if (isa<ptr::PtrType>(type)) {
               return false;
             }
           }
           for (auto operand : op.getOperands()) {
-            if (isa<triton::PointerType, ptr::PtrType>(operand.getType())) {
+            if (isa<ptr::PtrType>(operand.getType())) {
               return false;
             }
           }

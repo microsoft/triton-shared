@@ -8,6 +8,8 @@
 #include "mlir/IR/BuiltinTypes.h"
 #include "mlir/IR/PatternMatch.h"
 #include "mlir/IR/Value.h"
+#include "llvm/Support/Debug.h"
+#include "llvm/Support/raw_ostream.h"
 
 #include "mlir/Transforms/DialectConversion.h"
 #include "triton-shared/Conversion/TPtrToLLVM/TPtrToLLVM.h"
@@ -24,24 +26,6 @@ static bool isOneToOneCast(UnrealizedConversionCastOp op) {
   return (op.getInputs().size() == 1 && op->getNumResults() == 1);
 }
 
-Type convertMemRefType(MemRefType type) {
-  auto ctx = type.getContext();
-  auto rank = type.getShape().size();
-  auto i64Ty = IntegerType::get(ctx, 64);
-  SmallVector<Type, 5> types;
-
-  // struct { ptr base_ptr, ptr aligned_ptr, i64 offset,
-  //          array<rank x i64> sizes, array<rank x i64> strides }
-  types.push_back(LLVM::LLVMPointerType::get(ctx)); // base pointer
-  types.push_back(LLVM::LLVMPointerType::get(ctx)); // aligned pointer
-  types.push_back(i64Ty);                           // offset
-  types.push_back(LLVM::LLVMArrayType::get(ctx, i64Ty, rank)); // sizes
-  types.push_back(LLVM::LLVMArrayType::get(ctx, i64Ty, rank)); // strides
-
-  Type ret = LLVM::LLVMStructType::getLiteral(ctx, types);
-  LDBG(" From MemrefConverter convertMemRefType: " << type << " -> " << ret);
-  return ret;
-}
 
 // PtrAddOp -> llvm.getelementptr conversion
 struct PtrAddConverter : OpConversionPattern<tptr::PtrAddOp> {
@@ -109,7 +93,7 @@ struct ToMemrefConverter : OpConversionPattern<tptr::ToMemrefOp> {
   LogicalResult
   matchAndRewrite(tptr::ToMemrefOp op, OpAdaptor adaptor,
                   ConversionPatternRewriter &rewriter) const override {
-    LDBG("matchAndRewrite: to_memref " << op);
+    LDBG("matchAndRewrite: to_memref (before) " << op);
 
     auto input = adaptor.getArg();
 
@@ -125,15 +109,15 @@ struct ToMemrefConverter : OpConversionPattern<tptr::ToMemrefOp> {
       }
     }
 
-    Type targetType = convertMemRefType(op.getType());
+    Type targetType = getTypeConverter()->convertType(cast<MemRefType>(op.getType()));
+    LDBG("matchAndRewrite: to_memref (typeconverted) " <<  cast<MemRefType>(op.getType()) << " -> " << targetType);
     if (!targetType) {
       return rewriter.notifyMatchFailure(op, "failed to convert memref type");
     }
 
     auto loc = op.getLoc();
     auto i64Ty = rewriter.getIntegerType(64);
-    auto memrefType = cast<MemRefType>(op.getType());
-    auto shape = memrefType.getShape();
+    auto shape = cast<MemRefType>(op.getType()).getShape();
     auto rank = shape.size();
 
     Value result = rewriter.create<LLVM::UndefOp>(loc, targetType);
@@ -167,7 +151,7 @@ struct ToMemrefConverter : OpConversionPattern<tptr::ToMemrefOp> {
     }
 
     rewriter.replaceOp(op, result);
-    LDBG("matchAndRewrite: to_memref done");
+    LDBG("matchAndRewrite: to_memref (after) -> " << result);
     return success();
   }
 };
@@ -179,16 +163,17 @@ struct FromMemrefConverter : OpConversionPattern<tptr::FromMemrefOp> {
   LogicalResult
   matchAndRewrite(tptr::FromMemrefOp op, OpAdaptor adaptor,
                   ConversionPatternRewriter &rewriter) const override {
-    LDBG("matchAndRewrite: from_memref " << op);
+    LDBG("matchAndRewrite: from_memref (before) " << op);
 
     Value input = adaptor.getInput();
     if (isa<MemRefType>(input.getType())) {
-      input =
-          rewriter
-              .create<UnrealizedConversionCastOp>(
-                  op.getLoc(),
-                  convertMemRefType(cast<MemRefType>(input.getType())), input)
-              .getResult(0);
+      input = rewriter
+                  .create<UnrealizedConversionCastOp>(
+                      op.getLoc(),
+                      getTypeConverter()->convertType(
+                          cast<MemRefType>(input.getType())),
+                      input)
+                  .getResult(0);
     }
 
     // Extract base_ptr (index 0)
@@ -197,7 +182,7 @@ struct FromMemrefConverter : OpConversionPattern<tptr::FromMemrefOp> {
         op.getLoc(), resultType, input, rewriter.getDenseI64ArrayAttr({0}));
 
     rewriter.replaceOp(op, extractOp);
-    LDBG("matchAndRewrite: from_memref done");
+    LDBG("matchAndRewrite: from_memref (after) -> " << extractOp);
     return success();
   }
 };
@@ -225,16 +210,14 @@ struct UnrealizedCastConverter
     }
 
     if (isa<ptr::PtrType>(outputType) ||
-        (isa<LLVM::LLVMPointerType>(inputType) &&
-         isa<ptr::PtrType>(outputType)) ||
-        (isa<LLVM::LLVMPointerType>(inputType) &&
-         isa<MemRefType>(outputType))) {
+        (isa<LLVM::LLVMPointerType>(inputType) && isa<MemRefType>(outputType))) {
+      LDBG("UnrealizedCast (reject): unsafe pointer conversion " << op);
       return rewriter.notifyMatchFailure(op, "unsafe pointer conversion");
     }
 
     if ((isa<LLVM::LLVMStructType>(inputType) && isa<MemRefType>(outputType)) ||
         (isa<MemRefType>(inputType) && isa<LLVM::LLVMStructType>(outputType))) {
-      LDBG("matchAndRewrite: replace with input: " << op << " -> " << input);
+      LDBG("matchAndRewrite: UnrealizedCast (after) " << op << " -> " << input);
       rewriter.replaceOp(op, input);
       return success();
     }
@@ -276,7 +259,7 @@ struct ConvertControlFlowOp : OpConversionPattern<cf::CondBranchOp> {
   LogicalResult
   matchAndRewrite(cf::CondBranchOp op, OpAdaptor adaptor,
                   ConversionPatternRewriter &rewriter) const override {
-    LDBG("matchAndRewrite: cond_branch " << op);
+    LDBG("matchAndRewrite: cond_branch (before) " << op);
 
     if (failed(legalizeBlockArguments(*op.getTrueDest(), op, rewriter,
                                       *getTypeConverter())) ||
@@ -285,12 +268,12 @@ struct ConvertControlFlowOp : OpConversionPattern<cf::CondBranchOp> {
       return failure();
     }
 
-    rewriter.replaceOpWithNewOp<cf::CondBranchOp>(
+    auto newOp = rewriter.replaceOpWithNewOp<cf::CondBranchOp>(
         op, adaptor.getCondition(), op.getTrueDest(),
         adaptor.getTrueDestOperands(), op.getFalseDest(),
         adaptor.getFalseDestOperands());
 
-    LDBG("matchAndRewrite: cond_branch done");
+    LDBG("matchAndRewrite: cond_branch (after) -> " << newOp);
     return success();
   }
 };
@@ -302,16 +285,17 @@ struct ConvertBranchOp : OpConversionPattern<cf::BranchOp> {
   LogicalResult
   matchAndRewrite(cf::BranchOp op, OpAdaptor adaptor,
                   ConversionPatternRewriter &rewriter) const override {
-    LDBG("matchAndRewrite: cf.br " << op);
+    LDBG("matchAndRewrite: cf.br (before) " << op);
 
     if (failed(legalizeBlockArguments(*op.getDest(), op, rewriter,
                                       *getTypeConverter()))) {
       return failure();
     }
 
-    rewriter.replaceOpWithNewOp<cf::BranchOp>(op, op.getDest(),
-                                              adaptor.getDestOperands());
-    LDBG("matchAndRewrite: cf.br done");
+    auto newOp =
+        rewriter.replaceOpWithNewOp<cf::BranchOp>(op, op.getDest(),
+                                                  adaptor.getDestOperands());
+    LDBG("matchAndRewrite: cf.br (after) -> " << newOp);
     return success();
   }
 };
@@ -324,7 +308,7 @@ struct MemRefAllocConverter : OpConversionPattern<memref::AllocOp> {
   LogicalResult
   matchAndRewrite(memref::AllocOp op, OpAdaptor adaptor,
                   ConversionPatternRewriter &rewriter) const override {
-    LDBG("matchAndRewrite: memref.alloc " << op);
+    LDBG("matchAndRewrite: memref.alloc (before) " << op);
 
     auto oldMemRefType = op.getType();
     auto elementType = oldMemRefType.getElementType();
@@ -395,7 +379,7 @@ struct MemRefAllocConverter : OpConversionPattern<memref::AllocOp> {
     }
 
     rewriter.replaceOp(op, result);
-    LDBG("matchAndRewrite: memref.alloc done -> LLVM struct");
+    LDBG("matchAndRewrite: memref.alloc (after) -> " << result);
     return success();
   }
 };
@@ -407,7 +391,7 @@ struct MemRefStoreConverter : OpConversionPattern<memref::StoreOp> {
   LogicalResult
   matchAndRewrite(memref::StoreOp op, OpAdaptor adaptor,
                   ConversionPatternRewriter &rewriter) const override {
-    LDBG("matchAndRewrite: memref.store " << op);
+    LDBG("matchAndRewrite: memref.store (before) " << op);
 
     auto memrefType = op.getMemRef().getType();
     if (auto memrefTy = dyn_cast<MemRefType>(memrefType)) {
@@ -473,10 +457,10 @@ struct MemRefStoreConverter : OpConversionPattern<memref::StoreOp> {
           rewriter.create<LLVM::GEPOp>(loc, ptrTy, ptrTy, basePtr, linearIndex);
 
       // Store the value
-      rewriter.create<LLVM::StoreOp>(loc, adaptor.getValue(), elementPtr);
+      auto storeOp =
+          rewriter.create<LLVM::StoreOp>(loc, adaptor.getValue(), elementPtr);
       rewriter.eraseOp(op);
-
-      LDBG("matchAndRewrite: memref.store done -> LLVM GEP + store");
+      LDBG("matchAndRewrite: memref.store (after) -> " << storeOp);
       return success();
     }
 
@@ -491,7 +475,7 @@ struct MemRefLoadConverter : OpConversionPattern<memref::LoadOp> {
   LogicalResult
   matchAndRewrite(memref::LoadOp op, OpAdaptor adaptor,
                   ConversionPatternRewriter &rewriter) const override {
-    LDBG("matchAndRewrite: memref.load " << op);
+    LDBG("matchAndRewrite: memref.load (before) " << op);
 
     auto memrefType = op.getMemRef().getType();
     if (auto memrefTy = dyn_cast<MemRefType>(memrefType)) {
@@ -567,7 +551,7 @@ struct MemRefLoadConverter : OpConversionPattern<memref::LoadOp> {
           rewriter.create<LLVM::LoadOp>(loc, newResultType, elementPtr);
       rewriter.replaceOp(op, loadedValue);
 
-      LDBG("matchAndRewrite: memref.load done -> LLVM GEP + load");
+      LDBG("matchAndRewrite: memref.load (after) -> " << loadedValue);
       return success();
     }
 
@@ -591,14 +575,19 @@ struct TypeOffsetConverter : OpConversionPattern<tptr::TypeOffsetOp> {
   LogicalResult
   matchAndRewrite(tptr::TypeOffsetOp op, OpAdaptor adaptor,
                   ConversionPatternRewriter &rewriter) const override {
-    LDBG("matchAndRewrite: type_offset " << op);
+    LDBG("matchAndRewrite: type_offset (before) " << op);
 
     auto size = getTypeSize(op);
+    if (size.isScalable()) {
+      return rewriter.notifyMatchFailure(op, "scalable type size unsupported");
+    }
+    auto fixedSize = static_cast<int64_t>(size.getFixedValue());
     auto constOp = rewriter.create<LLVM::ConstantOp>(
-        op.getLoc(), op.getType(), rewriter.getIntegerAttr(op.getType(), size));
+        op.getLoc(), op.getType(),
+        rewriter.getIntegerAttr(op.getType(), fixedSize));
 
     rewriter.replaceOp(op, constOp);
-    LDBG("matchAndRewrite: type_offset done -> " << size);
+    LDBG("matchAndRewrite: type_offset (after) -> " << constOp);
     return success();
   }
 };
