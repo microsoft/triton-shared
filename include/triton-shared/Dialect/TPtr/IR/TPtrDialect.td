@@ -215,4 +215,3 @@ def TTPTR_StoreOp : TPTR_Op<"store", [
 }
 
 #endif // TPTR_DIALECT
-
