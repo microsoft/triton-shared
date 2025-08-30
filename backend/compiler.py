@@ -86,6 +86,12 @@ def _ttsharedir_to_llir(ttsharedir: str):
         pm = ir.pass_manager(context)
         pm.enable_debug()
         triton_shared.to_llir.add_convert_linalg_to_affine_loops(pm)
+        # Note: eliminate-empty-tensors fails when there are multiple func.return ops
+        # in a single kernel which are the results of early returns.
+        # See python/examples/test_early_return.py for examples.
+        # We disable this pass for now since performance on CPU isn't the main
+        # focus at the moment.
+        # triton_shared.to_llir.add_eliminate_empty_tensors(pm)
         triton_shared.to_llir.add_empty_tensor_to_alloc_tensor(pm)
         triton_shared.to_llir.add_one_shot_bufferize_with_options(
             pm, allow_return_allocs_from_loops=True)
@@ -103,8 +109,12 @@ def _ttsharedir_to_llir(ttsharedir: str):
         triton_shared.to_llir.add_finalize_memref_to_llvm(pm)
         triton_shared.to_llir.add_convert_func_to_llvm(pm)
         triton_shared.to_llir.add_convert_cf_to_llvm(pm)
+        # Lowering memrefs creates more affine.apply ops.
+        # Lowering these affine ops again creates further arith ops,
+        # so we have to run these two passes again here.
         triton_shared.to_llir.add_lower_affine(pm)
         triton_shared.to_llir.add_convert_arith_to_llvm(pm)
+        # Remove all unrealized casts created
         triton_shared.to_llir.add_reconcile_unrealized_casts(pm)
         pm.run(mod)
 

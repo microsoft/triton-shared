@@ -53,11 +53,10 @@ if(TRITON_SHARED_BUILD_CPU_BACKEND)
 
         Python3::Module
         pybind11::headers
-        ${Python3_LIBRARIES}
     )
 endif()
 
-# Add symlinks to selected pytest files and the clang-format setting in triton. The tests are imported into triton-shared’s test folder to 
+# Add symlinks to selected pytest files and the clang-format setting in triton. The tests are imported into triton-shared’s test folder to
 # run under triton-shared's conftest configuration, and the clang-format link ensures consistent code style enforcement across both repositories.
 cmake_path(APPEND CMAKE_CURRENT_SOURCE_DIR "python" "examples" "test_core.py" OUTPUT_VARIABLE TRITON_SHARED_TEST_CORE)
 cmake_path(APPEND CMAKE_CURRENT_SOURCE_DIR "python" "examples" "test_annotations.py" OUTPUT_VARIABLE TRITON_SHARED_TEST_ANNOTATIONS)

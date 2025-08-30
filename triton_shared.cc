@@ -56,7 +56,7 @@ namespace py = pybind11;
 #include "mlir/Target/LLVMIR/Dialect/LLVMIR/LLVMToLLVMIRTranslation.h"
 
 // LLVM: Debug
-#include "llvm/Support/Debug.h"  // Key header file
+#include "llvm/Support/Debug.h" // Key header file
 
 // MLIR: Top-level Transforms
 #include "mlir/Transforms/Passes.h"
@@ -69,17 +69,17 @@ namespace py = pybind11;
 #include "triton/Dialect/TritonGPU/IR/Dialect.h"
 #include "triton/Dialect/TritonInstrument/IR/Dialect.h"
 
-#define ADD_PASS_WRAPPER_0(name, builder) \
+#define ADD_PASS_WRAPPER_0(name, builder)                                      \
   m.def(name, [](mlir::PassManager &pm) { pm.addPass(builder()); })
 
-#define ADD_PASS_WRAPPER_1(name, builder, ty0) \
-  m.def(name, \
+#define ADD_PASS_WRAPPER_1(name, builder, ty0)                                 \
+  m.def(name,                                                                  \
         [](mlir::PassManager &pm, ty0 val0) { pm.addPass(builder(val0)); })
 
-#define ADD_PASS_WRAPPER_1_ARG(name, builder, ty0, arg0, val0) \
-  m.def( \
-      name, \
-      [](mlir::PassManager &pm, ty0 arg0) { pm.addPass(builder(val0)); }, \
+#define ADD_PASS_WRAPPER_1_ARG(name, builder, ty0, arg0, val0)                 \
+  m.def(                                                                       \
+      name,                                                                    \
+      [](mlir::PassManager &pm, ty0 arg0) { pm.addPass(builder(val0)); },      \
       py::arg("pm"), py::arg(#arg0) = val0);
 
 // Function to set MLIR/LLVM debug type
@@ -91,7 +91,8 @@ void enable_mlir_debug(const std::string &debug_type) {
 void init_to_llvm(py::module &&m) {
   using namespace mlir;
 
-  // Note: Linalg conversions may not be available in this MLIR version
+  ADD_PASS_WRAPPER_0("add_eliminate_empty_tensors",
+                     bufferization::createEmptyTensorEliminationPass);
   ADD_PASS_WRAPPER_0("add_convert_linalg_to_affine_loops",
                      createConvertLinalgToAffineLoopsPass);
   ADD_PASS_WRAPPER_0("add_empty_tensor_to_alloc_tensor",
@@ -143,18 +144,12 @@ void init_triton_shared_ir(py::module &&m) {
         // ::mlir::triton::gpu::TritonGPUDialect,
         // ::mlir::triton::instrument::TritonInstrumentDialect,
         ::mlir::linalg::LinalgDialect,
-        ::mlir::bufferization::BufferizationDialect,
-        ::mlir::tptr::TPtrDialect,
-        ::mlir::math::MathDialect,
-        ::mlir::memref::MemRefDialect,
-        ::mlir::arith::ArithDialect,
-        ::mlir::scf::SCFDialect,
-        ::mlir::vector::VectorDialect,
-        ::mlir::cf::ControlFlowDialect,
-        ::mlir::triton::proton::ProtonDialect,
-        ::mlir::LLVM::LLVMDialect,
-        ::mlir::ub::UBDialect,
-        ::mlir::func::FuncDialect>();
+        ::mlir::bufferization::BufferizationDialect, ::mlir::tptr::TPtrDialect,
+        ::mlir::math::MathDialect, ::mlir::memref::MemRefDialect,
+        ::mlir::arith::ArithDialect, ::mlir::scf::SCFDialect,
+        ::mlir::vector::VectorDialect, ::mlir::cf::ControlFlowDialect,
+        ::mlir::triton::proton::ProtonDialect, ::mlir::LLVM::LLVMDialect,
+        ::mlir::ub::UBDialect, ::mlir::func::FuncDialect>();
 
     // Register interfaces and translations
     // ::mlir::registerAllDialects(registry);

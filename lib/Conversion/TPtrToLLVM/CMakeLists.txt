@@ -11,7 +11,6 @@ add_triton_library(TPtrToLLVM
   MLIRPass
   MLIRTransforms
   MLIRSupport
-  MLIRReconcileUnrealizedCasts
-  TPtrIR
   MLIRDialectUtils
+  TPtrIR
 )

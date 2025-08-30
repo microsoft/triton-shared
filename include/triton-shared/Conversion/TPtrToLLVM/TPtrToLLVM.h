@@ -11,6 +11,7 @@ namespace tptr {
 
 #define GEN_PASS_DECL
 #include "triton-shared/Conversion/TPtrToLLVM/Passes.h.inc"
+
 void populateTPtrToLLVMConversionPatterns(RewritePatternSet &patterns,
                                           TypeConverter &typeconverter);
 
