@@ -105,9 +105,9 @@ static MemRefType getResultMemrefType(tts::MakeGatherScatterTensorPtrOp op,
 // If there are dimensions with size 1 and stride 0, replace 0 stride with
 // the product of sizes of all lower dimensions. This avoids creating memref
 // with zero stride.
-template<class OpType>
-llvm::SmallVector<OpFoldResult>
-getMixedStridesForMemref(OpType op, OpBuilder &b) {
+template <class OpType>
+llvm::SmallVector<OpFoldResult> getMixedStridesForMemref(OpType op,
+                                                         OpBuilder &b) {
   llvm::SmallVector<OpFoldResult> strides;
   auto accumulate = 1;
   for (auto [size, stride] :
@@ -140,10 +140,9 @@ static OpFoldResult accumulateTargetOffset(Location loc,
 static OpFoldResult accumulateTargetOffset(Location loc,
                                            ArrayRef<OpFoldResult> offsets,
                                            ArrayRef<OpFoldResult> strides,
-                                           int gatherDim,
-                                           OpBuilder &b) {
+                                           int gatherDim, OpBuilder &b) {
   OpFoldResult targetOffset = b.getIndexAttr(0);
-  for (int i=0;i<offsets.size();i++) {
+  for (int i = 0; i < offsets.size(); i++) {
 
     OpFoldResult offset = offsets[i];
     // If this is the gather dimension, multiply the offset by the stride.
@@ -170,8 +169,8 @@ static Value rewriteGatherScatterPtrElement(
 
   auto offsets = op.getMixedOffsets();
   offsets[gatherDim] = gatherOffsetElt;
-  auto targetOffset =
-      accumulateTargetOffset(op.getLoc(), offsets, mixedStrides, gatherDim, rewriter);
+  auto targetOffset = accumulateTargetOffset(op.getLoc(), offsets, mixedStrides,
+                                             gatherDim, rewriter);
 
   auto staticTargetOffset = getIntAttr(targetOffset);
   auto resultType =
@@ -831,8 +830,8 @@ private:
   }
 
   LogicalResult rewriteGather(tts::MakeGatherScatterTensorPtrOp ptr,
-                                  tts::LoadOp op, Value memRefPtr,
-                                  ConversionPatternRewriter &rewriter) const {
+                              tts::LoadOp op, Value memRefPtr,
+                              ConversionPatternRewriter &rewriter) const {
     auto loc = op.getLoc();
 
     Value gatherOffset = ptr.getGatherScatterOffset();
@@ -871,7 +870,8 @@ private:
 
     // Create loop to iterate every offset in gatherOffset.
     auto lowerBound = rewriter.create<arith::ConstantIndexOp>(loc, 0);
-    Value upperBound = rewriter.create<arith::ConstantIndexOp>(loc, offsetSize).getResult();
+    Value upperBound =
+        rewriter.create<arith::ConstantIndexOp>(loc, offsetSize).getResult();
     if (op.hasMask()) {
       SmallVector<OpFoldResult> mixedDims = op.getMixedMaskDims();
       OpFoldResult gatherMaskDim = mixedDims[gatherDim];
@@ -883,15 +883,18 @@ private:
         // If the gather mask dimension is a constant, we can use it directly.
         unsigned gatherMaskDimValue = gatherMaskDimIndex.value();
         offsetSize = std::min(offsetSize, gatherMaskDimValue);
-        upperBound = rewriter.create<arith::ConstantIndexOp>(loc, offsetSize).getResult();
+        upperBound = rewriter.create<arith::ConstantIndexOp>(loc, offsetSize)
+                         .getResult();
       } else {
         // Use arith::MinSIOp to get the minimum value of gatherMaskDim
         // and offsetSize.
         auto gatherMaskDimVal = cast<Value>(gatherMaskDim);
         auto offsetSizeVal =
             rewriter.create<arith::ConstantIndexOp>(loc, offsetSize);
-        upperBound = rewriter.create<arith::MinSIOp>(loc, gatherMaskDimVal,
-                                                     offsetSizeVal).getResult();
+        upperBound =
+            rewriter
+                .create<arith::MinSIOp>(loc, gatherMaskDimVal, offsetSizeVal)
+                .getResult();
       }
     }
     auto step = rewriter.create<arith::ConstantIndexOp>(loc, 1);
@@ -991,9 +994,8 @@ private:
   }
 
   LogicalResult rewriteScatter(tts::MakeGatherScatterTensorPtrOp ptr,
-                                   tts::StoreOp op, Value memRefPtr,
-                                   Value stVal,
-                                   ConversionPatternRewriter &rewriter) const {
+                               tts::StoreOp op, Value memRefPtr, Value stVal,
+                               ConversionPatternRewriter &rewriter) const {
     auto loc = op.getLoc();
 
     Value gatherOffset = ptr.getGatherScatterOffset();
@@ -1018,7 +1020,8 @@ private:
 
     // Create loop to iterate every offset in gatherOffset.
     auto lowerBound = rewriter.create<arith::ConstantIndexOp>(loc, 0);
-    Value upperBound = rewriter.create<arith::ConstantIndexOp>(loc, offsetSize).getResult();
+    Value upperBound =
+        rewriter.create<arith::ConstantIndexOp>(loc, offsetSize).getResult();
     if (op.hasMask()) {
       SmallVector<OpFoldResult> mixedDims = op.getMixedMaskDims();
       OpFoldResult gatherMaskDim = mixedDims[gatherDim];
@@ -1030,15 +1033,18 @@ private:
         // If the gather mask dimension is a constant, we can use it directly.
         unsigned gatherMaskDimValue = gatherMaskDimIndex.value();
         offsetSize = std::min(offsetSize, gatherMaskDimValue);
-        upperBound = rewriter.create<arith::ConstantIndexOp>(loc, offsetSize).getResult();
+        upperBound = rewriter.create<arith::ConstantIndexOp>(loc, offsetSize)
+                         .getResult();
       } else {
         // Use arith::MinSIOp to get the minimum value of gatherMaskDim
         // and offsetSize.
         auto gatherMaskDimVal = cast<Value>(gatherMaskDim);
         auto offsetSizeVal =
             rewriter.create<arith::ConstantIndexOp>(loc, offsetSize);
-        upperBound = rewriter.create<arith::MinSIOp>(loc, gatherMaskDimVal,
-                                                     offsetSizeVal).getResult();
+        upperBound =
+            rewriter
+                .create<arith::MinSIOp>(loc, gatherMaskDimVal, offsetSizeVal)
+                .getResult();
       }
     }
     auto step = rewriter.create<arith::ConstantIndexOp>(loc, 1);
@@ -1110,8 +1116,7 @@ public:
     if (auto gatherScatterPtr =
             op.getPtr().getDefiningOp<tts::MakeGatherScatterTensorPtrOp>()) {
       return rewriteScatter(gatherScatterPtr, op, adaptor.getPtr(),
-      adaptor.getValue(),
-                               rewriter);
+                            adaptor.getValue(), rewriter);
     }
 
     auto ptr = adaptor.getPtr();

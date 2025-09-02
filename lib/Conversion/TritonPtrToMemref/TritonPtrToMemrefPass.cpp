@@ -60,8 +60,7 @@ public:
     });
 
     auto createUnrealizedCast = [&](OpBuilder &builder, Type resultType,
-                                    ValueRange inputs,
-                                    Location loc) -> Value {
+                                    ValueRange inputs, Location loc) -> Value {
       return builder.create<UnrealizedConversionCastOp>(loc, resultType, inputs)
           .getResult(0);
     };

@@ -1,0 +1,27 @@
+name: clang-format
+
+on:
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  clang-format:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.12"]
+    steps:
+    - uses: actions/checkout@v4
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v2
+      with:
+        python-version: ${{ matrix.python-version }}
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install clang-format==20.1.8 ripgrep
+    - name: Running clang-format
+      run: |
+        rg . --type cpp --type c --files-with-matches \
+            | xargs clang-format --dry-run --Werror

@@ -132,10 +132,11 @@ void MakeTensorPtrOp::build(OpBuilder &b, OperationState &state, Value base,
 }
 
 void MakeGatherScatterTensorPtrOp::build(OpBuilder &b, OperationState &state,
-                                    Value base, Value gatherScatterOffset,
-                                    int gatherScatterDim, ArrayRef<int64_t> sizes,
-                                    ArrayRef<OpFoldResult> strides,
-                                    ArrayRef<OpFoldResult> offsets) {
+                                         Value base, Value gatherScatterOffset,
+                                         int gatherScatterDim,
+                                         ArrayRef<int64_t> sizes,
+                                         ArrayRef<OpFoldResult> strides,
+                                         ArrayRef<OpFoldResult> offsets) {
   SmallVector<int64_t> staticStrides, staticOffsets;
   SmallVector<Value> dynamicStrides, dynamicOffsets;
   for (auto [i, offset] : llvm::enumerate(offsets)) {
