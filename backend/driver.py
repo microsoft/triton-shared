@@ -54,6 +54,10 @@ def _ty_to_cpp(ty):
         "u16": "uint16_t",
         "u32": "uint32_t",
         "u64": "uint64_t",
+        # Proper support for bfloat16 and float16 is not yet handled.
+        # https://github.com/microsoft/triton-shared/issues/348
+        # "fp16": "TODO",
+        # "bf16": "TODO",
         "fp32": "float",
         "f32": "float",
         "fp64": "double",
