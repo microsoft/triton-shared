@@ -1,6 +1,8 @@
 // RUN: triton-shared-opt --triton-to-structured --remove-dead-values --cse --canonicalize %s | FileCheck %s
 
 // Make sure make_gather_scatter_tptr with generic mask generate correctly from structured ptr with unstructured mask.
+// The load is structured ptr, with unstructured mask on dim 1.
+// The store is structured ptr, with unstructured mask on dim 2.
 
 // CHECK-LABEL:   tt.func public @generic_mask_3d_kernel(
 // CHECK-SAME:                                           %[[VAL_0:[0-9]+|[a-zA-Z$._-][a-zA-Z0-9$._-]*]]: !tt.ptr<f32> {tt.divisibility = 16 : i32},

@@ -53,22 +53,23 @@ static Value applyUnstructuredMask(Operation *op, Value ptr,
   }
 
   auto [dim, unstructuredMask] = masks[0];
-  if (auto scatterPtr =
+  if (auto gatherScatterPtr =
           ptr.getDefiningOp<tts::MakeGatherScatterTensorPtrOp>()) {
-    if (dim != scatterPtr.getGatherScatterDim()) {
+    if (dim != gatherScatterPtr.getGatherScatterDim()) {
       op->emitRemark("MaskAnalysis failed for unstructured mask dim not equal "
                      "gather scatter dim");
       return nullptr;
     }
 
-    ptr = builder
-              .create<tts::MakeGatherScatterTensorPtrOp>(
-                  loc, scatterPtr.getBase(),
-                  scatterPtr.getGatherScatterOffset(), unstructuredMask,
-                  scatterPtr.getGatherScatterDim(), scatterPtr.getSizes(),
-                  scatterPtr.getMixedStrides(), scatterPtr.getMixedOffsets())
-              .getResult();
-
+    ptr =
+        builder
+            .create<tts::MakeGatherScatterTensorPtrOp>(
+                loc, gatherScatterPtr.getBase(),
+                gatherScatterPtr.getGatherScatterOffset(), unstructuredMask,
+                gatherScatterPtr.getGatherScatterDim(),
+                gatherScatterPtr.getSizes(), gatherScatterPtr.getMixedStrides(),
+                gatherScatterPtr.getMixedOffsets())
+            .getResult();
   } else if (auto structuredPtr = ptr.getDefiningOp<tts::MakeTensorPtrOp>()) {
     auto ofrToI32Value = [&](OpFoldResult ofr) {
       Value v = dyn_cast<Value>(ofr);

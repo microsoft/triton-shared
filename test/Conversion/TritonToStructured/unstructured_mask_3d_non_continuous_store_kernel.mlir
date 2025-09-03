@@ -1,6 +1,7 @@
 // RUN: triton-shared-opt --triton-to-structured --remove-dead-values --cse --canonicalize %s | FileCheck %s
 
 // Make sure make_gather_scatter_tptr with generic mask generate correctly from column-structured ptr with unstructured mask.
+// The store is unstructured ptr on dim 2 and unstructured mask on dim 2.
 
 
 // CHECK-LABEL:   tt.func public @generic_mask_3d_non_continuous_store_kernel(
