@@ -3,6 +3,8 @@
 #include "mlir/Dialect/ControlFlow/IR/ControlFlowOps.h"
 #include "mlir/Dialect/LLVMIR/LLVMDialect.h"
 #include "mlir/Dialect/MemRef/IR/MemRef.h"
+#include "mlir/Dialect/Ptr/IR/PtrAttrs.h"
+#include "mlir/Dialect/Ptr/IR/PtrDialect.h"
 #include "mlir/IR/BuiltinDialect.h"
 #include "mlir/IR/BuiltinTypes.h"
 #include "mlir/IR/PatternMatch.h"
@@ -30,17 +32,8 @@ namespace tptr {
 namespace {
 
 struct TptrToLLVMTypeConverter : TypeConverter {
-  Type convertPtrPointerType(ptr::PtrType type) {
-    auto ctx = type.getContext();
-    return LLVM::LLVMPointerType::get(ctx);
-  }
-
   TptrToLLVMTypeConverter(MLIRContext *ctx) {
     addConversion([](Type type) -> Type { return type; });
-
-    addConversion([&](ptr::PtrType type) -> std::optional<Type> {
-      return convertPtrPointerType(type);
-    });
 
     addConversion([&](MemRefType type) -> std::optional<Type> {
       auto elementType = type.getElementType();
@@ -56,6 +49,35 @@ struct TptrToLLVMTypeConverter : TypeConverter {
           LLVM::LLVMArrayType::get(ctx, i64Ty, rank)}; // strides
 
       return LLVM::LLVMStructType::getLiteral(ctx, types);
+    });
+    addTypeAttributeConversion(
+        [&](PtrLikeTypeInterface type, ptr::GenericSpaceAttr memorySpace)
+            -> TypeConverter::AttributeConversionResult {
+          if (type.getMemorySpace() != memorySpace)
+            return TypeConverter::AttributeConversionResult::na();
+          return IntegerAttr::get(IntegerType::get(type.getContext(), 32), 0);
+        });
+    addTypeAttributeConversion(
+        [&](PtrLikeTypeInterface type, tptr::DefaultMemorySpaceAttr memorySpace)
+            -> TypeConverter::AttributeConversionResult {
+          if (type.getMemorySpace() != memorySpace)
+            return TypeConverter::AttributeConversionResult::na();
+          // Default memory space maps to LLVM addrspace(0).
+          return IntegerAttr::get(IntegerType::get(type.getContext(), 32), 0);
+        });
+
+    // Add type conversions.
+    addConversion([&](ptr::PtrType type) -> Type {
+      LDBG("MemorySpace " << type.getMemorySpace());
+      std::optional<Attribute> maybeAttr =
+          convertTypeAttribute(type, type.getMemorySpace());
+      auto memSpace =
+          maybeAttr ? dyn_cast_or_null<IntegerAttr>(*maybeAttr) : IntegerAttr();
+      if (!memSpace) {
+        return {};
+      }
+      return LLVM::LLVMPointerType::get(type.getContext(),
+                                        memSpace.getValue().getSExtValue());
     });
 
     auto createUnrealizedCast = [](OpBuilder &builder, Type resultType,

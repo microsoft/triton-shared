@@ -5,6 +5,8 @@
 #include "mlir/Dialect/LLVMIR/LLVMTypes.h"
 #include "mlir/Dialect/MemRef/IR/MemRef.h"
 #include "mlir/Dialect/Ptr/IR/PtrTypes.h"
+#include "mlir/IR/BuiltinAttributes.h"
+#include "mlir/IR/BuiltinOps.h"
 #include "mlir/IR/BuiltinTypes.h"
 #include "mlir/IR/PatternMatch.h"
 #include "mlir/IR/Value.h"
@@ -25,7 +27,6 @@ namespace tptr {
 static bool isOneToOneCast(UnrealizedConversionCastOp op) {
   return (op.getInputs().size() == 1 && op->getNumResults() == 1);
 }
-
 
 // PtrAddOp -> llvm.getelementptr conversion
 struct PtrAddConverter : OpConversionPattern<tptr::PtrAddOp> {
@@ -109,8 +110,10 @@ struct ToMemrefConverter : OpConversionPattern<tptr::ToMemrefOp> {
       }
     }
 
-    Type targetType = getTypeConverter()->convertType(cast<MemRefType>(op.getType()));
-    LDBG("matchAndRewrite: to_memref (typeconverted) " <<  cast<MemRefType>(op.getType()) << " -> " << targetType);
+    Type targetType =
+        getTypeConverter()->convertType(cast<MemRefType>(op.getType()));
+    LDBG("matchAndRewrite: to_memref (typeconverted) "
+         << cast<MemRefType>(op.getType()) << " -> " << targetType);
     if (!targetType) {
       return rewriter.notifyMatchFailure(op, "failed to convert memref type");
     }
@@ -166,14 +169,10 @@ struct FromMemrefConverter : OpConversionPattern<tptr::FromMemrefOp> {
     LDBG("matchAndRewrite: from_memref (before) " << op);
 
     Value input = adaptor.getInput();
+    // 期望此处的输入已通过 TypeConverter 转换为目标 LLVM 结构体类型
     if (isa<MemRefType>(input.getType())) {
-      input = rewriter
-                  .create<UnrealizedConversionCastOp>(
-                      op.getLoc(),
-                      getTypeConverter()->convertType(
-                          cast<MemRefType>(input.getType())),
-                      input)
-                  .getResult(0);
+      return rewriter.notifyMatchFailure(op,
+                                         "expected converted memref descriptor");
     }
 
     // Extract base_ptr (index 0)
@@ -210,7 +209,8 @@ struct UnrealizedCastConverter
     }
 
     if (isa<ptr::PtrType>(outputType) ||
-        (isa<LLVM::LLVMPointerType>(inputType) && isa<MemRefType>(outputType))) {
+        (isa<LLVM::LLVMPointerType>(inputType) &&
+         isa<MemRefType>(outputType))) {
       LDBG("UnrealizedCast (reject): unsafe pointer conversion " << op);
       return rewriter.notifyMatchFailure(op, "unsafe pointer conversion");
     }
@@ -292,9 +292,8 @@ struct ConvertBranchOp : OpConversionPattern<cf::BranchOp> {
       return failure();
     }
 
-    auto newOp =
-        rewriter.replaceOpWithNewOp<cf::BranchOp>(op, op.getDest(),
-                                                  adaptor.getDestOperands());
+    auto newOp = rewriter.replaceOpWithNewOp<cf::BranchOp>(
+        op, op.getDest(), adaptor.getDestOperands());
     LDBG("matchAndRewrite: cf.br (after) -> " << newOp);
     return success();
   }
@@ -341,12 +340,44 @@ struct MemRefAllocConverter : OpConversionPattern<memref::AllocOp> {
       totalElements *= dim;
     }
 
-    // For now, use alloca instead of malloc to avoid complex call setup
-    Value totalSize = rewriter.create<LLVM::ConstantOp>(
+    // Compute total allocation size in bytes = numElements * sizeof(element)
+    Value numElementsVal = rewriter.create<LLVM::ConstantOp>(
         loc, i64Ty, rewriter.getIntegerAttr(i64Ty, totalElements));
 
-    Value allocatedPtr = rewriter.create<LLVM::AllocaOp>(
-        loc, ptrTy, ptrTy, totalSize, /*alignment=*/0);
+    // Query pointer size from DataLayout
+    DataLayout dl = DataLayout::closest(op);
+    auto ptrSize = dl.getTypeSize(ptrTy);
+    if (ptrSize.isScalable()) {
+      return rewriter.notifyMatchFailure(op,
+                                         "scalable pointer size unsupported");
+    }
+    auto fixedPtrSize = static_cast<int64_t>(ptrSize.getFixedValue());
+    Value ptrSizeVal = rewriter.create<LLVM::ConstantOp>(
+        loc, i64Ty, rewriter.getIntegerAttr(i64Ty, fixedPtrSize));
+
+    Value totalBytes =
+        rewriter.create<LLVM::MulOp>(loc, numElementsVal, ptrSizeVal);
+
+    // Declare or lookup malloc: ptr (i64)
+    ModuleOp module = op->getParentOfType<ModuleOp>();
+    auto mallocName = StringRef("malloc");
+    LLVM::LLVMFuncOp mallocFunc =
+        module.lookupSymbol<LLVM::LLVMFuncOp>(mallocName);
+    if (!mallocFunc) {
+      OpBuilder::InsertionGuard guard(rewriter);
+      rewriter.setInsertionPointToStart(module.getBody());
+      auto mallocType =
+          LLVM::LLVMFunctionType::get(ptrTy, {i64Ty}, /*isVarArg=*/false);
+      mallocFunc =
+          rewriter.create<LLVM::LLVMFuncOp>(loc, mallocName, mallocType);
+    }
+
+    auto mallocCallee = SymbolRefAttr::get(mallocFunc);
+    Value allocatedPtr =
+        rewriter
+            .create<LLVM::CallOp>(loc, TypeRange{ptrTy}, mallocCallee,
+                                  ValueRange{totalBytes})
+            .getResult();
 
     // Build memref descriptor struct
     Value result = rewriter.create<LLVM::UndefOp>(loc, llvmStructType);
@@ -407,10 +438,13 @@ struct MemRefStoreConverter : OpConversionPattern<memref::StoreOp> {
       auto ptrTy = LLVM::LLVMPointerType::get(ctx);
       auto i64Ty = rewriter.getIntegerType(64);
 
-      // Extract base pointer from memref descriptor (index 0)
+      // Extract aligned pointer and offset from memref descriptor
+      // aligned_ptr at index 1, offset at index 2
       Value memrefDescriptor = adaptor.getMemref();
-      Value basePtr = rewriter.create<LLVM::ExtractValueOp>(
-          loc, ptrTy, memrefDescriptor, rewriter.getDenseI64ArrayAttr({0}));
+      Value alignedPtr = rewriter.create<LLVM::ExtractValueOp>(
+          loc, ptrTy, memrefDescriptor, rewriter.getDenseI64ArrayAttr({1}));
+      Value baseOffset = rewriter.create<LLVM::ExtractValueOp>(
+          loc, i64Ty, memrefDescriptor, rewriter.getDenseI64ArrayAttr({2}));
 
       // Calculate linear index from multi-dimensional indices
       Value linearIndex = nullptr;
@@ -425,11 +459,10 @@ struct MemRefStoreConverter : OpConversionPattern<memref::StoreOp> {
                     .getResult(0);
           }
         }
-        linearIndex = index;
+        linearIndex = rewriter.create<LLVM::AddOp>(loc, baseOffset, index);
       } else {
         // Multi-dimensional: linearIndex = i0*stride0 + i1*stride1 + ...
-        linearIndex = rewriter.create<LLVM::ConstantOp>(
-            loc, i64Ty, rewriter.getIntegerAttr(i64Ty, 0));
+        linearIndex = baseOffset;
 
         for (auto [i, index] : llvm::enumerate(adaptor.getIndices())) {
           // Convert index to i64 if needed
@@ -453,8 +486,8 @@ struct MemRefStoreConverter : OpConversionPattern<memref::StoreOp> {
       }
 
       // GEP to get the address of the element
-      Value elementPtr =
-          rewriter.create<LLVM::GEPOp>(loc, ptrTy, ptrTy, basePtr, linearIndex);
+      Value elementPtr = rewriter.create<LLVM::GEPOp>(loc, ptrTy, ptrTy,
+                                                      alignedPtr, linearIndex);
 
       // Store the value
       auto storeOp =
@@ -497,16 +530,24 @@ struct MemRefLoadConverter : OpConversionPattern<memref::LoadOp> {
       auto ptrTy = LLVM::LLVMPointerType::get(ctx);
       auto i64Ty = rewriter.getIntegerType(64);
 
-      // Extract base pointer from memref descriptor (index 0)
+      // Extract aligned pointer and offset from memref descriptor
+      // aligned_ptr at index 1, offset at index 2
       Value memrefDescriptor = adaptor.getMemref();
-      Value basePtr = rewriter.create<LLVM::ExtractValueOp>(
-          loc, ptrTy, memrefDescriptor, rewriter.getDenseI64ArrayAttr({0}));
-
+      LDBG("memrefDescriptor " << memrefDescriptor);
+      Value alignedPtr = rewriter.create<LLVM::ExtractValueOp>(
+          loc, ptrTy, memrefDescriptor, rewriter.getDenseI64ArrayAttr({1}));
+      LDBG("basePtr " << rewriter.create<LLVM::ExtractValueOp>(
+          loc, ptrTy, memrefDescriptor, rewriter.getDenseI64ArrayAttr({0})));
+      LDBG("alignedPtr " << alignedPtr);
+      Value baseOffset = rewriter.create<LLVM::ExtractValueOp>(
+          loc, i64Ty, memrefDescriptor, rewriter.getDenseI64ArrayAttr({2}));
+      LDBG("baseOffset " << baseOffset);
       // Calculate linear index from multi-dimensional indices
       Value linearIndex = nullptr;
       if (adaptor.getIndices().size() == 1) {
         // Single dimension case
         Value index = adaptor.getIndices()[0];
+        LDBG("if index " << index);
         // Convert index to i64 if needed
         if (index.getType() != i64Ty) {
           if (isa<IndexType>(index.getType())) {
@@ -515,11 +556,11 @@ struct MemRefLoadConverter : OpConversionPattern<memref::LoadOp> {
                     .getResult(0);
           }
         }
-        linearIndex = index;
+        linearIndex = rewriter.create<LLVM::AddOp>(loc, baseOffset, index);
       } else {
         // Multi-dimensional: linearIndex = i0*stride0 + i1*stride1 + ...
-        linearIndex = rewriter.create<LLVM::ConstantOp>(
-            loc, i64Ty, rewriter.getIntegerAttr(i64Ty, 0));
+        linearIndex = baseOffset;
+        LDBG("else index " << linearIndex);
 
         for (auto [i, index] : llvm::enumerate(adaptor.getIndices())) {
           // Convert index to i64 if needed
@@ -543,8 +584,8 @@ struct MemRefLoadConverter : OpConversionPattern<memref::LoadOp> {
       }
 
       // GEP to get the address of the element
-      Value elementPtr =
-          rewriter.create<LLVM::GEPOp>(loc, ptrTy, ptrTy, basePtr, linearIndex);
+      Value elementPtr = rewriter.create<LLVM::GEPOp>(loc, ptrTy, ptrTy,
+                                                      alignedPtr, linearIndex);
 
       // Load the value
       Value loadedValue =
