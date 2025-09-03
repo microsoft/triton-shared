@@ -157,7 +157,143 @@ void MakeGatherScatterTensorPtrOp::build(OpBuilder &b, OperationState &state,
   build(b, state, resType, base, gatherScatterOffset,
         b.getI32IntegerAttr(gatherScatterDim), b.getDenseI64ArrayAttr(sizes),
         dynamicStrides, dynamicOffsets, b.getDenseI64ArrayAttr(staticStrides),
-        b.getDenseI64ArrayAttr(staticOffsets));
+        b.getDenseI64ArrayAttr(staticOffsets), Value());
+}
+
+void MakeGatherScatterTensorPtrOp::build(
+    OpBuilder &b, OperationState &state, Value base, Value gatherScatterOffset,
+    Value gatherScatterMask, int gatherScatterDim, ArrayRef<int64_t> sizes,
+    ArrayRef<OpFoldResult> strides, ArrayRef<OpFoldResult> offsets) {
+  SmallVector<int64_t> staticStrides, staticOffsets;
+  SmallVector<Value> dynamicStrides, dynamicOffsets;
+  for (auto [i, offset] : llvm::enumerate(offsets)) {
+    if (i != gatherScatterDim)
+      dispatchIndexOpFoldResult(offset, dynamicOffsets, staticOffsets);
+    else
+      staticOffsets.push_back(0);
+  }
+  dispatchIndexOpFoldResults(strides, dynamicStrides, staticStrides);
+
+  Type resType;
+  auto basePtr = cast<triton::PointerType>(base.getType());
+  auto elemType = basePtr.getPointeeType();
+
+  if (gatherScatterOffset.getType().isIntOrIndex()) {
+    assert(sizes.size() == 1 && sizes[0] == 1 &&
+           "gatherScatterOffset should be a scalar for 1D gather/scatter");
+    resType = triton::PointerType::get(elemType, basePtr.getAddressSpace());
+
+  } else {
+    resType = triton::PointerType::get(RankedTensorType::get(sizes, elemType),
+                                       basePtr.getAddressSpace());
+  }
+
+  build(b, state, resType, base, gatherScatterOffset,
+        b.getI32IntegerAttr(gatherScatterDim), b.getDenseI64ArrayAttr(sizes),
+        dynamicStrides, dynamicOffsets, b.getDenseI64ArrayAttr(staticStrides),
+        b.getDenseI64ArrayAttr(staticOffsets), gatherScatterMask);
+}
+
+LogicalResult MakeGatherScatterTensorPtrOp::verify() {
+  // Verify that the gatherScatterDim is within the valid range.
+  if (getGatherScatterDim() < 0 || getGatherScatterDim() >= getSizes().size()) {
+    return emitError("gatherScatterDim is out of bounds");
+  }
+
+  // Verify that the sizes, strides, and offsets have compatible dimensions.
+  if (getMixedSizes().size() != getMixedStrides().size() ||
+      getMixedSizes().size() != getMixedOffsets().size()) {
+    return emitError(
+        "sizes, strides, and offsets must have the same number of dimensions");
+  }
+
+  Type offsetType = getGatherScatterOffset().getType();
+  int64_t offsetSize = 0;
+  Type offsetEltType = offsetType;
+  // Verify that the gatherScatterOffset is a 1D tensor.
+  auto rankedTensorType = dyn_cast<RankedTensorType>(offsetType);
+  if (!rankedTensorType) {
+    return emitError("gatherScatterOffset must be a 1D tensor");
+  }
+  if (rankedTensorType.getRank() != 1) {
+    return emitError("gatherScatterOffset must be a 1D tensor");
+  }
+  offsetSize = rankedTensorType.getShape()[0];
+  offsetEltType = rankedTensorType.getElementType();
+
+  if (!offsetEltType.isIntOrIndex()) {
+    return emitError("gatherScatterOffset must be a 1D tensor of "
+                     "int or index type");
+  }
+
+  // Verify that the gatherScatterMask, if provided, is a 1D tensor.
+  if (getGatherScatterMask()) {
+    Type maskType = getGatherScatterMask().getType();
+    Type maskEltType = maskType;
+    auto rankedTensorType = dyn_cast<RankedTensorType>(maskType);
+    if (!rankedTensorType) {
+      return emitError("gatherScatterMask must be a 1D tensor");
+    }
+    if (rankedTensorType.getRank() != 1) {
+      return emitError("gatherScatterMask must be a 1D tensor of boolean type");
+    }
+    // Verify that the gatherScatterMask has the same size as the
+    // gatherScatterOffset.
+    if (rankedTensorType.getShape()[0] != offsetSize) {
+      return emitError(
+          "gatherScatterMask must have the same size as gatherScatterOffset");
+    }
+    maskEltType = rankedTensorType.getElementType();
+    if (!maskEltType.isInteger(1)) {
+      return emitError("gatherScatterMask must be a 1D tensor of boolean type");
+    }
+  }
+
+  // Verify that when gatherScatterMask is provided, all the user of
+  // MakeGatherScatterTensorPtrOp must have mask with size of 0.
+  if (getGatherScatterMask()) {
+    for (auto user : (*this)->getUsers()) {
+      if (auto loadOp = dyn_cast<LoadOp>(user)) {
+        if (loadOp.hasMask()) {
+          OpFoldResult MaskedSize =
+              loadOp.getMixedMaskDims()[getGatherScatterDim()];
+          auto intAttr =
+              dyn_cast_if_present<IntegerAttr>(dyn_cast<Attribute>(MaskedSize));
+          if (!intAttr || intAttr.getInt() != 0) {
+            return emitError("tts.load user of tts.make_gather_scatter_tptr "
+                             "with gather_scatter_mask must have "
+                             "mask size of 0 for gather_scatter_dim");
+          }
+        } else {
+          return emitError("tts.load user of tts.make_gather_scatter_tptr with "
+                           "gather_scatter_mask must have "
+                           "mask provided");
+        }
+      } else if (auto storeOp = dyn_cast<StoreOp>(user)) {
+        if (storeOp.hasMask()) {
+          OpFoldResult MaskedSize =
+              storeOp.getMixedMaskDims()[getGatherScatterDim()];
+          auto intAttr =
+              dyn_cast_if_present<IntegerAttr>(dyn_cast<Attribute>(MaskedSize));
+          if (!intAttr || intAttr.getInt() != 0) {
+            return emitError("tts.store user of tts.make_gather_scatter_tptr "
+                             "with gather_scatter_mask must have "
+                             "mask size of 0 for gather_scatter_dim");
+          }
+        } else {
+          return emitError(
+              "tts.store user of tts.make_gather_scatter_tptr with "
+              "gather_scatter_mask must have "
+              "mask provided");
+        }
+      } else {
+        return emitError("tts.make_gather_scatter_tptr can only be used in "
+                         "tts.load or tts.store operations");
+      }
+    }
+  }
+
+  return success();
 }
 
 void LoadOp::build(OpBuilder &b, OperationState &state, Value ptr,
