@@ -1,20 +1,20 @@
 #include "llvm/Passes/PassBuilder.h"
 #include "llvm/Passes/PassPlugin.h"
-#include "llvm/Support/raw_ostream.h"
 #include "llvm/Support/CommandLine.h"
+#include "llvm/Support/raw_ostream.h"
 
 using namespace llvm;
 
 namespace opts {
 
 // command line option for the type of sanitizer
-static cl::opt<std::string> SanitizerType(
-  "sanitizer-type", 
-  cl::desc("Type of sanitizer being used: AddressSanitizer = asan, ThreadSanitizer = tsan"),
-  cl::value_desc("string")
-);
+static cl::opt<std::string>
+    SanitizerType("sanitizer-type",
+                  cl::desc("Type of sanitizer being used: AddressSanitizer = "
+                           "asan, ThreadSanitizer = tsan"),
+                  cl::value_desc("string"));
 
-}
+} // namespace opts
 
 namespace {
 
@@ -26,7 +26,7 @@ struct SanitizerAttributes : PassInfoMixin<SanitizerAttributes> {
     } else if (opts::SanitizerType == "tsan") {
       F.addFnAttr(Attribute::SanitizeThread);
     }
-    
+
     // this pass modifies all function attributes
     return PreservedAnalyses::none();
   }

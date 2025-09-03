@@ -20,7 +20,6 @@ namespace triton {
 
 std::unique_ptr<OperationPass<ModuleOp>> createAddLLVMDebugInfoPass();
 
-
 } // namespace triton
 } // namespace mlir
 

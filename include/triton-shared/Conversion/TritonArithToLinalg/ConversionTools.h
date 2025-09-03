@@ -6,7 +6,8 @@
 namespace mlir {
 namespace triton {
 
-static inline SmallVector<utils::IteratorType> getNParallelLoopsAttrs(unsigned n) {
+static inline SmallVector<utils::IteratorType>
+getNParallelLoopsAttrs(unsigned n) {
   return SmallVector<utils::IteratorType>(n, utils::IteratorType::parallel);
 }
 

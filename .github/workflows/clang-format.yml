@@ -1,0 +1,23 @@
+name: clang-format
+
+on:
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  clang-format:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - name: Set up Python 3.12
+      uses: actions/setup-python@v2
+      with:
+        python-version: "3.12"
+    - name: Install dependencies
+      run: |
+        pip install clang-format==20.1.8 ripgrep==14.1.0
+    - name: Running clang-format
+      run: |
+        rg . --type cpp --type c --files-with-matches \
+            | xargs clang-format --dry-run --Werror

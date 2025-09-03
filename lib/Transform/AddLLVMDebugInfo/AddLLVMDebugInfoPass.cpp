@@ -33,7 +33,8 @@ class AddLLVMDebugInfoPass : public AddLLVMDebugInfoBase<AddLLVMDebugInfoPass> {
       subprogramFlags = subprogramFlags | LLVM::DISubprogramFlags::Optimized;
     }
     if (funcOp.getSymNameAttr() == "main") {
-      subprogramFlags = subprogramFlags | LLVM::DISubprogramFlags::MainSubprogram;
+      subprogramFlags =
+          subprogramFlags | LLVM::DISubprogramFlags::MainSubprogram;
     }
 
     return subprogramFlags;
@@ -63,35 +64,38 @@ public:
       Location loc = funcOp.getLoc();
       if (auto funcLoc = dyn_cast<FileLineColLoc>(loc)) {
         fileName = llvm::sys::path::filename(funcLoc.getFilename().getValue());
-        filePath = llvm::sys::path::parent_path(funcLoc.getFilename().getValue());
+        filePath =
+            llvm::sys::path::parent_path(funcLoc.getFilename().getValue());
         line = funcLoc.getLine();
         col = funcLoc.getColumn();
       } else {
-        // the triton frontend should always provide a FileLineColLoc for the kernel
-        // if this loc is a different type, error out
+        // the triton frontend should always provide a FileLineColLoc for the
+        // kernel if this loc is a different type, error out
         moduleOp->emitError("invalid #loc attributes for pass ")
             << this->getName().str();
         return signalPassFailure();
       }
 
       // initialize useful attributes
-      LLVM::DIFileAttr fileAttr = LLVM::DIFileAttr::get(context, fileName, filePath);
+      LLVM::DIFileAttr fileAttr =
+          LLVM::DIFileAttr::get(context, fileName, filePath);
       StringAttr producer = StringAttr::get(context, "MLIR");
       LLVM::DICompileUnitAttr cuAttr = LLVM::DICompileUnitAttr::get(
-        DistinctAttr::create(UnitAttr::get(context)),
-        llvm::dwarf::getLanguage("DW_LANG_Python"), fileAttr, producer,
-        isOptimized, emissionKind);
+          DistinctAttr::create(UnitAttr::get(context)),
+          llvm::dwarf::getLanguage("DW_LANG_Python"), fileAttr, producer,
+          isOptimized, emissionKind);
 
       // get subroutine types
       llvm::SmallVector<LLVM::DITypeAttr> types;
 
       // create subroutine type attribute from return and argument types
       unsigned callingConvention = llvm::dwarf::DW_CC_normal;
-      LLVM::DISubroutineTypeAttr type = LLVM::DISubroutineTypeAttr::get(context, callingConvention, types);
-      
+      LLVM::DISubroutineTypeAttr type =
+          LLVM::DISubroutineTypeAttr::get(context, callingConvention, types);
+
       // set flags
-      LLVM::DISubprogramFlags subprogramFlags = setSubprogramFlags(funcOp); 
-      
+      LLVM::DISubprogramFlags subprogramFlags = setSubprogramFlags(funcOp);
+
       // retained nodes
       llvm::ArrayRef<LLVM::DINodeAttr> importedModules;
 
@@ -100,21 +104,14 @@ public:
 
       // initialize DI attribute for function
       LLVM::DISubprogramAttr spAttr = LLVM::DISubprogramAttr::get(
-        context,
-        DistinctAttr::create(UnitAttr::get(context)),
-        cuAttr,
-        fileAttr, // scope
-        funcOp.getSymNameAttr(),
-        funcOp.getSymNameAttr(), // linkage name
-        fileAttr,
-        line,
-        col, // scope line
-        subprogramFlags,
-        type,
-        importedModules,
-        annotations
-      );
-      
+          context, DistinctAttr::create(UnitAttr::get(context)), cuAttr,
+          fileAttr, // scope
+          funcOp.getSymNameAttr(),
+          funcOp.getSymNameAttr(), // linkage name
+          fileAttr, line,
+          col, // scope line
+          subprogramFlags, type, importedModules, annotations);
+
       // annotate function
       funcOp->setLoc(builder.getFusedLoc({loc}, spAttr));
     });

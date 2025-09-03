@@ -8,10 +8,10 @@
 #ifndef TRITON_TO_LINALG_EXPERIMENTAL_CONVERSION_PASSES_H
 #define TRITON_TO_LINALG_EXPERIMENTAL_CONVERSION_PASSES_H
 
-#include "triton-shared/Conversion/TritonToLinalgExperimental/TritonToLinalgExperimental.h"
-#include "triton-shared/Conversion/TritonToLinalgExperimental/ReconcilePtrCasts.h"
-#include "triton-shared/Conversion/TritonToLinalgExperimental/TritonToPtr.h"
 #include "triton-shared/Conversion/TritonToLinalgExperimental/CollapseShape.h"
+#include "triton-shared/Conversion/TritonToLinalgExperimental/ReconcilePtrCasts.h"
+#include "triton-shared/Conversion/TritonToLinalgExperimental/TritonToLinalgExperimental.h"
+#include "triton-shared/Conversion/TritonToLinalgExperimental/TritonToPtr.h"
 
 namespace mlir {
 namespace triton {

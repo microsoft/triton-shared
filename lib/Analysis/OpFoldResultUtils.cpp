@@ -355,7 +355,8 @@ OpFoldResult selectOFRs(const OpFoldResult condOFR, const OpFoldResult trueOFR,
   auto trueValue = ofrToIndexValue(trueOFR, loc, b);
   auto falseValue = ofrToIndexValue(falseOFR, loc, b);
   auto condValue = ofrToValue(condOFR, loc, b);
-  assert(condValue.getType().isInteger(1) && "Condition for selectOp must be a bool type");
+  assert(condValue.getType().isInteger(1) &&
+         "Condition for selectOp must be a bool type");
 
   auto selectOp =
       b.create<arith::SelectOp>(loc, condValue, trueValue, falseValue);

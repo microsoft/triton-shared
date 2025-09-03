@@ -284,13 +284,13 @@ LogicalResult PtrState::addState(const PtrState &lhsState,
           }
 
           if (lhsStride == rhsStride) {
-            // For case like lhs_offset * stride + rhs_offset * stride, it is same as
-            // (lhs_offset + rhs_offset) * stride.
-            // We can just
-            // add the offsets and reuse the stride like this:
+            // For case like lhs_offset * stride + rhs_offset * stride, it is
+            // same as (lhs_offset + rhs_offset) * stride. We can just add the
+            // offsets and reuse the stride like this:
             //   offsets[i] = lhsOffset + rhsOffset
             //   strides[i] = lhsStride
-            // Expand structured offset since unstructured offset has tensor type.
+            // Expand structured offset since unstructured offset has tensor
+            // type.
             if (!lhsState.dimIsStructured(i)) {
               rhsOffset = expandOFRIndex(rhsOffset, lhsOffset, loc, builder);
             } else {
@@ -306,10 +306,9 @@ LogicalResult PtrState::addState(const PtrState &lhsState,
             // equal to 1 earlier for case both offsets and strides not equal.
             assert(lhsOffset == rhsOffset &&
                    "If strides are not equal, offsets must be equal");
-            // For case like offset * lhs_stride + offset * rhs_stride, it is same as
-            // offset * (lhs_stride + rhs_stride).
-            // We can just
-            // add the strides and reuse the offset like this:
+            // For case like offset * lhs_stride + offset * rhs_stride, it is
+            // same as offset * (lhs_stride + rhs_stride). We can just add the
+            // strides and reuse the offset like this:
             //   offsets[i] = lhsOffset
             //   strides[i] = lhsStride + rhsStride
 
