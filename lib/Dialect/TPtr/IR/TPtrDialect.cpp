@@ -29,64 +29,16 @@ void printIntType(OpAsmPrinter &p, Operation *op, Type ty) {
 //===----------------------------------------------------------------------===//
 // Dialect
 //===----------------------------------------------------------------------===//
-void mlir::tptr::TPtrDialect::registerTypes() {
-  addTypes<
-#define GET_TYPEDEF_LIST
-#include "triton-shared/Dialect/TPtr/IR/TPtrTypes.cpp.inc"
-      >();
-}
 
 /// Dialect creation, the instance will be owned by the context. This is the
 /// point of registration of custom types and operations for the dialect.
 void mlir::tptr::TPtrDialect::initialize() {
-  addAttributes<
-#define GET_ATTRDEF_LIST
-#include "triton-shared/Dialect/TPtr/IR/TPtrAttributes.cpp.inc"
-      >();
-  registerTypes();
   addOperations<
 #define GET_OP_LIST
 #include "triton-shared/Dialect/TPtr/IR/TPtrOps.cpp.inc"
       >();
 }
 
-bool tptr::DefaultMemorySpaceAttr::isValidLoad(
-    Type type, mlir::ptr::AtomicOrdering ordering, IntegerAttr alignment,
-    llvm::function_ref<InFlightDiagnostic()> emitError) const {
-  return true;
-}
-
-bool tptr::DefaultMemorySpaceAttr::isValidStore(
-    Type type, mlir::ptr::AtomicOrdering ordering, IntegerAttr alignment,
-    llvm::function_ref<InFlightDiagnostic()> emitError) const {
-  return true;
-}
-
-bool tptr::DefaultMemorySpaceAttr::isValidAtomicOp(
-    mlir::ptr::AtomicBinOp binOp, Type type, mlir::ptr::AtomicOrdering ordering,
-    IntegerAttr alignment,
-    llvm::function_ref<InFlightDiagnostic()> emitError) const {
-  return true;
-}
-
-bool tptr::DefaultMemorySpaceAttr::isValidAtomicXchg(
-    Type type, mlir::ptr::AtomicOrdering successOrdering,
-    mlir::ptr::AtomicOrdering failureOrdering, IntegerAttr alignment,
-    llvm::function_ref<InFlightDiagnostic()> emitError) const {
-  return true;
-}
-
-bool tptr::DefaultMemorySpaceAttr::isValidAddrSpaceCast(
-    Type tgt, Type src,
-    llvm::function_ref<InFlightDiagnostic()> emitError) const {
-  return true;
-}
-
-bool tptr::DefaultMemorySpaceAttr::isValidPtrIntCast(
-    Type intLikeTy, Type ptrLikeTy,
-    llvm::function_ref<InFlightDiagnostic()> emitError) const {
-  return true;
-}
 //===----------------------------------------------------------------------===//
 // TableGen'd op method definitions
 //===----------------------------------------------------------------------===//

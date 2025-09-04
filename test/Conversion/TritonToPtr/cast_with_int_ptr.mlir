@@ -55,49 +55,49 @@ module {
 // CHECK-DAG:       [[CST_2_:%.+]] = arith.constant 2 : i32
 // CHECK-DAG:       [[CST_3_:%.+]] = arith.constant 3 : i32
 // CHECK-DAG:       [[CST_4_:%.+]] = arith.constant 4 : i32
-// CHECK-DAG:       [[VAR_5_:%.+]] = builtin.unrealized_conversion_cast [[PARAM_1_]] : !tt.ptr<i32> to !ptr.ptr<#tptr.default_memory_space>
-// CHECK-DAG:       [[VAR_6_:%.+]] = builtin.unrealized_conversion_cast [[PARAM_0_]] : !tt.ptr<i32> to !ptr.ptr<#tptr.default_memory_space>
+// CHECK-DAG:       [[VAR_5_:%.+]] = builtin.unrealized_conversion_cast [[PARAM_1_]] : !tt.ptr<i32> to !ptr.ptr<#ptr.generic_space>
+// CHECK-DAG:       [[VAR_6_:%.+]] = builtin.unrealized_conversion_cast [[PARAM_0_]] : !tt.ptr<i32> to !ptr.ptr<#ptr.generic_space>
 // CHECK:           [[VAR_7_:%.+]] = arith.muli [[CST_111_]], [[VAR_4_]] : i32
-// CHECK-DAG:       [[VAR_8_:%.+]] = tptr.ptradd [[VAR_6_]] [[VAR_7_]] : <#tptr.default_memory_space>, i32 to <#tptr.default_memory_space>
+// CHECK-DAG:       [[VAR_8_:%.+]] = tptr.ptradd [[VAR_6_]] [[VAR_7_]] : <#ptr.generic_space>, i32 to <#ptr.generic_space>
 // CHECK-DAG:       [[VAR_9_:%.+]] = arith.muli [[CST_10_]], [[VAR_3_]] : i32
 // CHECK-NOT: separator of consecutive DAGs
-// CHECK-DAG:       [[VAR_10_:%.+]] = tptr.ptradd [[VAR_8_]] [[VAR_9_]] : <#tptr.default_memory_space>, i32 to <#tptr.default_memory_space>
-// CHECK-DAG:       [[VAR_11_:%.+]] = tptr.ptrtoint [[VAR_5_]] : <#tptr.default_memory_space> to i64
+// CHECK-DAG:       [[VAR_10_:%.+]] = tptr.ptradd [[VAR_8_]] [[VAR_9_]] : <#ptr.generic_space>, i32 to <#ptr.generic_space>
+// CHECK-DAG:       [[VAR_11_:%.+]] = tptr.ptrtoint [[VAR_5_]] : <#ptr.generic_space> to i64
 // CHECK:           [[VAR_12_:%.+]] = arith.muli [[VAR_11_]], [[VAR_2_]] : i64
-// CHECK-DAG:       [[VAR_13_:%.+]] = tptr.ptradd [[VAR_5_]] [[VAR_12_]] : <#tptr.default_memory_space>, i64 to <#tptr.default_memory_space>
+// CHECK-DAG:       [[VAR_13_:%.+]] = tptr.ptradd [[VAR_5_]] [[VAR_12_]] : <#ptr.generic_space>, i64 to <#ptr.generic_space>
 // CHECK-DAG:       [[VAR_14_:%.+]] = arith.muli [[CST_9_]], [[VAR_4_]] : i32
-// CHECK:           [[VAR_15_:%.+]] = tptr.ptradd [[VAR_13_]] [[VAR_14_]] : <#tptr.default_memory_space>, i32 to <#tptr.default_memory_space>
-// CHECK:           [[VAR_16_:%.+]] = tptr.ptrtoint [[VAR_15_]] : <#tptr.default_memory_space> to i64
+// CHECK:           [[VAR_15_:%.+]] = tptr.ptradd [[VAR_13_]] [[VAR_14_]] : <#ptr.generic_space>, i32 to <#ptr.generic_space>
+// CHECK:           [[VAR_16_:%.+]] = tptr.ptrtoint [[VAR_15_]] : <#ptr.generic_space> to i64
 // CHECK-DAG:       [[VAR_17_:%.+]] = arith.remsi [[VAR_16_]], [[CST_10_1_]] : i64
 // CHECK-DAG:       [[VAR_18_:%.+]] = arith.muli [[CST_1_]], [[VAR_4_]] : i32
 // CHECK-NOT: separator of consecutive DAGs
-// CHECK-DAG:       [[VAR_19_:%.+]] = tptr.ptradd [[VAR_10_]] [[VAR_18_]] : <#tptr.default_memory_space>, i32 to <#tptr.default_memory_space>
+// CHECK-DAG:       [[VAR_19_:%.+]] = tptr.ptradd [[VAR_10_]] [[VAR_18_]] : <#ptr.generic_space>, i32 to <#ptr.generic_space>
 // CHECK-DAG:       [[VAR_20_:%.+]] = arith.muli [[VAR_17_]], [[VAR_2_]] : i64
 // CHECK-NOT: separator of consecutive DAGs
-// CHECK-DAG:       [[VAR_21_:%.+]] = tptr.ptradd [[VAR_19_]] [[VAR_20_]] : <#tptr.default_memory_space>, i64 to <#tptr.default_memory_space>
+// CHECK-DAG:       [[VAR_21_:%.+]] = tptr.ptradd [[VAR_19_]] [[VAR_20_]] : <#ptr.generic_space>, i64 to <#ptr.generic_space>
 // CHECK-DAG:       [[VAR_22_:%.+]] = arith.muli [[CST_2_]], [[VAR_1_]] : i32
 // CHECK-NOT: separator of consecutive DAGs
-// CHECK-DAG:       [[VAR_23_:%.+]] = tptr.ptradd [[VAR_21_]] [[VAR_22_]] : <#tptr.default_memory_space>, i32 to <#tptr.default_memory_space>
+// CHECK-DAG:       [[VAR_23_:%.+]] = tptr.ptradd [[VAR_21_]] [[VAR_22_]] : <#ptr.generic_space>, i32 to <#ptr.generic_space>
 // CHECK-DAG:       [[VAR_24_:%.+]] = arith.muli [[PARAM_2_]], [[VAR_1_]] : i32
 // CHECK-NOT: separator of consecutive DAGs
-// CHECK-DAG:       [[VAR_25_:%.+]] = tptr.ptradd [[VAR_23_]] [[VAR_24_]] : <#tptr.default_memory_space>, i32 to <#tptr.default_memory_space>
+// CHECK-DAG:       [[VAR_25_:%.+]] = tptr.ptradd [[VAR_23_]] [[VAR_24_]] : <#ptr.generic_space>, i32 to <#ptr.generic_space>
 // CHECK-DAG:       [[VAR_26_:%.+]] = arith.muli [[CST_3_]], [[VAR_1_]] : i32
 // CHECK-NOT: separator of consecutive DAGs
-// CHECK-DAG:       [[VAR_27_:%.+]] = tptr.ptradd [[VAR_25_]] [[VAR_26_]] : <#tptr.default_memory_space>, i32 to <#tptr.default_memory_space>
+// CHECK-DAG:       [[VAR_27_:%.+]] = tptr.ptradd [[VAR_25_]] [[VAR_26_]] : <#ptr.generic_space>, i32 to <#ptr.generic_space>
 // CHECK-DAG:       [[VAR_28_:%.+]] = arith.muli [[CST_4_]], [[VAR_0_]] : i32
 // CHECK-NOT: separator of consecutive DAGs
-// CHECK-DAG:       [[VAR_29_:%.+]] = tptr.ptradd [[VAR_27_]] [[VAR_28_]] : <#tptr.default_memory_space>, i32 to <#tptr.default_memory_space>
+// CHECK-DAG:       [[VAR_29_:%.+]] = tptr.ptradd [[VAR_27_]] [[VAR_28_]] : <#ptr.generic_space>, i32 to <#ptr.generic_space>
 // CHECK-DAG:       [[VAR_30_:%.+]] = arith.muli [[PARAM_2_]], [[VAR_0_]] : i32
 // CHECK-NOT: separator of consecutive DAGs
-// CHECK-DAG:       [[VAR_31_:%.+]] = tptr.ptradd [[VAR_29_]] [[VAR_30_]] : <#tptr.default_memory_space>, i32 to <#tptr.default_memory_space>
+// CHECK-DAG:       [[VAR_31_:%.+]] = tptr.ptradd [[VAR_29_]] [[VAR_30_]] : <#ptr.generic_space>, i32 to <#ptr.generic_space>
 // CHECK-DAG:       [[VAR_32_:%.+]] = arith.muli [[CST_3_]], [[VAR_0_]] : i32
-// CHECK:           [[VAR_33_:%.+]] = tptr.ptradd [[VAR_31_]] [[VAR_32_]] : <#tptr.default_memory_space>, i32 to <#tptr.default_memory_space>
-// CHECK:           [[VAR_34_:%.+]] = tptr.to_memref [[VAR_33_]] : <#tptr.default_memory_space> to memref<1xi32>
+// CHECK:           [[VAR_33_:%.+]] = tptr.ptradd [[VAR_31_]] [[VAR_32_]] : <#ptr.generic_space>, i32 to <#ptr.generic_space>
+// CHECK:           [[VAR_34_:%.+]] = tptr.to_memref [[VAR_33_]] : <#ptr.generic_space> to memref<1xi32>
 // CHECK-DAG:       [[LOAD_VAR_34_MEM_:%.+]] = memref.load [[VAR_34_]]{{.}}[[CST_0_]]{{.}} : memref<1xi32>
 // CHECK-DAG:       [[VAR_36_:%.+]] = arith.extsi [[PARAM_2_]] : i32 to i64
 // CHECK:           [[VAR_37_:%.+]] = arith.addi [[VAR_17_]], [[VAR_36_]] : i64
-// CHECK:           [[VAR_38_:%.+]] = tptr.inttoptr [[VAR_37_]] : i64 to <#tptr.default_memory_space>
-// CHECK:           [[VAR_39_:%.+]] = tptr.to_memref [[VAR_38_]] : <#tptr.default_memory_space> to memref<1xi32>
+// CHECK:           [[VAR_38_:%.+]] = tptr.inttoptr [[VAR_37_]] : i64 to <#ptr.generic_space>
+// CHECK:           [[VAR_39_:%.+]] = tptr.to_memref [[VAR_38_]] : <#ptr.generic_space> to memref<1xi32>
 // CHECK:           memref.store [[LOAD_VAR_34_MEM_]], [[VAR_39_]]{{.}}[[CST_0_]]{{.}} : memref<1xi32>
 // CHECK:           return
 // CHECK:         }
