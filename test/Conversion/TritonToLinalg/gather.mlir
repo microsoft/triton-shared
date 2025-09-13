@@ -29,3 +29,43 @@ module {
     tt.return
   }
 }
+
+// CHECK: #[[$ATTR_0:.+]] = affine_map<(d0, d1) -> (d0, d1)>
+
+// CHECK-LABEL:   func.func @gather_test_kernel(
+// CHECK-SAME:                                  %[[VAL_0:[0-9]+|[a-zA-Z$._-][a-zA-Z0-9$._-]*]]: memref<*xf32> {tt.divisibility = 16 : i32},
+// CHECK-SAME:                                  %[[VAL_1:[0-9]+|[a-zA-Z$._-][a-zA-Z0-9$._-]*]]: memref<*xi64> {tt.divisibility = 16 : i32},
+// CHECK-SAME:                                  %[[VAL_2:[0-9]+|[a-zA-Z$._-][a-zA-Z0-9$._-]*]]: memref<*xf32> {tt.divisibility = 16 : i32},
+// CHECK-SAME:                                  %[[VAL_3:[0-9]+|[a-zA-Z$._-][a-zA-Z0-9$._-]*]]: i32,
+// CHECK-SAME:                                  %[[VAL_4:[0-9]+|[a-zA-Z$._-][a-zA-Z0-9$._-]*]]: i32,
+// CHECK-SAME:                                  %[[VAL_5:[0-9]+|[a-zA-Z$._-][a-zA-Z0-9$._-]*]]: i32,
+// CHECK-SAME:                                  %[[VAL_6:[0-9]+|[a-zA-Z$._-][a-zA-Z0-9$._-]*]]: i32,
+// CHECK-SAME:                                  %[[VAL_7:[0-9]+|[a-zA-Z$._-][a-zA-Z0-9$._-]*]]: i32,
+// CHECK-SAME:                                  %[[VAL_8:[0-9]+|[a-zA-Z$._-][a-zA-Z0-9$._-]*]]: i32) {
+// CHECK:           %[[VAL_9:.*]] = arith.constant 0 : i64
+// CHECK:           %[[VAL_10:.*]] = arith.constant 4 : index
+// CHECK:           %[[VAL_11:.*]] = memref.reinterpret_cast %[[VAL_0]] to offset: [0], sizes: [4, 4], strides: {{\[}}%[[VAL_10]], 1] : memref<*xf32> to memref<4x4xf32, strided<[?, 1]>>
+// CHECK:           %[[VAL_12:.*]] = memref.alloc() : memref<4x4xf32>
+// CHECK:           memref.copy %[[VAL_11]], %[[VAL_12]] : memref<4x4xf32, strided<[?, 1]>> to memref<4x4xf32>
+// CHECK:           %[[VAL_13:.*]] = bufferization.to_tensor %[[VAL_12]] restrict writable : memref<4x4xf32> to tensor<4x4xf32>
+// CHECK:           %[[VAL_14:.*]] = memref.reinterpret_cast %[[VAL_1]] to offset: [0], sizes: [8, 4], strides: {{\[}}%[[VAL_10]], 1] : memref<*xi64> to memref<8x4xi64, strided<[?, 1]>>
+// CHECK:           %[[VAL_15:.*]] = memref.alloc() : memref<8x4xi64>
+// CHECK:           memref.copy %[[VAL_14]], %[[VAL_15]] : memref<8x4xi64, strided<[?, 1]>> to memref<8x4xi64>
+// CHECK:           %[[VAL_16:.*]] = bufferization.to_tensor %[[VAL_15]] restrict writable : memref<8x4xi64> to tensor<8x4xi64>
+// CHECK:           %[[VAL_17:.*]] = tensor.empty() : tensor<8x4xf32>
+// CHECK:           %[[VAL_18:.*]] = linalg.generic {indexing_maps = [#[[$ATTR_0]], #[[$ATTR_0]]], iterator_types = ["parallel", "parallel"]} ins(%[[VAL_16]] : tensor<8x4xi64>) outs(%[[VAL_17]] : tensor<8x4xf32>) {
+// CHECK:           ^bb0(%[[VAL_19:.*]]: i64, %[[VAL_20:.*]]: f32):
+// CHECK:             %[[VAL_21:.*]] = arith.index_cast %[[VAL_19]] : i64 to index
+// CHECK:             %[[VAL_22:.*]] = linalg.index 1 : index
+// CHECK:             %[[VAL_23:.*]] = arith.index_cast %[[VAL_19]] : i64 to index
+// CHECK:             %[[VAL_24:.*]] = arith.cmpi slt, %[[VAL_23]], %[[VAL_10]] : index
+// CHECK:             cf.assert %[[VAL_24]], "index must be smaller than axis size"
+// CHECK:             %[[VAL_25:.*]] = arith.cmpi sge, %[[VAL_19]], %[[VAL_9]] : i64
+// CHECK:             cf.assert %[[VAL_25]], "index must be larger or equal to 0"
+// CHECK:             %[[VAL_26:.*]] = tensor.extract %[[VAL_13]]{{\[}}%[[VAL_21]], %[[VAL_22]]] : tensor<4x4xf32>
+// CHECK:             linalg.yield %[[VAL_26]] : f32
+// CHECK:           } -> tensor<8x4xf32>
+// CHECK:           %[[VAL_27:.*]] = memref.reinterpret_cast %[[VAL_2]] to offset: [0], sizes: [8, 4], strides: {{\[}}%[[VAL_10]], 1] : memref<*xf32> to memref<8x4xf32, strided<[?, 1]>>
+// CHECK:           bufferization.materialize_in_destination %[[VAL_18]] in writable %[[VAL_27]] : (tensor<8x4xf32>, memref<8x4xf32, strided<[?, 1]>>) -> ()
+// CHECK:           return
+// CHECK:         }
