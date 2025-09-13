@@ -2210,11 +2210,9 @@ struct GatherConverter : public OpConversionPattern<triton::GatherOp> {
     auto resultType = cast<RankedTensorType>(op.getType());
     int64_t rank = resultType.getRank();
 
-    auto empty = rewriter
+    Value empty = rewriter
                      .create<tensor::EmptyOp>(loc, resultType.getShape(),
-                                              resultType.getElementType())
-                     .getResult();
-
+                                              resultType.getElementType());
     SmallVector<AffineMap, 2> affineMaps(2,
                                          rewriter.getMultiDimIdentityMap(rank));
     SmallVector<utils::IteratorType> iteratorTypes(
