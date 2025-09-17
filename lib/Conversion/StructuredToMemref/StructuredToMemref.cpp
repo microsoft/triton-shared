@@ -409,6 +409,30 @@ private:
     //          clampedOff - targetOffset
     //    d1 = --------------------
     //              strideRows
+    //
+    ////////////////////////////////////////////////////////////////////////////
+    //
+    //                       cols
+    //
+    //               wrappedAroundOff
+    //      --------------*---------------------
+    //      |                                  |
+    //      |           targetOffset           |
+    //      |             *------------|       |
+    //      |             |            |       |
+    //      |             |            |       |
+    //  rows|    rowSize  |            |       |
+    //      |             |            |       |
+    //      |             |            |       |
+    //      |             *------------|       |
+    //      |          nextOff                 |
+    //      |                                  |
+    //      |          clampedOff              |
+    //      --------------*---------------------
+    //
+    //    For the case that clampedOff is not overflown
+    //    d1 = min(d1, rowSize)
+    //
 
     auto resultType = getResultMemrefType(
         op, /* offset */ ShapedType::kDynamic,
@@ -443,6 +467,7 @@ private:
         rewriter.create<arith::AddIOp>(loc, modRow, wrappedAroundOff);
     Value d1 = rewriter.create<arith::SubIOp>(loc, clampedOff, targetOffset);
     d1 = rewriter.create<arith::DivSIOp>(loc, d1, strideRow);
+    d1 = rewriter.create<arith::MinSIOp>(loc, d1, rowSize);
 
     SmallVector<Value> sizes1{d1, colSize};
     memref::ReinterpretCastOp cast1 =
@@ -685,11 +710,10 @@ private:
                         ConversionPatternRewriter &rewriter) const {
     OpFoldResult subviewRowFull = dims[0];
     OpFoldResult subviewColFull = dims[1];
-    OpFoldResult col1 =
+    OpFoldResult subviewCol1 =
         rewriter.create<memref::DimOp>(loc, block1, 1).getResult();
-    OpFoldResult subviewCol1 = minOFRs(col1, subviewColFull, loc, rewriter);
     OpFoldResult subviewCol2 =
-        subOFRs(subviewColFull, subviewCol1, loc, rewriter);
+        rewriter.create<memref::DimOp>(loc, block2, 1).getResult();
 
     SmallVector<OpFoldResult> offsets(dims.size(), rewriter.getIndexAttr(0));
     SmallVector<OpFoldResult> strides(dims.size(), rewriter.getIndexAttr(1));
@@ -707,11 +731,10 @@ private:
                      ConversionPatternRewriter &rewriter) const {
     OpFoldResult subviewRowFull = dims[0];
     OpFoldResult subviewColFull = dims[1];
-    OpFoldResult row1 =
+    OpFoldResult subviewRow1 =
         rewriter.create<memref::DimOp>(loc, block1, 0).getResult();
-    OpFoldResult subviewRow1 = minOFRs(row1, subviewRowFull, loc, rewriter);
     OpFoldResult subviewRow2 =
-        subOFRs(subviewRowFull, subviewRow1, loc, rewriter);
+        rewriter.create<memref::DimOp>(loc, block2, 0).getResult();
 
     SmallVector<OpFoldResult> offsets(dims.size(), rewriter.getIndexAttr(0));
     SmallVector<OpFoldResult> strides(dims.size(), rewriter.getIndexAttr(1));

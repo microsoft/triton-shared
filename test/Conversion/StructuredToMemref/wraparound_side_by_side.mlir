@@ -96,20 +96,18 @@ module {
 // CHECK-DAG:         [[VAR_reinterpret_cast_1_:%.+]] = memref.reinterpret_cast [[PARAM_0_]] to offset: {{.}}[[VAR_15_]]{{.}}, sizes: {{.}}[[CST_4_]], [[VAR_19_]]{{.}}, strides: {{.}}[[VAR_0_]], [[VAR_3_]]{{.}} : memref<*xf32> to memref<?x?xf32, strided<[?, ?], offset: ?>>
 // CHECK-DAG:         [[RES_:%.+]] = memref.alloc() : memref<4x4xf32>
 // CHECK:             linalg.fill ins([[CST_minus_9_dot_900000_]] : f32) outs([[RES_]] : memref<4x4xf32>)
-// CHECK:             [[VAR_20_:%.+]] = arith.minsi [[VAR_18_]], [[CST_4_]] : index
-// CHECK-DAG:         [[VAR_21_:%.+]] = arith.subi [[CST_4_]], [[VAR_20_]] : index
-// CHECK-DAG:         [[VAR_subview_:%.+]] = memref.subview [[VAR_reinterpret_cast_0_]][0, 0] [2, [[VAR_20_]]{{.}} [1, 1] : memref<?x?xf32, strided<[?, ?], offset: ?>> to memref<2x?xf32, strided<[?, ?], offset: ?>>
+// CHECK-DAG:         [[VAR_subview_:%.+]] = memref.subview [[VAR_reinterpret_cast_0_]][0, 0] [2, [[VAR_18_]]{{.}} [1, 1] : memref<?x?xf32, strided<[?, ?], offset: ?>> to memref<2x?xf32, strided<[?, ?], offset: ?>>
 // CHECK-NOT: separator of consecutive DAGs
-// CHECK-DAG:         [[VAR_subview_2_:%.+]] = memref.subview [[VAR_reinterpret_cast_1_]][0, 0] [2, [[VAR_21_]]{{.}} [1, 1] : memref<?x?xf32, strided<[?, ?], offset: ?>> to memref<2x?xf32, strided<[?, ?], offset: ?>>
-// CHECK-DAG:         [[VAR_subview_3_:%.+]] = memref.subview [[RES_]][0, 0] [2, [[VAR_20_]]{{.}} [1, 1] : memref<4x4xf32> to memref<2x?xf32, strided<[4, 1]>>
-// CHECK-DAG:         [[VAR_subview_4_:%.+]] = memref.subview [[RES_]][0, [[VAR_20_]]{{.}} [2, [[VAR_21_]]{{.}} [1, 1] : memref<4x4xf32> to memref<2x?xf32, strided<[4, 1], offset: ?>>
+// CHECK-DAG:         [[VAR_subview_2_:%.+]] = memref.subview [[VAR_reinterpret_cast_1_]][0, 0] [2, [[VAR_19_]]{{.}} [1, 1] : memref<?x?xf32, strided<[?, ?], offset: ?>> to memref<2x?xf32, strided<[?, ?], offset: ?>>
+// CHECK-DAG:         [[VAR_subview_3_:%.+]] = memref.subview [[RES_]][0, 0] [2, [[VAR_18_]]{{.}} [1, 1] : memref<4x4xf32> to memref<2x?xf32, strided<[4, 1]>>
+// CHECK-DAG:         [[VAR_subview_4_:%.+]] = memref.subview [[RES_]][0, [[VAR_18_]]{{.}} [2, [[VAR_19_]]{{.}} [1, 1] : memref<4x4xf32> to memref<2x?xf32, strided<[4, 1], offset: ?>>
 // CHECK:             memref.copy [[VAR_subview_]], [[VAR_subview_3_]] : memref<2x?xf32, strided<[?, ?], offset: ?>> to memref<2x?xf32, strided<[4, 1]>>
 // CHECK:             memref.copy [[VAR_subview_2_]], [[VAR_subview_4_]] : memref<2x?xf32, strided<[?, ?], offset: ?>> to memref<2x?xf32, strided<[4, 1], offset: ?>>
-// CHECK:             [[VAR_22_:%.+]] = bufferization.to_tensor [[RES_]] restrict writable : memref<4x4xf32>
-// CHECK:             bufferization.materialize_in_destination [[VAR_22_]] in writable [[VAR_reinterpret_cast_]] : (tensor<4x4xf32>, memref<4x4xf32, strided<[?, ?], offset: ?>>) -> ()
-// CHECK-DAG:         [[VAR_23_:%.+]] = arith.addi [[VAR_arg15_]], [[VAR_9_]] : index
-// CHECK-DAG:         [[VAR_24_:%.+]] = arith.addi [[VAR_arg16_]], [[VAR_11_]] : index
-// CHECK:             scf.yield [[VAR_23_]], [[VAR_24_]] : index, index
+// CHECK:             [[VAR_20_:%.+]] = bufferization.to_tensor [[RES_]] restrict writable : memref<4x4xf32>
+// CHECK:             bufferization.materialize_in_destination [[VAR_20_]] in writable [[VAR_reinterpret_cast_]] : (tensor<4x4xf32>, memref<4x4xf32, strided<[?, ?], offset: ?>>) -> ()
+// CHECK-DAG:         [[VAR_21_:%.+]] = arith.addi [[VAR_arg15_]], [[VAR_9_]] : index
+// CHECK-DAG:         [[VAR_22_:%.+]] = arith.addi [[VAR_arg16_]], [[VAR_11_]] : index
+// CHECK:             scf.yield [[VAR_21_]], [[VAR_22_]] : index, index
 // CHECK:           }
 // CHECK:           return
 // CHECK:         }
