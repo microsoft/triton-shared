@@ -23,6 +23,8 @@
 #include "llvm/Support/LogicalResult.h"
 #include <cassert>
 
+#define DEBUG_TYPE "mask-analysis"
+
 namespace mlir {
 
 namespace triton {
@@ -198,15 +200,18 @@ LogicalResult MaskState::addStates(const MaskState &lhsState,
                                    const MaskState &rhsState, Location loc,
                                    OpBuilder &builder) {
   if (lhsState.scalar && rhsState.scalar) {
-    InFlightDiagnostic diag =
-        emitError(loc) << "Unexpected case where both lhs and rhs are scalars";
+    LLVM_DEBUG({
+      InFlightDiagnostic diag =
+          emitRemark(loc, "Unexpected case where both lhs and rhs are scalars");
+    });
     return failure();
   }
 
   if (!lhsState.scalar && !rhsState.scalar) {
-    InFlightDiagnostic diag =
-        emitError(loc)
-        << "Unsupported scenario where neither lhs nor rhs is a scalar";
+    LLVM_DEBUG({
+      InFlightDiagnostic diag = emitRemark(
+          loc, "Unsupported scenario where neither lhs nor rhs is a scalar");
+    });
     return failure();
   }
 
@@ -222,16 +227,19 @@ LogicalResult MaskState::minStateScalar(const MaskState &lhsState,
   // Conjunction where both sides are scalar should not be done after splats. We
   // should ensure that code generation pushes the splat as late as possible.
   if (lhsState.scalar && rhsState.scalar) {
-    InFlightDiagnostic diag =
-        emitError(loc) << "Unexpected case where both lhs and rhs are scalars";
+    LLVM_DEBUG({
+      InFlightDiagnostic diag =
+          emitRemark(loc, "Unexpected case where both lhs and rhs are scalars");
+    });
     return failure();
   }
 
   // Caller should ensure that at least one side is scalar.
   if (!lhsState.scalar && !rhsState.scalar) {
-    InFlightDiagnostic diag =
-        emitError(loc)
-        << "Unexpected case where both lhs and rhs are not scalars";
+    LLVM_DEBUG({
+      InFlightDiagnostic diag = emitRemark(
+          loc, "Unexpected case where both lhs and rhs are not scalars");
+    });
     return failure();
   }
 
@@ -262,9 +270,10 @@ LogicalResult MaskState::minStates(const MaskState &lhsState,
                                    const MaskState &rhsState, Location loc,
                                    OpBuilder &builder) {
   if (lhsState.getRank() != rhsState.getRank()) {
-    InFlightDiagnostic diag =
-        emitError(loc)
-        << "Unexpected case where lhs and rhs have different ranks";
+    LLVM_DEBUG({
+      InFlightDiagnostic diag = emitRemark(
+          loc, "Unexpected case where lhs and rhs have different ranks");
+    });
     return failure();
   }
 
@@ -497,7 +506,8 @@ LogicalResult MaskState::parseCmp(arith::CmpIOp cmpOp, const Location loc,
   if (cmpOp.getPredicate() != arith::CmpIPredicate::slt &&
       cmpOp.getPredicate() != arith::CmpIPredicate::ult &&
       cmpOp.getPredicate() != arith::CmpIPredicate::sge) {
-    InFlightDiagnostic diag = emitError(loc) << "Unsupported cmpi";
+    LLVM_DEBUG(
+        { InFlightDiagnostic diag = emitRemark(loc, "Unsupported cmpi"); });
     return failure();
   }
 
@@ -514,8 +524,10 @@ LogicalResult MaskState::parseCmp(arith::CmpIOp cmpOp, const Location loc,
   // the comparison evaluates to true.
   if (cmpOp.getPredicate() == arith::CmpIPredicate::sge &&
       !(rhsState.scalar && hasConstZero(rhsState.scalar))) {
-    InFlightDiagnostic diag = emitError(loc)
-                              << "Unsupported cmpi with rhs not equal to 0";
+    LLVM_DEBUG({
+      InFlightDiagnostic diag =
+          emitRemark(loc, "Unsupported cmpi with rhs not equal to 0");
+    });
     return failure();
   }
 
@@ -524,9 +536,11 @@ LogicalResult MaskState::parseCmp(arith::CmpIOp cmpOp, const Location loc,
     auto dimIntAttr = getIntAttr(lhsState.dims[i]);
     if (!dimIntAttr || dimIntAttr.value() != 1) {
       if (cmpDim != -1) {
-        InFlightDiagnostic diag = emitError(loc)
-                                  << "Unsupported cmpi with more than one "
-                                     "dimension with size larger than 1";
+        LLVM_DEBUG({
+          InFlightDiagnostic diag =
+              emitRemark(loc, "Unsupported cmpi with more than one dimension "
+                              "with size larger than 1");
+        });
         return failure();
       }
       cmpDim = i;
@@ -690,10 +704,11 @@ LogicalResult MaskState::parseMakeRange(triton::MakeRangeOp rangeOp,
   auto stride = (end - start + shape[0] - 1) / shape[0];
 
   if (stride != 1) {
-    InFlightDiagnostic diag =
-        emitError(loc)
-        << "stride must be 1 for make_range whose result is used "
-           "as load or store masks";
+    LLVM_DEBUG({
+      InFlightDiagnostic diag = emitRemark(
+          loc, "stride must be 1 for make_range whose result is used "
+               "as load or store masks");
+    });
     return failure();
   }
 
@@ -743,9 +758,10 @@ LogicalResult MaskState::parseSplat(triton::SplatOp splatOp, const Location loc,
   auto dstShape = cast<ShapedType>(dst.getType()).getShape();
 
   if (!isa<IntegerType>(src.getType())) {
-    InFlightDiagnostic diag =
-        emitError(loc)
-        << "splat source must be an integer scalar for load/store masks";
+    LLVM_DEBUG({
+      InFlightDiagnostic diag = emitRemark(
+          loc, "splat source must be an integer scalar for load/store masks");
+    });
     return failure();
   }
 
