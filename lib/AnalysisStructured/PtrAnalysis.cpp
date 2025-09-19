@@ -1167,7 +1167,7 @@ LogicalResult PtrAnalysis::visitOperandForOp(scf::ForOp forOp, Value operand,
 
   auto newState = getLoopResultPtrState(forOp, index);
   if (failed(newState)) {
-    LLVM_DEBUG(forOp.emitWarning(
+    LLVM_DEBUG(forOp.emitRemark(
         "Rewrite for-op failed. Could not find PtrState returned by "
         "the loop."));
     return failure();
