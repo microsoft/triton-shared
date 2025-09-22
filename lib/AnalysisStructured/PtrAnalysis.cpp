@@ -1167,7 +1167,7 @@ LogicalResult PtrAnalysis::visitOperandForOp(scf::ForOp forOp, Value operand,
 
   auto newState = getLoopResultPtrState(forOp, index);
   if (failed(newState)) {
-    LLVM_DEBUG(forOp.emitRemark(
+    LLVM_DEBUG(forOp.emitWarning(
         "Rewrite for-op failed. Could not find PtrState returned by "
         "the loop."));
     return failure();
@@ -1288,9 +1288,10 @@ LogicalResult PtrAnalysis::visitOperand(Value operand, PtrState &state,
     state = knownPtrs[operand];
     return success();
   } else {
-    llvm::dbgs() << "PtrAnalysis: encountered addptr operand produced by an "
-                    "unsupported operation\n";
-    operand.dump();
+    LLVM_DEBUG(llvm::dbgs()
+               << "PtrAnalysis: encountered addptr operand produced by an "
+                  "unsupported operation: "
+               << operand);
 
     if (!enableMakeGatherScatterTensorPtr) {
       LLVM_DEBUG(llvm::dbgs()
