@@ -1,6 +1,8 @@
 # TritonSan
 TritonSan is a dynamic analysis tool that is capable of accurately detecting bugs (e.g., buffer overflow, data race) in Triton programs. 
 
+We presented this work as a poster at the Triton Conference 2025: [Triton-San: Toward Precise Debugging of Triton Kernels via LLVM Sanitizers](doc/triton-conf-2025-poster.pdf).
+
 TritonSan leverages triton-shared, a shared middleware layer for the Triton compiler that includes a reference CPU backend, to compile Triton kernels into CPU executables. During this compilation process, TritonSan enables instrumentions for LLVM sanitizers and applies the necessary transformations to ensure they receive complete debug information. When the Triton kernel executes, it runs alongside the specified LLVM sanitizer, enabling accurate detection of bugs within the kernel.
 
 ## Table of Contents
