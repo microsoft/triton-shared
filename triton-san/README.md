@@ -66,11 +66,15 @@ Usage: triton-san <sanitizer type> <original command used to launch the triton p
 Example: triton-san asan python ./my_triton_program.py
 ```
 
-**Note: before running TritonSan, please add the following import to the Triton program to specify the use of the CPU backend, which ensures all Triton kernels run on the CPU. The sanitizers require CPU backend in order to work.**
+**Note: before running TritonSan, please add the following import to the Triton program to specify the use of the CPU backend, which ensures all Triton kernels run on the CPU. The sanitizers require CPU backend in order to work. In addition, all desired GPU tensors in the Triton program need to be set to CPU**
 
 ```python
 from triton.backends.triton_shared.driver import CPUDriver
 triton.runtime.driver.set_active(CPUDriver())
+...
+
+#output = torch.empty((size, )).to("gpu")
+output = torch.empty((size, )).to("cpu")
 ```
 
 ## Example

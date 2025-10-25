@@ -4,15 +4,15 @@
 set -e
 
 if [ "$#" -lt 3 ]; then
-  echo "Usage: $0 <path to LLVM build directory> <path to Python venv> <path to Triton source directory>"
+  echo "Usage: $0 <path to LLVM build directory> <path to Python venv> <path to Triton source directory> <path to triton-shared source directory>"
   exit 1
 fi
 
 PARENT_FOLDER="$(realpath "$(dirname "$0")")"
-TRITON_SHARED_PATH="$(realpath "${PARENT_FOLDER}/../..")"
 LLVM_BUILD_PATH="$(realpath "$1")"
 VENV_PATH="$(realpath "$2")"
 TRITON_PATH="$(realpath "$3")"
+TRITON_SHARED_PATH="$(realpath "$4")"
 
 # include utility functions
 source "${PARENT_FOLDER}/utility.inc"
@@ -46,15 +46,10 @@ fi
 mkdir -p "${TRITON_HOME}"
 
 # build triton-shared and triton with the custom LLVM
-TRITON_HASH_FILE="${TRITON_SHARED_PATH}/triton-hash.txt"
-if [ ! -e "${TRITON_HASH_FILE}" ]; then
-  print_error_and_exit "${TRITON_HASH_FILE} does not exist."
-fi
-
-git clone https://github.com/triton-lang/triton.git "${TRITON_PATH}"
-cd "${TRITON_PATH}" && git checkout $(cat "${TRITON_HASH_FILE}")
+pushd "${TRITON_PATH}" > /dev/null
 export TRITON_PLUGIN_DIRS="${TRITON_SHARED_PATH}"
 export LLVM_BUILD_DIR="${LLVM_BUILD_PATH}"
 LLVM_INCLUDE_DIRS="${LLVM_BUILD_DIR}/include" LLVM_LIBRARY_DIR="${LLVM_BUILD_DIR}/lib" LLVM_SYSPATH="${LLVM_BUILD_DIR}" TRITON_BUILD_WITH_CLANG_LLD=true TRITON_BUILD_WITH_CCACHE=false python3 -m pip install --no-build-isolation -vvv '.[tests]'
+popd > /dev/null
 
 print_info "triton-shared and triton build completed."
