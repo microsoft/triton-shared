@@ -807,10 +807,13 @@ private:
     SmallVector<OpFoldResult> mixedDims = op.getMixedMaskDims();
 
     // Fill load destination with other value
-    if (Value other = op.getOther()) {
-      fillWithValue(loc, alloc, other, tensorType.getShape(),
-                    op.getMixedMaskDims(), op.getStaticMaskDims(), rewriter);
+    Value other = op.getOther();
+    if (!other) {
+      other = rewriter.create<arith::ConstantOp>(
+          loc, rewriter.getZeroAttr(elemType));
     }
+    fillWithValue(loc, alloc, other, tensorType.getShape(),
+                  op.getMixedMaskDims(), op.getStaticMaskDims(), rewriter);
 
     auto ptrDefiningOp = ptr.getDefiningOp();
     if (ptrDefiningOp->hasAttr(WRAP_SIDE_BY_SIDE) ||
