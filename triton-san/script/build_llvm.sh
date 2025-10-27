@@ -49,6 +49,12 @@ LLVM_HASH=$(cat "${LLVM_HASH_FILE}")
 cd "${LLVM_SOURCE_DIR}"
 git checkout ${LLVM_HASH}
 
+# Cherry-pick the patch to resolve the OpenMP build error. An incorrect setting in openmp/runtime/src/CMakeLists.txt 
+# causes the generated omp-tools.h to be placed in Clang's include directory instead of OpenMP's, leading to a 
+# compilation failure when locating omp-tools.h.
+# More details are available at this link: https://github.com/llvm/llvm-project/commit/62ff9ac4c68f48c089528105259c68943ab176de
+
+# TODO: remove this once the LLVM hash for the next LLVM->Triton merge beyond this commit is confirmed.
 if ! git merge-base --is-ancestor 62ff9ac HEAD; then
   echo "cherry pick commit 62ff9ac to avoid OpenMP build failure"
   git cherry-pick 62ff9ac
