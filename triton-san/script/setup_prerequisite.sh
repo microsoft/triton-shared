@@ -4,14 +4,14 @@
 set -e
 
 if [ "$#" -lt 1 ]; then
-  echo "Usage: $0 <desired path to venv>"
+  echo "Usage: $0 <path to Triton source directory> <desired path to venv>"
   exit 1
 fi
 
 PARENT_FOLDER="$(realpath "$(dirname "$0")")"
 TRITON_SHARED_PATH="$(realpath "${PARENT_FOLDER}/../..")"
-TRITON_PATH="${TRITON_SHARED_PATH}/triton"
-VENV_PATH="$(realpath "$1")"
+TRITON_PATH="$(realpath "$1")"
+VENV_PATH="$(realpath "$2")"
 
 # include utility functions
 source "${PARENT_FOLDER}/utility.inc"

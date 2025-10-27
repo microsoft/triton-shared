@@ -6,13 +6,13 @@
 set -e
 
 if [ "$#" -lt 1 ]; then
-  echo "Usage: $0 <desired path for LLVM installation>"
+  echo "Usage: $0 <path to Triton source directory> <desired path for LLVM installation>"
   exit 1
 fi
 
 PARENT_FOLDER="$(realpath "$(dirname "$0")")"
-TRITON_SHARED_PATH="$(realpath "${PARENT_FOLDER}/../..")"
-LLVM_PATH="$(realpath "$1")"
+TRITON_PATH="$(realpath "$1")"
+LLVM_PATH="$(realpath "$2")"
 
 # include utility functions
 source "${PARENT_FOLDER}/utility.inc"
@@ -20,7 +20,7 @@ source "${PARENT_FOLDER}/utility.inc"
 print_info "Installing LLVM to path: ${LLVM_PATH}."
 cd $LLVM_PATH
 
-LLVM_HASH_FILE="${TRITON_SHARED_PATH}/triton/cmake/llvm-hash.txt"
+LLVM_HASH_FILE="${TRITON_PATH}/cmake/llvm-hash.txt"
 if [ ! -e "${LLVM_HASH_FILE}" ]; then
   print_error_and_exit "${LLVM_HASH_FILE} does not exist."
 fi
@@ -32,7 +32,7 @@ LLVM_SOURCE="${LLVM_SOURCE_DIR}/llvm"
 
 # compiler-rt and clang are the sanitizer-specific LLVM projects
 # openmp is used for parallelizing the triton grid for ThreadSanitizer (TSan)
-LLVM_PROJECTS="clang;compiler-rt;openmp;mlir"
+LLVM_PROJECTS="clang;compiler-rt;openmp;mlir;lld"
 
 # these are the targets supported by the Triton language
 # Triton's build script for LLVM uses these exact targets
@@ -48,6 +48,17 @@ LLVM_HASH=$(cat "${LLVM_HASH_FILE}")
 
 cd "${LLVM_SOURCE_DIR}"
 git checkout ${LLVM_HASH}
+
+# Cherry-pick the patch to resolve the OpenMP build error. An incorrect setting in openmp/runtime/src/CMakeLists.txt 
+# causes the generated omp-tools.h to be placed in Clang's include directory instead of OpenMP's, leading to a 
+# compilation failure when locating omp-tools.h.
+# More details are available at this link: https://github.com/llvm/llvm-project/commit/62ff9ac4c68f48c089528105259c68943ab176de
+
+# TODO: remove this once the LLVM hash for the next LLVM->Triton merge beyond this commit is confirmed.
+if ! git merge-base --is-ancestor 62ff9ac HEAD; then
+  echo "cherry pick commit 62ff9ac to avoid OpenMP build failure"
+  git cherry-pick 62ff9ac
+fi
 
 export CXXFLAGS="-Wno-unused-command-line-argument $CXXFLAGS" 
 export CFLAGS="-Wno-unused-command-line-argument $CFLAGS" 

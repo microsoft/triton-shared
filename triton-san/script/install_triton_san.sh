@@ -4,16 +4,16 @@
 set -e
 
 if [ "$#" -lt 4 ]; then
-  echo "Usage: $0 <desired path for triton-san installation> <path to LLVM install directory> <path to Python venv> <path to Triton source directory>"
+  echo "Usage: $0 <path to LLVM install directory> <path to Python venv> <path to Triton source directory> <desired path for triton-san installation>"
   exit 1
 fi
 
 PARENT_FOLDER="$(realpath "$(dirname "$0")")"
 TRITON_SAN_PATH="$(realpath "${PARENT_FOLDER}/..")"
-TRITON_SAN_INSTALL_DIR="$(realpath "$1")"
-LLVM_INSTALL_DIR="$(realpath "$2")"
-VENV_PATH="$(realpath "$3")"
-TRITON_PATH="$(realpath "$4")"
+LLVM_INSTALL_DIR="$(realpath "$1")"
+VENV_PATH="$(realpath "$2")"
+TRITON_PATH="$(realpath "$3")"
+TRITON_SAN_INSTALL_DIR="$(realpath "$4")"
 
 # include utility functions
 source "${PARENT_FOLDER}/utility.inc"
