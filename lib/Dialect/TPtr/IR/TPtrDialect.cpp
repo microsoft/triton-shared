@@ -51,27 +51,30 @@ void mlir::tptr::TPtrDialect::initialize() {
 }
 
 bool tptr::DefaultMemorySpaceAttr::isValidLoad(
-    Type type, mlir::ptr::AtomicOrdering ordering, IntegerAttr alignment,
+    Type type, mlir::ptr::AtomicOrdering ordering,
+    std::optional<int64_t> alignment, const ::mlir::DataLayout *dataLayout,
     llvm::function_ref<InFlightDiagnostic()> emitError) const {
   return true;
 }
 
 bool tptr::DefaultMemorySpaceAttr::isValidStore(
-    Type type, mlir::ptr::AtomicOrdering ordering, IntegerAttr alignment,
+    Type type, mlir::ptr::AtomicOrdering ordering,
+    std::optional<int64_t> alignment, const ::mlir::DataLayout *dataLayout,
     llvm::function_ref<InFlightDiagnostic()> emitError) const {
   return true;
 }
 
 bool tptr::DefaultMemorySpaceAttr::isValidAtomicOp(
     mlir::ptr::AtomicBinOp binOp, Type type, mlir::ptr::AtomicOrdering ordering,
-    IntegerAttr alignment,
+    std::optional<int64_t> alignment, const ::mlir::DataLayout *dataLayout,
     llvm::function_ref<InFlightDiagnostic()> emitError) const {
   return true;
 }
 
 bool tptr::DefaultMemorySpaceAttr::isValidAtomicXchg(
     Type type, mlir::ptr::AtomicOrdering successOrdering,
-    mlir::ptr::AtomicOrdering failureOrdering, IntegerAttr alignment,
+    mlir::ptr::AtomicOrdering failureOrdering, std::optional<int64_t> alignment,
+    const ::mlir::DataLayout *dataLayout,
     llvm::function_ref<InFlightDiagnostic()> emitError) const {
   return true;
 }

@@ -194,6 +194,7 @@ class CPUOptions:
     allow_fp8e4nv: bool = False
     allowed_dot_input_precisions: Tuple[str] = ("ieee", )
     sanitize_overflow: bool = True
+    instrumentation_mode: str = ""
 
     def __post_init__(self):
         pass
@@ -256,7 +257,7 @@ class CPUBackend(BaseBackend):
         passes.common.add_symbol_dce(pm)
         passes.ttir.add_loop_unroll(pm)
         passes.common.add_cse(pm)
-        pm.run(mod)
+        pm.run(mod, 'make_ttir')
         return mod
 
     def add_stages(self, stages, options, language):
