@@ -46,14 +46,14 @@ Value getScalarValue(Value operand, Location loc, OpBuilder &builder) {
                   if (auto shapedType = dyn_cast<ShapedType>(resType)) {
                     resType = shapedType.getElementType();
                   }
-                  return builder.create<arith::SIToFPOp>(loc, resType, src);
+                  return arith::SIToFPOp::create(builder, loc, resType, src);
                 })
                 .Case<arith::TruncFOp>([&](Operation *op) {
                   auto resType = op->getResults()[0].getType();
                   if (auto shapedType = dyn_cast<ShapedType>(resType)) {
                     resType = shapedType.getElementType();
                   }
-                  return builder.create<arith::TruncFOp>(loc, resType, src);
+                  return arith::TruncFOp::create(builder, loc, resType, src);
                 })
                 .Default([](Operation *op) {
                   llvm_unreachable("unsupported op in generating ");
