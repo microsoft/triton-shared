@@ -26,33 +26,38 @@ module {
   }
 }
 
-// CHECK-LABEL:  func.func @simple_cf_into_structured_load
-// CHECK-SAME:   ([[PARAM_0_:%.+]]: memref<*xf32>, [[PARAM_1_:%.+]]: memref<*xf32>, [[PARAM_2_:%.+]]: i32, [[PARAM_3_:%.+]]: i32, [[PARAM_4_:%.+]]: i32, [[PARAM_5_:%.+]]: i32, [[PARAM_6_:%.+]]: i32, [[PARAM_7_:%.+]]: i32, [[PARAM_8_:%.+]]: i32) {
-// CHECK-DAG:       [[VAR_0_:%.+]] = tptr.type_offset f32  : i32
-// CHECK-DAG:       [[CST_6_:%.+]] = arith.constant 6 : index
-// CHECK-DAG:       [[CST_2_:%.+]] = arith.constant 2 : i32
-// CHECK-DAG:       [[CST_1_:%.+]] = arith.constant 1 : i32
-// CHECK-DAG:       [[VAR_cast_:%.+]] = memref.cast [[PARAM_0_]] : memref<*xf32> to memref<1xf32>
-// CHECK-NOT: separator of consecutive DAGs
-// CHECK-DAG:       [[VAR_1_:%.+]] = tptr.from_memref [[VAR_cast_]] : memref<1xf32> to <#tptr.default_memory_space>
-// CHECK-DAG:       [[VAR_2_:%.+]] = arith.cmpi eq, [[PARAM_2_]], [[CST_1_]] : i32
-// CHECK-NOT: separator of consecutive DAGs
-// CHECK-DAG:       [[VAR_3_:%.+]] = scf.if [[VAR_2_]] -> (!ptr.ptr<#tptr.default_memory_space>) {
-// CHECK-DAG:         [[VAR_6_:%.+]] = arith.muli [[PARAM_2_]], [[CST_2_]] : i32
-// CHECK:             [[VAR_7_:%.+]] = arith.muli [[VAR_6_]], [[VAR_0_]] : i32
-// CHECK:             [[VAR_8_:%.+]] = tptr.ptradd [[VAR_1_]] [[VAR_7_]] : <#tptr.default_memory_space>, i32 to <#tptr.default_memory_space>
-// CHECK:             scf.yield [[VAR_8_]] : !ptr.ptr<#tptr.default_memory_space>
+// CHECK-LABEL:   func.func @simple_cf_into_structured_load(
+// CHECK-SAME:      %[[ARG0:[0-9]+|[a-zA-Z$._-][a-zA-Z0-9$._-]*]]: memref<*xf32>,
+// CHECK-SAME:      %[[ARG1:[0-9]+|[a-zA-Z$._-][a-zA-Z0-9$._-]*]]: memref<*xf32>,
+// CHECK-SAME:      %[[ARG2:[0-9]+|[a-zA-Z$._-][a-zA-Z0-9$._-]*]]: i32,
+// CHECK-SAME:      %[[ARG3:[0-9]+|[a-zA-Z$._-][a-zA-Z0-9$._-]*]]: i32,
+// CHECK-SAME:      %[[ARG4:[0-9]+|[a-zA-Z$._-][a-zA-Z0-9$._-]*]]: i32,
+// CHECK-SAME:      %[[ARG5:[0-9]+|[a-zA-Z$._-][a-zA-Z0-9$._-]*]]: i32,
+// CHECK-SAME:      %[[ARG6:[0-9]+|[a-zA-Z$._-][a-zA-Z0-9$._-]*]]: i32,
+// CHECK-SAME:      %[[ARG7:[0-9]+|[a-zA-Z$._-][a-zA-Z0-9$._-]*]]: i32,
+// CHECK-SAME:      %[[ARG8:[0-9]+|[a-zA-Z$._-][a-zA-Z0-9$._-]*]]: i32) {
+// CHECK:           %[[TYPE_OFFSET_0:.*]] = tptr.type_offset f32  : i32
+// CHECK:           %[[CONSTANT_0:.*]] = arith.constant 2 : i32
+// CHECK:           %[[CONSTANT_1:.*]] = arith.constant 1 : i32
+// CHECK:           %[[CAST_0:.*]] = memref.cast %[[ARG0]] : memref<*xf32> to memref<1xf32>
+// CHECK:           %[[FROM_MEMREF_0:.*]] = tptr.from_memref %[[CAST_0]] : memref<1xf32> to <#tptr.default_memory_space>
+// CHECK:           %[[CMPI_0:.*]] = arith.cmpi eq, %[[ARG2]], %[[CONSTANT_1]] : i32
+// CHECK:           %[[IF_0:.*]] = scf.if %[[CMPI_0]] -> (!ptr.ptr<#tptr.default_memory_space>) {
+// CHECK:             %[[MULI_0:.*]] = arith.muli %[[ARG2]], %[[CONSTANT_0]] : i32
+// CHECK:             %[[MULI_1:.*]] = arith.muli %[[MULI_0]], %[[TYPE_OFFSET_0]] : i32
+// CHECK:             %[[PTRADD_0:.*]] = tptr.ptradd %[[FROM_MEMREF_0]] %[[MULI_1]] : <#tptr.default_memory_space>, i32 to <#tptr.default_memory_space>
+// CHECK:             scf.yield %[[PTRADD_0]] : !ptr.ptr<#tptr.default_memory_space>
 // CHECK:           } else {
-// CHECK:             [[VAR_6_1_:%.+]] = arith.muli [[PARAM_2_]], [[VAR_0_]] : i32
-// CHECK:             [[VAR_7_1_:%.+]] = tptr.ptradd [[VAR_1_]] [[VAR_6_1_]] : <#tptr.default_memory_space>, i32 to <#tptr.default_memory_space>
-// CHECK:             scf.yield [[VAR_7_1_]] : !ptr.ptr<#tptr.default_memory_space>
+// CHECK:             %[[MULI_2:.*]] = arith.muli %[[ARG2]], %[[TYPE_OFFSET_0]] : i32
+// CHECK:             %[[PTRADD_1:.*]] = tptr.ptradd %[[FROM_MEMREF_0]] %[[MULI_2]] : <#tptr.default_memory_space>, i32 to <#tptr.default_memory_space>
+// CHECK:             scf.yield %[[PTRADD_1]] : !ptr.ptr<#tptr.default_memory_space>
 // CHECK:           }
-// CHECK:           [[VAR_4_:%.+]] = tptr.to_memref [[VAR_3_]] : <#tptr.default_memory_space> to memref<1xf32>
-// CHECK-DAG:       [[VAR_reinterpret_cast_:%.+]] = memref.reinterpret_cast [[VAR_4_]] to offset: {{.}}[[CST_6_]]{{.}}, sizes: [4], strides: [1] : memref<1xf32> to memref<4xf32, strided<[1], offset: ?>>
-// CHECK-DAG:       [[RES_:%.+]] = memref.alloc() : memref<4xf32>
-// CHECK:           memref.copy [[VAR_reinterpret_cast_]], [[RES_]] : memref<4xf32, strided<[1], offset: ?>> to memref<4xf32>
-// CHECK-DAG:       [[VAR_5_:%.+]] = bufferization.to_tensor [[RES_]] restrict writable : memref<4xf32> to tensor<4xf32>
-// CHECK-DAG:       [[VAR_reinterpret_cast_0_:%.+]] = memref.reinterpret_cast [[PARAM_1_]] to offset: [0], sizes: [4], strides: [1] : memref<*xf32> to memref<4xf32, strided<[1]>>
-// CHECK:           bufferization.materialize_in_destination [[VAR_5_]] in writable [[VAR_reinterpret_cast_0_]] : (tensor<4xf32>, memref<4xf32, strided<[1]>>) -> ()
+// CHECK:           %[[TO_MEMREF_0:.*]] = tptr.to_memref %[[IF_0]] : <#tptr.default_memory_space> to memref<1xf32>
+// CHECK:           %[[REINTERPRET_CAST_0:.*]] = memref.reinterpret_cast %[[TO_MEMREF_0]] to offset: [6], sizes: [4], strides: [1] : memref<1xf32> to memref<4xf32, strided<[1], offset: 6>>
+// CHECK:           %[[ALLOC_0:.*]] = memref.alloc() : memref<4xf32>
+// CHECK:           memref.copy %[[REINTERPRET_CAST_0]], %[[ALLOC_0]] : memref<4xf32, strided<[1], offset: 6>> to memref<4xf32>
+// CHECK:           %[[TO_TENSOR_0:.*]] = bufferization.to_tensor %[[ALLOC_0]] restrict writable : memref<4xf32> to tensor<4xf32>
+// CHECK:           %[[REINTERPRET_CAST_1:.*]] = memref.reinterpret_cast %[[ARG1]] to offset: [0], sizes: [4], strides: [1] : memref<*xf32> to memref<4xf32, strided<[1]>>
+// CHECK:           bufferization.materialize_in_destination %[[TO_TENSOR_0]] in writable %[[REINTERPRET_CAST_1]] : (tensor<4xf32>, memref<4xf32, strided<[1]>>) -> ()
 // CHECK:           return
 // CHECK:         }

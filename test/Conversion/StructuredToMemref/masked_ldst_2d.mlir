@@ -7,8 +7,56 @@
 // For comprehensive guidelines, see:
 //   * https://mlir.llvm.org/getting_started/TestingGuide/
 
+
 // RUN: triton-shared-opt --split-input-file --triton-to-linalg-experimental %s | FileCheck %s
 module {
+// CHECK-LABEL:   func.func @kernel(
+// CHECK-SAME:                      %[[ARG0:[0-9]+|[a-zA-Z$._-][a-zA-Z0-9$._-]*]]: memref<*xbf16>,
+// CHECK-SAME:                      %[[ARG1:[0-9]+|[a-zA-Z$._-][a-zA-Z0-9$._-]*]]: memref<*xbf16>,
+// CHECK-SAME:                      %[[ARG2:[0-9]+|[a-zA-Z$._-][a-zA-Z0-9$._-]*]]: i32,
+// CHECK-SAME:                      %[[ARG3:[0-9]+|[a-zA-Z$._-][a-zA-Z0-9$._-]*]]: i32,
+// CHECK-SAME:                      %[[ARG4:[0-9]+|[a-zA-Z$._-][a-zA-Z0-9$._-]*]]: i32,
+// CHECK-SAME:                      %[[ARG5:[0-9]+|[a-zA-Z$._-][a-zA-Z0-9$._-]*]]: i32,
+// CHECK-SAME:                      %[[ARG6:[0-9]+|[a-zA-Z$._-][a-zA-Z0-9$._-]*]]: i32,
+// CHECK-SAME:                      %[[ARG7:[0-9]+|[a-zA-Z$._-][a-zA-Z0-9$._-]*]]: i32,
+// CHECK-SAME:                      %[[ARG8:[0-9]+|[a-zA-Z$._-][a-zA-Z0-9$._-]*]]: i32,
+// CHECK-SAME:                      %[[ARG9:[0-9]+|[a-zA-Z$._-][a-zA-Z0-9$._-]*]]: i32) {
+// CHECK:           %[[CONSTANT_0:.*]] = arith.constant 2 : index
+// CHECK:           %[[CONSTANT_1:.*]] = arith.constant 130 : index
+// CHECK:           %[[CONSTANT_2:.*]] = arith.constant 259 : index
+// CHECK:           %[[CONSTANT_3:.*]] = arith.constant 3 : index
+// CHECK:           %[[CONSTANT_4:.*]] = arith.constant 128 : index
+// CHECK:           %[[CONSTANT_5:.*]] = arith.constant 256 : index
+// CHECK:           %[[CONSTANT_6:.*]] = arith.constant 0xFF80 : bf16
+// CHECK:           %[[REINTERPRET_CAST_0:.*]] = memref.reinterpret_cast %[[ARG0]] to offset: [3074], sizes: [128, 256], strides: [1, 1024] : memref<*xbf16> to memref<128x256xbf16, strided<[1, 1024], offset: 3074>>
+// CHECK:           %[[REINTERPRET_CAST_1:.*]] = memref.reinterpret_cast %[[ARG1]] to offset: [3074], sizes: [128, 256], strides: [1, 1024] : memref<*xbf16> to memref<128x256xbf16, strided<[1, 1024], offset: 3074>>
+// CHECK:           %[[INDEX_CAST_0:.*]] = arith.index_cast %[[ARG2]] : i32 to index
+// CHECK:           %[[MINSI_0:.*]] = arith.minsi %[[INDEX_CAST_0]], %[[CONSTANT_1]] : index
+// CHECK:           %[[MAXSI_0:.*]] = arith.maxsi %[[MINSI_0]], %[[CONSTANT_0]] : index
+// CHECK:           %[[SUBI_0:.*]] = arith.subi %[[MAXSI_0]], %[[CONSTANT_0]] : index
+// CHECK:           %[[INDEX_CAST_1:.*]] = arith.index_cast %[[ARG3]] : i32 to index
+// CHECK:           %[[MINSI_1:.*]] = arith.minsi %[[INDEX_CAST_1]], %[[CONSTANT_2]] : index
+// CHECK:           %[[MAXSI_1:.*]] = arith.maxsi %[[MINSI_1]], %[[CONSTANT_3]] : index
+// CHECK:           %[[SUBI_1:.*]] = arith.subi %[[MAXSI_1]], %[[CONSTANT_3]] : index
+// CHECK:           %[[MINSI_2:.*]] = arith.minsi %[[SUBI_0]], %[[CONSTANT_4]] : index
+// CHECK:           %[[MINSI_3:.*]] = arith.minsi %[[SUBI_1]], %[[CONSTANT_5]] : index
+// CHECK:           %[[ALLOC_0:.*]] = memref.alloc() : memref<128x256xbf16>
+// CHECK:           %[[CMPI_0:.*]] = arith.cmpi slt, %[[MINSI_2]], %[[CONSTANT_4]] : index
+// CHECK:           %[[CMPI_1:.*]] = arith.cmpi slt, %[[MINSI_3]], %[[CONSTANT_5]] : index
+// CHECK:           %[[ORI_0:.*]] = arith.ori %[[CMPI_0]], %[[CMPI_1]] : i1
+// CHECK:           scf.if %[[ORI_0]] {
+// CHECK:             linalg.fill ins(%[[CONSTANT_6]] : bf16) outs(%[[ALLOC_0]] : memref<128x256xbf16>)
+// CHECK:           }
+// CHECK:           %[[SUBVIEW_0:.*]] = memref.subview %[[REINTERPRET_CAST_0]][0, 0] {{\[}}%[[MINSI_2]], %[[MINSI_3]]] [1, 1] : memref<128x256xbf16, strided<[1, 1024], offset: 3074>> to memref<?x?xbf16, strided<[1, 1024], offset: 3074>>
+// CHECK:           %[[SUBVIEW_1:.*]] = memref.subview %[[ALLOC_0]][0, 0] {{\[}}%[[MINSI_2]], %[[MINSI_3]]] [1, 1] : memref<128x256xbf16> to memref<?x?xbf16, strided<[256, 1]>>
+// CHECK:           memref.copy %[[SUBVIEW_0]], %[[SUBVIEW_1]] : memref<?x?xbf16, strided<[1, 1024], offset: 3074>> to memref<?x?xbf16, strided<[256, 1]>>
+// CHECK:           %[[TO_TENSOR_0:.*]] = bufferization.to_tensor %[[ALLOC_0]] restrict writable : memref<128x256xbf16> to tensor<128x256xbf16>
+// CHECK:           %[[EXTRACT_SLICE_0:.*]] = tensor.extract_slice %[[TO_TENSOR_0]][0, 0] {{\[}}%[[MINSI_2]], %[[MINSI_3]]] [1, 1] : tensor<128x256xbf16> to tensor<?x?xbf16>
+// CHECK:           %[[SUBVIEW_2:.*]] = memref.subview %[[REINTERPRET_CAST_1]][0, 0] {{\[}}%[[MINSI_2]], %[[MINSI_3]]] [1, 1] : memref<128x256xbf16, strided<[1, 1024], offset: 3074>> to memref<?x?xbf16, strided<[1, 1024], offset: 3074>>
+// CHECK:           %[[CAST_0:.*]] = memref.cast %[[SUBVIEW_2]] : memref<?x?xbf16, strided<[1, 1024], offset: 3074>> to memref<?x?xbf16, strided<[1, 1024], offset: ?>>
+// CHECK:           bufferization.materialize_in_destination %[[EXTRACT_SLICE_0]] in writable %[[CAST_0]] : (tensor<?x?xbf16>, memref<?x?xbf16, strided<[1, 1024], offset: ?>>) -> ()
+// CHECK:           return
+// CHECK:         }
   tt.func @kernel(
   %arg0 : !tt.ptr<bf16>,
   %arg1 : !tt.ptr<bf16>,
@@ -70,50 +118,3 @@ module {
     tt.return
   }
 }
-// CHECK-LABEL:   func.func @kernel(
-// CHECK-SAME:                      %[[ARG0:[0-9]+|[a-zA-Z$._-][a-zA-Z0-9$._-]*]]: memref<*xbf16>,
-// CHECK-SAME:                      %[[ARG1:[0-9]+|[a-zA-Z$._-][a-zA-Z0-9$._-]*]]: memref<*xbf16>,
-// CHECK-SAME:                      %[[ARG2:[0-9]+|[a-zA-Z$._-][a-zA-Z0-9$._-]*]]: i32,
-// CHECK-SAME:                      %[[ARG3:[0-9]+|[a-zA-Z$._-][a-zA-Z0-9$._-]*]]: i32,
-// CHECK-SAME:                      %[[ARG4:[0-9]+|[a-zA-Z$._-][a-zA-Z0-9$._-]*]]: i32,
-// CHECK-SAME:                      %[[ARG5:[0-9]+|[a-zA-Z$._-][a-zA-Z0-9$._-]*]]: i32,
-// CHECK-SAME:                      %[[ARG6:[0-9]+|[a-zA-Z$._-][a-zA-Z0-9$._-]*]]: i32,
-// CHECK-SAME:                      %[[ARG7:[0-9]+|[a-zA-Z$._-][a-zA-Z0-9$._-]*]]: i32,
-// CHECK-SAME:                      %[[ARG8:[0-9]+|[a-zA-Z$._-][a-zA-Z0-9$._-]*]]: i32,
-// CHECK-SAME:                      %[[ARG9:[0-9]+|[a-zA-Z$._-][a-zA-Z0-9$._-]*]]: i32) {
-// CHECK:           %[[CONSTANT_0:.*]] = arith.constant 2 : index
-// CHECK:           %[[CONSTANT_1:.*]] = arith.constant 130 : index
-// CHECK:           %[[CONSTANT_2:.*]] = arith.constant 259 : index
-// CHECK:           %[[CONSTANT_3:.*]] = arith.constant 3 : index
-// CHECK:           %[[CONSTANT_4:.*]] = arith.constant 128 : index
-// CHECK:           %[[CONSTANT_5:.*]] = arith.constant 256 : index
-// CHECK:           %[[CONSTANT_6:.*]] = arith.constant 0xFF80 : bf16
-// CHECK:           %[[REINTERPRET_CAST_0:.*]] = memref.reinterpret_cast %[[ARG0]] to offset: [3074], sizes: [128, 256], strides: [1, 1024] : memref<*xbf16> to memref<128x256xbf16, strided<[1, 1024], offset: 3074>>
-// CHECK:           %[[REINTERPRET_CAST_1:.*]] = memref.reinterpret_cast %[[ARG1]] to offset: [3074], sizes: [128, 256], strides: [1, 1024] : memref<*xbf16> to memref<128x256xbf16, strided<[1, 1024], offset: 3074>>
-// CHECK:           %[[INDEX_CAST_0:.*]] = arith.index_cast %[[ARG2]] : i32 to index
-// CHECK:           %[[MINSI_0:.*]] = arith.minsi %[[INDEX_CAST_0]], %[[CONSTANT_1]] : index
-// CHECK:           %[[MAXSI_0:.*]] = arith.maxsi %[[MINSI_0]], %[[CONSTANT_0]] : index
-// CHECK:           %[[SUBI_0:.*]] = arith.subi %[[MAXSI_0]], %[[CONSTANT_0]] : index
-// CHECK:           %[[INDEX_CAST_1:.*]] = arith.index_cast %[[ARG3]] : i32 to index
-// CHECK:           %[[MINSI_1:.*]] = arith.minsi %[[INDEX_CAST_1]], %[[CONSTANT_2]] : index
-// CHECK:           %[[MAXSI_1:.*]] = arith.maxsi %[[MINSI_1]], %[[CONSTANT_3]] : index
-// CHECK:           %[[SUBI_1:.*]] = arith.subi %[[MAXSI_1]], %[[CONSTANT_3]] : index
-// CHECK:           %[[MINSI_2:.*]] = arith.minsi %[[SUBI_0]], %[[CONSTANT_4]] : index
-// CHECK:           %[[MINSI_3:.*]] = arith.minsi %[[SUBI_1]], %[[CONSTANT_5]] : index
-// CHECK:           %[[ALLOC_0:.*]] = memref.alloc() : memref<128x256xbf16>
-// CHECK:           %[[CMPI_0:.*]] = arith.cmpi slt, %[[MINSI_2]], %[[CONSTANT_4]] : index
-// CHECK:           %[[CMPI_1:.*]] = arith.cmpi slt, %[[MINSI_3]], %[[CONSTANT_5]] : index
-// CHECK:           %[[ORI_0:.*]] = arith.ori %[[CMPI_0]], %[[CMPI_1]] : i1
-// CHECK:           scf.if %[[ORI_0]] {
-// CHECK:             linalg.fill ins(%[[CONSTANT_6]] : bf16) outs(%[[ALLOC_0]] : memref<128x256xbf16>)
-// CHECK:           }
-// CHECK:           %[[SUBVIEW_0:.*]] = memref.subview %[[REINTERPRET_CAST_0]][0, 0] {{\[}}%[[MINSI_2]], %[[MINSI_3]]] [1, 1] : memref<128x256xbf16, strided<[1, 1024], offset: 3074>> to memref<?x?xbf16, strided<[1, 1024], offset: 3074>>
-// CHECK:           %[[SUBVIEW_1:.*]] = memref.subview %[[ALLOC_0]][0, 0] {{\[}}%[[MINSI_2]], %[[MINSI_3]]] [1, 1] : memref<128x256xbf16> to memref<?x?xbf16, strided<[256, 1]>>
-// CHECK:           memref.copy %[[SUBVIEW_0]], %[[SUBVIEW_1]] : memref<?x?xbf16, strided<[1, 1024], offset: 3074>> to memref<?x?xbf16, strided<[256, 1]>>
-// CHECK:           %[[TO_TENSOR_0:.*]] = bufferization.to_tensor %[[ALLOC_0]] restrict writable : memref<128x256xbf16> to tensor<128x256xbf16>
-// CHECK:           %[[EXTRACT_SLICE_0:.*]] = tensor.extract_slice %[[TO_TENSOR_0]][0, 0] {{\[}}%[[MINSI_2]], %[[MINSI_3]]] [1, 1] : tensor<128x256xbf16> to tensor<?x?xbf16>
-// CHECK:           %[[SUBVIEW_2:.*]] = memref.subview %[[REINTERPRET_CAST_1]][0, 0] {{\[}}%[[MINSI_2]], %[[MINSI_3]]] [1, 1] : memref<128x256xbf16, strided<[1, 1024], offset: 3074>> to memref<?x?xbf16, strided<[1, 1024], offset: 3074>>
-// CHECK:           %[[CAST_0:.*]] = memref.cast %[[SUBVIEW_2]] : memref<?x?xbf16, strided<[1, 1024], offset: 3074>> to memref<?x?xbf16, strided<[1, 1024], offset: ?>>
-// CHECK:           bufferization.materialize_in_destination %[[EXTRACT_SLICE_0]] in writable %[[CAST_0]] : (tensor<?x?xbf16>, memref<?x?xbf16, strided<[1, 1024], offset: ?>>) -> ()
-// CHECK:           return
-// CHECK:         }
