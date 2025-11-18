@@ -1845,47 +1845,205 @@ template <typename CmpOp>
 struct MinMaxConverter : public OpRewritePattern<CmpOp> {
   using OpRewritePattern<CmpOp>::OpRewritePattern;
 
+  template <typename T> static T getOnlyUserOfType(Value val) {
+    if (!val || !val.hasOneUse()) {
+      return nullptr;
+    }
+    return dyn_cast<T>(*val.getUsers().begin());
+  }
+
+  // Only handle the Cmp + OrIOp + Select pattern here.
+  static arith::SelectOp findSelectThroughOr(Value cond) {
+    if (auto ori = getOnlyUserOfType<arith::OrIOp>(cond)) {
+      return getOnlyUserOfType<arith::SelectOp>(ori.getResult());
+    }
+    return nullptr;
+  }
+
   MinMaxConverter(MLIRContext *context)
       : OpRewritePattern<CmpOp>(context, /*benefit=*/10) {}
+  
+  /// Helper that maps a floating-point compare predicate to the
+  /// corresponding min/max operation. THis is parametrized by
+  /// whether we want NaN-aware operations (MaximumFOp/MinimumFOp) or
+  /// numeric operations (MaxNumFOp/MinNumFOp).
+  LogicalResult foldCmpToMinMax(PatternRewriter &rewriter, Location loc,
+                                Value lhs, Value rhs, arith::CmpFPredicate pred,
+                                bool useNaNOps, Value &result) const {
+    switch (pred) {
+    case arith::CmpFPredicate::OGT:
+    case arith::CmpFPredicate::OGE:
+      if (useNaNOps) {
+        result = rewriter.create<arith::MaximumFOp>(loc, lhs, rhs).getResult();
+      } else {
+        result = rewriter.create<arith::MaxNumFOp>(loc, lhs, rhs).getResult();
+      }
+      return success();
+    case arith::CmpFPredicate::OLT:
+    case arith::CmpFPredicate::OLE:
+      if (useNaNOps) {
+        result = rewriter.create<arith::MinimumFOp>(loc, lhs, rhs).getResult();
+      } else {
+        result = rewriter.create<arith::MinNumFOp>(loc, lhs, rhs).getResult();
+      }
+      return success();
+    default:
+      return failure();
+    }
+  }
 
   LogicalResult matchAndRewrite(CmpOp cmpOp,
                                 PatternRewriter &rewriter) const final {
-    if (!cmpOp.getResult().hasOneUse()) {
+    Value result = cmpOp.getResult();
+    if (!result.hasOneUse()) {
       return failure();
     }
-    auto selectOp =
-        dyn_cast<arith::SelectOp>(*cmpOp.getResult().getUsers().begin());
+
+    // 1. Simple pattern: cmpf + select.
+    if (auto selectOp = dyn_cast<arith::SelectOp>(*result.getUsers().begin())) {
+      if (!(result == selectOp.getCondition() &&
+            (cmpOp.getLhs() == selectOp.getTrueValue() &&
+             cmpOp.getRhs() == selectOp.getFalseValue()))) {
+        return failure();
+      }
+
+      rewriteOpWithMinMax(rewriter, cmpOp, selectOp, cmpOp.getPredicate());
+      rewriter.eraseOp(cmpOp);
+      return success();
+    }
+
+    // 2. NaN-aware pattern: cmpf + or + select.
+    auto selectOp = findSelectThroughOr(result);
     if (!selectOp) {
       return failure();
     }
 
-    if (!(cmpOp.getResult() == selectOp.getCondition() &&
-          cmpOp.getLhs() == selectOp.getTrueValue() &&
-          cmpOp.getRhs() == selectOp.getFalseValue())) {
+    if (failed(foldCmpSelectToMinMax(rewriter, selectOp))) {
+      return failure();
+    }
+    return success();
+  }
+
+  /// foldCmpSelectToMinMax performs an optimization pattern that matches
+  /// 'arith.select' operations based on a floating-point comparison
+  /// and rewrites them into equivalent numeric min/max operations.
+  ///
+  /// This pattern handles the following cases:
+  ///
+  /// 1. ** Simple Min/Max Reduction **
+  ///    - select (cmpf ogt a, b), a, b --> arith.maxnumf(a, b)
+  ///    - select (cmpf olt a, b), a, b --> arith.minnumf(a, b)
+  ///
+  /// 2. ** NaN-Aware Min/Max Reduction **
+  ///    - select (cmpf ogt a, b) || cmpf une a, a), a, b --> arith.maximumf(a,
+  ///    b)
+  ///    - select (cmpf olt a, b) || cmpf une a, a), a, b --> arith.minimumf(a,
+  ///    b)
+  ///
+  /// These transformations not only improve IR canonicalization but also
+  /// allow the successful lowering of tt.reduce operations to linalg
+  /// operations, which is already supported in the triton-shared dialect
+  /// conversion pipeline.
+
+  LogicalResult foldCmpSelectToMinMax(PatternRewriter &rewriter,
+                                      arith::SelectOp sel) const {
+
+    if (!isa<FloatType>(sel.getType())) {
       return failure();
     }
 
-    rewriteOpWithMinMax(rewriter, cmpOp, selectOp, cmpOp.getPredicate());
-    rewriter.eraseOp(cmpOp);
+    Operation *condOp = sel.getCondition().getDefiningOp();
+    if (!condOp) {
+      return failure();
+    }
 
-    return success();
+    Value trueVal = sel.getTrueValue();
+    Value falseVal = sel.getFalseValue();
+
+    // Case 1: Simple Min/Max Reduction (numeric min/max).
+    if (auto cmp = dyn_cast<arith::CmpFOp>(condOp)) {
+
+      if (cmp.getLhs() == trueVal && cmp.getRhs() == falseVal) {
+        auto pred = cmp.getPredicate();
+        // Only fold OGT/OLT predicates.
+        if (pred == arith::CmpFPredicate::OGT ||
+            pred == arith::CmpFPredicate::OLT) {
+          rewriter.setInsertionPoint(sel);
+          Value foldedResult;
+          if (failed(foldCmpToMinMax(rewriter, sel.getLoc(), trueVal, falseVal,
+                                     pred, /*useNaNOps=*/false,
+                                     foldedResult))) {
+            return failure();
+          }
+          rewriter.replaceOp(sel, foldedResult);
+          return success();
+        }
+      }
+    }
+
+    // Case 2: NaN-Aware Min/Max Reduction.
+    if (auto ori = dyn_cast<arith::OrIOp>(condOp)) {
+      // Extract both sides of the OR condition.
+      auto cmp1 = ori.getLhs().getDefiningOp<arith::CmpFOp>();
+      auto cmp2 = ori.getRhs().getDefiningOp<arith::CmpFOp>();
+      if (!cmp1 || !cmp2)
+        return failure();
+
+      // Helper lambdas to identify comparison patterns.
+      auto isOGT = [&](arith::CmpFOp cmp) {
+        return cmp.getPredicate() == arith::CmpFPredicate::OGT &&
+               trueVal == cmp.getLhs() && falseVal == cmp.getRhs();
+      };
+      auto isOLT = [&](arith::CmpFOp cmp) {
+        return cmp.getPredicate() == arith::CmpFPredicate::OLT &&
+               trueVal == cmp.getLhs() && falseVal == cmp.getRhs();
+      };
+      auto isNaN = [&](arith::CmpFOp cmp) {
+        return cmp.getPredicate() == arith::CmpFPredicate::UNE &&
+               trueVal == cmp.getLhs() && trueVal == cmp.getRhs();
+      };
+
+      // Match: select ((ogt(a, b) || une(a, a)), a, b) -> arith.maximumf(a, b).
+      if ((isOGT(cmp1) && isNaN(cmp2)) || (isOGT(cmp2) && isNaN(cmp1))) {
+        rewriter.setInsertionPoint(sel);
+        Value foldedResult;
+        if (failed(foldCmpToMinMax(rewriter, sel.getLoc(), trueVal, falseVal,
+                                   arith::CmpFPredicate::OGT,
+                                   /*useNaNOps=*/true, foldedResult))) {
+          return failure();
+        }
+        rewriter.replaceOp(sel, foldedResult);
+        return success();
+      }
+
+      // Match: select ((olt(a, b) || une(a, a)), a, b) -> arith.minimumf(a, b).
+      if ((isOLT(cmp1) && isNaN(cmp2)) || (isOLT(cmp2) && isNaN(cmp1))) {
+        rewriter.setInsertionPoint(sel);
+        Value foldedResult;
+        if (failed(foldCmpToMinMax(rewriter, sel.getLoc(), trueVal, falseVal,
+                                   arith::CmpFPredicate::OLT,
+                                   /*useNaNOps=*/true, foldedResult))) {
+          return failure();
+        }
+        rewriter.replaceOp(sel, foldedResult);
+        return success();
+      }
+    }
+    return failure();
   }
 
   void rewriteOpWithMinMax(PatternRewriter &rewriter, arith::CmpFOp cmpOp,
                            arith::SelectOp selectOp,
                            arith::CmpFPredicate pred) const {
-    switch (pred) {
-    case arith::CmpFPredicate::OGT:
-    case arith::CmpFPredicate::OGE:
-      rewriter.replaceOpWithNewOp<arith::MaximumFOp>(selectOp, cmpOp.getLhs(),
-                                                     cmpOp.getRhs());
-      break;
-    case arith::CmpFPredicate::OLT:
-    case arith::CmpFPredicate::OLE:
-      rewriter.replaceOpWithNewOp<arith::MinimumFOp>(selectOp, cmpOp.getLhs(),
-                                                     cmpOp.getRhs());
-      break;
-    default:
+    Value foldedResult;
+    // For the generic cmp+select pattern, we use the NaN-aware ops
+    // (arith::MaximumFOp/arith::MinimumFOp) to preserve semantics in the
+    // presence of NaN values.
+    if (succeeded(foldCmpToMinMax(rewriter, selectOp.getLoc(), cmpOp.getLhs(),
+                                  cmpOp.getRhs(), pred, /*useNaNOps=*/true,
+                                  foldedResult))) {
+      rewriter.replaceOp(selectOp, foldedResult);
+    } else {
       llvm_unreachable("Unhandled predicate");
     }
   }
