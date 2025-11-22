@@ -59,7 +59,7 @@ Value ofrToValue(const OpFoldResult ofr, const Location loc, OpBuilder &b) {
 
   auto attr = dyn_cast<Attribute>(ofr);
   auto typedAttr = dyn_cast<TypedAttr>(attr);
-  return b.create<arith::ConstantOp>(loc, typedAttr);
+  return arith::ConstantOp::create(b, loc, typedAttr);
 }
 
 Value ofrToIndexValue(const OpFoldResult ofr, const Location loc,
@@ -67,14 +67,14 @@ Value ofrToIndexValue(const OpFoldResult ofr, const Location loc,
   if (Value val = dyn_cast<Value>(ofr)) {
     assert(val.getType().isIntOrIndex());
     if (!val.getType().isIndex()) {
-      val = b.create<arith::IndexCastOp>(loc, b.getIndexType(), val);
+      val = arith::IndexCastOp::create(b, loc, b.getIndexType(), val);
     }
     return val;
   }
 
   auto intVal = getIntAttr(ofr);
   if (intVal.has_value()) {
-    return b.create<arith::ConstantOp>(loc, b.getIndexAttr(intVal.value()));
+    return arith::ConstantOp::create(b, loc, b.getIndexAttr(intVal.value()));
   }
   llvm_unreachable("Unexpected OpFoldResult state");
   return nullptr;
@@ -93,14 +93,14 @@ Value indexTypeCast(Value v, Type targetTy, const Location loc, OpBuilder &b) {
   if (isa<IndexType>(targetTy) || isa<IndexType>(ty)) {
     assert((isa<IntegerType>(targetTy) || isa<IntegerType>(ty)) &&
            "Only cast between index type and integer type");
-    return b.create<arith::IndexCastOp>(loc, targetTy, v).getResult();
+    return arith::IndexCastOp::create(b, loc, targetTy, v).getResult();
   } else {
     auto targetIntTy = cast<IntegerType>(targetTy);
     auto intTy = cast<IntegerType>(ty);
     if (targetIntTy.getWidth() > intTy.getWidth())
-      return b.create<arith::ExtSIOp>(loc, targetTy, v).getResult();
+      return arith::ExtSIOp::create(b, loc, targetTy, v).getResult();
     else
-      return b.create<arith::TruncIOp>(loc, targetTy, v).getResult();
+      return arith::TruncIOp::create(b, loc, targetTy, v).getResult();
   }
 }
 
@@ -114,8 +114,8 @@ OpFoldResult expandOFRIndex(OpFoldResult ofr, OpFoldResult targetForTy,
 
   Value v = dyn_cast<Value>(ofr);
   if (!v)
-    v = b.create<arith::ConstantOp>(loc,
-                                    cast<IntegerAttr>(cast<Attribute>(ofr)));
+    v = arith::ConstantOp::create(b, loc,
+                                  cast<IntegerAttr>(cast<Attribute>(ofr)));
 
   Type ty = v.getType();
   if (targetTy == ty)
@@ -127,7 +127,7 @@ OpFoldResult expandOFRIndex(OpFoldResult ofr, OpFoldResult targetForTy,
     // cast to target element type first.
     if (targetEltTy != ty)
       v = indexTypeCast(v, targetEltTy, loc, b);
-    return b.create<triton::SplatOp>(loc, targetTy, v).getResult();
+    return triton::SplatOp::create(b, loc, targetTy, v).getResult();
   } else if (targetShapedTy && shapedTy) {
     Type targetEltTy = targetShapedTy.getElementType();
     Type eltTy = shapedTy.getElementType();
@@ -148,26 +148,26 @@ OpFoldResult expandOFRIndex(OpFoldResult ofr, OpFoldResult targetForTy,
       SmallVector<Value> shapeValues;
       for (auto dim : targetShapedTy.getShape()) {
         shapeValues.push_back(
-            b.create<arith::ConstantOp>(loc, b.getIndexAttr(dim)));
+            arith::ConstantOp::create(b, loc, b.getIndexAttr(dim)));
       }
       RankedTensorType targetShapeTensorTy = RankedTensorType::get(
           targetShapedTy.getShape().size(), b.getIndexType());
-      auto shapeTensor = b.create<tensor::FromElementsOp>(
-          loc, targetShapeTensorTy, shapeValues);
-      return b.create<triton::ReshapeOp>(loc, targetTy, v, shapeTensor)
+      auto shapeTensor = tensor::FromElementsOp::create(
+          b, loc, targetShapeTensorTy, shapeValues);
+      return triton::ReshapeOp::create(b, loc, targetTy, v, shapeTensor)
           .getResult();
     }
     if (isa<IndexType>(targetEltTy) || isa<IndexType>(eltTy)) {
       assert((isa<IntegerType>(targetEltTy) || isa<IntegerType>(eltTy)) &&
              "Only cast between index type and integer type");
-      return b.create<arith::IndexCastOp>(loc, targetTy, v).getResult();
+      return arith::IndexCastOp::create(b, loc, targetTy, v).getResult();
     } else {
       auto targetIntTy = cast<IntegerType>(targetEltTy);
       auto intTy = cast<IntegerType>(eltTy);
       if (targetIntTy.getWidth() > intTy.getWidth())
-        return b.create<arith::ExtSIOp>(loc, targetTy, v).getResult();
+        return arith::ExtSIOp::create(b, loc, targetTy, v).getResult();
       else
-        return b.create<arith::TruncIOp>(loc, targetTy, v).getResult();
+        return arith::TruncIOp::create(b, loc, targetTy, v).getResult();
     }
   } else {
     assert(!shapedTy && "src type rank should be >= target type rank");
@@ -194,18 +194,18 @@ OpFoldResult addOFRs(const OpFoldResult lhs, const OpFoldResult rhs,
   auto lhsValue = dyn_cast<Value>(lhs);
   if (lhsIntAttr) {
     auto lhsOp =
-        b.create<arith::ConstantOp>(loc, b.getIndexAttr(lhsIntAttr.value()));
+        arith::ConstantOp::create(b, loc, b.getIndexAttr(lhsIntAttr.value()));
     lhsValue = lhsOp.getResult();
   }
 
   auto rhsValue = dyn_cast<Value>(rhs);
   if (rhsIntAttr) {
     auto rhsOp =
-        b.create<arith::ConstantOp>(loc, b.getIndexAttr(rhsIntAttr.value()));
+        arith::ConstantOp::create(b, loc, b.getIndexAttr(rhsIntAttr.value()));
     rhsValue = rhsOp.getResult();
   }
 
-  return b.create<arith::AddIOp>(loc, lhsValue, rhsValue).getResult();
+  return arith::AddIOp::create(b, loc, lhsValue, rhsValue).getResult();
 }
 
 OpFoldResult subOFRs(const OpFoldResult lhs, const OpFoldResult rhs,
@@ -225,18 +225,18 @@ OpFoldResult subOFRs(const OpFoldResult lhs, const OpFoldResult rhs,
   auto lhsValue = dyn_cast<Value>(lhs);
   if (lhsIntAttr) {
     auto lhsOp =
-        b.create<arith::ConstantOp>(loc, b.getIndexAttr(lhsIntAttr.value()));
+        arith::ConstantOp::create(b, loc, b.getIndexAttr(lhsIntAttr.value()));
     lhsValue = lhsOp.getResult();
   }
 
   auto rhsValue = dyn_cast<Value>(rhs);
   if (rhsIntAttr) {
     auto rhsOp =
-        b.create<arith::ConstantOp>(loc, b.getIndexAttr(rhsIntAttr.value()));
+        arith::ConstantOp::create(b, loc, b.getIndexAttr(rhsIntAttr.value()));
     rhsValue = rhsOp.getResult();
   }
 
-  auto sumOp = b.create<arith::SubIOp>(loc, lhsValue, rhsValue);
+  auto sumOp = arith::SubIOp::create(b, loc, lhsValue, rhsValue);
   return sumOp.getResult();
 }
 
@@ -280,17 +280,17 @@ OpFoldResult mulOFRs(const OpFoldResult lhs, const OpFoldResult rhs,
   // otherwise, need to create instructions to calculate new attribute value
   if (lhsIntAttr) {
     auto lhsOp =
-        b.create<arith::ConstantOp>(loc, b.getIndexAttr(lhsIntAttr.value()));
+        arith::ConstantOp::create(b, loc, b.getIndexAttr(lhsIntAttr.value()));
     lhsValue = lhsOp.getResult();
   }
 
   if (rhsIntAttr) {
     auto rhsOp =
-        b.create<arith::ConstantOp>(loc, b.getIndexAttr(rhsIntAttr.value()));
+        arith::ConstantOp::create(b, loc, b.getIndexAttr(rhsIntAttr.value()));
     rhsValue = rhsOp.getResult();
   }
 
-  return b.create<arith::MulIOp>(loc, lhsValue, rhsValue).getResult();
+  return arith::MulIOp::create(b, loc, lhsValue, rhsValue).getResult();
 }
 
 OpFoldResult minOFRs(const OpFoldResult lhs, const OpFoldResult rhs,
@@ -306,18 +306,18 @@ OpFoldResult minOFRs(const OpFoldResult lhs, const OpFoldResult rhs,
   auto lhsValue = dyn_cast<Value>(lhs);
   if (lhsIntAttr) {
     auto lhsOp =
-        b.create<arith::ConstantOp>(loc, b.getIndexAttr(lhsIntAttr.value()));
+        arith::ConstantOp::create(b, loc, b.getIndexAttr(lhsIntAttr.value()));
     lhsValue = lhsOp.getResult();
   }
 
   auto rhsValue = dyn_cast<Value>(rhs);
   if (rhsIntAttr) {
     auto rhsOp =
-        b.create<arith::ConstantOp>(loc, b.getIndexAttr(rhsIntAttr.value()));
+        arith::ConstantOp::create(b, loc, b.getIndexAttr(rhsIntAttr.value()));
     rhsValue = rhsOp.getResult();
   }
 
-  auto minOp = b.create<arith::MinSIOp>(loc, lhsValue, rhsValue);
+  auto minOp = arith::MinSIOp::create(b, loc, lhsValue, rhsValue);
   return minOp.getResult();
 }
 
@@ -334,18 +334,18 @@ OpFoldResult maxOFRs(const OpFoldResult lhs, const OpFoldResult rhs,
   auto lhsValue = dyn_cast<Value>(lhs);
   if (lhsIntAttr) {
     auto lhsOp =
-        b.create<arith::ConstantOp>(loc, b.getIndexAttr(lhsIntAttr.value()));
+        arith::ConstantOp::create(b, loc, b.getIndexAttr(lhsIntAttr.value()));
     lhsValue = lhsOp.getResult();
   }
 
   auto rhsValue = dyn_cast<Value>(rhs);
   if (rhsIntAttr) {
     auto rhsOp =
-        b.create<arith::ConstantOp>(loc, b.getIndexAttr(rhsIntAttr.value()));
+        arith::ConstantOp::create(b, loc, b.getIndexAttr(rhsIntAttr.value()));
     rhsValue = rhsOp.getResult();
   }
 
-  auto maxOp = b.create<arith::MaxSIOp>(loc, lhsValue, rhsValue);
+  auto maxOp = arith::MaxSIOp::create(b, loc, lhsValue, rhsValue);
   return maxOp.getResult();
 }
 
@@ -359,7 +359,7 @@ OpFoldResult selectOFRs(const OpFoldResult condOFR, const OpFoldResult trueOFR,
          "Condition for selectOp must be a bool type");
 
   auto selectOp =
-      b.create<arith::SelectOp>(loc, condValue, trueValue, falseValue);
+      arith::SelectOp::create(b, loc, condValue, trueValue, falseValue);
   return selectOp.getResult();
 }
 
@@ -398,7 +398,7 @@ OpFoldResult compareOFRs(const OpFoldResult lhs, const OpFoldResult rhs,
   auto lhsValue = ofrToIndexValue(lhs, loc, b);
   auto rhsValue = ofrToIndexValue(rhs, loc, b);
 
-  auto cmpOp = b.create<arith::CmpIOp>(loc, pred, lhsValue, rhsValue);
+  auto cmpOp = arith::CmpIOp::create(b, loc, pred, lhsValue, rhsValue);
   return selectOFRs(cmpOp.getResult(), trueOFR, falseOFR, loc, b);
 }
 

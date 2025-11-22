@@ -1,8 +1,9 @@
 import hashlib
 import tempfile
-import sysconfig
 
-import os, subprocess, tempfile, platform
+import os
+import subprocess
+import platform
 import importlib.util
 import sys
 
@@ -63,7 +64,18 @@ def _ty_to_cpp(ty):
         "fp64": "double",
     }[ty]
 
+def _flatten_signature(sig, output):
+    # Flatten tuples
+    if isinstance(sig, tuple):
+        for x in sig:
+            _flatten_signature(x, output)
+    else:
+        output.append(sig)
+
 def _extracted_type(ty):
+    if isinstance(ty, tuple):
+        val = ','.join(map(_extracted_type, ty))
+        return f"[{val}]"
     if ty[0] == '*':
         return "PyObject*"
     if ty == "constexpr":
@@ -71,6 +83,15 @@ def _extracted_type(ty):
     return _ty_to_cpp(ty)
 
 def _format_of(ty):
+    if isinstance(ty, tuple):
+        val = ''.join(map(_format_of, ty))
+        return f"({val})"
+    if ty[0] == '*':
+        return "O"
+    if ty == "constexpr":
+        return "O"
+    if ty.startswith("tensordesc"):
+        return "O"
     return {
       "PyObject*": "O",
       "constexpr": "O",
@@ -85,15 +106,20 @@ def _format_of(ty):
       "uint16_t": "H",
       "uint32_t": "I",
       "uint64_t": "K",
-    }[ty]
+    }[_ty_to_cpp(ty)]
 
 def _generate_launcher(constants, signature, kernel_name):
-    arg_decls = ', '.join(f"{_ty_to_cpp(ty)} arg{i}" for i, ty in signature.items())
-    args_format = ''.join([_format_of(_extracted_type(ty)) for ty in signature.values()])
+    args_format = ''.join([_format_of(ty) for ty in signature.values()])
     format = "iiiOOOO" + args_format
+
+    flat_signature = []
+    for sig in signature.values():
+        _flatten_signature(sig, flat_signature)
+    signature = {i: s for i, s in enumerate(flat_signature)}
+    arg_decls = ', '.join(f"{_ty_to_cpp(ty)} arg{i}" for i, ty in signature.items())
     args_list = ', ' + ', '.join(f"&_arg{i}" for i, ty in signature.items()) if len(signature) > 0 else ''
 
-    kernel_arg_decls = ', '.join(_ty_to_cpp(ty) if ty[0] != "*" else f"int64_t, void*" for i, ty in signature.items() if ty != "constexpr")
+    kernel_arg_decls = ', '.join(_ty_to_cpp(ty) if ty[0] != "*" else "int64_t, void*" for i, ty in signature.items() if ty != "constexpr")
     kernel_arg_decls += ', ' if kernel_arg_decls else ''
 
     kernel_parameters = ', '.join(f"static_cast<{_ty_to_cpp(ty)}>(arg{i})" if ty[0] != "*" else f"0, &ptr_arg{i}" for i, ty in signature.items() if ty != "constexpr")
@@ -327,7 +353,7 @@ def compile_module(launcher_src, kernel_placeholder_name):
                           libomp_path = next(Path(Path(_get_llvm_bin_path("")).parent).rglob("libomp.so"), None)
 
                           if not libomp_path:
-                              raise Exception(f"libomp.so does not exist.")
+                              raise Exception("libomp.so does not exist.")
 
                           libomp_path = str(libomp_path.parent)
 
@@ -364,7 +390,8 @@ class CPULauncher(object):
         kernel_placeholder_name = "KERNEL_NAME_PLACEHOLDER"
 
         constants = src.constants if hasattr(src, "constants") else dict()
-        cst_key = lambda i: src.fn.arg_names.index(i) if isinstance(i, str) else i
+        def cst_key(i):
+            return src.fn.arg_names.index(i) if isinstance(i, str) else i
         constants = {cst_key(key): value for key, value in constants.items()}
         signature = {cst_key(key): value for key, value in src.signature.items()}
         launcher_src = _generate_launcher(constants, signature, kernel_placeholder_name)

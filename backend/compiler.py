@@ -64,6 +64,7 @@ def _ttir_to_ttsharedir(mod):
             subprocess_args.insert(2, "--add-llvm-debug-info")
 
         subprocess.check_call(subprocess_args)
+        _dump_ir_if_needed([dst_path])
         return Path(dst_path).read_text()
 
 
@@ -113,6 +114,7 @@ def _ttsharedir_to_llir(ttsharedir: str):
             "--mlir-print-debuginfo",
             "-o",
             llmlir_path])
+        _dump_ir_if_needed([llmlir_path])
 
         # LLVM-MLIR to LLVM-IR
         mlir_translate_path = _get_llvm_bin_path("mlir-translate")
@@ -120,7 +122,7 @@ def _ttsharedir_to_llir(ttsharedir: str):
             "--mlir-to-llvmir",
             "-o",
             llir_path])
-        _dump_ir_if_needed([ttshared_path, llmlir_path, llir_path])
+        _dump_ir_if_needed([llir_path])
         return Path(llir_path).read_text()
 
 
@@ -151,7 +153,7 @@ def _llir_to_bin(llir: str, metadata):
             sanitizer_attributes_pass_path = str(next(Path(top_level_triton_path).rglob("libSanitizerAttributes.so"), None))
 
             if not sanitizer_attributes_pass_path:
-                raise Exception(f"libSanitizerAttributes.so does not exist.")
+                raise Exception("libSanitizerAttributes.so does not exist.")
 
             subprocess.check_call([opt_path, "-load-pass-plugin", sanitizer_attributes_pass_path, 
                 "-passes=sanitizer-attributes", f"-sanitizer-type={sanitizer_type}", "-S", src_path, 
@@ -194,6 +196,7 @@ class CPUOptions:
     allow_fp8e4nv: bool = False
     allowed_dot_input_precisions: Tuple[str] = ("ieee", )
     sanitize_overflow: bool = True
+    instrumentation_mode: str = ""
 
     def __post_init__(self):
         pass
@@ -256,7 +259,7 @@ class CPUBackend(BaseBackend):
         passes.common.add_symbol_dce(pm)
         passes.ttir.add_loop_unroll(pm)
         passes.common.add_cse(pm)
-        pm.run(mod)
+        pm.run(mod, 'make_ttir')
         return mod
 
     def add_stages(self, stages, options, language):
