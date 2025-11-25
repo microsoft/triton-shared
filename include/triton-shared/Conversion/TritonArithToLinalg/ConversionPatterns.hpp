@@ -1968,6 +1968,7 @@ struct MinMaxConverter : public OpRewritePattern<CmpOp> {
         // Only fold OGT/OLT predicates.
         if (pred == arith::CmpFPredicate::OGT ||
             pred == arith::CmpFPredicate::OLT) {
+          PatternRewriter::InsertionGuard guard(rewriter);
           rewriter.setInsertionPoint(sel);
           Value foldedResult;
           FailureOr<Value> foldResult =
@@ -2006,6 +2007,7 @@ struct MinMaxConverter : public OpRewritePattern<CmpOp> {
 
       // Match: select ((ogt(a, b) || une(a, a)), a, b) -> arith.maximumf(a, b).
       if ((isOGT(cmp1) && isNaN(cmp2)) || (isOGT(cmp2) && isNaN(cmp1))) {
+        PatternRewriter::InsertionGuard guard(rewriter);
         rewriter.setInsertionPoint(sel);
         FailureOr<Value> foldResult =
             foldCmpToMinMax(rewriter, sel.getLoc(), trueVal, falseVal,
@@ -2020,6 +2022,7 @@ struct MinMaxConverter : public OpRewritePattern<CmpOp> {
 
       // Match: select ((olt(a, b) || une(a, a)), a, b) -> arith.minimumf(a, b).
       if ((isOLT(cmp1) && isNaN(cmp2)) || (isOLT(cmp2) && isNaN(cmp1))) {
+        PatternRewriter::InsertionGuard guard(rewriter);
         rewriter.setInsertionPoint(sel);
         FailureOr<Value> foldResult =
             foldCmpToMinMax(rewriter, sel.getLoc(), trueVal, falseVal,
