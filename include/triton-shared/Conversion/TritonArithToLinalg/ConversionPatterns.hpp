@@ -1862,31 +1862,31 @@ struct MinMaxConverter : public OpRewritePattern<CmpOp> {
 
   MinMaxConverter(MLIRContext *context)
       : OpRewritePattern<CmpOp>(context, /*benefit=*/10) {}
-  
+
   /// Helper that maps a floating-point compare predicate to the
   /// corresponding min/max operation. THis is parametrized by
   /// whether we want NaN-aware operations (MaximumFOp/MinimumFOp) or
   /// numeric operations (MaxNumFOp/MinNumFOp).
-  LogicalResult foldCmpToMinMax(PatternRewriter &rewriter, Location loc,
-                                Value lhs, Value rhs, arith::CmpFPredicate pred,
-                                bool useNaNOps, Value &result) const {
+  FailureOr<Value> foldCmpToMinMax(PatternRewriter &rewriter, Location loc,
+                                   Value lhs, Value rhs,
+                                   arith::CmpFPredicate pred,
+                                   bool useNaNOps) const {
     switch (pred) {
     case arith::CmpFPredicate::OGT:
     case arith::CmpFPredicate::OGE:
       if (useNaNOps) {
-        result = rewriter.create<arith::MaximumFOp>(loc, lhs, rhs).getResult();
+        return rewriter.create<arith::MaximumFOp>(loc, lhs, rhs).getResult();
       } else {
-        result = rewriter.create<arith::MaxNumFOp>(loc, lhs, rhs).getResult();
+        return rewriter.create<arith::MaxNumFOp>(loc, lhs, rhs).getResult();
       }
       return success();
     case arith::CmpFPredicate::OLT:
     case arith::CmpFPredicate::OLE:
       if (useNaNOps) {
-        result = rewriter.create<arith::MinimumFOp>(loc, lhs, rhs).getResult();
+        return rewriter.create<arith::MinimumFOp>(loc, lhs, rhs).getResult();
       } else {
-        result = rewriter.create<arith::MinNumFOp>(loc, lhs, rhs).getResult();
+        return rewriter.create<arith::MinNumFOp>(loc, lhs, rhs).getResult();
       }
-      return success();
     default:
       return failure();
     }
@@ -1970,12 +1970,13 @@ struct MinMaxConverter : public OpRewritePattern<CmpOp> {
             pred == arith::CmpFPredicate::OLT) {
           rewriter.setInsertionPoint(sel);
           Value foldedResult;
-          if (failed(foldCmpToMinMax(rewriter, sel.getLoc(), trueVal, falseVal,
-                                     pred, /*useNaNOps=*/false,
-                                     foldedResult))) {
+          FailureOr<Value> foldResult =
+              foldCmpToMinMax(rewriter, sel.getLoc(), trueVal, falseVal, pred,
+                              /*useNaNOps=*/false);
+          if (failed(foldResult)) {
             return failure();
           }
-          rewriter.replaceOp(sel, foldedResult);
+          rewriter.replaceOp(sel, *foldResult);
           return success();
         }
       }
@@ -2006,26 +2007,28 @@ struct MinMaxConverter : public OpRewritePattern<CmpOp> {
       // Match: select ((ogt(a, b) || une(a, a)), a, b) -> arith.maximumf(a, b).
       if ((isOGT(cmp1) && isNaN(cmp2)) || (isOGT(cmp2) && isNaN(cmp1))) {
         rewriter.setInsertionPoint(sel);
-        Value foldedResult;
-        if (failed(foldCmpToMinMax(rewriter, sel.getLoc(), trueVal, falseVal,
-                                   arith::CmpFPredicate::OGT,
-                                   /*useNaNOps=*/true, foldedResult))) {
+        FailureOr<Value> foldResult =
+            foldCmpToMinMax(rewriter, sel.getLoc(), trueVal, falseVal,
+                            arith::CmpFPredicate::OGT,
+                            /*useNaNOps=*/true);
+        if (failed(foldResult)) {
           return failure();
         }
-        rewriter.replaceOp(sel, foldedResult);
+        rewriter.replaceOp(sel, *foldResult);
         return success();
       }
 
       // Match: select ((olt(a, b) || une(a, a)), a, b) -> arith.minimumf(a, b).
       if ((isOLT(cmp1) && isNaN(cmp2)) || (isOLT(cmp2) && isNaN(cmp1))) {
         rewriter.setInsertionPoint(sel);
-        Value foldedResult;
-        if (failed(foldCmpToMinMax(rewriter, sel.getLoc(), trueVal, falseVal,
-                                   arith::CmpFPredicate::OLT,
-                                   /*useNaNOps=*/true, foldedResult))) {
+        FailureOr<Value> foldResult =
+            foldCmpToMinMax(rewriter, sel.getLoc(), trueVal, falseVal,
+                            arith::CmpFPredicate::OLT,
+                            /*useNaNOps=*/true);
+        if (failed(foldResult)) {
           return failure();
         }
-        rewriter.replaceOp(sel, foldedResult);
+        rewriter.replaceOp(sel, *foldResult);
         return success();
       }
     }
@@ -2035,17 +2038,13 @@ struct MinMaxConverter : public OpRewritePattern<CmpOp> {
   void rewriteOpWithMinMax(PatternRewriter &rewriter, arith::CmpFOp cmpOp,
                            arith::SelectOp selectOp,
                            arith::CmpFPredicate pred) const {
-    Value foldedResult;
-    // For the generic cmp+select pattern, we use the NaN-aware ops
-    // (arith::MaximumFOp/arith::MinimumFOp) to preserve semantics in the
-    // presence of NaN values.
-    if (succeeded(foldCmpToMinMax(rewriter, selectOp.getLoc(), cmpOp.getLhs(),
-                                  cmpOp.getRhs(), pred, /*useNaNOps=*/true,
-                                  foldedResult))) {
-      rewriter.replaceOp(selectOp, foldedResult);
-    } else {
+    FailureOr<Value> foldedResult =
+        foldCmpToMinMax(rewriter, selectOp.getLoc(), cmpOp.getLhs(),
+                        cmpOp.getRhs(), pred, /*useNaNOps=*/true);
+    if (failed(foldedResult)) {
       llvm_unreachable("Unhandled predicate");
     }
+    rewriter.replaceOp(selectOp, *foldedResult);
   }
 
   void rewriteOpWithMinMax(PatternRewriter &rewriter, arith::CmpIOp cmpOp,
