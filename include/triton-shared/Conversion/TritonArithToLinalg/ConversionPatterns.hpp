@@ -1928,13 +1928,9 @@ struct MinMaxConverter : public OpRewritePattern<CmpOp> {
   /// 'arith.select' operations based on a floating-point comparison
   /// and rewrites them into equivalent numeric min/max operations.
   ///
-  /// This pattern handles the following cases:
+  /// This pattern handles the following case:
   ///
-  /// 1. ** Simple Min/Max Reduction **
-  ///    - select (cmpf ogt a, b), a, b --> arith.maxnumf(a, b)
-  ///    - select (cmpf olt a, b), a, b --> arith.minnumf(a, b)
-  ///
-  /// 2. ** NaN-Aware Min/Max Reduction **
+  /// ** NaN-Aware Min/Max Reduction **
   ///    - select (cmpf ogt a, b) || cmpf une a, a), a, b --> arith.maximumf(a,
   ///    b)
   ///    - select (cmpf olt a, b) || cmpf une a, a), a, b --> arith.minimumf(a,
@@ -1960,80 +1956,56 @@ struct MinMaxConverter : public OpRewritePattern<CmpOp> {
     Value trueVal = sel.getTrueValue();
     Value falseVal = sel.getFalseValue();
 
-    // Case 1: Simple Min/Max Reduction (numeric min/max).
-    if (auto cmp = dyn_cast<arith::CmpFOp>(condOp)) {
+    // NaN-Aware Min/Max Reduction.
+    auto ori = dyn_cast<arith::OrIOp>(condOp);
+    if (!ori)
+      return failure();
+    // Extract both sides of the OR condition.
+    auto cmp1 = ori.getLhs().getDefiningOp<arith::CmpFOp>();
+    auto cmp2 = ori.getRhs().getDefiningOp<arith::CmpFOp>();
+    if (!cmp1 || !cmp2)
+      return failure();
 
-      if (cmp.getLhs() == trueVal && cmp.getRhs() == falseVal) {
-        auto pred = cmp.getPredicate();
-        // Only fold OGT/OLT predicates.
-        if (pred == arith::CmpFPredicate::OGT ||
-            pred == arith::CmpFPredicate::OLT) {
-          PatternRewriter::InsertionGuard guard(rewriter);
-          rewriter.setInsertionPoint(sel);
-          Value foldedResult;
-          FailureOr<Value> foldResult =
-              foldCmpToMinMax(rewriter, sel.getLoc(), trueVal, falseVal, pred,
-                              /*useNaNOps=*/false);
-          if (failed(foldResult)) {
-            return failure();
-          }
-          rewriter.replaceOp(sel, *foldResult);
-          return success();
-        }
+    // Helper lambdas to identify comparison patterns.
+    auto isOGT = [&](arith::CmpFOp cmp) {
+      return cmp.getPredicate() == arith::CmpFPredicate::OGT &&
+             trueVal == cmp.getLhs() && falseVal == cmp.getRhs();
+    };
+    auto isOLT = [&](arith::CmpFOp cmp) {
+      return cmp.getPredicate() == arith::CmpFPredicate::OLT &&
+             trueVal == cmp.getLhs() && falseVal == cmp.getRhs();
+    };
+    auto isNaN = [&](arith::CmpFOp cmp) {
+      return cmp.getPredicate() == arith::CmpFPredicate::UNE &&
+             trueVal == cmp.getLhs() && trueVal == cmp.getRhs();
+    };
+
+    // Match: select ((ogt(a, b) || une(a, a)), a, b) -> arith.maximumf(a, b).
+    if ((isOGT(cmp1) && isNaN(cmp2)) || (isOGT(cmp2) && isNaN(cmp1))) {
+      PatternRewriter::InsertionGuard guard(rewriter);
+      rewriter.setInsertionPoint(sel);
+      FailureOr<Value> foldResult = foldCmpToMinMax(
+          rewriter, sel.getLoc(), trueVal, falseVal, arith::CmpFPredicate::OGT,
+          /*useNaNOps=*/true);
+      if (failed(foldResult)) {
+        return failure();
       }
+      rewriter.replaceOp(sel, *foldResult);
+      return success();
     }
 
-    // Case 2: NaN-Aware Min/Max Reduction.
-    if (auto ori = dyn_cast<arith::OrIOp>(condOp)) {
-      // Extract both sides of the OR condition.
-      auto cmp1 = ori.getLhs().getDefiningOp<arith::CmpFOp>();
-      auto cmp2 = ori.getRhs().getDefiningOp<arith::CmpFOp>();
-      if (!cmp1 || !cmp2)
+    // Match: select ((olt(a, b) || une(a, a)), a, b) -> arith.minimumf(a, b).
+    if ((isOLT(cmp1) && isNaN(cmp2)) || (isOLT(cmp2) && isNaN(cmp1))) {
+      PatternRewriter::InsertionGuard guard(rewriter);
+      rewriter.setInsertionPoint(sel);
+      FailureOr<Value> foldResult = foldCmpToMinMax(
+          rewriter, sel.getLoc(), trueVal, falseVal, arith::CmpFPredicate::OLT,
+          /*useNaNOps=*/true);
+      if (failed(foldResult)) {
         return failure();
-
-      // Helper lambdas to identify comparison patterns.
-      auto isOGT = [&](arith::CmpFOp cmp) {
-        return cmp.getPredicate() == arith::CmpFPredicate::OGT &&
-               trueVal == cmp.getLhs() && falseVal == cmp.getRhs();
-      };
-      auto isOLT = [&](arith::CmpFOp cmp) {
-        return cmp.getPredicate() == arith::CmpFPredicate::OLT &&
-               trueVal == cmp.getLhs() && falseVal == cmp.getRhs();
-      };
-      auto isNaN = [&](arith::CmpFOp cmp) {
-        return cmp.getPredicate() == arith::CmpFPredicate::UNE &&
-               trueVal == cmp.getLhs() && trueVal == cmp.getRhs();
-      };
-
-      // Match: select ((ogt(a, b) || une(a, a)), a, b) -> arith.maximumf(a, b).
-      if ((isOGT(cmp1) && isNaN(cmp2)) || (isOGT(cmp2) && isNaN(cmp1))) {
-        PatternRewriter::InsertionGuard guard(rewriter);
-        rewriter.setInsertionPoint(sel);
-        FailureOr<Value> foldResult =
-            foldCmpToMinMax(rewriter, sel.getLoc(), trueVal, falseVal,
-                            arith::CmpFPredicate::OGT,
-                            /*useNaNOps=*/true);
-        if (failed(foldResult)) {
-          return failure();
-        }
-        rewriter.replaceOp(sel, *foldResult);
-        return success();
       }
-
-      // Match: select ((olt(a, b) || une(a, a)), a, b) -> arith.minimumf(a, b).
-      if ((isOLT(cmp1) && isNaN(cmp2)) || (isOLT(cmp2) && isNaN(cmp1))) {
-        PatternRewriter::InsertionGuard guard(rewriter);
-        rewriter.setInsertionPoint(sel);
-        FailureOr<Value> foldResult =
-            foldCmpToMinMax(rewriter, sel.getLoc(), trueVal, falseVal,
-                            arith::CmpFPredicate::OLT,
-                            /*useNaNOps=*/true);
-        if (failed(foldResult)) {
-          return failure();
-        }
-        rewriter.replaceOp(sel, *foldResult);
-        return success();
-      }
+      rewriter.replaceOp(sel, *foldResult);
+      return success();
     }
     return failure();
   }
