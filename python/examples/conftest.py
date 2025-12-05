@@ -88,6 +88,7 @@ core_tests_supported = {
     "test_trans_4d",
     "test_unsplat",
     "test_arange",
+    "test_gather",
 }
 
 annotations_tests_supported = {

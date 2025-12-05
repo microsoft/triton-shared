@@ -68,6 +68,7 @@ void mlir::triton::populateTritonToLinalgConversionPatterns(
   patterns.add<UnrealizedCastConverter>(patterns.getContext());
   patterns.add<CumSumConverter>(patterns.getContext());
   patterns.add<ReshapeConverter>(patterns.getContext());
+  patterns.add<GatherConverter>(patterns.getContext());
 
   populateExternElementwiseOpToMLIROps(patterns);
 
