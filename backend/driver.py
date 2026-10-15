@@ -1,5 +1,11 @@
+import atexit
 import hashlib
+import multiprocessing.util
+import re
+import shutil
+import stat
 import tempfile
+import threading
 import sysconfig
 
 import os, subprocess, tempfile, platform
@@ -8,7 +14,6 @@ import sys
 
 from pathlib import Path
 
-from triton.runtime.cache import get_cache_manager
 from triton.backends.driver import DriverBase
 from triton.backends.compiler import GPUTarget
 
@@ -246,16 +251,55 @@ PyMODINIT_FUNC PyInit___triton_shared_ref_cpu_kernel_launcher(void) {{
 """
 
 
+# A disk-cached launcher could be replaced by another cache writer. Only reuse
+# modules built and loaded in this process, never launcher files from that cache.
+# Each new process recompiles on first use; later launches reuse these modules.
+_launcher_modules = {}
+_launcher_modules_lock = threading.Lock()
+
+
+def _reset_launcher_cache_lock():
+    global _launcher_modules_lock
+    # A forked child must not inherit a lock held by a vanished thread.
+    _launcher_modules_lock = threading.Lock()
+
+
+if hasattr(os, "register_at_fork"):
+    os.register_at_fork(after_in_child=_reset_launcher_cache_lock)
+
+
+def _cleanup_launcher_directory(directory, owner_pid):
+    # Forked children must not remove the parent's private libraries.
+    if os.getpid() != owner_pid:
+        return
+    try:
+        shutil.rmtree(directory)
+    except FileNotFoundError:
+        pass
+
+
+def _make_launcher_artifact_read_only(path):
+    fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+    try:
+        info = os.fstat(fd)
+        if not stat.S_ISREG(info.st_mode) or info.st_uid != os.geteuid():
+            raise RuntimeError(
+                f"Launcher artifact must be a regular file owned by the current user: {path}"
+            )
+        os.fchmod(fd, stat.S_IRUSR)
+        if stat.S_IMODE(os.fstat(fd).st_mode) != stat.S_IRUSR:
+            raise RuntimeError(f"Could not make launcher artifact owner-read-only: {path}")
+    finally:
+        os.close(fd)
+
+
 def compile_module(launcher_src, kernel_placeholder_name):
-    py_version = sys.version_info
     if platform.system() == "Windows":
-        py_include_dir = os.path.join(sys.base_prefix, 'include')
-        py_lib_dir = os.path.join(sys.base_prefix, 'libs')
-        py_lib = '{name}{major}{minor}.lib'.format(name="python", major=py_version.major, minor=py_version.minor)
-    else:
-        py_include_dir = os.path.join(sys.base_prefix, 'include', f'python{sys.version_info.major}.{sys.version_info.minor}')
-        py_lib_dir = os.path.join(sys.base_prefix, 'lib')
-        py_lib = '{name}{major}.{minor}'.format(name="python", major=py_version.major, minor=py_version.minor)
+        raise RuntimeError("The reference CPU backend does not support Windows.")
+    py_version = sys.version_info
+    py_include_dir = os.path.join(sys.base_prefix, 'include', f'python{sys.version_info.major}.{sys.version_info.minor}')
+    py_lib_dir = os.path.join(sys.base_prefix, 'lib')
+    py_lib = '{name}{major}.{minor}'.format(name="python", major=py_version.major, minor=py_version.minor)
     cpu_backend_path = Path(__file__).resolve().parent
     include_dir = os.path.join(cpu_backend_path, "include")
 
@@ -264,92 +308,89 @@ def compile_module(launcher_src, kernel_placeholder_name):
         kernel_metadata, launch_metadata,
         launch_enter_hook, launch_exit_hook, *args):
         # Unlike CUDA/HIP, we cannot easily pass function pointer across different pybind libraries.
-        # Let's compile one kernel every time.
+        # Compile and load a launcher on its first use in this process.
         # The cu_function parameter actually contains our kernel obj.
         # See CPUUtils.load_binary method.
         kernel_obj = cu_function
         kernel_name = kernel_metadata[6] # see pack_metadata in compiler.py
+        # Only allow identifier characters so the name cannot inject C++ code.
+        if (
+            not isinstance(kernel_name, str)
+            or re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", kernel_name) is None
+        ):
+            raise ValueError("Kernel name must be a non-empty ASCII identifier")
         src = launcher_src.replace(kernel_placeholder_name, kernel_name)
 
         key = hashlib.sha256(src.encode("utf-8") + kernel_obj).hexdigest()
-        cache = get_cache_manager(key)
+        cache_key = (os.getpid(), key)
         name = "__triton_shared_ref_cpu_kernel_launcher"
 
-        if platform.system() == "Windows":
-          filename = f"{name}.pyd"
-        else:
-          filename = f"{name}.so"
-        cache_path = cache.get_file(filename)
+        # Lock the whole cache operation so each entry is initialized only once.
+        with _launcher_modules_lock:
+            mod = _launcher_modules.get(cache_key)
+            if mod is None:
+                # Keep private build files until exit for native loading and sanitizer
+                # diagnostics. Incoming kernel object bytes remain trusted inputs.
+                tmpdir = tempfile.mkdtemp(prefix="triton-shared-launcher-")
+                atexit.register(_cleanup_launcher_directory, tmpdir, cache_key[0])
+                multiprocessing.util.Finalize(
+                    None, _cleanup_launcher_directory, args=(tmpdir, cache_key[0]), exitpriority=10
+                )
+                sanitizer_type = _get_sanitizer_type()
 
-        if cache_path is None:
-          with tempfile.TemporaryDirectory() as tmpdir:
-              sanitizer_type = _get_sanitizer_type()
+                obj_path = os.path.join(tmpdir, "kernel.o")
+                launcher_src_path = os.path.join(tmpdir, "main.cxx")
+                so_path = os.path.join(tmpdir, "kernel.so")
+                Path(obj_path).write_bytes(kernel_obj)
+                Path(launcher_src_path).write_text(src)
 
-              if platform.system() == "Windows":
-                  if sanitizer_type != "":
-                      raise Exception("Sanitizers are not supported on Windows with triton-shared.")
+                # Compile it together.
+                if sanitizer_type != "":
+                    clang_path = _get_llvm_bin_path("clang++")
 
-                  obj_path = os.path.join(tmpdir, "kernel.obj")
-                  launcher_src_path = os.path.join(tmpdir, "main.cxx")
-                  so_path = os.path.join(tmpdir, "kernel.pyd")
-                  Path(obj_path).write_bytes(kernel_obj)
-                  Path(launcher_src_path).write_text(src)
-                  # Compile it together.
-                  subprocess.check_call([
-                    "cl", "/LD", "/std:c++17", launcher_src_path, obj_path,
-                    f"-I{py_include_dir}", f"-I{include_dir}", "/link", f"/LIBPATH:{py_lib_dir}",
-                    "/link", f"{py_lib}", f"/OUT:{so_path}"
-                  ])
-              else:
-                  obj_path = os.path.join(tmpdir, "kernel.o")
-                  launcher_src_path = os.path.join(tmpdir, "main.cxx")
-                  so_path = os.path.join(tmpdir, "kernel.so")
-                  Path(obj_path).write_bytes(kernel_obj)
-                  Path(launcher_src_path).write_text(src)
-
-                  # Compile it together.
-                  if sanitizer_type != "":
-                      clang_path = _get_llvm_bin_path("clang++")
-
-                      subprocess_args = [
-                          clang_path, "-std=c++17", launcher_src_path, obj_path,
-                          f"-I{py_include_dir}", f"-I{include_dir}", f"-L{py_lib_dir}",
-                          "-shared", f"-l{py_lib}", "-fPIC", "-o", so_path
-                      ]
-
-                      if not _sanitizer_available(sanitizer_type):
-                          raise Exception(f"Use LD_PRELOAD=\"path/to/libclang_rt.{sanitizer_type}.so\" TRITON_SHARED_SANITIZER_TYPE={sanitizer_type} python ...")
-
-                      if sanitizer_type == "asan":
-                          subprocess_args.extend(["-g", "-fsanitize=address", "-mllvm", "-asan-stack=0"])
-                      elif sanitizer_type == "tsan":
-                          # ensure that openmp is available
-                          libomp_path = next(Path(Path(_get_llvm_bin_path("")).parent).rglob("libomp.so"), None)
-
-                          if not libomp_path:
-                              raise Exception(f"libomp.so does not exist.")
-
-                          libomp_path = str(libomp_path.parent)
-
-                          subprocess_args.extend(["-g", "-fsanitize=thread", "-fopenmp", f"-Wl,-rpath,{libomp_path}"])
-                      
-                      subprocess.check_call(subprocess_args)
-                  else:
-                      subprocess.check_call([
-                        "g++", "-std=c++17", launcher_src_path, obj_path,
+                    subprocess_args = [
+                        clang_path, "-std=c++17", launcher_src_path, obj_path,
                         f"-I{py_include_dir}", f"-I{include_dir}", f"-L{py_lib_dir}",
                         "-shared", f"-l{py_lib}", "-fPIC", "-o", so_path
-                      ])
+                    ]
 
-              with open(so_path, "rb") as f:
-                cache_path = cache.put(f.read(), filename, binary=True)
+                    if not _sanitizer_available(sanitizer_type):
+                        raise Exception(f"Use LD_PRELOAD=\"path/to/libclang_rt.{sanitizer_type}.so\" TRITON_SHARED_SANITIZER_TYPE={sanitizer_type} python ...")
 
-        # Load and launch the compiled kernel.
-        spec = importlib.util.spec_from_file_location(name, cache_path)
-        if spec is None:
-            raise RuntimeError(f"Cannot find {name} module in {cache_path}")
-        mod = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(mod)
+                    if sanitizer_type == "asan":
+                        subprocess_args.extend(["-g", "-fsanitize=address", "-mllvm", "-asan-stack=0"])
+                    elif sanitizer_type == "tsan":
+                        # ensure that openmp is available
+                        libomp_path = next(Path(Path(_get_llvm_bin_path("")).parent).rglob("libomp.so"), None)
+
+                        if not libomp_path:
+                            raise Exception(f"libomp.so does not exist.")
+
+                        libomp_path = str(libomp_path.parent)
+
+                        subprocess_args.extend(["-g", "-fsanitize=thread", "-fopenmp", f"-Wl,-rpath,{libomp_path}"])
+
+                    subprocess.check_call(subprocess_args)
+                else:
+                    subprocess.check_call([
+                      "g++", "-std=c++17", launcher_src_path, obj_path,
+                      f"-I{py_include_dir}", f"-I{include_dir}", f"-L{py_lib_dir}",
+                      "-shared", f"-l{py_lib}", "-fPIC", "-o", so_path
+                    ])
+
+                # The directory stays owner-only (0700); completed files become
+                # owner-read-only (0400) before any native code is loaded.
+                for path in (obj_path, launcher_src_path, so_path):
+                    _make_launcher_artifact_read_only(path)
+
+                # Load only the library just compiled in this private directory.
+                spec = importlib.util.spec_from_file_location(name, so_path)
+                if spec is None:
+                    raise RuntimeError(f"Cannot find {name} module in {so_path}")
+                mod = importlib.util.module_from_spec(spec)
+                spec.loader.exec_module(mod)
+                _launcher_modules[cache_key] = mod
+
         return mod.launch(gridX, gridY, gridZ,
                           kernel_metadata, launch_metadata,
                           launch_enter_hook, launch_exit_hook,
@@ -389,9 +430,8 @@ class CPUUtils(object):
     # (see third_party/nvidia/backend/driver.c)
     # These methods are then used in compiler.py to initialize handles before running
     # the triton kernels.
-    # Since we recompile the kernel every time (see compile_module above),
-    # and the metadata generated by these functions aren't applicable to the cpu
-    # backend, just define the same functions with dummy implementation.
+    # The metadata generated by these functions isn't applicable to the CPU
+    # backend, so define the same functions with dummy implementations.
     @staticmethod
     def get_device_properties(device):
         return {
@@ -404,8 +444,7 @@ class CPUUtils(object):
 
     # Important note:
     # Since we cannot easy pass function pointers around, we pass along the
-    # obj of the kernel so that compile_module above can recompile the
-    # module every time.
+    # obj of the kernel so compile_module can build and load its launcher.
     @staticmethod
     def load_binary(name, kernel_obj, shared, device):
         return (
