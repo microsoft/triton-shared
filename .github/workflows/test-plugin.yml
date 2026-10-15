@@ -4,6 +4,7 @@ on:
   workflow_call:
     inputs:
       triton-ref:
+        description: Optional Triton branch, tag, or commit.
         required: false
         type: string
       triton-shared-ref:
@@ -15,6 +16,7 @@ on:
   workflow_dispatch:
     inputs:
       triton-ref:
+        description: Optional Triton branch, tag, or commit.
         required: false
         type: string
       triton-shared-ref:
@@ -37,6 +39,7 @@ jobs:
     - name: Checkout Triton-Shared
       uses: actions/checkout@v4
       with:
+        persist-credentials: false
         ref: ${{ inputs.triton-shared-ref }}
         path: triton_shared
 
@@ -45,14 +48,28 @@ jobs:
         git clone https://github.com/triton-lang/triton.git triton
         cd triton
         HASH="$(cat ../triton_shared/triton-hash.txt)"
+        if [[ ! "${HASH}" =~ ^[0-9a-fA-F]{40}$ ]]; then
+          echo "::error::triton-hash.txt must contain a full 40-character hexadecimal commit hash"
+          exit 1
+        fi
         echo "Checking out Triton commit: ${HASH}"
-        git checkout "${HASH}"
+        git checkout --detach "${HASH}" --
 
     - name: Checkout triton at ${{ inputs.triton-ref }}
       if: ${{ inputs.triton-ref }}
       working-directory: triton
+      env:
+        TRITON_REF_UNTRUSTED: ${{ inputs.triton-ref }}
       run: |
-        git checkout ${{ inputs.triton-ref }}
+        if ! HASH="$(git rev-parse --verify --quiet --end-of-options "${TRITON_REF_UNTRUSTED}^{commit}")"; then
+          # Non-default branches may only exist as remote-tracking refs.
+          HASH="$(git rev-parse --verify --end-of-options "refs/remotes/origin/${TRITON_REF_UNTRUSTED}^{commit}")"
+        fi
+        if [[ ! "${HASH}" =~ ^[0-9a-fA-F]{40}$ ]]; then
+          echo "::error::Expected a full Triton commit hash"
+          exit 1
+        fi
+        git checkout --detach "${HASH}" --
         git log -1
 
     - name: Clear Triton Cache
@@ -82,7 +99,7 @@ jobs:
     - name: Run shared middle-layer lit tests
       working-directory: triton
       run: |
-        python3 -m pip install lit
+        python3 -m pip install "lit<23"
         LIT_TEST_DIR="build/$(ls build | grep -i cmake)/third_party/triton_shared/test"
         if [ ! -d "${LIT_TEST_DIR}" ]; then
           echo "Could not find '${LIT_TEST_DIR}'" ; exit -1
@@ -121,6 +138,7 @@ jobs:
     - name: Checkout Triton-Shared
       uses: actions/checkout@v4
       with:
+        persist-credentials: false
         ref: ${{ inputs.triton-shared-ref }}
         path: triton_shared
     
@@ -129,8 +147,12 @@ jobs:
         git clone https://github.com/triton-lang/triton.git triton
         cd triton
         HASH="$(cat ../triton_shared/triton-hash.txt)"
+        if [[ ! "${HASH}" =~ ^[0-9a-fA-F]{40}$ ]]; then
+          echo "::error::triton-hash.txt must contain a full 40-character hexadecimal commit hash"
+          exit 1
+        fi
         echo "Checking out Triton commit: ${HASH}"
-        git checkout "${HASH}"
+        git checkout --detach "${HASH}" --
 
     - name: Clear Triton Cache
       run: |
@@ -163,7 +185,7 @@ jobs:
     - name: Run shared middle-layer lit tests
       working-directory: triton
       run: |
-        python3 -m pip install lit
+        python3 -m pip install "lit<23"
         LIT_TEST_DIR="build/$(ls build | grep -i cmake)/third_party/triton_shared/test"
         if [ ! -d "${LIT_TEST_DIR}" ]; then
           echo "Coult not find '${LIT_TEST_DIR}'" ; exit -1
