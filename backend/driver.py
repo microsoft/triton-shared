@@ -1,5 +1,6 @@
 import atexit
 import hashlib
+import multiprocessing.util
 import re
 import shutil
 import stat
@@ -318,6 +319,9 @@ def compile_module(launcher_src, kernel_placeholder_name):
             # diagnostics. Incoming kernel object bytes remain trusted inputs.
             tmpdir = tempfile.mkdtemp(prefix="triton-shared-launcher-")
             atexit.register(_cleanup_launcher_directory, tmpdir, cache_key[0])
+            multiprocessing.util.Finalize(
+                None, _cleanup_launcher_directory, args=(tmpdir, cache_key[0]), exitpriority=10
+            )
             sanitizer_type = _get_sanitizer_type()
 
             obj_path = os.path.join(tmpdir, "kernel.o")
