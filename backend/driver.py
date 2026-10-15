@@ -5,6 +5,7 @@ import re
 import shutil
 import stat
 import tempfile
+import threading
 import sysconfig
 
 import os, subprocess, tempfile, platform
@@ -254,6 +255,17 @@ PyMODINIT_FUNC PyInit___triton_shared_ref_cpu_kernel_launcher(void) {{
 # modules built and loaded in this process, never launcher files from that cache.
 # Each new process recompiles on first use; later launches reuse these modules.
 _launcher_modules = {}
+_launcher_modules_lock = threading.Lock()
+
+
+def _reset_launcher_cache_lock():
+    global _launcher_modules_lock
+    # A forked child must not inherit a lock held by a vanished thread.
+    _launcher_modules_lock = threading.Lock()
+
+
+if hasattr(os, "register_at_fork"):
+    os.register_at_fork(after_in_child=_reset_launcher_cache_lock)
 
 
 def _cleanup_launcher_directory(directory, owner_pid):
@@ -312,70 +324,72 @@ def compile_module(launcher_src, kernel_placeholder_name):
         key = hashlib.sha256(src.encode("utf-8") + kernel_obj).hexdigest()
         cache_key = (os.getpid(), key)
         name = "__triton_shared_ref_cpu_kernel_launcher"
-        mod = _launcher_modules.get(cache_key)
 
-        if mod is None:
-            # Keep private build files until exit for native loading and sanitizer
-            # diagnostics. Incoming kernel object bytes remain trusted inputs.
-            tmpdir = tempfile.mkdtemp(prefix="triton-shared-launcher-")
-            atexit.register(_cleanup_launcher_directory, tmpdir, cache_key[0])
-            multiprocessing.util.Finalize(
-                None, _cleanup_launcher_directory, args=(tmpdir, cache_key[0]), exitpriority=10
-            )
-            sanitizer_type = _get_sanitizer_type()
+        # Lock the whole cache operation so each entry is initialized only once.
+        with _launcher_modules_lock:
+            mod = _launcher_modules.get(cache_key)
+            if mod is None:
+                # Keep private build files until exit for native loading and sanitizer
+                # diagnostics. Incoming kernel object bytes remain trusted inputs.
+                tmpdir = tempfile.mkdtemp(prefix="triton-shared-launcher-")
+                atexit.register(_cleanup_launcher_directory, tmpdir, cache_key[0])
+                multiprocessing.util.Finalize(
+                    None, _cleanup_launcher_directory, args=(tmpdir, cache_key[0]), exitpriority=10
+                )
+                sanitizer_type = _get_sanitizer_type()
 
-            obj_path = os.path.join(tmpdir, "kernel.o")
-            launcher_src_path = os.path.join(tmpdir, "main.cxx")
-            so_path = os.path.join(tmpdir, "kernel.so")
-            Path(obj_path).write_bytes(kernel_obj)
-            Path(launcher_src_path).write_text(src)
+                obj_path = os.path.join(tmpdir, "kernel.o")
+                launcher_src_path = os.path.join(tmpdir, "main.cxx")
+                so_path = os.path.join(tmpdir, "kernel.so")
+                Path(obj_path).write_bytes(kernel_obj)
+                Path(launcher_src_path).write_text(src)
 
-            # Compile it together.
-            if sanitizer_type != "":
-                clang_path = _get_llvm_bin_path("clang++")
+                # Compile it together.
+                if sanitizer_type != "":
+                    clang_path = _get_llvm_bin_path("clang++")
 
-                subprocess_args = [
-                    clang_path, "-std=c++17", launcher_src_path, obj_path,
-                    f"-I{py_include_dir}", f"-I{include_dir}", f"-L{py_lib_dir}",
-                    "-shared", f"-l{py_lib}", "-fPIC", "-o", so_path
-                ]
+                    subprocess_args = [
+                        clang_path, "-std=c++17", launcher_src_path, obj_path,
+                        f"-I{py_include_dir}", f"-I{include_dir}", f"-L{py_lib_dir}",
+                        "-shared", f"-l{py_lib}", "-fPIC", "-o", so_path
+                    ]
 
-                if not _sanitizer_available(sanitizer_type):
-                    raise Exception(f"Use LD_PRELOAD=\"path/to/libclang_rt.{sanitizer_type}.so\" TRITON_SHARED_SANITIZER_TYPE={sanitizer_type} python ...")
+                    if not _sanitizer_available(sanitizer_type):
+                        raise Exception(f"Use LD_PRELOAD=\"path/to/libclang_rt.{sanitizer_type}.so\" TRITON_SHARED_SANITIZER_TYPE={sanitizer_type} python ...")
 
-                if sanitizer_type == "asan":
-                    subprocess_args.extend(["-g", "-fsanitize=address", "-mllvm", "-asan-stack=0"])
-                elif sanitizer_type == "tsan":
-                    # ensure that openmp is available
-                    libomp_path = next(Path(Path(_get_llvm_bin_path("")).parent).rglob("libomp.so"), None)
+                    if sanitizer_type == "asan":
+                        subprocess_args.extend(["-g", "-fsanitize=address", "-mllvm", "-asan-stack=0"])
+                    elif sanitizer_type == "tsan":
+                        # ensure that openmp is available
+                        libomp_path = next(Path(Path(_get_llvm_bin_path("")).parent).rglob("libomp.so"), None)
 
-                    if not libomp_path:
-                        raise Exception(f"libomp.so does not exist.")
+                        if not libomp_path:
+                            raise Exception(f"libomp.so does not exist.")
 
-                    libomp_path = str(libomp_path.parent)
+                        libomp_path = str(libomp_path.parent)
 
-                    subprocess_args.extend(["-g", "-fsanitize=thread", "-fopenmp", f"-Wl,-rpath,{libomp_path}"])
+                        subprocess_args.extend(["-g", "-fsanitize=thread", "-fopenmp", f"-Wl,-rpath,{libomp_path}"])
 
-                subprocess.check_call(subprocess_args)
-            else:
-                subprocess.check_call([
-                  "g++", "-std=c++17", launcher_src_path, obj_path,
-                  f"-I{py_include_dir}", f"-I{include_dir}", f"-L{py_lib_dir}",
-                  "-shared", f"-l{py_lib}", "-fPIC", "-o", so_path
-                ])
+                    subprocess.check_call(subprocess_args)
+                else:
+                    subprocess.check_call([
+                      "g++", "-std=c++17", launcher_src_path, obj_path,
+                      f"-I{py_include_dir}", f"-I{include_dir}", f"-L{py_lib_dir}",
+                      "-shared", f"-l{py_lib}", "-fPIC", "-o", so_path
+                    ])
 
-            # The directory stays owner-only (0700); completed files become
-            # owner-read-only (0400) before any native code is loaded.
-            for path in (obj_path, launcher_src_path, so_path):
-                _make_launcher_artifact_read_only(path)
+                # The directory stays owner-only (0700); completed files become
+                # owner-read-only (0400) before any native code is loaded.
+                for path in (obj_path, launcher_src_path, so_path):
+                    _make_launcher_artifact_read_only(path)
 
-            # Load only the library just compiled in this private directory.
-            spec = importlib.util.spec_from_file_location(name, so_path)
-            if spec is None:
-                raise RuntimeError(f"Cannot find {name} module in {so_path}")
-            mod = importlib.util.module_from_spec(spec)
-            spec.loader.exec_module(mod)
-            _launcher_modules[cache_key] = mod
+                # Load only the library just compiled in this private directory.
+                spec = importlib.util.spec_from_file_location(name, so_path)
+                if spec is None:
+                    raise RuntimeError(f"Cannot find {name} module in {so_path}")
+                mod = importlib.util.module_from_spec(spec)
+                spec.loader.exec_module(mod)
+                _launcher_modules[cache_key] = mod
 
         return mod.launch(gridX, gridY, gridZ,
                           kernel_metadata, launch_metadata,
