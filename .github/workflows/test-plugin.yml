@@ -39,6 +39,7 @@ jobs:
     - name: Checkout Triton-Shared
       uses: actions/checkout@v4
       with:
+        persist-credentials: false
         ref: ${{ inputs.triton-shared-ref }}
         path: triton_shared
 
@@ -137,6 +138,7 @@ jobs:
     - name: Checkout Triton-Shared
       uses: actions/checkout@v4
       with:
+        persist-credentials: false
         ref: ${{ inputs.triton-shared-ref }}
         path: triton_shared
     
